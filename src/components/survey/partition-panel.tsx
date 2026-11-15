@@ -3,8 +3,9 @@
 import { DownloadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { formatDms, toDms } from "@/core/survey/angles";
-import { area } from "@/core/survey/geometry";
+import { area, selfIntersections } from "@/core/survey/geometry";
 import { lotName, type Lot } from "@/core/survey/document";
+import { cell } from "@/core/survey/export/schedule";
 import { arpClassic, hectares } from "@/core/survey/formats";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { partitionLot, UDA_MINIMUMS } from "@/core/survey/partition";
@@ -22,7 +23,8 @@ type Unit = "perch" | "m2";
  */
 export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; points: SurveyPoint[]; perchDecimals: number }) {
   const byId = useMemo(() => new Map(points.map((p) => [p.id, p])), [points]);
-  const usable = lots.filter((l) => l.points.length >= 3 && l.points.every((id) => byId.has(id)));
+  // Lots that can be divided: three or more known corners, and a boundary that doesn't cross itself.
+  const usable = lots.filter((l) => l.points.length >= 3 && l.points.every((id) => byId.has(id)) && selfIntersections(l.points.map((id) => byId.get(id)!)).length === 0);
   const [lotId, setLotId] = useState(usable[0]?.id ?? "");
   const [leg, setLeg] = useState(0);
   const [lines, setLines] = useState<"square" | "parallel">("square");
@@ -48,13 +50,16 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
 
   const download = () => {
     if (!result || !result.ok) return;
-    const rows = ["corner,easting,northing,on_leg,from_corner_m", ...result.corners.map((c) => [c.name, c.e.toFixed(3), c.n.toFixed(3), `${c.from.pointId}-${c.to.pointId}`, c.distanceM.toFixed(3)].join(","))];
+    const rows = ["corner,easting,northing,from_corner,towards_corner,distance_m", ...result.corners.filter((c) => !c.existing).map((c) => [cell(c.name), c.e.toFixed(3), c.n.toFixed(3), cell(c.from.pointId), cell(c.to.pointId), c.distanceM.toFixed(3)].join(","))];
     const blob = new Blob([`${rows.join("\r\n")}\r\n`], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `setting-out-lot-${lot ? lotName(lot).replace(/[^A-Za-z0-9]+/g, "") || "x" : "x"}.csv`;
+    document.body.append(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    a.remove();
+    // Released a moment later: some browsers cancel a download whose link goes at once.
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
 
   return (
@@ -120,7 +125,7 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
                 <input value={v} inputMode="decimal" placeholder="What's left" onChange={(e) => setShares((s) => s.map((x, j) => (j === i ? e.target.value.slice(0, 12) : x)))} className={inputClasses("w-36")} />
               </label>
               {shares.length > 2 ? (
-                <button type="button" onClick={() => setShares((s) => s.filter((_, j) => j !== i))} className={buttonClasses("ghost", "sm")}>
+                <button type="button" aria-label={`Remove share ${i + 1}`} onClick={() => setShares((s) => s.filter((_, j) => j !== i))} className={buttonClasses("ghost", "sm")}>
                   Remove
                 </button>
               ) : null}
@@ -162,7 +167,7 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
                     <th scope="col" className="p-2 text-right font-medium">Area</th>
                     <th scope="col" className="p-2 font-medium">Extent</th>
                     <th scope="col" className="p-2 text-right font-medium">Along the leg</th>
-                    <th scope="col" className="p-2 text-right font-medium">Depth</th>
+                    <th scope="col" className="p-2 text-right font-medium">Least depth</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -194,11 +199,15 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
             <div className="grid gap-2">
               <h3 className="text-sm font-medium text-ink">Setting out the new corners</h3>
               <ul className="grid gap-1 text-sm text-ink-2">
-                {result.corners.map((c) => (
-                  <li key={c.name}>
-                    <span className="font-medium text-ink">{c.name}</span>: {fmt(c.distanceM, 3)} m from corner {c.from.pointId} towards {c.to.pointId} <span className="font-mono text-xs text-ink-3">E {fmt(c.e, 3)} N {fmt(c.n, 3)}</span>
-                  </li>
-                ))}
+                {result.corners.map((c) =>
+                  c.existing ? (
+                    <li key={`${c.cut}-${c.name}`}>A dividing line ends at corner {c.name}, already pegged.</li>
+                  ) : (
+                    <li key={c.name}>
+                      <span className="font-medium text-ink">{c.name}</span>: {fmt(c.distanceM, 3)} m from corner {c.from.pointId} towards {c.to.pointId} <span className="font-mono text-xs text-ink-3">E {fmt(c.e, 3)} N {fmt(c.n, 3)}</span>
+                    </li>
+                  ),
+                )}
               </ul>
               <button type="button" onClick={download} className={buttonClasses("secondary", "sm", "w-fit")}>
                 <DownloadSimpleIcon size={16} weight="bold" aria-hidden />

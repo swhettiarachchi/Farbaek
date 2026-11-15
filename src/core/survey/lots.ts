@@ -204,7 +204,8 @@ export function computeLots(points: readonly SurveyPoint[], lots: readonly Lot[]
           if (q.id <= p.id) continue;
           const d = distance(p, q);
           const shareALot = [...lotsOf.get(p.id)!].some((l) => lotsOf.get(q.id)!.has(l));
-          if (d < NEAR_DUPLICATE_M && !shareALot) nearDuplicates.push({ a: p, b: q, distanceM: d });
+          // Within 1 cm always (even on one lot); up to 5 cm only between different lots, where it leaves a sliver.
+          if (d < NEAR_DUPLICATE_M && (d < 0.01 || !shareALot)) nearDuplicates.push({ a: p, b: q, distanceM: d });
         }
       }
     }

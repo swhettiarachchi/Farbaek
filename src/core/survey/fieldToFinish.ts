@@ -31,14 +31,18 @@ const LAYER_BY_CODE: Record<string, DrawingFeature["layer"]> = { MW: "WALLS", RW
 
 /**
  * "CP MW2 CLO" is code "CP", then code "MW" in string "2" with control "CLO".
- * The first word is the point's code, as always. A later word is a second
- * code only when it is a line or outline code of the library written exactly
- * (same letters, same case), so a description ("MW t junction") never turns
- * into codes. END and CLO go with the last line code before them.
+ * The first word is the point's code, as always. Later words are more codes
+ * only when every one of them is a code of the library written exactly (same
+ * letters, same case) or END or CLO; otherwise they're a description ("MW T
+ * jn"), and only the first word counts. END and CLO go with the last line
+ * code before them. A code written twice counts once.
  */
 function codesIn(raw: string | null, codes: readonly CodeEntry[]): { base: string; string: string; control: string }[] {
   const out: { base: string; string: string; control: string; line: boolean }[] = [];
-  const words = codeText(raw).split(/\s+/).filter(Boolean);
+  const all = codeText(raw).split(/\s+/).filter(Boolean);
+  const exact = (w: string) => /^(END|CLO)$/i.test(w) || codes.some((c) => c.code === (/^([A-Za-z]+)\d*$/.exec(w)?.[1] ?? w));
+  // A description after the code: keep the first word and any END or CLO.
+  const words = all.slice(1).every(exact) ? all : [all[0]!, ...all.slice(1).filter((w) => /^(END|CLO)$/i.test(w))].filter(Boolean);
   words.forEach((w, i) => {
     if (/^(END|CLO)$/i.test(w)) {
       const last = [...out].reverse().find((c) => c.line);
@@ -49,6 +53,7 @@ function codesIn(raw: string | null, codes: readonly CodeEntry[]): { base: strin
     const base = m ? m[1]! : w;
     const entry = i === 0 ? lookupCode(codes, base) : codes.find((c) => c.code === base);
     if (i > 0 && !(entry && (entry.kind === "line" || entry.kind === "outline"))) return;
+    if (out.some((c) => c.base === base && c.string === (m ? m[2]! : ""))) return;
     out.push({ base, string: m ? m[2]! : "", control: "", line: Boolean(entry && (entry.kind === "line" || entry.kind === "outline")) });
   });
   return out;

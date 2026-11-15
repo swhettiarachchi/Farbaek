@@ -9,7 +9,7 @@ import { codeNote, codeOf, commonCodes } from "./codes";
 import { formatDms, toDms } from "./angles";
 import { inverse } from "./cogo";
 import { regionLine, runsText, titleSentence } from "./description";
-import { emptyDocument, parseSurveyDocument, surveyDocumentSchema, unreviewed } from "./document";
+import { emptyDocument, parseSurveyDocument, surveyDocumentSchema, unreviewed, usedPointIds } from "./document";
 import { writeDxf } from "./export/dxf";
 import { lotScheduleCsv } from "./export/schedule";
 import { pointsCsv, surveyGeoJson } from "./export/points";
@@ -26,6 +26,8 @@ import { blocked, checkSurvey } from "./qc";
 import { composeSheet, fmt, overlappingLabels, suggestScale } from "./sheet/compose";
 import { toModel, toPage } from "./sheet/scene";
 import { approvalHash } from "./view";
+import { canonicalize, sha256Hex } from "../trust/canonical-json";
+import { SURVEY_ENGINE_VERSION } from "./version";
 import { SRI_LANKA_CADASTRAL_V1 } from "./sheet/template";
 import { computeTraverse } from "./traverse";
 import { formatArp, toArp } from "./units";
@@ -754,5 +756,35 @@ describe("the stage 192 review's cases (synthetic)", () => {
     d.sheet.statedExtent = "200 m²";
     const f = checkSurvey({ points: pts, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(pts, d.lots), surveyorProfile: false });
     expect(f.map((x) => x.code)).toContain("STATED_EXTENT_AGREES");
+  });
+});
+
+describe("the stage 192 re-check (synthetic)", () => {
+  const p = (n: string, e: number, nn: number, code: string | null): SurveyPoint => ({ id: `00000000-0000-4000-e000-${n.padStart(12, "0")}`, pointId: n, e, n: nn, z: null, code });
+
+  it("still finds two numbers 2 mm apart on one lot", () => {
+    const pts = [p("1", 500_000, 600_000, null), p("2", 500_010, 600_000, null), p("5", 500_010, 600_010, null), p("105", 500_010, 600_010.002, null), p("4", 500_000, 600_010, null)];
+    const lot = { id: "lot-A", label: "A", sup: "", note: "", points: ["1", "2", "5", "105", "4"].map((n) => pts.find((x) => x.pointId === n)!.id) };
+    expect(computeLots(pts, [lot]).nearDuplicates.map((d) => [d.a.pointId, d.b.pointId].sort().join(" "))).toEqual(["105 5"]);
+  });
+
+  it("reads descriptions after a code as a description, upper case or not", () => {
+    const pts = [p("1", 0, 0, "MW T jn"), p("2", 10, 0, "MW T jn"), p("3", 20, 0, "LF B"), p("4", 30, 0, "LF B"), p("5", 40, 0, "MW MW"), p("6", 50, 0, "MW MW")];
+    expect(suggestFeatures(pts, commonCodes()).map((f) => [f.code, f.pointNumbers.join(" ")])).toEqual([
+      ["MW", "1 2"],
+      ["LF", "3 4"],
+      ["B", "3 4"],
+      ["MW", "5 6"],
+    ]);
+  });
+
+  it("matches the approval hash formula used before the kept field existed", async () => {
+    const d = sampleDocument();
+    const { kept: _k, ...older } = d;
+    void _k;
+    const used = usedPointIds(d);
+    const points = SAMPLE_POINTS.filter((x) => used.has(x.id)).map((x) => ({ id: x.id, point: x.pointId, e: x.e, n: x.n, z: x.z, code: x.code })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const before = await sha256Hex(canonicalize({ engine: SURVEY_ENGINE_VERSION, crs: "EPSG:5235", document: older, points }));
+    expect(await approvalHash({ document: d, crsId: "EPSG:5235", points: SAMPLE_POINTS })).toBe(before);
   });
 });

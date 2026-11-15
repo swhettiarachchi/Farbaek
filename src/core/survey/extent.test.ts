@@ -38,3 +38,12 @@ describe("stated extents as deeds and plans write them", () => {
     for (const t of ["", "about half an acre", "2A 5R 3P", "0A 1R 45P", "0-2-04.60 P", "0,21398 ha", "1 A 2", "P 10 R 2", "0.5 ha ( 0 A. 2 R. 0 P. )"]) expect(readStatedExtent(t), t).toBeNull();
   });
 });
+
+describe("the re-check's extents", () => {
+  it("reads commas between parts, a half acre, and refuses a zero below a fraction", () => {
+    expect(readStatedExtent("A.0, R.2, P.4.6")!.m2 / 25.29285264).toBeCloseTo(84.6, 9);
+    expect(readStatedExtent("½ acre")!.m2).toBeCloseTo(2023.4282112, 9);
+    expect(readStatedExtent("10 0/0 P")).toBeNull();
+    expect(readStatedExtent("1/0 acre")).toBeNull();
+  });
+});

@@ -61,14 +61,16 @@ function tokens(text: string): Token[] {
     .toLowerCase()
     .replace(/square\s+met(?:re|er)s?|sq\.?\s*m(?:etres?|eters?)?\b|m²|m2\b/g, " sqm ");
   const out: Token[] = [];
-  const re = /(\d[\d,]*(?:\.\d+)?)(?:\s+(\d+)\/(\d+))?|(\d+)\/(\d+)|([a-z]+)|([^\s.:;,&()\-–])/g;
+  const re = /(?<![\d.])(\d+)\/(\d+)|(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?:\s+(\d+)\/(\d+))?|([a-z]+)|([^\s.:;,&()\-–])/g;
   for (const m of t.matchAll(re)) {
     if (m[1] !== undefined) {
-      const whole = number(m[1]);
-      if (whole === null) return [{ bad: true }];
-      out.push({ num: whole + (m[2] !== undefined ? Number(m[2]) / Number(m[3]) : 0) });
-    } else if (m[4] !== undefined) out.push({ num: Number(m[4]) / Number(m[5]) });
-    else if (m[6] !== undefined) {
+      if (Number(m[2]) === 0) return [{ bad: true }];
+      out.push({ num: Number(m[1]) / Number(m[2]) });
+    } else if (m[3] !== undefined) {
+      const whole = number(m[3]);
+      if (whole === null || (m[5] !== undefined && Number(m[5]) === 0)) return [{ bad: true }];
+      out.push({ num: whole + (m[4] !== undefined ? Number(m[4]) / Number(m[5]) : 0) });
+    } else if (m[6] !== undefined) {
       if (IGNORED.has(m[6])) continue;
       const u = UNITS[m[6]];
       out.push(u ? { unit: u } : { bad: true });

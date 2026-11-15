@@ -10,7 +10,8 @@ import { arpClassic, hectares } from "../formats";
 import type { PlanLots } from "../lots";
 import { roundTo, toArp } from "../units";
 
-const cell = (s: string) => {
+/** A CSV cell that a spreadsheet can't run as a formula, quoted when it has to be. */
+export const cell = (s: string) => {
   const safe = /^[=+\-@\t\r]/.test(s) && !/^[+-]?\d+(\.\d+)?$/.test(s) ? `'${s}` : s;
   return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 };
