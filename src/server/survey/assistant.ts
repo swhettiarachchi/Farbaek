@@ -42,8 +42,17 @@ const FAILURES = {
  */
 export function recordedOps(ops: readonly PlanOp[]): unknown[] {
   const short = ops.map((o) => ({ ...o, quote: o.quote.slice(0, 200) }));
-  return JSON.stringify(short).length <= 60_000 ? short : ops.map((o) => ({ kind: o.kind, shortened: true }));
+  return bytes(short) <= 60_000 ? short : ops.map((o) => ({ kind: o.kind, shortened: true }));
 }
+
+/** What was left out, as kept in the record: inside the table's 16 KB check, counted in bytes (Sinhala takes three a character). */
+export function recordedDropped(dropped: readonly { what: string; why: string }[]): { what: string; why: string }[] {
+  const list = dropped.slice(0, 40).map((d) => ({ what: d.what.slice(0, 160), why: d.why.slice(0, 300) }));
+  while (list.length > 0 && bytes(list) > 15_000) list.pop();
+  return list;
+}
+
+const bytes = (v: unknown) => new TextEncoder().encode(JSON.stringify(v)).length;
 
 export interface AssistInput {
   orgId: string;
@@ -111,7 +120,7 @@ export async function runAssistant(deps: Deps, source: ModelSource<SurveyAssista
       words,
       reply: checked.say,
       operations: recordedOps(checked.ops),
-      dropped: checked.dropped.slice(0, 40).map((d) => ({ what: d.what.slice(0, 200), why: d.why.slice(0, 300) })),
+      dropped: recordedDropped(checked.dropped),
       outcome: usable ? "suggested" : "failed",
       model: outcome.usage.model,
     })

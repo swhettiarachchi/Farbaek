@@ -45,6 +45,8 @@ function joinThousands(text: string): string {
 /** Words as tokens: "twenty-five" splits, "25.4" stays whole, a trailing full stop or comma goes. */
 function tokens(text: string): Tok[] {
   const words = joinThousands(text.normalize("NFKC"))
+    // A unit written against its number ("10m", "25.4ft", "20p") is two words.
+    .replace(/(\d)(?=(?:m|ft|p|cm|mm|km|m2|m²)\b)/gi, "$1 ")
     .replace(/[‐-―−]/g, "-")
     // A comma or semicolon ends a number: "lot B one, 25.4 metres" is two.
     .replace(/[,;]/g, " , ")
@@ -219,8 +221,12 @@ export function numbersIn(text: string): ReadNumber[] {
     .filter((n): n is ReadNumber => n !== null);
 }
 
-/** The one number said in the text, or null when there's none, more than one, or a run that doesn't read one way. */
+/** A fraction beside a number ("ten and a half", "20 ½", "25 1/2"): the readers here don't read fractions, so they refuse the whole. */
+const FRACTION = /\b(?:half|halves|quarters?|thirds?)\b|[⁄½¼¾⅓⅔⅛⅜⅝⅞]|\d\s*\/\s*\d/i;
+
+/** The one number said in the text, or null when there's none, more than one, a fraction, or a run that doesn't read one way. */
 export function readNumber(text: string): ReadNumber | null {
+  if (FRACTION.test(text)) return null;
   const runs = numberRuns(settleZeroWords(tokens(text)));
   if (runs.length !== 1) return null;
   return numberOfRun(runs[0]!);
@@ -468,9 +474,13 @@ export function readBearing(text: string): ParsedBearing | null {
 export function readScale(text: string): { scale: number | null } | null {
   if (/\b(auto|automatic|automatically|best)\b/i.test(text)) return { scale: null };
   const t = joinThousands(text.normalize("NFKC"));
+  const RATIO = /(?:^|[^\p{L}\p{N}.])(?:1|one)\s*(?::|\/|\bto\b|\bin\b)\s*/giu;
   const ratio = /(?:^|[^\p{L}\p{N}.])(?:1|one)\s*(?::|\/|\bto\b|\bin\b)\s*(.+)$/iu.exec(t);
   let n: number | null = null;
   if (ratio) {
+    // One scale only: "from 1:500 to 1:1000" says two, so it isn't read, rather than read as the old one. Figures that stand alone
+    // are the ratio's two at most (a paper size such as A3 isn't one).
+    if ([...t.matchAll(RATIO)].length > 1 || (t.match(/(?<![\p{L}\d.,])\d+(?:[.,]\d+)*/gu) ?? []).length > 2) return null;
     const den = readNumber(ratio[1]!);
     if (!den) return null;
     n = den.value;
@@ -488,6 +498,7 @@ export function saysNumber(text: string): boolean {
 
 /** Every number said in the text, or null when any run of number words doesn't read one way only. For lists that must be whole. */
 export function numbersExactly(text: string): ReadNumber[] | null {
+  if (FRACTION.test(text)) return null;
   const read = numberRuns(settleZeroWords(tokens(text))).map(numberOfRun);
   return read.some((n) => n === null) ? null : (read as ReadNumber[]);
 }

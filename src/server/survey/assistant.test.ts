@@ -9,7 +9,7 @@ import type { AssistRequest, SurveyAssistOutcome, SurveyAssistant } from "@/serv
 import type { AiUsageDeps } from "@/server/workspace/ai-usage";
 import type { OrgRole } from "@/server/workspace/types";
 import type { WriteDeps } from "@/server/workspace/use-cases";
-import { recordedOps, runAssistant, type SurveyAssistDeps } from "./assistant";
+import { recordedDropped, recordedOps, runAssistant, type SurveyAssistDeps } from "./assistant";
 
 const usage = { model: "claude-haiku-5-5", inputTokens: 3_100, outputTokens: 180, cacheWriteTokens: 0, cacheReadTokens: 2_800 };
 const WORDS = "add lot B4 from points 1 to 3 and 8, and the land name Ambagahawatta";
@@ -116,5 +116,8 @@ describe("the turn record stays inside the table's size check", () => {
     const rows = Array.from({ length: 400 }, (_, i) => ({ from: String(i), to: String(i + 1), bearing: "45 30 15", distance: "25.40", code: "CP" }));
     const big = recordedOps(Array.from({ length: 5 }, () => ({ kind: "measure" as const, mode: "bearings" as const, rows, quote })));
     expect(big).toEqual(Array.from({ length: 5 }, () => ({ kind: "measure", shortened: true })));
+    // Sinhala takes three bytes a character: what was left out is cut to the table's 16 KB check by bytes, not characters.
+    const sinhala = Array.from({ length: 40 }, () => ({ what: "අසල්වැසි ඉඩම".repeat(20), why: "ඔබ කී වචනවල නැත".repeat(30) }));
+    expect(new TextEncoder().encode(JSON.stringify(recordedDropped(sinhala))).length).toBeLessThanOrEqual(15_000);
   });
 });

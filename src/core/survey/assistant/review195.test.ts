@@ -11,7 +11,7 @@ import { assistContext } from "./context";
 import { readCoordinateRows, readLegs } from "./measure";
 import type { AssistOp, AssistOutput } from "./ops";
 import { readCommand } from "./reader";
-import { bearingText, numbersIn, readLotName, readNumber, readPointList, readScale } from "./spoken";
+import { bearingText, numbersExactly, numbersIn, readLength, readLotName, readNumber, readPointList, readScale } from "./spoken";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const none = { from: "none" as const, quote: "" };
@@ -174,10 +174,12 @@ describe("every change is tied to its words", () => {
 describe("the model's own words carry no figures", () => {
   it("catches fractions, ordinals and Sinhala number words, and leaves ordinary words alone", () => {
     expect(hasFigure("half the lot")).toBe(true);
-    expect(hasFigure("The first lot")).toBe(true);
+    expect(hasFigure("a third of the lot")).toBe(true);
     expect(hasFigure("ලොට් දෙකක්")).toBe(true);
     expect(hasFigure("point five")).toBe(true);
     expect(hasFigure("එකතු කළා")).toBe(false);
+    expect(hasFigure("ලොට් එක බෙදන්නද?")).toBe(false);
+    expect(hasFigure("Which lot, the first or the second?")).toBe(false);
     expect(hasFigure("Ready to apply.")).toBe(false);
   });
 });
@@ -191,5 +193,55 @@ describe("applying keeps where corners came from", () => {
     expect(noted.ok && noted.doc.provenance["lot:lot-b1"]).toEqual({ source: "ai_brief", reviewed: false });
     const moved = applyOps(doc, [{ kind: "lot_edit", id: "lot-b1", points: [id(1), id(2), id(3), id(7)], quote: "corners" }], points);
     expect(moved.ok && moved.doc.provenance["lot:lot-b1"]).toEqual({ source: "ai_assist", reviewed: true });
+  });
+});
+
+describe("the re-check of the fixes", () => {
+  it("reads instructions with hyphens without failing", () => {
+    for (const words of ["zoom to points 1-4", "add lot B4 from points 1-4", "select points twenty-one to twenty-four", "set the scale to 1-500"]) expect(() => readCommand(words), words).not.toThrow();
+    expect(read("add lot B4 from points 1-4").ops[0]).toMatchObject({ kind: "lot_add", lot: { points: [id(1), id(2), id(3), id(4)] } });
+  });
+
+  it("accepts a one-figure value inside its quote", () => {
+    expect(read("divide lot B one into 4 lots").ops[0]).toMatchObject({ kind: "divide", lotId: "lot-b1", count: 4 });
+    expect(turn("add lot 7 from points 1 to 4", [{ op: "add_lot", label: "lot 7", corners: { from: "words", quote: "points 1 to 4" }, note: "", quote: "add lot 7 from points 1 to 4" }]).ops[0]).toMatchObject({ kind: "lot_add", lot: { label: "7" } });
+  });
+
+  it("refuses a change of scale that says two scales, and a fraction it can't read", () => {
+    expect(readScale("change the scale from 1:500 to 1:1000")).toBeNull();
+    expect(readScale("scale 1:500 or 1:1000")).toBeNull();
+    expect(readScale("set the scale to 1:500 on A3 paper")).toEqual({ scale: 500 });
+    expect(readNumber("ten and a half")).toBeNull();
+    expect(readLength("25 and a half metres")).toBeNull();
+    expect(numbersExactly("20 ½ perches")).toBeNull();
+    expect(read("add an access strip ten and a half feet wide along the north boundary of lot B one").ops).toEqual([]);
+  });
+
+  it("reads a unit written against its number, and never a lot's letter as a unit", () => {
+    expect(readLength("10m")).toMatchObject({ value: 10, unit: "m" });
+    const m = sampleDocument();
+    m.lots = [{ ...m.lots[0]!, label: "M", sup: "" }];
+    expect(read("add an access road 10 wide along the north boundary of lot M", m).question).toMatchObject({ choices: ["feet", "metres"] });
+    const p = sampleDocument();
+    p.lots = [{ ...p.lots[0]!, label: "P", sup: "" }];
+    const areas = turn("divide lot P into lots of 20 and 30", [{ op: "divide", lot: "lot P", by: "area", count: "", values: "20 and 30", unit: "perch", lines: "", side: "", quote: "divide lot P into lots of 20 and 30" }], { doc: p });
+    expect(areas.question).toMatchObject({ choices: ["perches", "square metres"] });
+  });
+
+  it("names the lot said, superscript and all", () => {
+    const both = sampleDocument();
+    both.lots = [{ ...both.lots[0]!, id: "lot-b", label: "B", sup: "" }, both.lots[1]!];
+    both.lots[1] = { ...both.lots[1]!, id: "lot-b1", label: "B", sup: "1" };
+    const ctx = assistContext({ doc: both, points: SAMPLE_POINTS, selection: [], recent: [], step: "plan" });
+    const lotB = Object.entries(ctx.refs).find(([, v]) => v === "lot:lot-b")![0];
+    expect(turn("remove lot B one", [{ op: "remove", target: lotB, quote: "remove lot B one" }], { doc: both }).ops).toEqual([]);
+    expect(turn("remove lot B¹", [{ op: "remove", target: "L1", quote: "remove lot B¹" }]).ops[0]).toMatchObject({ kind: "remove", id: "lot-b1" });
+    expect(turn("rename lot B to C", [{ op: "edit_lot", target: lotB, change: "label", label: "C", note: "", corners: none, quote: "rename lot B to C" }], { doc: both }).ops).toEqual([]);
+  });
+
+  it("reads 'Plan No. 1234 is my own' as mine, and takes a one-letter lot name in Sinhala", () => {
+    expect(turn("Plan No. 1234 is my own", [{ op: "set_field", field: "previousPlanMine", value: "", quote: "Plan No. 1234 is my own" }]).ops[0]).toMatchObject({ value: true });
+    const si = "C කැබැල්ල 1, 2, 3 ලක්ෂ්‍ය වලින් සාදන්න";
+    expect(turn(si, [{ op: "add_lot", label: "C", corners: { from: "words", quote: "1, 2, 3" }, note: "", quote: si }]).ops[0]).toMatchObject({ kind: "lot_add", lot: { label: "C" } });
   });
 });

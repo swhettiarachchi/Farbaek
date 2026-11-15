@@ -92,8 +92,9 @@ export interface CheckInput {
 
 /** Number words the digit readers don't read: fractions, ordinals and Sinhala numbers, as whole words. */
 const FIGURE_WORDS = new Set([
-  "half", "halves", "quarter", "quarters", "third", "thirds", "dozen", "dozens", "score", "first", "second", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth", "twice", "thrice", "once", "single", "double", "triple", "pair",
-  "බින්දුව", "එක", "එකයි", "එකක්", "දෙක", "දෙකයි", "දෙකක්", "තුන", "තුනයි", "තුනක්", "හතර", "හතරයි", "හතරක්", "පහ", "පහයි", "පහක්", "හය", "හයයි", "හයක්", "හත", "හතයි", "හතක්", "අට", "අටයි", "අටක්", "නවය", "නමය", "නවයයි", "දහය", "දහයයි", "දහයක්", "විස්ස", "තිහ", "හතළිහ", "පනහ", "සියය", "සියයක්", "දහස", "දහසක්", "ලක්ෂය", "දශම", "භාගය", "බාගය", "පළමු", "දෙවන", "තුන්වන",
+  // "first", "second", "once" and the Sinhala "එක" or "එකක්" ("the", "a") are left out: they're ordinary words in a question or a reply.
+  "half", "halves", "quarter", "quarters", "third", "thirds", "dozen", "dozens", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth",
+  "බින්දුව", "එකයි", "දෙක", "දෙකයි", "දෙකක්", "තුන", "තුනයි", "තුනක්", "හතර", "හතරයි", "හතරක්", "පහ", "පහයි", "පහක්", "හය", "හයයි", "හයක්", "හත", "හතයි", "හතක්", "අට", "අටයි", "අටක්", "නවය", "නමය", "නවයයි", "දහය", "දහයයි", "දහයක්", "විස්ස", "තිහ", "හතළිහ", "පනහ", "සියය", "සියයක්", "දහස", "දහසක්", "ලක්ෂය", "දශම", "භාගය", "බාගය", "පළමු", "දෙවන", "තුන්වන",
 ]);
 
 /** Whether model text carries a figure: a digit in any script, a number word, a fraction or ordinal, or a Sinhala number word. */
@@ -119,10 +120,13 @@ function asWritten(s: string): string {
     .trim();
 }
 
-/** Whether the quote is in the instruction as written, at word edges (a closing full stop or comma on the quote aside). */
-export function writtenIn(instruction: string, quote: string): boolean {
+/**
+ * Whether the quote is in the instruction as written, at word edges (a closing full stop or comma on the quote aside). A quote needs
+ * two characters at least; a value inside a quote already found (a count of 4, lot 7) may be one.
+ */
+export function writtenIn(instruction: string, quote: string, min = 2): boolean {
   const q = asWritten(quote).replace(/[.,;!?]+$/, "");
-  if (fold(q).length < 2) return false;
+  if (fold(q).length < min) return false;
   const t = asWritten(instruction);
   const edge = (c: string | undefined) => c === undefined || !/[\p{L}\p{N}]/u.test(c);
   for (let at = t.indexOf(q); at >= 0; at = t.indexOf(q, at + 1)) if (edge(t[at - 1]) && edge(t[at + q.length])) return true;
@@ -162,15 +166,24 @@ const SIDE_WORDS: Record<"north" | "east" | "south" | "west", RegExp> = {
   west: /\bwest(?:ern)?\b|බටහිර/i,
 };
 
-/** The unit a length or area is said in, from the words, or null when none is. */
+/**
+ * The unit a length or area is said in, from the words, or null when none is. Lot names are taken out first, and a bare letter (m, p)
+ * counts only right after a figure, so "lot M" or "lot P" is never a unit.
+ */
 function unitSaid(text: string): "perch" | "m2" | "m" | "ft" | null {
-  const t = text.toLowerCase();
-  if (/\b(feet|foot|ft)\b/.test(t)) return "ft";
-  if (/\b(perch|perches|p)\b/.test(t)) return "perch";
-  if (/\b(square met(?:re|er)s?|sq ?m|m2|m²)/.test(t)) return "m2";
-  if (/\b(met(?:re|er)s?|m)\b/.test(t)) return "m";
+  const t = text
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\b(?:lot|allotment)s?\s+[a-z0-9]+(?:\s+(?:superscript\s+|sup\s+)?[a-z0-9]+)?/g, " ");
+  if (/\b(feet|foot)\b|\d\s*ft\b|\bft\b/.test(t)) return "ft";
+  if (/\bperch(?:es)?\b|\d\s*p\b/.test(t)) return "perch";
+  if (/\bsquare met(?:re|er)s?\b|\bsq\.? ?m\b|\d\s*m2\b|m²/.test(t)) return "m2";
+  if (/\bmet(?:re|er)s?\b|\d\s*m\b/.test(t)) return "m";
   return null;
 }
+
+/** Number words and figures that can follow a lot's letter as its superscript ("lot B one"), so a lot name is never cut short there. */
+const SUPERSCRIPT_WORD = /^(?:\d{1,3}|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|superscript|sup)$/i;
 
 export function checkTurn(input: CheckInput): CheckedTurn {
   const { instruction, doc, points } = input;
@@ -185,13 +198,14 @@ export function checkTurn(input: CheckInput): CheckedTurn {
   const said = (q: string) => q.trim() !== "" && writtenIn(instruction, q);
   // A value with a figure in it must be written as said too; plain words (a name, a note) match whole words, folded.
   const from = (value: string, quote: string) =>
-    value.trim() !== "" && said(quote) && (/\p{N}/u.test(value) ? writtenIn(quote, value) || writtenIn(instruction, value) : hasPhrase(quote, value) || hasPhrase(instruction, value));
+    value.trim() !== "" && said(quote) && (/\p{N}/u.test(value) ? writtenIn(quote, value, 1) || writtenIn(instruction, value, 1) : hasPhrase(quote, value) || hasPhrase(instruction, value));
   /** A lot's name from the words. A one-letter name needs the word "lot" with it, so "add a lot" never names lot A. */
   const lotNameSaid = (label: string, quote: string) => {
     if (!from(label, quote)) return null;
     const name = readLotName(label);
     if (!name) return null;
-    if (fold(label).length < 2 && !hasPhrase(instruction, `lot ${label}`) && !hasPhrase(instruction, `allotment ${label}`)) return null;
+    // In Sinhala the words for "lot" aren't all known yet, so there the card is the check.
+    if (fold(label).length < 2 && scriptOf(instruction) === "en" && !hasPhrase(instruction, `lot ${label}`) && !hasPhrase(instruction, `allotment ${label}`)) return null;
     return name;
   };
   /**
@@ -199,15 +213,17 @@ export function checkTurn(input: CheckInput): CheckedTurn {
    * since the model may quote only part of it. Words in other scripts are left to the card.
    */
   const namesLot = (lot: Lot) => {
-    const words = instruction;
+    // Typed superscripts ("lot B¹") read as their figures.
+    const words = instruction.normalize("NFKC");
     if (scriptOf(words) !== "en") return true;
     if (input.selection.includes(`lot:${lot.id}`) && /\b(this|that|it|selected|picked)\b/i.test(words)) return true;
     return [...words.matchAll(/\b(?:lot|allotment)s?\s+([a-z0-9]+(?:\s+(?:superscript\s+|sup\s+)?[a-z0-9]+)?)/gi)].some((m) => {
-      for (const words of [m[1]!, m[1]!.split(/\s+/)[0]!]) {
-        const n = readLotName(words);
-        if (n && n.label === lot.label.toUpperCase() && n.sup === lot.sup.toUpperCase()) return true;
-      }
-      return false;
+      // The whole name first ("lot B one" is B¹, never B). The first word alone when it's already whole with its figure ("lot B3 ten
+      // feet"), or when the next word can't be part of a name ("lot B to").
+      const parts = m[1]!.split(/\s+/);
+      const whole = /^(?:[a-z]{1,2}\d{1,3}|\d{1,3}[a-z]{1,2})$/i.test(parts[0]!);
+      const n = readLotName(m[1]!) ?? (parts.length > 1 && (whole || !SUPERSCRIPT_WORD.test(parts[1]!)) ? readLotName(parts[0]!) : null);
+      return Boolean(n && n.label === lot.label.toUpperCase() && n.sup === lot.sup.toUpperCase());
     });
   };
   const usedIds = new Set([...doc.lots, ...doc.roads, ...doc.adjoining, ...doc.features].map((x) => x.id));
@@ -494,7 +510,7 @@ export function checkTurn(input: CheckInput): CheckedTurn {
         const what = `The title's ${op.field}`;
         if (op.field === "previousPlanMine") {
           if (!said(op.quote) || !/\b(my own|mine|i made|i surveyed|by me)\b/i.test(op.quote)) return dropped.push({ what, why: "Say that the earlier plan is your own." }), null;
-          return { kind: "field", field: op.field, value: !/\b(?:not|never|no|neither|nor)\b|n['’]t\b/i.test(op.quote), quote: op.quote };
+          return { kind: "field", field: op.field, value: !/\b(?:not|never|neither|nor)\b|n['’]t\b|\bno\b(?!\.?\s*\d)/i.test(op.quote), quote: op.quote };
         }
         if (op.field === "operation") {
           const v = op.quote.toLowerCase();

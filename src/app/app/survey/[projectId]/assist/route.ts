@@ -106,15 +106,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   );
   if (!r.ok) {
     const status =
-      r.code === "AI_BUSY" || r.code === "ENTITLEMENT_UNAVAILABLE"
+      r.code === "AI_BUSY" || r.code === "ENTITLEMENT_UNAVAILABLE" || r.code === "PAUSED_BY_FARBAEK"
         ? 503
-        : r.code === "FORBIDDEN" || r.code === "WORKSPACE_SUSPENDED"
+        : r.code === "FORBIDDEN" || r.code === "WORKSPACE_SUSPENDED" || r.code === "FEATURE_NOT_IN_PLAN"
           ? 403
-          : r.code === "QUOTA_EXCEEDED" || r.code === "TRIAL_CAP_REACHED"
+          : r.code === "QUOTA_EXCEEDED" || r.code === "TRIAL_CAP_REACHED" || r.code === "BILLING_SUSPENDED"
             ? 402
-            : r.code === "INVALID_REQUEST"
-              ? 400
-              : 502;
+            : r.code === "PLATFORM_DAILY_LIMIT"
+              ? 429
+              : r.code === "INVALID_REQUEST"
+                ? 400
+                : 502;
     return refuse(r.message, status);
   }
   return json({ ok: true, turnId: r.value.turnId, output: r.value.output, model: r.value.model });

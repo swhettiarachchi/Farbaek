@@ -60,7 +60,8 @@ function asSaid(original: string, piece: string): string {
   const words = piece
     .split(" ")
     .filter(Boolean)
-    .map((w) => w.replace(/[\\^$.*+?()[\]{}|/-]/g, "\\$&"));
+    // Only the characters with a meaning in a pattern are escaped: with the u flag, escaping anything else (such as a hyphen) is an error.
+    .map((w) => w.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&"));
   if (words.length === 0) return piece;
   const m = new RegExp(`(?<![\\p{L}\\p{N}])${words.join("[\\s.!?,;]+")}(?![\\p{L}\\p{N}])`, "iu").exec(original.normalize("NFKC"));
   return m ? m[0] : piece;
