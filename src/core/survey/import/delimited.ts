@@ -80,7 +80,8 @@ export interface DelimitedResult {
 /** Splits the text into lines, drops blank lines and a byte-order mark, and keeps each line's number. */
 function lines(text: string): { line: number; text: string }[] {
   const out: { line: number; text: string }[] = [];
-  const all = text.replace(/^﻿/, "").split(/\r\n|\r|\n/);
+  // Full-width commas, as some Chinese controller software writes them, are ordinary commas here.
+  const all = text.replace(/^﻿/, "").replace(/，/g, ",").split(/\r\n|\r|\n/);
   for (let i = 0; i < all.length; i++) {
     const t = all[i]!.trim();
     if (t !== "" && !t.startsWith("#")) out.push({ line: i + 1, text: t });

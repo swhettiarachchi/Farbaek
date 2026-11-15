@@ -47,6 +47,7 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
   const [confirmUnits, setConfirmUnits] = useState(false);
   const [drawPlan, setDrawPlan] = useState(true);
   const [useDsr, setUseDsr] = useState<boolean | null>(null);
+  const [encoding, setEncoding] = useState<string | null>(null);
   const [result, setResult] = useState<SurveyFormState & { issues?: ImportIssue[] }>({ status: "idle" });
   const [pending, start] = useTransition();
 
@@ -56,6 +57,7 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
     setResult({ status: "idle" });
     setConfirmUnits(false);
     setUseDsr(null);
+    setEncoding(null);
     const f = detectFormat(name, content);
     setFormat(f);
     if (f === "delimited") {
@@ -77,7 +79,18 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
       setResult({ status: "error", message: `That file is over ${IMPORT_LIMITS.maxBytes / 1024 / 1024} MB. Import only the points this plan needs.` });
       return;
     }
-    load(file.name, await file.text());
+    // UTF-8 first, strictly; a file that isn't (CASS files are often written in the Chinese GBK code page) is read as GB18030 and said.
+    const bytes = await file.arrayBuffer();
+    let content: string;
+    let decoded: string | null = null;
+    try {
+      content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      content = new TextDecoder("gb18030").decode(bytes);
+      decoded = "The file isn't UTF-8 text, so it was read as Chinese GB18030 text, the way CASS often writes it. Check that the codes read right before importing.";
+    }
+    load(file.name, content);
+    setEncoding(decoded);
   };
 
   const unreadable = text ? unreadableFile(fileName, text) : null;
@@ -153,6 +166,12 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
         </label>
       </div>
 
+      {encoding ? (
+        <p role="status" className="flex items-start gap-2 text-sm text-ink">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+          {encoding}
+        </p>
+      ) : null}
       {unreadable ? (
         <p role="alert" className="flex items-start gap-2 rounded-sm bg-canvas-2 p-3 text-sm text-ink ring-1 ring-line">
           <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />

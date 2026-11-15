@@ -10,9 +10,13 @@
  * is the point number, words are the code, the first two coordinate columns
  * are the horizontal pair and a third is the elevation. Which of the pair is
  * the easting is settled by the project's grid only when exactly one order
- * puts every point inside the grid's area; otherwise it's read northing first,
+ * puts every point inside the grid's area. Across most of SLD99 both orders
+ * fit, so otherwise the file's shape decides: a code in the second column is
+ * the CASS .dat layout Hi-Target and South write (name, code, easting,
+ * northing, height), read easting first; anything else is read northing first,
  * as the Survey Department's PNEZC coordinate file has it (Departmental Survey
- * Regulations, Chapter XXII, section 22.3), and the surveyor is asked to check.
+ * Regulations, Chapter XXII, section 22.3). Either way the surveyor is asked
+ * to check (research report "Survey instrument export formats").
  * X and Y headers are treated the same way: in some instruments' convention X
  * is the northing.
  */
@@ -72,8 +76,8 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
   const degrees = (j: number, max: number) => numeric[j]! > 0.9 && nums[j]!.every((v) => v === null || Math.abs(v) <= max) && cols[j]!.some((v) => /\.\d{6,}$/.test(v));
   const latLong = Array.from({ length: width }, (_, j) => j).some((j) => degrees(j, 90) && Array.from({ length: width }, (_, k) => k).some((k) => k !== j && degrees(k, 180) && cols[k]!.some((v) => Math.abs(Number(v)) > 1)));
 
-  // Resolves a horizontal pair (columns a then b) to easting and northing, or says it can't.
-  const settlePair = (a: number, b: number, why: string) => {
+  // Resolves a horizontal pair (columns a then b) to easting and northing, or says it can't. cass: the code is the second column.
+  const settlePair = (a: number, b: number, why: string, cass = false) => {
     const order = pairOrder(nums[a]!.filter((v): v is number => v !== null), nums[b]!.filter((v): v is number => v !== null), crs);
     if (order === "ne") {
       columns[a] = "northing";
@@ -84,13 +88,15 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
       columns[b] = "northing";
       reasons.push(`${ordinal(a)} is the easting and ${ordinal(b)} the northing: ${why}in that order every point lies inside ${name}, and the other way round they don't.`);
     } else {
-      // Unsettled: northing first, as in the Survey Department's PNEZC file, and said.
-      columns[a] = "northing";
-      columns[b] = "easting";
-      const pnezc = "Farbaek reads them northing first, as the Survey Department's PNEZC coordinate file has them";
-      if (order === "both") unsure.push(`Both orders of ${ordinal(a)} and ${ordinal(b)} fit inside ${name}, so the grid can't tell the easting from the northing. ${pnezc}: check that against your instrument's export setting.`);
+      // Unsettled: the file's shape decides. Code second is CASS (easting first); otherwise PNEZC (northing first). Said either way.
+      columns[a] = cass ? "easting" : "northing";
+      columns[b] = cass ? "northing" : "easting";
+      const rule = cass
+        ? "The code is the second column, as in the CASS .dat files Hi-Target and South write (name, code, easting, northing, height), so Farbaek reads them easting first"
+        : "Farbaek reads them northing first, as the Survey Department's PNEZC coordinate file has them";
+      if (order === "both") unsure.push(`Both orders of ${ordinal(a)} and ${ordinal(b)} fit inside ${name}, so the grid can't tell the easting from the northing. ${rule}: check that against your instrument's export setting.`);
       else if (order === "neither") unsure.push(`${ordinal(a)} and ${ordinal(b)} don't fit inside ${name} in either order. Check the project's coordinate system, or that these are grid coordinates in metres.`);
-      else unsure.push(`A local grid can't tell the easting from the northing. ${pnezc}: check that against your instrument's export setting.`);
+      else unsure.push(`A local grid can't tell the easting from the northing. ${rule}: check that against your instrument's export setting.`);
     }
   };
 
@@ -137,7 +143,9 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
     };
     const ordered = [...coords];
     const [a, b] = ordered.slice(0, 2) as [number, number];
-    settlePair(a, b, "");
+    // The CASS shape: point first, then a text or empty column, then the coordinates.
+    const cass = point === 0 && a === 2 && b === 3 && (code === 1 || cols[1]!.every((v) => v === "" || readNumber(v) === null));
+    settlePair(a, b, "", cass);
     const z = ordered[2];
     if (z !== undefined) {
       columns[z] = "elevation";

@@ -42,6 +42,17 @@ describe("reading a point file's columns", () => {
     expect(guess("1,,450012.345,700004.210,21.43\n2,,450043.912,700007.884,21.88").columns).toEqual(["point", "ignore", "easting", "northing", "elevation"]);
   });
 
+  it("reads a CASS file easting first where the grid can't decide, from the code in its second column", () => {
+    // 500,000-odd both ways: inside SLD99 in either order. The code second marks the CASS layout.
+    const cass = guess("1,CP,500012.345,500004.210,21.43\n2,St,500043.912,500007.884,21.88");
+    expect(cass.columns).toEqual(["point", "code", "easting", "northing", "elevation"]);
+    expect(cass.unsure[0]).toMatch(/The code is the second column, as in the CASS \.dat files Hi-Target and South write/);
+    const blank = guess("1,,500012.345,500004.210,21.43\n2,,500043.912,500007.884,21.88");
+    expect(blank.columns.slice(2, 4)).toEqual(["easting", "northing"]);
+    // The same numbers with the code last are PNEZC: northing first.
+    expect(guess("1,500012.345,500004.210,21.43,CP\n2,500043.912,500007.884,21.88,St").columns.slice(1, 3)).toEqual(["northing", "easting"]);
+  });
+
   it("says when the grid can't tell the easting from the northing", () => {
     const g = guess("1,500004.210,500012.345,21.43\n2,500007.884,500043.912,21.88");
     // Northing first, as the Survey Department's PNEZC file has it, and said.
