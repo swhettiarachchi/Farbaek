@@ -42,6 +42,11 @@ Each milestone has hand-worked tests, a look in the browser and a commit. Then c
   - `ownRules()` for the surveyor's figures.
 
   The panel offers no minimums, the UDA set, or minimums the surveyor enters with their source.
+- **The plan's own lots against a set.** The Plan step names the set in the drawing's `rules` field: none, UDA, or the surveyor's own figures with their source.
+  - **Checks:** each building lot's area, its frontage along a road or a reserved access lot, and its mean depth.
+  - **Findings:** warnings citing the set (`LOT_UNDER_MINIMUM_*`, `LOT_NO_ROAD_FRONTAGE`), the reminders, and a line when every lot meets the minimums.
+  - **Reserved lots** ("Res. …") are left out. A corner lot takes its longer frontage.
+  - **In the version:** the choice is part of the version, left out of the approval hash while unset, and shown in History. The divide panel starts from it.
 - **Engine:** `partition/1.1.0`.
 - **Docs:**
   - ADR 0206's stage 193 additions and the new ADR 0207;
@@ -58,16 +63,25 @@ Each milestone has hand-worked tests, a look in the browser and a commit. Then c
   - an L-shaped lot: the inside line for 40 m², the west-side line for 250 m², and 60 m² reported as leaving the lot;
   - the UDA reminders and review notes;
   - the surveyor's own minimums.
+- **Plan rules:** 7 tests on a synthetic road with four lots:
+  - lot B 125 m² with 5 m frontage;
+  - lot D with no frontage;
+  - a 10 ft access lot giving frontage to a back lot, with the corner lot taking its 16.952 m road frontage over the 15 m strip;
+  - own minimums waiting for a source;
+  - depth as area over frontage;
+  - no roads;
+  - the hash without the field, and History's line.
 - **Gates:** typecheck, lint and the design tests passed.
 - **Browser** (dev demo, the Sample's lot B¹):
   - three equal frontages of 16.07 m;
   - a 10 ft access strip behind the road (3.05 m deep along 48.22 m);
   - two equal shares through corner 1 (20.90 and 20.91 P, line at 064°51′56″ for 52.672 m);
-  - four equal shares under the UDA set, with the consent reminder and the review note.
+  - four equal shares under the UDA set, with the consent reminder and the review note;
+  - the Plan step's new control, disabled on the read-only Sample;
+  - with the Sample given the UDA set for a moment (reverted), the Check step's warnings for lots B² and B³ (no road leg) with their citation, and the divide panel starting from the UDA set.
 
 ## Next
 
 - A whole land laid out at once: the access road and its lots together, with a feasibility report.
 - The UDA access, turning circle and splay rules as checks on that road.
-- Checking a subdivision plan's own lots against a rule set.
 - A block-out sheet at not less than 1:1000.

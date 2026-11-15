@@ -53,4 +53,8 @@ Each reminder carries its section. None is checked against the drawing: the engi
 
 - **New regulations:** when the new UDA regulations are gazetted, they are added as a new set. The 2020 set stays for plans checked under it.
 - **Messages name their source.** A share's problems say "under the UDA minimum of 150 m²" or "under the minimum you entered of 250 m²", never a bare number.
-- **Not yet applied to the plan.** The rules check proposed shares only. Checking a subdivision plan's own lots against a set is later work. It needs a document setting kept out of the approval hash, or an engine bump (ADR 0205's rule).
+- **Applied to the plan too.** The drawing's `rules` field names the set its lots are checked against. It is null by default and left out of the approval hash while null (ADR 0205's rule), so earlier approvals stand.
+  - **Building lots:** each is checked for area, frontage along a road or a reserved access lot, and mean depth.
+  - **Reserved lots** ("Res. …") aren't checked.
+  - **Findings:** every shortfall is a warning that cites the set and blocks nothing.
+  - **Starting point:** the divide panel starts from the plan's choice.
