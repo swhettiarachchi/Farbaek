@@ -86,18 +86,31 @@ Two independent reviewers read the stage before its PR, one on the draft flow an
   - CSVs starting with STN were taken for Topcon files;
   - closure notes were counted as repeated rows.
 
+A third reviewer re-checked both fix commits and found 10 more, fixed in `3950ecf3`:
+- lines joined from the codes never waited for a check;
+- adding a code to a swapped list lifted its check;
+- "Electricity post" and "Coconut trees" could become lot corners;
+- the preview and the server disagreed above the mark limit;
+- pasting another file kept the first file's confirmation and columns, and switching tabs kept the old format;
+- zero heights were read as a code;
+- "Point No." wasn't understood;
+- XML problems inside nested elements had the wrong line;
+- the Sinhala joiner was refused.
+
+The browser check then showed that a PNEZC header's "C" wasn't read as the code, which is fixed too.
+
 ## Verified
 
 - **Unit tests:**
-  - auto-draft and the draft flow: 18;
-  - the readers review: 18;
+  - auto-draft and the draft flow: 21;
+  - the readers review and re-check: 22;
   - columns: 8;
   - GSI, on Leica's own lines: 9;
   - SDR: 5;
   - LandXML and JobXML: 6;
   - field book: 5;
   - detection: 3.
-- **All survey tests:** 252 pass.
+- **All survey tests:** 259 pass.
 - **DB test** for v95 (16 in the file).
 - **Gates:** typecheck, lint and the design tests passed.
 - **Browser** (dev demo, with the Sample's import panel unlocked for the check and locked again before committing):
