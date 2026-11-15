@@ -47,6 +47,13 @@ Each milestone has hand-worked tests, a look in the browser and a commit. Then c
   - **Findings:** warnings citing the set (`LOT_UNDER_MINIMUM_*`, `LOT_NO_ROAD_FRONTAGE`), the reminders, and a line when every lot meets the minimums.
   - **Reserved lots** ("Res. …") are left out. A corner lot takes its longer frontage.
   - **In the version:** the choice is part of the version, left out of the approval hash while unset, and shown in History. The divide panel starts from it.
+- **The block-out plan** ([`blockout.ts`](../../src/core/survey/blockout.ts), ADR 0208). "Block-out plan as PDF" on the divide panel sends the surveyor's choices.
+  - **Recomputed and refused.** The server works the division out again from the saved version and refuses one that can't be made as asked.
+  - **The sheet:** headed BLOCK OUT PLAN, with the new corners as drawing-only points P1, P2…, point numbers and dimensions on the face, a "NOT YET SURVEYED" notice, no survey dates and its own plot stamp.
+  - **Scale:** 1:1000 or larger where it fits.
+  - **Recorded** as a PDF export.
+  - **Buildings:** the panel warns when a dividing line runs through a building.
+  - **Every sheet:** a shared leg is now dimensioned once, and a short leg's label moves inside when outside is taken.
 - **Engine:** `partition/1.1.0`.
 - **Docs:**
   - ADR 0206's stage 193 additions and the new ADR 0207;
@@ -84,4 +91,3 @@ Each milestone has hand-worked tests, a look in the browser and a commit. Then c
 
 - A whole land laid out at once: the access road and its lots together, with a feasibility report.
 - The UDA access, turning circle and splay rules as checks on that road.
-- A block-out sheet at not less than 1:1000.

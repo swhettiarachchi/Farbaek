@@ -197,6 +197,14 @@ The route serves the PDF as a download, or inline with `?inline=1` for "Open the
 
 `/export/lots` (stage 192, [`schedule.ts`](../../src/core/survey/export/schedule.ts)): one row per lot (its label, corner numbers, area in m² to 3 decimals, hectares to 5 decimals and acres, roods and perches as on the sheet), then the sum of the lots and the entire land with its outline's corners. Plain numbers, text cells guarded against formulas. It waits for the checks on the coordinates and the lots, like the GeoJSON, and is recorded as a CSV export with `options.content = "lots"`; History calls it "Lot schedule".
 
+### Block-out plan (PDF)
+
+`/export/blockout?version=N&division=<json>` (stage 193, ADR 0208, [`blockout.ts`](../../src/core/survey/blockout.ts)).
+- **Recomputed on the server.** The server reads the surveyor's choices strictly and works the division out again from that version's lot and points. A division that can't be made as asked is refused with its reasons (409); a link that can't be read gets a 400.
+- **Prerequisites.** It waits for the checks on the coordinates and the lots, and for the block-out sheet's own export checks.
+- **Record.** It is recorded as a PDF export with `options.content = "blockout"`, the lot, scale, paper, engine, the division's SHA-256 and, when short enough, the division itself.
+- **File.** The file name ends `-block-out.pdf`.
+
 ### GeoJSON
 
 `surveyGeoJson({ points, parcel, crs, projectName, lot })`:

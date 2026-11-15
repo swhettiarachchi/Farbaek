@@ -171,6 +171,17 @@ From [STANDARDS_RESEARCH.md](STANDARDS_RESEARCH.md), all sources accessed 15 Nov
 | Extent in hectares or m² on the sheet | not_verified | Shown with the A-R-P extent as computed figures |
 | Plan language | not_verified | English only |
 
+## The block-out plan (stage 193, ADR 0208)
+
+The classic sheet drawn from a division on the Lots step, at `/export/blockout`:
+- **Lots and corners:** the divided lot's shares as lots, and the new corners as drawing-only points named P1, P2…
+- **Header:** the heading "BLOCK OUT PLAN", and a red "NOT YET SURVEYED" notice where the draft notice goes.
+- **Left blank:** no plan number and no survey dates.
+- **Face:** point numbers and leg dimensions on the face.
+- **Note:** names the new corners as not yet pegged.
+- **Plot stamp:** "block-out plan from version N, a planned division … not a survey".
+- **Scale:** 1:1000 or larger where it fits (UDA reg. 8).
+
 ## Not built yet
 
 - Sinhala and Tamil text (planned; needs fonts with those scripts and a shaping test, see the roadmap).
