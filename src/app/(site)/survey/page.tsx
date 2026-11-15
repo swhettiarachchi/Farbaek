@@ -5,7 +5,7 @@ import {
   GlobeHemisphereEastIcon,
   LayoutIcon,
   ListChecksIcon,
-  PolygonIcon,
+  PenNibIcon,
   SignatureIcon,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
@@ -20,7 +20,7 @@ import { PUBLIC_TITLE } from "@/components/ui/titles";
 export const metadata: Metadata = {
   title: "Survey Studio",
   description:
-    "Land survey plans from a surveyor's field points: bearings, distances and the extent in acres, roods and perches worked out by tested code, laid out on a plan sheet, and exported as a true-scale vector PDF and DXF.",
+    "Land survey plans from a surveyor's field points, drafted from your own description: lots, roads and the extent in hectares and acres, roods and perches worked out by tested code, laid out in the classic Sri Lankan sheet, and exported as a true-scale vector PDF and DXF.",
   alternates: { canonical: "/survey" },
 };
 
@@ -36,14 +36,14 @@ const STEPS: { icon: Icon; title: string; body: string }[] = [
     body: "Choose SLD99, Kandawala, UTM zone 44N or local coordinates, and confirm it. Farbaek records who confirmed it and checks that the points fit, but never picks the grid for you.",
   },
   {
-    icon: PolygonIcon,
-    title: "Set the boundary",
-    body: "Type the boundary points in order. Each leg's bearing and distance, the area and the perimeter appear as you go, and crossings, repeated points and zero-length legs are flagged.",
+    icon: PenNibIcon,
+    title: "Describe the job, or draw it yourself",
+    body: "Write each lot's corner points, the roads, what adjoins between which points and the title in your own words, or photograph the earlier plan. The AI reads only what you wrote, asks about what's missing and marks every item for you to check. Or type each lot's corners yourself: areas and widths appear as you go.",
   },
   {
     icon: LayoutIcon,
     title: "Lay out the sheet",
-    body: "A4, A3 or A2 at a standard scale, with the title block, extent, boundaries, references, the surveyor's block and an optional development permit box. Drag labels, hide layers and undo anything.",
+    body: "The classic Sri Lankan layout: surveyor's block, plan number, north point, lots with raised labels, roads with their width in feet, adjoining lands, the Reference of codes used, the title, bounded as follows and the extent, with the boundaries schedule overleaf. Paper and scale are picked for you, and you can drag labels and undo anything.",
   },
   {
     icon: ListChecksIcon,
@@ -74,6 +74,10 @@ const RULES = [
     title: "Proved by tests, not by AI",
     body: "The calculations are tested against worked answers. DXF files are read back by an independent reader in the tests, and PDFs are measured for page size and line length. AI never calculates.",
   },
+  {
+    title: "Nothing the AI drafts goes unchecked",
+    body: "Each item the AI fills in quotes the words it came from, and anything it can't quote is left out. Every item stays marked until you mark it right or change it, and the plan can't be approved before then. A photo fills in the title only, never points or measurements.",
+  },
 ];
 
 const SRI_LANKA = [
@@ -103,10 +107,18 @@ const SRI_LANKA = [
   },
 ];
 
+const ON_THE_SHEET = [
+  "The lots, sharing their partition legs, with corner marks from your field codes.",
+  "The road drawn from both surveyed edges, its width measured square across.",
+  "The land adjoining each side, with an arrow to the leg it lies beside.",
+  "The title sentence, district and province, bounded as follows and the extent.",
+  "Every leg's bearing and distance, and the corner coordinates, overleaf.",
+];
+
 const NOT_YET = [
   "Land survey (cadastral boundary) plans only, for now. Subdivision, topographic, engineering and road plans come later, each with its own tested engine.",
   "No traverse adjustment and no conversion between grids: points stay exactly as they were imported.",
-  "Sinhala and Tamil text on the sheet comes later. Today the sheet is in English.",
+  "Sinhala and Tamil text on the sheet comes later. Today the sheet is in English, and descriptions are read in English.",
   "It doesn't submit plans to the Survey Department or the UDA, and approving a plan in Farbaek isn't a certification.",
 ];
 
@@ -140,29 +152,41 @@ export default function SurveyStudioPage() {
             <h1 className={`max-w-[15ch] ${PUBLIC_TITLE}`}>Land survey plans, drawn to scale from field data.</h1>
             <div className="grid gap-6">
               <p className="text-lg leading-relaxed text-ink-2">
-                Survey Studio is Farbaek&apos;s module for licensed surveyors and the people who draw their plans. Import the points, confirm the grid, set the boundary, and get a plan sheet with every bearing, distance and the extent worked out by tested code. Print it at the scale it says, or take it into CAD.
+                Survey Studio is Farbaek&apos;s module for licensed surveyors and the people who draw their plans. Import the points, confirm the grid, describe the job in your own words or set the lots yourself, and get a plan sheet in the classic Sri Lankan layout with every extent and width worked out by tested code. Print it at the scale it says, or take it into CAD.
               </p>
               <Actions />
               <p className="text-sm text-ink-3">You&apos;ll sign in first. The sample plan is in every workspace.</p>
             </div>
           </div>
 
-          <figure className="mt-12 grid gap-4 lg:mt-16">
-            <div data-survey-draw="on" className="rounded-lg bg-surface-raised/60 p-2 shadow-e2 ring-1 ring-line">
+          <figure className="mt-12 grid gap-6 lg:mt-16 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:items-start lg:gap-12">
+            <div data-survey-draw="on" className="mx-auto w-full max-w-[28rem] rounded-lg bg-surface-raised/60 p-2 shadow-e2 ring-1 ring-line">
               <div className="overflow-hidden rounded-md bg-surface ring-1 ring-line">
-                <SheetSvg page={plan.page} draw label="The sample land survey plan sheet: a five-sided lot with a building, its bearings and distances, the north point, scale bar, title block, extent, boundaries and references. Synthetic sample data." className="h-auto w-full" />
+                <SheetSvg page={plan.page} draw label="The sample land survey plan sheet in the classic Sri Lankan layout: three lots of a sub division with raised labels, a road with its width, adjoining lands, the north point, the Reference, the title, bounded as follows and the extent. Synthetic sample data." className="h-auto w-full" />
               </div>
             </div>
+            <div className="grid content-start gap-5">
+              <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+                <div className="overflow-hidden rounded-md bg-surface ring-1 ring-line">
+                  <SheetSvg page={plan.detailPage} viewBox={plan.detail} label="Close-up of the sample sheet's drawing: lots B1, B2 and B3, the road with its width in feet, and the corner marks." className="h-auto w-full" />
+                </div>
+              </div>
+              <ul className="grid list-disc gap-1.5 pl-5 text-body leading-relaxed text-ink-2">
+                {ON_THE_SHEET.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
             <figcaption className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-2">
               <StatusBadge status="simulated" label="Sample" />
               <span>
-                The sample plan from synthetic points{plan.scale ? `, at 1:${plan.scale} on A3` : ""}.{" "}
+                The sample plan from synthetic points{plan.scale ? `, at 1:${plan.scale} on ${plan.paper}` : ""}.{" "}
                 <a href="/survey/sample-plan.pdf" className="font-medium text-accent underline-offset-4 hover:underline">
                   Open it as a PDF
                 </a>{" "}
                 and print it at actual size: the check line measures 100 mm.
               </span>
             </figcaption>
+            </div>
           </figure>
         </Container>
       </section>
@@ -211,39 +235,48 @@ export default function SurveyStudioPage() {
             <div className="self-start rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
               <div className="rounded-md bg-surface p-5 shadow-e1 ring-1 ring-line sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-title-4 font-medium tracking-[-0.01em] text-ink">The sample lot, worked out</h3>
+                  <h3 className="text-title-4 font-medium tracking-[-0.01em] text-ink">The sample plan, worked out</h3>
                   <StatusBadge status="simulated" label="Sample" />
                 </div>
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full min-w-[18rem] text-left text-sm">
-                    <caption className="sr-only">Boundary legs of the sample lot with their bearings and distances</caption>
+                    <caption className="sr-only">Each lot of the sample plan with its extent</caption>
                     <thead>
                       <tr className="border-b border-line text-ink-3">
-                        <th scope="col" className="py-2 pr-3 font-medium">Leg</th>
-                        <th scope="col" className="py-2 pr-3 font-medium">Bearing</th>
-                        <th scope="col" className="py-2 text-right font-medium">Distance (m)</th>
+                        <th scope="col" className="py-2 pr-3 font-medium">Lot</th>
+                        <th scope="col" className="py-2 pr-3 text-right font-medium">Hectares</th>
+                        <th scope="col" className="py-2 text-right font-medium">Acres, roods, perches</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {plan.legs.map((l) => (
-                        <tr key={`${l.from}-${l.to}`} className="border-b border-line last:border-b-0">
-                          <td className="py-2 pr-3 tabular text-ink-2">
-                            {l.from} to {l.to}
+                      {plan.lots.map((l) => (
+                        <tr key={l.name} className="border-b border-line">
+                          <td className="py-2 pr-3 text-ink">
+                            {l.label}
+                            <sup>{l.sup}</sup>
                           </td>
-                          <td className="py-2 pr-3 tabular text-ink">{l.bearing}</td>
-                          <td className="py-2 text-right tabular text-ink">{l.distance}</td>
+                          <td className="py-2 pr-3 text-right tabular text-ink">{l.ha}</td>
+                          <td className="py-2 text-right tabular text-ink">{l.arp}</td>
                         </tr>
                       ))}
+                      {plan.total ? (
+                        <tr>
+                          <td className="py-2 pr-3 font-medium text-ink">Entire land</td>
+                          <td className="py-2 pr-3 text-right tabular font-medium text-ink">{plan.total.ha}</td>
+                          <td className="py-2 text-right tabular font-medium text-ink">{plan.total.arp}</td>
+                        </tr>
+                      ) : null}
                     </tbody>
                   </table>
                 </div>
-                {plan.area ? (
+                {plan.lots[0] ? (
                   <p className="mt-4 text-body leading-relaxed text-ink-2">
-                    Area <span className="tabular font-medium text-ink">{plan.area.m2} m²</span>, which is <span className="tabular font-medium text-ink">{plan.area.ha} ha</span> or{" "}
-                    <span className="tabular font-medium text-ink">{plan.area.arp}</span>. Perimeter <span className="tabular font-medium text-ink">{plan.area.perimeter} m</span>.
+                    Lot {plan.lots[0].label}
+                    <sup>{plan.lots[0].sup}</sup>&apos;s first leg runs from point {plan.lots[0].legs[0]!.from} to {plan.lots[0].legs[0]!.to} on a bearing of{" "}
+                    <span className="tabular font-medium text-ink">{plan.lots[0].legs[0]!.bearing}</span> for <span className="tabular font-medium text-ink">{plan.lots[0].legs[0]!.distance} m</span>. The schedule overleaf lists every leg.
                   </p>
                 ) : null}
-                <p className="mt-3 text-sm text-ink-3">Computed by the coordinate method on the SLD99 grid, from synthetic points.</p>
+                <p className="mt-3 text-sm text-ink-3">Computed by the coordinate method on the SLD99 grid, from synthetic points. The lots add up to the entire land exactly.</p>
               </div>
             </div>
           </div>

@@ -90,3 +90,43 @@ export const SRI_LANKA_CADASTRAL_V1: SheetTemplate = {
 };
 
 export const TEMPLATES: readonly SheetTemplate[] = [SRI_LANKA_CADASTRAL_V1];
+
+/**
+ * The classic Sri Lankan sheet (stage 191): portrait, the layout and wording
+ * seen on practising surveyors' plans (docs/survey/REFERENCE_PLANS_ANALYSIS.md).
+ * Observed in practice, not an official specification. Sizes are shares of
+ * the frame's height, so the sheet keeps its proportions on A4, A3 and A2.
+ */
+export const SRI_LANKA_CLASSIC_V1 = {
+  id: "lk-classic",
+  version: 1,
+  name: "Sri Lankan plan (classic)",
+  margin: { A4: 8, A3: 10, A2: 12 },
+  /** Text heights as shares of the frame height. */
+  text: { region: 0.02, heading: 0.018, planNumber: 0.015, lotLabel: 0.013, description: 0.0095, body: 0.0088, label: 0.0075, small: 0.0068 },
+  /** Line weights, mm. */
+  lines: { frame: 0.35, boundary: 0.45, feature: 0.25, thin: 0.18 },
+  /** Lean of the lettering, degrees, when slanted lettering is on. */
+  slant: 15,
+  captions: {
+    planNumber: "PLAN No.",
+    extractOf: "Extract of Lot",
+    reference: "Reference",
+    note: "Note:-",
+    scale: "Scale:-",
+    heading: "PLAN",
+    entireBounded: "Entire land bounded as follows",
+    lotBounded: "Lot {lot} bounded as follows",
+    north: "North by",
+    east: "East by",
+    south: "South by",
+    west: "West by",
+    by: ":-",
+    extent: "Containing in Extent",
+    hectares: "Hectares",
+    surveyedAndPartitioned: "Surveyed & partitioned on",
+    surveyedOn: "Surveyed on",
+    partitionedOn: "Partitioned on",
+    overleaf: "For boundaries schedule see overleaf",
+  },
+} as const;

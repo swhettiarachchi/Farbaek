@@ -1,11 +1,13 @@
 import {
   ArchiveIcon,
+  ArrowsLeftRightIcon,
   ClockCounterClockwiseIcon,
   DownloadSimpleIcon,
   FileArrowUpIcon,
   GearSixIcon,
   ListChecksIcon,
   MapPinSimpleIcon,
+  PenNibIcon,
   PolygonIcon,
   PrinterIcon,
   RulerIcon,
@@ -17,8 +19,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { archiveSurveyProjectAction } from "../actions";
 import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
-import { BoundaryEditor } from "@/components/survey/boundary-editor";
+import { LotsEditor } from "@/components/survey/boundary-editor";
 import { FindingsList } from "@/components/survey/findings";
+import { DraftPanel } from "@/components/survey/draft-panel";
 import { ApproveForm, SurveyProjectSettingsForm } from "@/components/survey/forms";
 import { ImportPanel } from "@/components/survey/import-panel";
 import { PlanEditor } from "@/components/survey/plan-editor";
@@ -27,20 +30,23 @@ import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { crsById } from "@/core/survey/crs";
 import { fmt } from "@/core/survey/sheet/compose";
+import { compareDocuments, type ChangeArea } from "@/core/survey/compare";
 import { buildPlan } from "@/core/survey/view";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
 import { isoDate, personName, planInputFor } from "@/server/survey/present";
-import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
+import { loadSurveyDrawing, loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { SAMPLE_PROJECT_ID, sampleProject } from "@/server/survey/sample";
 import { loadAppContext } from "@/server/workspace/context";
+import { loadAiAvailability } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "Survey project" };
 
 const STEPS = [
   { id: "import", label: "Import", icon: FileArrowUpIcon },
   { id: "points", label: "Points", icon: MapPinSimpleIcon },
-  { id: "boundary", label: "Boundary", icon: PolygonIcon },
+  { id: "draft", label: "Draft", icon: PenNibIcon },
+  { id: "boundary", label: "Lots", icon: PolygonIcon },
   { id: "plan", label: "Plan", icon: RulerIcon },
   { id: "check", label: "Check", icon: ListChecksIcon },
   { id: "export", label: "Export", icon: DownloadSimpleIcon },
@@ -51,7 +57,7 @@ type StepId = (typeof STEPS)[number]["id"];
 
 const POINTS_SHOWN = 500;
 
-export default async function SurveyProjectPage({ params, searchParams }: { params: Promise<{ projectId: string }>; searchParams: Promise<{ step?: string }> }) {
+export default async function SurveyProjectPage({ params, searchParams }: { params: Promise<{ projectId: string }>; searchParams: Promise<{ step?: string; compare?: string }> }) {
   const [{ projectId }, sp] = await Promise.all([params, searchParams]);
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
@@ -78,12 +84,24 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
     if (rows.some((a) => a.withdrawn_at === null)) return <StatusBadge status="done" label="Approved" />;
     return rows.length > 0 ? <StatusBadge status="off" label="Approval withdrawn" /> : null;
   };
-  const fallback: StepId = data.points.length === 0 ? "import" : doc.boundary.length === 0 ? "boundary" : "plan";
+  const fallback: StepId = data.points.length === 0 ? "import" : doc.lots.length === 0 ? "draft" : "plan";
   const step: StepId = STEPS.some((s) => s.id === sp.step) ? (sp.step as StepId) : fallback;
   const base = `/app/survey/${projectId}`;
   const surveyors = data.profiles.map((p) => ({ userId: p.user_id, name: p.full_name, designation: p.designation, registration: p.registration, address: p.address, contact: p.contact }));
   const me = ctx.user.id;
   const named = doc.surveyorUserId;
+  // The drafting assistant (ADR 0202): its availability, read only on its own step.
+  const ws = ctx.current;
+  const [draftAi, readAi] = step === "draft" && !readOnly ? await Promise.all([loadAiAvailability(ctx, ws, "survey_draft").catch(() => null), loadAiAvailability(ctx, ws, "survey_read").catch(() => null)]) : [null, null];
+  const aiOff = (a: typeof draftAi) => readOnly ?? (a ? a.disabledReason : "AI isn't available right now. Try again in a minute, or fill in the plan yourself on the Lots and Plan steps.");
+  // History's compare (stage 191): an earlier version against the latest, in words.
+  const asked = step === "history" && !sample && sp.compare ? Number(sp.compare) : null;
+  const compareWith = asked && Number.isInteger(asked) && asked !== data.drawing.version ? asked : null;
+  const reader = compareWith ? await createSupabaseServerClient() : null;
+  const earlier = compareWith && reader ? await loadSurveyDrawing(reader, projectId, compareWith) : null;
+  const changes = earlier?.readable ? compareDocuments(earlier.document, doc, data.points) : null;
+  const changeAreas = changes ? ([...new Set(changes.map((c) => c.area))] as ChangeArea[]) : [];
+  const draftOff = data.points.length === 0 ? "Import the surveyed points first: the draft names lots by their corner points." : aiOff(draftAi);
 
   return (
     <div className="grid gap-6">
@@ -180,12 +198,27 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
         </Card>
       ) : null}
 
+      {step === "draft" ? (
+        <DraftPanel
+          key={data.drawing.version}
+          projectId={projectId}
+          baseVersion={data.drawing.version}
+          document={doc}
+          points={data.points}
+          crsId={data.project.crsId}
+          crsConfirmation={input.crsConfirmation}
+          draftOff={draftOff}
+          readOff={aiOff(readAi)}
+          provider={readAi?.provider ?? null}
+        />
+      ) : null}
+
       {step === "boundary" ? (
         <Card>
-          <CardTitle icon={PolygonIcon}>Boundary</CardTitle>
-          <p className="mt-1 text-sm text-ink-2">Type the boundary&apos;s point numbers in order. Bearings, distances and the area are computed from the coordinates as you type.</p>
+          <CardTitle icon={PolygonIcon}>Lots, roads and adjoining lands</CardTitle>
+          <p className="mt-1 text-sm text-ink-2">Type each lot&apos;s corner numbers in order. Areas, extents and road widths are computed from the coordinates as you type.</p>
           <div className="mt-5">
-            {data.points.length === 0 ? <p className="text-sm text-ink-2">Import points first.</p> : <BoundaryEditor projectId={projectId} baseVersion={data.drawing.version} document={doc} points={data.points} readOnly={readOnly} />}
+            {data.points.length === 0 ? <p className="text-sm text-ink-2">Import points first.</p> : <LotsEditor projectId={projectId} baseVersion={data.drawing.version} document={doc} points={data.points} readOnly={readOnly} />}
           </div>
         </Card>
       ) : null}
@@ -313,6 +346,38 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
 
       {step === "history" ? (
         <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          {compareWith ? (
+            <Card className="lg:col-span-2">
+              <CardTitle icon={ArrowsLeftRightIcon}>
+                Version {compareWith} to version {data.drawing.version}
+              </CardTitle>
+              {!earlier ? (
+                <p className="mt-3 text-sm text-ink-2">Version {compareWith} couldn&apos;t be read.</p>
+              ) : !earlier.readable ? (
+                <p className="mt-3 text-sm text-ink-2">Version {compareWith}&apos;s saved settings couldn&apos;t be read, so it can&apos;t be compared.</p>
+              ) : changes && changes.length === 0 ? (
+                <p className="mt-3 text-sm text-ink-2">Nothing on the plan changed between these versions.</p>
+              ) : (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {changeAreas.map((area) => (
+                    <section key={area} aria-label={area} className="grid content-start gap-1.5">
+                      <h3 className="text-sm font-medium text-ink">{area}</h3>
+                      <ul className="grid list-disc gap-1 pl-5 text-sm text-ink-2">
+                        {changes!
+                          .filter((c) => c.area === area)
+                          .map((c, i) => (
+                            <li key={i} className="break-words">
+                              {c.text}
+                            </li>
+                          ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              )}
+              <p className="mt-4 text-sm text-ink-3">Coordinates never change between versions: imported points are kept as given.</p>
+            </Card>
+          ) : null}
           <Card>
             <CardTitle icon={ClockCounterClockwiseIcon}>Versions</CardTitle>
             <ul className="mt-3 grid gap-2">
@@ -324,6 +389,12 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
                     {isoDate(v.createdAt)}, by {personName(v.createdBy, data.profiles, me)}
                   </span>
                   {versionApproval(v.version)}
+                  {v.version !== data.drawing.version && !sample ? (
+                    <Link href={`${base}?step=history&compare=${v.version}`} aria-current={compareWith === v.version ? "true" : undefined} className="inline-flex min-h-11 items-center gap-1.5 font-medium text-accent underline-offset-4 hover:underline">
+                      <ArrowsLeftRightIcon size={16} weight="bold" aria-hidden />
+                      Compare with version {data.drawing.version}
+                    </Link>
+                  ) : null}
                 </li>
               ))}
             </ul>

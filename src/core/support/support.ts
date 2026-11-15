@@ -16,8 +16,8 @@ export const TOPIC_LABELS: Record<SupportTopic, string> = {
 };
 
 /** Where "Report this result" goes (ADR 0171): the in-app form, so reporting never means leaving the app. */
-export function reportHref(about: { taskId: string } | { projectId: string }): string {
-  const where = "taskId" in about ? `task=${encodeURIComponent(about.taskId)}` : `project=${encodeURIComponent(about.projectId)}`;
+export function reportHref(about: { taskId: string } | { projectId: string } | { surveyProjectId: string }): string {
+  const where = "taskId" in about ? `task=${encodeURIComponent(about.taskId)}` : "surveyProjectId" in about ? `survey=${encodeURIComponent(about.surveyProjectId)}` : `project=${encodeURIComponent(about.projectId)}`;
   return `/app/help/new?topic=abuse&${where}`;
 }
 

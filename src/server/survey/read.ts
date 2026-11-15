@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { emptyDocument, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
+import { emptyDocument, parseSurveyDocument, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 
 /**
@@ -99,8 +99,9 @@ export interface SurveyDrawing {
 }
 
 function toDrawing(r: z.infer<typeof drawingRow>): SurveyDrawing {
-  const parsed = surveyDocumentSchema.safeParse(r.document);
-  return { id: r.id, version: r.version, document: parsed.success ? parsed.data : emptyDocument(), readable: parsed.success, note: r.note, createdBy: r.created_by, createdAt: r.created_at };
+  // Schema 1 documents (stage 190) are upgraded as they are read; anything else falls back to an empty one, said so on screen.
+  const parsed = parseSurveyDocument(r.document);
+  return { id: r.id, version: r.version, document: parsed ?? emptyDocument(), readable: parsed !== null, note: r.note, createdBy: r.created_by, createdAt: r.created_at };
 }
 
 export interface SurveyProjectData {
@@ -127,6 +128,14 @@ async function readPoints(client: SupabaseClient, projectId: string): Promise<Su
     if (data.length < 1000) break;
   }
   return out;
+}
+
+/** One saved version of a project's drawing, read as the person (row security keeps it to their workspace), or null. */
+export async function loadSurveyDrawing(client: SupabaseClient, projectId: string, version: number): Promise<SurveyDrawing | null> {
+  if (!z.string().uuid().safeParse(projectId).success || !Number.isInteger(version) || version < 1) return null;
+  const { data } = await client.from("survey_drawings").select("id, version, document, note, created_by, created_at").eq("project_id", projectId).eq("version", version).maybeSingle();
+  const d = drawingRow.safeParse(data);
+  return d.success ? toDrawing(d.data) : null;
 }
 
 /** A project with everything its screens need, or null when it isn't this workspace's or can't be read. */

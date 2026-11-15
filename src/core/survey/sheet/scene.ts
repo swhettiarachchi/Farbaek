@@ -40,6 +40,8 @@ export interface SceneText extends Tagged {
   /** Degrees, clockwise on the page, about (x, y). */
   rotate: number;
   color: SceneColor;
+  /** Degrees the letters lean right (slanted CAD lettering), about the text's own baseline point. */
+  slant?: number;
 }
 
 export interface SceneCircle extends Tagged {
@@ -104,12 +106,17 @@ const GEIST_EXTRA: Record<string, number> = { "°": 404, "′": 211, "″": 333,
  * "too long". Characters not in the table count as 0.7 em.
  */
 export function textWidth(text: string, size: number, font: "sans" | "mono" = "sans"): number {
+  return advanceWidth(text, size, font) * 1.04;
+}
+
+/** The font's own advance for the text, mm, with no margin: for placing one piece of text right after another. */
+export function advanceWidth(text: string, size: number, font: "sans" | "mono" = "sans"): number {
   let em = 0;
   for (const ch of text) {
     const c = ch.codePointAt(0)!;
     em += font === "mono" ? 600 : c >= 32 && c <= 126 ? GEIST_ASCII[c - 32]! : (GEIST_EXTRA[ch] ?? 700);
   }
-  return (em / 1000) * size * 1.04;
+  return (em / 1000) * size;
 }
 
 /** Wraps text into lines no wider than `width` mm, breaking at spaces; a single over-long word is kept whole. */

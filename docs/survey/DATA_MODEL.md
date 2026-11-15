@@ -1,6 +1,6 @@
 # Survey Studio data model
 
-Source: [`supabase/migrations/20270103090000_survey_studio.sql`](../../supabase/migrations/20270103090000_survey_studio.sql) (Farbaek schema v93, stage 190). Plain Postgres: no PostGIS (ADR 0199). Tests: [`tests/db/survey-studio.test.ts`](../../tests/db/survey-studio.test.ts).
+Sources: [`supabase/migrations/20270103090000_survey_studio.sql`](../../supabase/migrations/20270103090000_survey_studio.sql) (Farbaek schema v93, stage 190) and [`20270104090000_survey_autodraft.sql`](../../supabase/migrations/20270104090000_survey_autodraft.sql) (v94, stage 191: the drafting assistant's usage operations and its audit function). Plain Postgres: no PostGIS (ADR 0199). Tests: [`tests/db/survey-studio.test.ts`](../../tests/db/survey-studio.test.ts).
 
 ## Three layers of data
 
@@ -138,20 +138,25 @@ Index `survey_exports_project_idx (project_id, created_at desc)`. The file itsel
 
 ## The drawing document
 
-Defined in [`document.ts`](../../src/core/survey/document.ts) with zod. It never holds a coordinate.
+Defined in [`document.ts`](../../src/core/survey/document.ts) with zod. It never holds a coordinate: lots, roads and lines name points by id. Schema 2 came with stage 191 (ADR 0203); `parseSurveyDocument` reads schema 1 documents and upgrades them (the boundary becomes lot 1, the legend becomes the code library, the panel layout is kept).
 
 | Field | Type and limits |
 | --- | --- |
-| `schema` | the literal `1` |
-| `boundary` | up to 500 point ids (UUIDs), in the surveyor's order; closes back to the first |
-| `features` | up to 200: `id` (1 to 40 characters), `layer` (BUILDINGS, WALLS, FENCES, DRAINS, ROADS or UTILITIES), `code` (up to 12 characters), `closed`, `points` (2 to 500 point ids) |
-| `labelOffsets` | entity id (up to 80 characters) to `{ dx, dy }` in paper millimetres, each between -200 and 200. Presentation only |
-| `layers` | each of the 14 layer ids to `{ visible, locked }` |
-| `sheet` | the sheet fields: `planNumber` (40), `planDate` (20), `lot` (40), `landName` (120), `village`, `gnDivision`, `dsDivision`, `district`, `province` (60 each), `previousPlans` (400), `boundaries` north, east, south, west (160 each), `statedExtent` (80), `surveyDate` (20), `remarks` (600), `legend` (up to 30 entries of `code` 1 to 12 and `meaning` 1 to 60 characters) |
-| `settings` | `paper` A4, A3 or A2; `orientation`; `scale` (integer 50 to 100,000, or null for the suggested one); `perchDecimals` 0 to 4; `secondDecimals` 0 to 2; `distanceDecimals` 2 to 4; `overleaf`; `permitBox` |
+| `schema` | the literal `2` |
+| `lots` | up to 60: `id` (1 to 40 characters of letters, digits, `_` and `-`), `label` (1 to 12, as written, such as B), `sup` (its raised part, up to 6, such as 1 for B¹), `points` (up to 500 point ids in order round the lot), `note` (up to 80, such as "Res. for Access, 10ft. wide") |
+| `roads` | up to 20: `id`, `name` (80), `edgeA` (2 to 200 point ids), `edgeB` (up to 200), `width` written in `feet`, `metres` or `none` (always computed from the edges, never typed), `start` and `end` direction texts (60 each) |
+| `adjoining` | up to 80: `id`, `text` (1 to 200), `lot` (a lot id), `leg` (the leg's index in that lot's ring) |
+| `features` | up to 300 lines or outlines: `id`, `layer` (BUILDINGS, WALLS, FENCES, DRAINS, ROADS or UTILITIES), `code` (12), `closed`, `points` (2 to 500 point ids) |
+| `notes` | up to 10 lines of up to 300 characters, printed as "Note:- …" |
+| `codes` | up to 80 entries of the code library: `code`, `meaning`, `kind` (mark, line, outline or symbol), `line` (solid, dashed or ticked) and `legend` (shown in the Reference when used). New projects start from `COMMON_CODES`, labelled common usage, not an official list |
+| `labelOffsets` | entity key (up to 80 characters) to `{ dx, dy }` in paper millimetres, each between -200 and 200. Presentation only |
+| `layers` | each of the 15 layer ids (ADJOINING added) to `{ visible, locked }` |
+| `sheet` | `planNumber` (40), `planDate` (20), `landName` (120), `alias` (160), `nowKnownAs` (120), `operation` (resurvey, subdivision, amalgamation or custom), `parentLots` (60), `previousPlan` (`number` 40, `date` 20, `by` 80, `byDesignation` 60, `mine`, `filing` 160), `customClause` (800), `village`, `pattu`, `korale`, `gnDivision`, `dsDivision`, `district`, `province` (60 each), `previousPlans` (400), `boundaries` north, east, south and west (200 each), `statedExtent` (80), `surveyDate`, `partitionDate` (20 each), `statement` (200), `remarks` (600), `extractOf` (a lot id, or empty) |
+| `settings` | `template` classic or panel; `paper` auto, A4, A3 or A2; `orientation`; `scale` (integer 50 to 100,000, or null for the suggested one); `perchDecimals` 0 to 4; `secondDecimals` 0 to 2; `distanceDecimals` 2 to 4; `overleaf`; `permitBox`; `slant`; `faceDimensions` |
+| `provenance` | item key to `{ source, reviewed }`, for items not typed by the surveyor. Keys: `lot:<id>`, `road:<id>`, `adjoining:<id>`, `feature:<id>`, `sheet.<field>` (`sheet.boundaries.north` and so on, `sheet.previousPlan` for the earlier plan), `notes`, `codes`. Sources: `ai_brief` (read from the surveyor's description), `ai_photo` (read from a photo), `engine` (suggested by tested code). An AI item counts once `reviewed` is true, which only the surveyor's own action sets |
 | `surveyorUserId` | a member's user id, or null |
 
-Every text field has control characters removed (except tab, line feed and carriage return) as it is parsed. A new project starts from `emptyDocument()`: no boundary, the brief's legend examples, A3 landscape, perches to 2 decimals, whole seconds, distances to 2 decimals, the overleaf on and the permit box off.
+Every text field has control characters removed (except tab, line feed and carriage return) as it is parsed. A new project starts from `emptyDocument()`: no lots, the common codes, the classic layout on automatic paper, portrait, slanted lettering, perches to 2 decimals, whole seconds, distances to 2 decimals, the overleaf on, bearings and distances overleaf rather than on the face, and the permit box off.
 
 ## Functions
 
@@ -171,6 +176,7 @@ Helpers:
 | `app_survey_approve(org, actor, project, version, crs, content_sha256)` returns uuid | Approves the latest version. `crs` must still be the project's CRS: the hash covers the grid the server read, and the function holds the project row (`for update`) so the grid can't change before it commits. The document's `surveyorUserId` must be the actor, who must have a profile. Copies the profile into `surveyor` | `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `NOT_FOUND`, `CRS_CHANGED` (P0001), `VERSION_CONFLICT` when `version` isn't the latest, `NOT_THE_SURVEYOR` (42501), `NO_SURVEYOR_PROFILE` (42501), `ALREADY_APPROVED` (23505) when a standing approval exists | `survey.approved` (version, SHA-256) |
 | `app_survey_record_export(org, actor, project, version, kind, sha256, size, options)` returns uuid | Records a file made for a version. Any member may export what they can read, viewers included: it checks membership, not role. Like every other write here, a suspended workspace and an archived project make no new files | `FORBIDDEN` (not a member), `WORKSPACE_SUSPENDED`, `NOT_FOUND` (an archived project, or no such version in the workspace) | `survey.exported` (version, kind, SHA-256, bytes) |
 | `app_survey_archive_project(org, actor, project)` | Sets `archived_at`; the project leaves the list and takes no more edits. Its data and history stay | `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `NOT_FOUND` | `survey.project_archived` |
+| `app_survey_record_ai_draft(org, actor, project, operation, model, accepted, dropped, questions)` (v94) | Records that the drafting assistant ran on an open project: `survey_draft` or `survey_read`, the model id, and how many items it offered, left out and asked about. Nothing the person typed or photographed is stored | `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `NOT_FOUND`, `INVALID_OPERATION`, `INVALID_MODEL`, `INVALID_COUNTS` (22023) | `survey.ai_drafted` (operation, model, counts) |
 
 A check constraint failing inside a function (for example a point number with a control character) raises a Postgres error that names no code above; `surveyErrorFrom` turns it into `UNKNOWN` ("That didn't work, and nothing was changed. Try again in a moment.").
 
@@ -182,7 +188,7 @@ The TypeScript layer adds three codes of its own: `INVALID_REQUEST` (input that 
 - `engine`: `SURVEY_ENGINE_VERSION`;
 - `crs`: the project's CRS id;
 - `document`: the whole drawing document;
-- `points`: every point the boundary or a feature uses, as `{ id, point, e, n, z, code }`, sorted by id.
+- `points`: every point a lot, road or feature uses (`usedPointIds`), as `{ id, point, e, n, z, code }`, sorted by id.
 
 The server computes it in `approveSurveyAction`, after recomputing the plan and refusing while any finding blocks approval. Saving after approval makes a new version with no approval row, so the sheet shows DRAFT again. Changing the project's CRS withdraws every standing approval, because the hash and the surveyor's review covered the old grid.
 

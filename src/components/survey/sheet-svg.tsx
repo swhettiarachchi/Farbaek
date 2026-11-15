@@ -42,6 +42,18 @@ function itemProps(item: SceneItem, props: SheetSvgProps) {
   };
 }
 
+/** Rotation, then the lean of slanted lettering, both about the text's own point, as the PDF writer applies them. */
+function textTransform(item: { x: number; y: number; rotate: number; slant?: number }): string | undefined {
+  if (!item.rotate && !item.slant) return undefined;
+  const x = item.x.toFixed(3);
+  const y = item.y.toFixed(3);
+  const parts = [`translate(${x} ${y})`];
+  if (item.rotate) parts.push(`rotate(${item.rotate.toFixed(3)})`);
+  if (item.slant) parts.push(`skewX(${(-item.slant).toFixed(3)})`);
+  parts.push(`translate(${-item.x} ${-item.y})`);
+  return parts.join(" ");
+}
+
 export function SheetSvg(props: SheetSvgProps) {
   const { page } = props;
   const [vx, vy, vw, vh] = props.viewBox ?? [0, 0, page.widthMm, page.heightMm];
@@ -84,7 +96,7 @@ export function SheetSvg(props: SheetSvgProps) {
             fontWeight={item.weight === "bold" ? 600 : 400}
             fontFamily={item.font === "mono" ? "var(--font-geist-mono), monospace" : "var(--font-geist), sans-serif"}
             textAnchor={item.anchor}
-            transform={item.rotate ? `rotate(${item.rotate.toFixed(3)} ${item.x.toFixed(3)} ${item.y.toFixed(3)})` : undefined}
+            transform={textTransform(item)}
             fill={selected ? "var(--color-accent)" : COLOR[item.color]}
             style={{ ...p.style, userSelect: "none" }}
             className={props.draw ? "survey-fade" : undefined}

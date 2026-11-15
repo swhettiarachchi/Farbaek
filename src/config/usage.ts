@@ -5,7 +5,7 @@
  * reserves room first and is settled to the real cost afterwards.
  * The database ledger (ai_credit_ledger) accepts only these operations.
  */
-export const USAGE_OPERATIONS = ["contract_draft", "change_proposal", "agent_step", "security_review", "model_gateway", "lens_mapping", "policy_draft", "image_generation", "second_check", "task_note", "failure_test"] as const;
+export const USAGE_OPERATIONS = ["contract_draft", "change_proposal", "agent_step", "security_review", "model_gateway", "lens_mapping", "policy_draft", "image_generation", "second_check", "task_note", "failure_test", "survey_draft", "survey_read"] as const;
 
 export type UsageOperation = (typeof USAGE_OPERATIONS)[number];
 
@@ -21,10 +21,12 @@ export const USAGE_OPERATION_LABELS: Record<UsageOperation, string> = {
   second_check: "Second check of a change",
   task_note: "Explain or audit a task",
   failure_test: "Write a failure trial's test",
+  survey_draft: "Draft a survey plan from your description",
+  survey_read: "Read an old survey plan from a photo",
 };
 
 /** The operations a button in the web app starts directly. */
-export type ButtonOperation = Extract<UsageOperation, "contract_draft" | "change_proposal" | "lens_mapping" | "policy_draft" | "second_check" | "task_note" | "failure_test">;
+export type ButtonOperation = Extract<UsageOperation, "contract_draft" | "change_proposal" | "lens_mapping" | "policy_draft" | "second_check" | "task_note" | "failure_test" | "survey_draft" | "survey_read">;
 
 /**
  * Prompt tokens of a typical call, for deciding whether a button works
@@ -39,4 +41,6 @@ export const TYPICAL_PROMPT_TOKENS: Record<ButtonOperation, number> = {
   second_check: 12_000,
   task_note: 15_000,
   failure_test: 12_000,
+  survey_draft: 5_000,
+  survey_read: 6_000,
 };

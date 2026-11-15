@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { SectionHeading } from "./section-heading";
 
 const FACTS = [
+  "Describe the job in your own words and the AI drafts the lots and the title for you to check. Anything it can't quote from you is left out.",
   "Bearings, distances and the extent in acres, roods and perches, computed from your coordinates by tested code, never by AI.",
   "The SLD99 or Kandawala grid, confirmed by you, never guessed from the numbers.",
   "A vector PDF at an exact scale with a 100 mm check line, and DXF for CAD.",
@@ -56,18 +57,18 @@ export function SurveySection() {
 
           <figure className="grid gap-4">
             <DrawWhenSeen className="relative sm:pb-12">
-              <div className="[perspective:1800px]">
+              <div className="ml-auto w-full max-w-[28rem] [perspective:1800px]">
                 <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] lg:[transform:rotateX(7deg)_rotateY(-10deg)_rotateZ(0.8deg)] lg:hover:[transform:none]">
                   <div className="overflow-hidden rounded-md bg-surface shadow-e3 ring-1 ring-line">
-                    <SheetSvg page={plan.page} draw label="A sample land survey plan sheet: a five-sided lot with a building, the north point, scale bar, title block, extent and references. Synthetic sample data." className="h-auto w-full" />
+                    <SheetSvg page={plan.page} draw label="A sample land survey plan sheet in the classic Sri Lankan layout: three lots with raised labels, a road with its width, adjoining lands, the Reference, the title and the extent. Synthetic sample data." className="h-auto w-full" />
                   </div>
                 </div>
               </div>
               <div className="relative -mt-6 ml-auto w-[86%] rounded-lg bg-surface-raised/80 p-1.5 shadow-e2 ring-1 ring-line backdrop-blur-xl sm:absolute sm:bottom-0 sm:left-0 sm:mt-0 sm:w-[54%] lg:-left-6">
                 <div className="overflow-hidden rounded-[calc(var(--radius-lg)-0.375rem)] bg-surface ring-1 ring-line">
-                  <SheetSvg page={plan.detailPage} viewBox={plan.detail} draw label="Close-up of the sample sheet's extent in acres, roods and perches, hectares and square metres, and its four boundaries." className="h-auto w-full" />
+                  <SheetSvg page={plan.detailPage} viewBox={plan.detail} draw label="Close-up of the sample sheet's drawing: lots B1, B2 and B3, the road with its width in feet, and the corner marks." className="h-auto w-full" />
                 </div>
-                <p className="px-3 pb-1.5 pt-2.5 text-sm text-ink-2">The extent block, enlarged from the sheet.</p>
+                <p className="px-3 pb-1.5 pt-2.5 text-sm text-ink-2">The drawing, enlarged from the sheet.</p>
               </div>
             </DrawWhenSeen>
             <figcaption className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
