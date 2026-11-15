@@ -112,6 +112,11 @@ export function dsrCodes(): CodeEntry[] {
   return DSR_CODES.map((c) => ({ ...c }));
 }
 
+/** True while the library is exactly the Survey Department's list, which the surveyor checks like any list. */
+export function codesAreDsrList(codes: readonly CodeEntry[]): boolean {
+  return codes.length === DSR_CODES.length && codes.every((c, i) => JSON.stringify(c) === JSON.stringify(DSR_CODES[i]));
+}
+
 /** How many of a file's codes are the Survey Department's and not in the given library: a hint to offer its list. */
 export function dsrCodesIn(fileCodes: readonly string[], library: readonly CodeEntry[]): string[] {
   return [...new Set(fileCodes)].filter((c) => !library.some((e) => e.code === c) && DSR_CODES.some((e) => e.code === c));
@@ -131,6 +136,17 @@ export function lookupCode(codes: readonly CodeEntry[], code: string | null | un
   const c = (code ?? "").trim();
   if (!c) return null;
   return codes.find((e) => e.code === c) ?? codes.find((e) => e.code.toLowerCase() === c.toLowerCase()) ?? null;
+}
+
+/** The letters of a numbered code: "MW1" and "MW2" are two strings of code "MW". A code without a number is itself. */
+export function codeBase(code: string): string {
+  return /^([A-Za-z]+)\d+$/.exec(code)?.[1] ?? code;
+}
+
+/** The library entry for a point's code: its first word as written, else the letters of a numbered code ("MW1" is "MW"). */
+export function entryFor(codes: readonly CodeEntry[], raw: string | null | undefined): CodeEntry | null {
+  const c = codeOf(raw);
+  return lookupCode(codes, c) ?? (codeBase(c) !== c ? lookupCode(codes, codeBase(c)) : null);
 }
 
 /** The first word of a field code: total stations often record "MW wall corner", where the code is "MW". */

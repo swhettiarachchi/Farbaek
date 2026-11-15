@@ -21,7 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type SurveyFormState =
   | { status: "idle" }
   | { status: "error"; message: string; issues?: ImportIssue[] }
-  | { status: "done"; message: string; version?: number; drawn?: string[]; notDrawn?: string[] };
+  | { status: "done"; message: string; version?: number; drawn?: string[]; notDrawn?: string[]; drawError?: string };
 
 interface Writer {
   admin: SupabaseClient;
@@ -129,7 +129,7 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
   const drawing = i.drawPlan ? await drawFromPoints(g.w, i.projectId, `Drawn from ${i.fileName}`, i.codeList, result.surveyDate) : null;
   revalidatePath(`/app/survey/${i.projectId}`);
   if (!drawing) return { status: "done", message: imported };
-  if (!drawing.ok) return { status: "done", message: `${imported} The plan wasn't drawn: ${drawing.message}` };
+  if (!drawing.ok) return { status: "done", message: imported, drawError: `The plan wasn't drawn: ${drawing.message} The points are in; draw it again from the Draft step.` };
   return { status: "done", message: drawing.version ? `${imported} The plan is drawn as version ${drawing.version}: check it, then approve.` : imported, version: drawing.version ?? undefined, drawn: drawing.drawn, notDrawn: drawing.notDrawn };
 }
 
@@ -142,10 +142,14 @@ async function drawFromPoints(w: Writer, projectId: string, note: string, codeLi
   const data = await loadSurveyProject(w.user, w.actor.orgId, projectId);
   if (!data) return { ok: false, message: SURVEY_MESSAGES.NOT_FOUND };
   const mine = data.profiles.some((p) => p.user_id === w.actor.userId) ? w.actor.userId : null;
-  // The Survey Department's code list, when the surveyor chose it for a file written in its codes; only on a plan not yet drawn.
-  const base = codeList === "dsr" && data.drawing.document.lots.length === 0 ? { ...data.drawing.document, codes: dsrCodes() } : data.drawing.document;
+  if (!data.drawing.readable) return { ok: true, version: null, drawn: [], notDrawn: ["Nothing was drawn: the latest version's settings couldn't be read, so Farbaek doesn't draw over it. Save a new version first."] };
+  // The Survey Department's code list, when the surveyor chose it for a file written in its codes; only on a plan not yet drawn, and
+  // waiting for the surveyor's check like any list.
+  const swap = codeList === "dsr" && data.drawing.document.lots.length === 0;
+  const base = swap ? { ...data.drawing.document, codes: dsrCodes(), provenance: Object.fromEntries(Object.entries(data.drawing.document.provenance).filter(([k]) => k !== "codes")) } : data.drawing.document;
   const r = autoDraft({ points: data.points, document: base, surveyorUserId: mine, surveyDate });
-  if (r.drawn.length === 0 || r.document === data.drawing.document) return { ok: true, version: null, drawn: [], notDrawn: r.notDrawn };
+  // A lot, lines or a road make a drawn plan worth a version; a date or the surveyor block alone doesn't.
+  if (r.shapes === 0) return { ok: true, version: null, drawn: [], notDrawn: r.notDrawn.length > 0 ? r.notDrawn : ["Nothing to draw: the points carry no boundary-mark, line or road codes."] };
   const parsed = surveyDocumentSchema.safeParse(r.document);
   if (!parsed.success) return { ok: false, message: "the drawn plan didn't pass its own checks, so nothing was saved." };
   const saved = await surveyStore.saveDrawing(w.admin, w.actor, { projectId, baseVersion: data.drawing.version, document: tidy(pruneProvenance(parsed.data), data), note: note.slice(0, 200) });

@@ -3,7 +3,7 @@
 import { CheckCircleIcon, FileArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState, useTransition } from "react";
 import { isBoundaryMark, isRoadEdgeCode, outlineFrom, roadEdges } from "@/core/survey/autodraft";
-import { codeOf, dsrCodes, dsrCodesIn, lookupCode, type CodeEntry } from "@/core/survey/codes";
+import { codeBase, codeOf, dsrCodes, dsrCodesIn, entryFor, type CodeEntry } from "@/core/survey/codes";
 import { crsById } from "@/core/survey/crs";
 import { suggestFeatures } from "@/core/survey/fieldToFinish";
 import { suggestColumns, type ColumnGuess } from "@/core/survey/import/columns";
@@ -29,8 +29,8 @@ const DELIMITERS: { id: Delimiter; label: string }[] = [
 /** A coordinate as read, to the millimetre at least: 450000 shows as 450000.000, 450012.3456 keeps its tenth of a millimetre. */
 const metres = (v: number) => v.toFixed(Math.min(4, Math.max(3, String(v).split(".")[1]?.length ?? 0)));
 
-/** The imported rows as survey points for the preview: ids from their line numbers, never saved. */
-const asPoints = (pts: readonly ImportedPoint[]): SurveyPoint[] => pts.map((p) => ({ id: `line-${p.line}`, pointId: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code }));
+/** The imported rows as survey points for the preview: ids by their place in the file (an XML file can hold every point on one line), never saved. */
+const asPoints = (pts: readonly ImportedPoint[]): SurveyPoint[] => pts.map((p, i) => ({ id: `row-${i}`, pointId: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code }));
 
 /**
  * The Import step (stage 194): drop the file the instrument exported, or paste rows from a spreadsheet. Farbaek reads the columns
@@ -60,6 +60,8 @@ export function ImportPanel({
   const [fileName, setFileName] = useState("");
   const [text, setText] = useState("");
   const [format, setFormat] = useState<ImportFormat>("delimited");
+  // True once the surveyor picks the format: typing then never changes it back.
+  const [formatChosen, setFormatChosen] = useState(false);
   const [delimiter, setDelimiter] = useState<Delimiter>(",");
   const [hasHeader, setHasHeader] = useState(false);
   const [columns, setColumns] = useState<ColumnRole[]>([...COLUMN_ORDERS.PNEZD]);
@@ -71,26 +73,46 @@ export function ImportPanel({
   const [result, setResult] = useState<SurveyFormState & { issues?: ImportIssue[] }>({ status: "idle" });
   const [pending, start] = useTransition();
 
-  const load = (name: string, content: string) => {
+  // Farbaek reads the columns itself; the surveyor can change any of them below.
+  const guessColumns = (content: string) => {
+    const p = previewDelimited(content, 300);
+    if ("error" in p) return;
+    setDelimiter(p.delimiter);
+    setHasHeader(p.hasHeader);
+    const g = suggestColumns(p, crs);
+    setGuess(g);
+    setColumns(g.columns.length >= 3 ? g.columns : [...COLUMN_ORDERS.PNEZD]);
+  };
+
+  /**
+   * A new file (`fresh`) starts over: the format and columns are read again and the confirmation is cleared. Typing into the box or
+   * the entry tables keeps the surveyor's choices, and the columns are read again only when the text was empty or the format changes.
+   */
+  const load = (name: string, content: string, fresh = true) => {
+    const wasEmpty = text.trim() === "";
     setFileName(name);
     setText(content);
     setResult({ status: "idle" });
-    setConfirmUnits(false);
-    setUseDsr(null);
-    setEncoding(null);
-    const f = detectFormat(name, content);
+    if (fresh) {
+      setConfirmUnits(false);
+      setUseDsr(null);
+      setEncoding(null);
+      setFormatChosen(false);
+    }
+    const f = !fresh && formatChosen ? format : detectFormat(name || "pasted-points.txt", content);
+    const changed = f !== format;
     setFormat(f);
-    if (f === "delimited") {
-      const p = previewDelimited(content, 300);
-      if (!("error" in p)) {
-        setDelimiter(p.delimiter);
-        setHasHeader(p.hasHeader);
-        // Farbaek reads the columns itself; the surveyor can change any of them below.
-        const g = suggestColumns(p, crs);
-        setGuess(g);
-        setColumns(g.columns.length >= 3 ? g.columns : [...COLUMN_ORDERS.PNEZD]);
-      }
-    } else setGuess(null);
+    if (f !== "delimited") setGuess(null);
+    else if (fresh || wasEmpty || changed) guessColumns(content);
+    if (changed && !fresh) setConfirmUnits(false);
+  };
+
+  const chooseFormat = (f: ImportFormat) => {
+    setFormat(f);
+    setFormatChosen(true);
+    setConfirmUnits(false);
+    if (f === "delimited") guessColumns(text);
+    else setGuess(null);
   };
 
   const onFile = async (file: File | undefined) => {
@@ -109,7 +131,7 @@ export function ImportPanel({
       content = new TextDecoder("gb18030").decode(bytes);
       decoded = "The file isn't UTF-8 text, so it was read as Chinese GB18030 text, the way CASS often writes it. Check that the codes read right before importing.";
     }
-    load(file.name, content);
+    load(file.name, content, true);
     setEncoding(decoded);
   };
 
@@ -129,14 +151,14 @@ export function ImportPanel({
 
   const points = useMemo(() => asPoints(preview?.parsed.points ?? []), [preview]);
   // A file written in the Survey Department's codes (DSR Chapter XXII): offer its list for drawing this plan.
-  const dsrSeen = useMemo(() => dsrCodesIn(points.map((p) => codeOf(p.code)).filter(Boolean), codes), [points, codes]);
+  const dsrSeen = useMemo(() => dsrCodesIn(points.map((p) => codeBase(codeOf(p.code))).filter(Boolean), codes), [points, codes]);
   const dsrOffered = !planHasLots && dsrSeen.length >= 2;
   const dsrOn = dsrOffered && (useDsr ?? true);
   const library = useMemo(() => (dsrOn ? dsrCodes() : codes), [dsrOn, codes]);
   // What the plan would look like: the lot through the boundary marks, and the lines from the codes, by the same rules as the draft.
   const drawing = useMemo(() => {
     if (points.length === 0) return null;
-    const marks = points.filter((p) => isBoundaryMark(lookupCode(library, codeOf(p.code))));
+    const marks = points.filter((p) => isBoundaryMark(entryFor(library, p.code)));
     const road = roadEdges(points);
     return { marks, outline: outlineFrom(marks), lines: suggestFeatures(points, library), road };
   }, [points, library]);
@@ -194,7 +216,7 @@ export function ImportPanel({
           </button>
         ))}
       </div>
-      {entry !== "file" ? <ManualEntry key={entry} mode={entry} onText={load} knownIds={known.map((p) => p.pointId)} disabled={Boolean(readOnly)} /> : null}
+      {entry !== "file" ? <ManualEntry key={entry} mode={entry} onText={(name, t) => load(name, t, false)} knownIds={known.map((p) => p.pointId)} disabled={Boolean(readOnly)} /> : null}
       <div className={entry === "file" ? "grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "hidden"}>
         <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-canvas-2 p-5 text-center text-sm text-ink-2 has-focus-visible:outline-2 has-focus-visible:outline-accent">
           <FileArrowUpIcon size={24} aria-hidden className="text-ink-3" />
@@ -207,7 +229,7 @@ export function ImportPanel({
         </label>
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Or paste rows from a spreadsheet or file</span>
-          <textarea value={text} rows={5} disabled={Boolean(readOnly)} spellCheck={false} placeholder={"1,700004.210,450012.345,21.43,CP\n2,700007.884,450043.912,21.88,CP"} onChange={(e) => load(fileName || "pasted-points.txt", e.target.value)} className={textareaClasses("font-mono text-sm")} />
+          <textarea value={text} rows={5} disabled={Boolean(readOnly)} spellCheck={false} placeholder={"1,700004.210,450012.345,21.43,CP\n2,700007.884,450043.912,21.88,CP"} onChange={(e) => load("", e.target.value, false)} className={textareaClasses("font-mono text-sm")} />
         </label>
       </div>
 
@@ -225,7 +247,19 @@ export function ImportPanel({
       ) : null}
       {preview ? (
         <div className="grid gap-5">
-          {format !== "delimited" ? <p className="text-sm text-ink-2">Read as {IMPORT_FORMATS.find((f) => f.id === format)?.label ?? format}: {IMPORT_FORMATS.find((f) => f.id === format)?.detail}</p> : null}
+          <div className="grid gap-1.5 sm:max-w-sm">
+            <label className="grid gap-1.5">
+              <span className={LABEL_CLASSES}>Read the file as</span>
+              <select value={format} disabled={Boolean(readOnly)} onChange={(e) => chooseFormat(e.target.value as ImportFormat)} className={inputClasses()}>
+                {IMPORT_FORMATS.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-sm text-ink-3">{formatChosen ? "As you chose." : "Farbaek recognised it from its contents."} {IMPORT_FORMATS.find((f) => f.id === format)?.detail}</p>
+          </div>
           {latLong ? (
             <p role="alert" className="flex items-start gap-2 rounded-sm bg-canvas-2 p-3 text-sm text-ink ring-1 ring-line">
               <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
@@ -321,7 +355,7 @@ export function ImportPanel({
                 </tbody>
               </table>
             </div>
-            {points.length > 0 && !latLong ? <PointsMap points={points} outline={drawing?.outline?.ring ?? null} lines={[...(drawing?.lines.map((l) => ({ closed: l.closed, ids: l.points })) ?? []), ...(drawing?.road ?? []).map((edge) => ({ closed: false, ids: edge.map((p) => p.id) }))]} marks={new Set(drawing?.marks.map((m) => m.id))} /> : null}
+            {points.length > 0 && !latLong ? <PointsMap points={points} willDraw={willDraw} outline={willDraw ? (drawing?.outline?.ring ?? null) : null} lines={willDraw ? [...(drawing?.lines.map((l) => ({ closed: l.closed, ids: l.points })) ?? []), ...(drawing?.road ?? []).map((edge) => ({ closed: false, ids: edge.map((p) => p.id) }))] : []} marks={new Set(drawing?.marks.map((m) => m.id))} /> : null}
           </div>
 
           {count > 0 && !latLong ? <PointsTable points={preview.parsed.points} issues={preview.parsed.issues} codes={library} /> : null}
@@ -336,7 +370,7 @@ export function ImportPanel({
               <p>
                 Codes:{" "}
                 {codeCounts.slice(0, 12).map(([c, n], i) => {
-                  const entry = lookupCode(library, c);
+                  const entry = entryFor(library, c);
                   const road = !entry && isRoadEdgeCode(c);
                   return (
                     <span key={c}>
@@ -422,6 +456,12 @@ export function ImportPanel({
             <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             {result.message}
           </p>
+          {result.drawError ? (
+            <p className="flex items-start gap-2 text-sm text-ink">
+              <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+              {result.drawError}
+            </p>
+          ) : null}
           {result.drawn || result.notDrawn ? <DrawnSummary drawn={result.drawn ?? []} notDrawn={result.notDrawn ?? []} /> : null}
           <div className="flex flex-wrap gap-2">
             <a href={`/app/survey/${projectId}?step=${result.version ? "plan" : "points"}`} className={buttonClasses("primary", "md", "w-fit")}>
@@ -435,7 +475,7 @@ export function ImportPanel({
 }
 
 /** The points on a small map, north up: boundary marks larger, the lot that would be drawn dashed, and the lines from the codes. */
-function PointsMap({ points, outline, lines, marks }: { points: SurveyPoint[]; outline: SurveyPoint[] | null; lines: { closed: boolean; ids: string[] }[]; marks: Set<string> }) {
+function PointsMap({ points, willDraw, outline, lines, marks }: { points: SurveyPoint[]; willDraw: boolean; outline: SurveyPoint[] | null; lines: { closed: boolean; ids: string[] }[]; marks: Set<string> }) {
   const es = points.map((p) => p.e);
   const ns = points.map((p) => p.n);
   const [minE, maxE, minN, maxN] = [Math.min(...es), Math.max(...es), Math.min(...ns), Math.max(...ns)];
@@ -458,7 +498,7 @@ function PointsMap({ points, outline, lines, marks }: { points: SurveyPoint[]; o
           <circle key={p.id} cx={x(p.e)} cy={y(p.n)} r={marks.has(p.id) ? s * 2 : s * 1.1} fill={marks.has(p.id) ? "var(--color-ink)" : "var(--color-ink-3)"} />
         ))}
       </svg>
-      <figcaption className="text-sm text-ink-3">{outline ? "The dashed outline is the lot Farbaek would draw. Check it after the import." : "No lot outline yet: the boundary marks don't make one, so you'll give the lot's corners after the import."}</figcaption>
+      <figcaption className="text-sm text-ink-3">{!willDraw ? "The points as read, boundary marks larger. Nothing is drawn from them on import." : outline ? "The dashed outline is the lot Farbaek would draw. Check it after the import." : "No lot outline yet: the boundary marks don't make one, so you'll give the lot's corners after the import."}</figcaption>
     </figure>
   );
 }

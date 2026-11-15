@@ -269,7 +269,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
         </Card>
       ) : null}
 
-      {step === "plan" && doc.lots.length > 0 ? <ReviewChecklist doc={doc} findings={view.findings} base={base} approved={Boolean(approval)} /> : null}
+      {step === "plan" && (doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0) ? <ReviewChecklist doc={doc} findings={view.findings} base={base} approved={Boolean(approval)} /> : null}
 
       {step === "plan" ? (
         <PlanEditor

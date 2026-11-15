@@ -1,5 +1,6 @@
 import { ArrowRightIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
+import { itemLabel } from "@/core/survey/compare";
 import { lotName, unreviewed, type SurveyDocument } from "@/core/survey/document";
 import type { Finding } from "@/core/survey/qc";
 import { Card, CardTitle } from "@/components/app/primitives";
@@ -16,9 +17,9 @@ function itemOf(doc: SurveyDocument, key: string): { label: string; step: "bound
   if (kind === "road") return { label: `The road${doc.roads.find((r) => r.id === id)?.name ? ` (${doc.roads.find((r) => r.id === id)!.name})` : ""}: its two edges`, step: "boundary" };
   if (kind === "adjoining") return { label: `Adjoining land: ${doc.adjoining.find((a) => a.id === id)?.text ?? ""}`, step: "boundary" };
   if (kind === "feature") return { label: "A drawn line", step: "boundary" };
-  if (key === "sheet.surveyDate") return { label: "The survey date", step: "plan" };
   if (key === "notes") return { label: "The notes", step: "plan" };
-  if (key.startsWith("sheet.")) return { label: `The title: ${key.slice(6).replace(/([A-Z])/g, " $1").toLowerCase()}`, step: "plan" };
+  if (key === "codes") return { label: "The code list", step: "plan" };
+  if (key.startsWith("sheet.")) return { label: itemLabel(key) ?? "A title field", step: "plan" };
   return { label: key, step: "plan" };
 }
 
@@ -29,7 +30,8 @@ function itemOf(doc: SurveyDocument, key: string): { label: string; step: "bound
 export function ReviewChecklist({ doc, findings, base, approved }: { doc: SurveyDocument; findings: readonly Finding[]; base: string; approved: boolean }) {
   if (approved) return null;
   const waiting = unreviewed(doc).map((k) => ({ key: k, source: doc.provenance[k]!.source, ...itemOf(doc, k) }));
-  const needed = findings.filter((f) => f.blocks.includes("approval") && f.code !== "AI_ITEMS_UNREVIEWED" && f.code !== "AUTO_ITEMS_UNREVIEWED");
+  // Everything that holds approval or the export back, beyond the items above.
+  const needed = findings.filter((f) => (f.blocks.includes("approval") || f.blocks.includes("export")) && f.code !== "AI_ITEMS_UNREVIEWED" && f.code !== "AUTO_ITEMS_UNREVIEWED");
   const shown = needed.slice(0, 6);
   const ready = waiting.length === 0 && needed.length === 0;
   return (
@@ -37,7 +39,7 @@ export function ReviewChecklist({ doc, findings, base, approved }: { doc: Survey
       <CardTitle icon={ListChecksIcon}>{ready ? "Ready for your approval" : "Check the plan, then approve it"}</CardTitle>
       {ready ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <p className="text-sm text-ink-2">Everything drawn for you is checked and nothing holds the plan back. Look over the sheet once more, then approve this version.</p>
+          <p className="text-sm text-ink-2">Everything drawn for you is checked and no check holds the plan back. Look over the sheet once more, then approve this version on the Export step.</p>
           <Link href={`${base}?step=export`} className={buttonClasses("primary", "md")}>
             Go to approval
             <ArrowRightIcon size={16} weight="bold" aria-hidden />
@@ -65,7 +67,7 @@ export function ReviewChecklist({ doc, findings, base, approved }: { doc: Survey
           ) : null}
           {needed.length > 0 ? (
             <div className="grid gap-2">
-              <h3 className="text-sm font-medium text-ink">Still needed before approval</h3>
+              <h3 className="text-sm font-medium text-ink">Still needed before approval or export</h3>
               <ul className="grid list-disc gap-1 pl-5 text-sm text-ink-2">
                 {shown.map((f) => (
                   <li key={`${f.code}-${f.target.id ?? ""}-${f.message}`}>

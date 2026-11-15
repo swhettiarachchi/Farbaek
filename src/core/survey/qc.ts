@@ -4,7 +4,7 @@
  * and what it blocks. Passing every check is not certification or legal
  * compliance: a plan is final only when its surveyor approves a version.
  */
-import { codeOf, codesAreCommonList, lookupCode } from "./codes";
+import { codeOf, codesAreCommonList, codesAreDsrList, lookupCode } from "./codes";
 import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
 import { legIndex, lotName, unreviewed, type SurveyDocument } from "./document";
@@ -384,6 +384,8 @@ export function checkSurvey(input: QcInput): Finding[] {
   // The code library and the codes the plan uses.
   if (codesAreCommonList(doc.codes) && !doc.provenance["codes"]?.reviewed) {
     add({ code: "LEGEND_UNREVIEWED", severity: "professional_review", message: "The code library is still the common list, which isn't an official one.", target: { kind: "field", id: "codes" }, action: "Check the codes and meanings this plan uses, then mark the list as checked.", blocks: ["approval"] });
+  } else if (codesAreDsrList(doc.codes) && !doc.provenance["codes"]?.reviewed) {
+    add({ code: "LEGEND_UNREVIEWED", severity: "professional_review", message: "The code library is the Survey Department's list, not yet checked for this plan.", target: { kind: "field", id: "codes" }, action: "Check the codes and meanings this plan uses (the station codes' meanings come from an unclear copy of the annex), then mark the list as checked.", blocks: ["approval"] });
   }
   const usedCodes = new Set<string>();
   for (const r of input.lots.lots) for (const v of r.parcel?.vertices ?? []) if (codeOf(v.code)) usedCodes.add(codeOf(v.code));
