@@ -80,6 +80,8 @@ export interface ListenOptions {
 }
 
 const noSubscribe = () => () => {};
+/** Restarts in a row with nothing heard before an instruction ends anyway (Chrome on Android ends each phrase by itself). */
+const MAX_QUIET_RESTARTS = 4;
 
 /** Cuts a recogniser off from its callbacks, then stops it, so nothing it does later reaches the page. */
 function detach(r: Recogniser | null) {
@@ -104,6 +106,7 @@ export function useSpeech() {
   const wanted = useRef(false);
   const live = useRef(false);
   const heard = useRef("");
+  const quickEnds = useRef(0);
   const [listening, setListening] = useState(false);
 
   /** Ends the current session: no callback of its recogniser runs after this. */
@@ -136,6 +139,7 @@ export function useSpeech() {
     let finals = "";
     r.onresult = (e) => {
       if (!mine()) return;
+      quickEnds.current = 0;
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i]!;
@@ -154,6 +158,8 @@ export function useSpeech() {
     };
     r.onend = () => {
       if (!mine()) return;
+      // A recogniser that keeps ending with nothing heard isn't started again and again: after a few, the instruction ends.
+      if (wanted.current && ++quickEnds.current > MAX_QUIET_RESTARTS) wanted.current = false;
       if (wanted.current) {
         // Ended on its own (Android hears one phrase at a time): carry on with the same instruction.
         try {
@@ -180,6 +186,7 @@ export function useSpeech() {
       end();
       opts.current = o;
       heard.current = "";
+      quickEnds.current = 0;
       wanted.current = true;
       live.current = true;
       setListening(true);

@@ -107,7 +107,8 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   const level = useMicLevel(session.phase === "listening");
   const family = useSyncExternalStore(noSubscribe, () => browserFamily(navigator.userAgent), () => "other" as const);
   const availability = voiceAvailability(settings.lang, family, speech.supported === true);
-  const [text, setText] = useState("");
+  // The line starts with the conversation's words, so words held for checking survive a save (the editor starts afresh).
+  const [text, setText] = useState(() => (session.phase === "heard" ? session.text : ""));
   const [drawer, setDrawer] = useState(false);
   const [langMenu, setLangMenu] = useState(false);
   const [privacy, setPrivacy] = useState(false);
@@ -166,10 +167,26 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     if (s.mode === "live" && c.live) startRef.current();
   }, []);
 
-  /** A card is done with. In live talk the microphone opens again, unless the surveyor is turning to type. */
+  /**
+   * A card is done with. Whatever the microphone was hearing meanwhile is dropped, so the screen and the microphone agree; in live talk
+   * it opens again, unless the surveyor is turning to type.
+   */
   const decided = (resume: boolean) => {
+    if (latest.current.listening) speech.abort();
     dispatch({ type: "decided" });
     if (resume) resumeLive();
+  };
+
+  /**
+   * After a failed turn in live talk: three in a row (often steady noise read as instructions) end the conversation rather than
+   * keep sending fragments. Returns whether it ended.
+   */
+  const endLiveAfterFailures = () => {
+    const c = latest.current.session;
+    if (!c.live || c.failures + 1 < 3) return false;
+    stopLiveRef.current();
+    setNotice("Three instructions in a row didn't work, so live talk stopped. Push to talk may suit a noisy place better.");
+    return true;
   };
 
   /** What came of a checked turn: views at once; layers, labels and paper at once with Undo; values wait in a card; tools are handed over. */
@@ -242,8 +259,9 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       }
       const why = checked.cannot ? CANNOT[checked.cannot] : checked.dropped.length ? `${checked.dropped[0]!.what}: ${checked.dropped[0]!.why}` : CANNOT.unclear;
       addTurn({ ...base, outcome: "failed", message: why, open: true });
+      const ended = endLiveAfterFailures();
       dispatch({ type: "failed", message: why });
-      say([why], lang, spoken, resumeLive);
+      say([why], lang, spoken, ended ? undefined : resumeLive);
     },
     [addTurn, ctx, dispatch, resumeLive, say],
   );
@@ -253,7 +271,11 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       const close = (id: string, outcome: Turn["outcome"]) => updateTurn(id, { open: false, outcome });
       if (c.control === "apply") {
         if (pending) applyTurn(pending);
-        else setNotice("Nothing is waiting to be applied.");
+        else {
+          setNotice("Nothing is waiting to be applied.");
+          dispatch({ type: "result", phase: "applied" });
+          resumeLive();
+        }
       } else if (c.control === "discard") {
         if (active?.outcome === "suggested") decide(active, "discarded");
         if (active) close(active.id, active.outcome === "suggested" ? "discarded" : active.outcome);
@@ -293,14 +315,18 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     async (words: string, method: "voice" | "typed", answering = false) => {
       const said = words.trim();
       if (!said) return;
-      // An answer to an open question carries on the instruction that raised it, unless it's an instruction of its own.
+      // An answer to an open question carries on the instruction that raised it, unless it's an instruction of its own. "Yes" and
+      // "no" answer the question, rather than apply or discard nothing.
       const asked = active?.open && active.outcome === "asked" ? active : null;
       const alone = readCommand(said);
-      const combined = asked && (answering || !alone) ? `${asked.words.replace(/[.\s]+$/, "")}. ${said}` : said;
+      const yesNo = alone?.kind === "control" && (alone.control === "apply" || alone.control === "discard");
+      const combined = asked && (answering || !alone || yesNo) ? `${asked.words.replace(/[.\s]+$/, "")}. ${said}` : said;
       const instruction = combined.length <= 2_000 ? combined : said;
-      // A newer instruction replaces one still being worked out: its reply never lands on top of this one.
+      // A newer instruction replaces one still being worked out: its reply never lands on top of this one. Anything the microphone
+      // is hearing meanwhile (a tap on an answer while listening) is dropped too.
       inFlight.current?.abort();
       inFlight.current = null;
+      if (latest.current.listening) speech.abort();
       voice.cancel();
       bridge.setMarks([]);
       setNotice(null);
@@ -331,8 +357,9 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       }
       const failed = (why: string, engine: Turn["engine"]) => {
         addTurn({ id: newId(), at: Date.now(), words: instruction, inputMethod: method, lang: settings.lang, engine, say: "", ops: [], dropped: [], question: null, answers: [], outcome: "failed", patch: null, serverId: null, message: why, open: true });
+        const ended = endLiveAfterFailures();
         dispatch({ type: "failed", message: why });
-        say([why], settings.lang, method === "voice" || latest.current.settings.mode === "live", resumeLive);
+        say([why], settings.lang, method === "voice" || latest.current.settings.mode === "live", ended ? undefined : resumeLive);
       };
       if (bridge.aiOff) {
         failed(`${bridge.aiOff} Without AI the assistant still zooms, shows and hides layers, sets the paper and scale, moves labels, makes lots from picked points, and answers the area, the checks and what's missing.`, "reader");
@@ -349,7 +376,11 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           signal: ac.signal,
         });
         const body = (await res.json().catch(() => null)) as { ok: true; turnId: string; output: AssistOutput } | { ok: false; message: string } | null;
-        if (ac.signal.aborted) return;
+        if (ac.signal.aborted) {
+          // The time ran out while the answer was being read: said like any other timeout.
+          if (ac.signal.reason === "timeout") failed("The assistant took too long, so it was stopped. Try again, or say it more simply.", "model");
+          return;
+        }
         if (!body || !body.ok) {
           failed(body && !body.ok ? body.message : "The assistant didn't answer. Try again, or use the tools on the Lots and Plan steps.", "model");
           return;
@@ -368,7 +399,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         if (inFlight.current === ac) inFlight.current = null;
       }
     },
-    [active, addTurn, bridge, control, dispatch, finish, pending, resumeLive, say, settings.lang, turns, updateTurn, voice],
+    [active, addTurn, bridge, control, dispatch, finish, pending, resumeLive, say, settings.lang, speech, turns, updateTurn, voice],
   );
   useEffect(() => {
     runRef.current = (w, m) => void run(w, m);
@@ -485,6 +516,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         clearTimers();
         window.clearTimeout(silenceTimer.current);
         silenceTimer.current = undefined;
+        emptyRuns.current = 0;
         dispatch({ type: "cancel" });
         if (msg) setNotice(msg);
       },
@@ -526,10 +558,13 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   // carries on in the new editor; anything half-heard in push to talk is dropped.
   useEffect(() => {
     const s = latest.current.session;
+    // A save while an answer was being worked out sets the answer aside, and says so (the conversation's own message, shown in the
+    // status line).
+    if (s.phase === "working") dispatch({ type: "failed", message: "The plan was saved while the assistant was working, so its answer was set aside. Say it again if you still want it." });
     // Only a save brings the editor straight back; coming back to the step later starts quiet.
-    if (s.live && Date.now() - leftAt < 5_000) startRef.current();
+    else if (s.live && Date.now() - leftAt < 5_000) startRef.current();
     else if (s.live) dispatch({ type: "stop_live" });
-    else if (s.phase === "listening" || s.phase === "countdown" || s.phase === "working") dispatch({ type: "cancel" });
+    else if (s.phase === "listening" || s.phase === "countdown") dispatch({ type: "cancel" });
     return () => {
       leftAt = Date.now();
       for (const t of [pauseTimer, countdownTimer, silenceTimer, tailTimer, restartTimer]) window.clearTimeout(t.current);
@@ -560,12 +595,18 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   useEffect(() => {
     const onCanvas = () => (document.activeElement as HTMLElement | null)?.dataset?.planCanvas === "true";
     const down = (e: globalThis.KeyboardEvent) => {
-      if (e.code === "Space" && !e.repeat && onCanvas() && settings.mode === "push" && !latest.current.listening) {
+      // While Space is held to talk, its repeats mustn't scroll the page away from the sheet.
+      if (e.code === "Space" && e.repeat && holding.current) e.preventDefault();
+      else if (e.code === "Space" && !e.repeat && onCanvas() && settings.mode === "push" && !latest.current.listening) {
         e.preventDefault();
         pressedAt.current = Date.now();
         holding.current = true;
         startRef.current();
-      } else if (e.key === "Escape") cancelAll();
+      } else if (e.key === "Escape") {
+        // Esc stops the assistant only when it's doing something; otherwise it's left to the sheet (clearing the selection).
+        const { session: c, listening: l } = latest.current;
+        if (l || c.live || c.phase === "working" || c.phase === "countdown" || voice.speaking) cancelAll();
+      }
     };
     // Letting go of Space sends wherever the focus has moved meanwhile, so a hold never sticks on.
     const up = (e: globalThis.KeyboardEvent) => {
@@ -580,7 +621,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [cancelAll, settings.mode, speech]);
+  }, [cancelAll, settings.mode, speech, voice.speaking]);
 
   // Live talk resumes after a spoken reply ends; a pause or tap during the countdown keeps the words to edit.
   const onType = (v: string) => {
@@ -665,7 +706,9 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
 
   // ---- The drawer and the cards take turns: a new card closes the drawer, and the drawer, while open, sits where the card was ------
   const [drawerAt, setDrawerAt] = useState(0);
-  const showDrawer = drawer && (!active || drawerAt >= active.at);
+  // Any turn newer than the drawer's opening closes it for good, so it doesn't come back once that card is done with.
+  const newestAt = turns.length ? turns[turns.length - 1]!.at : 0;
+  const showDrawer = drawer && drawerAt >= newestAt;
 
   // The bar's height, for the page's padding below the side panels on phones, so nothing ends up under it.
   const barRef = useRef<HTMLDivElement>(null);
@@ -696,17 +739,18 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         ? "Working out the change…"
         : phase === "heard"
           ? "Check the words, then send. Numbers that could be read two ways are held for you."
-          : phase === "suggested"
-            ? "Your turn: check the change, then apply it."
-            : phase === "asking"
-              ? "Your turn: answer the question."
-              : phase === "handoff"
-                ? "Your turn: open it in its tool to check, or leave it."
-              : phase === "failed" && session.message
-                ? `Not done. ${session.message}`
-                : notice
-                  ? notice
-                : !availability.ok
+          : // A notice (taken back, nothing waiting, live talk stopped) is the newest thing to say, so it comes before a card's line.
+            notice
+            ? notice
+            : phase === "suggested"
+              ? "Your turn: check the change, then apply it."
+              : phase === "asking"
+                ? "Your turn: answer the question."
+                : phase === "handoff"
+                  ? "Your turn: open it in its tool to check, or leave it."
+                  : phase === "failed" && session.message
+                    ? `Not done. ${session.message}`
+                    : !availability.ok
                   ? availability.reason
                   : settings.mode === "live"
                     ? "Tap the microphone to talk hands-free, or type, such as “A3 landscape”."
