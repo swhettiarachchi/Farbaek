@@ -511,11 +511,20 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
                 : !availability.ok
                   ? availability.reason
                   : settings.mode === "live"
-                    ? "Tap the microphone to talk hands-free, or type."
-                    : "Hold the microphone to talk, or type. Enter sends.";
+                    ? "Tap the microphone to talk hands-free, or type, such as “A3 landscape”."
+                    : "Hold the microphone to talk, or type, such as “lot B4 from points 1 to 4”. Enter sends.";
   const describedChanges = useMemo(() => changeOps.map((o) => describeOp(o, ctx)), [changeOps, ctx]);
   const handoff = active && active.outcome === "suggested" && !pending ? (active.ops.find((o) => tierOf(o) === "handoff") as DivideOp | MeasureOp | undefined) : undefined;
   const micLabel = listening ? (session.live ? "Stop live talk" : "Stop and send") : settings.mode === "live" ? "Start live talk" : "Hold to talk";
+  const langCode = settings.lang === "en" ? "EN" : languageOf(settings.lang).native;
+  // The visible code is part of the button's name, so speech control can say what's shown (WCAG 2.5.3).
+  const languageButton = (size: string) => (
+    <button type="button" aria-haspopup="menu" aria-expanded={langMenu} onClick={() => setLangMenu((v) => !v)} className={buttonClasses("ghost", "sm", size)}>
+      <TranslateIcon size={16} weight="bold" aria-hidden />
+      <span className="sr-only">Language: </span>
+      <span className="text-sm">{langCode}</span>
+    </button>
+  );
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-[var(--tab-bar)] z-30 flex flex-col items-center gap-2 px-3 pb-3 lg:absolute lg:bottom-0 lg:px-4 lg:pb-4">
@@ -701,8 +710,11 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       ) : null}
 
       <div className="pointer-events-auto w-full max-w-3xl rounded-[1.75rem] bg-surface/90 shadow-e2 ring-1 ring-line backdrop-blur-md">
-        <div className="flex items-end gap-2 p-2">
-          <span className="flex h-12 items-center pl-1">
+        <div className="flex items-end gap-1.5 p-1.5 sm:gap-2 sm:p-2">
+          <span className="flex h-12 items-center pl-1 sm:hidden">
+            <VoiceCore state={core} level={level} size="sm" />
+          </span>
+          <span className="hidden h-12 items-center pl-1 sm:flex">
             <VoiceCore state={core} level={level} />
           </span>
           <div className="min-w-0 flex-1 self-center">
@@ -720,16 +732,13 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
                   maxLength={2000}
                   onChange={(e) => onType(e.target.value)}
                   onKeyDown={onKey}
-                  placeholder="Say or type: “lot B4 from points 1 to 4”"
+                  placeholder="Say or type an instruction"
                   className="block max-h-36 min-h-11 w-full resize-none bg-transparent px-1 py-2.5 text-base text-ink placeholder:text-ink-3 focus:outline-none [field-sizing:content]"
                 />
               </label>
             )}
           </div>
-          <button type="button" aria-haspopup="menu" aria-expanded={langMenu} aria-label={`Language: ${langName}`} onClick={() => setLangMenu((v) => !v)} className={buttonClasses("ghost", "sm", "h-12 px-3")}>
-            <TranslateIcon size={16} weight="bold" aria-hidden />
-            <span className="text-sm">{languageOf(settings.lang).native === "English" ? "EN" : languageOf(settings.lang).native}</span>
-          </button>
+          <span className="hidden sm:block">{languageButton("h-12 px-3")}</span>
           <button
             type="button"
             aria-label={availability.ok ? micLabel : `Talking is off: ${availability.reason}`}
@@ -778,17 +787,19 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
                   if (listening) cancelAll();
                   setSettings({ mode: m });
                 }}
-                className={`min-h-9 rounded-full px-3 text-xs font-medium transition-colors duration-150 ${settings.mode === m ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
+                className={`min-h-11 rounded-full px-3 text-xs font-medium transition-colors duration-150 ${settings.mode === m ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
               >
                 {label}
               </button>
             ))}
           </div>
-          <p role="status" className="min-w-0 flex-1 px-1 text-xs text-ink-3">
+          {/* On phones the status has a line of its own under the controls. */}
+          <p role="status" className="order-last min-w-0 basis-full px-1 pb-1 text-xs text-ink-3 sm:order-none sm:basis-auto sm:flex-1 sm:pb-0">
             {status}
           </p>
+          <span className="ml-auto sm:hidden">{languageButton("min-h-11 px-3")}</span>
           {lastUndoable && !bridge.readOnly ? (
-            <button type="button" onClick={() => takeBack(lastUndoable)} className={buttonClasses("ghost", "sm", "min-h-9 text-xs")}>
+            <button type="button" onClick={() => takeBack(lastUndoable)} className={buttonClasses("ghost", "sm", "text-xs")}>
               Undo
             </button>
           ) : null}
