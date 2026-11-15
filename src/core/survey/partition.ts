@@ -196,8 +196,8 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     // By width: each line at its stated distance. Square lines measure along the leg from the starting corner, so the widths share the
     // leg (a lot reaching past either end of it adds to the end shares); parallel lines measure from the leg, so they share the depth.
     const square = req.lines === "square";
-    const base = square ? dot(req.from === "start" ? a : b, n) : lo;
-    const room = square ? len : hi - lo;
+    const base = square ? dot(req.from === "start" ? a : b, n) : dot(a, n);
+    const room = square ? len : hi - base;
     const what = square ? `the leg's ${room.toFixed(3)} m` : `the lot's depth of ${room.toFixed(3)} m from that leg`;
     if (stated > room + 0.0005) return fail(`The stated widths come to ${stated.toFixed(3)} m, more than ${what}.`);
     if (!rest && Math.abs(stated - room) > 0.005) return fail(`The widths come to ${stated.toFixed(3)} m, not ${what}. Let one share take what's left.`);
@@ -247,19 +247,25 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
         const q = ring[(x.edge + 1) % ring.length]!;
         const fromP = Math.hypot(x.e - p.e, x.n - p.n);
         const legLen = distance(p, q);
-        // Within a millimetre of a surveyed corner the line ends at that corner, when that moves less than 0.005 m² between the shares.
+        // Within a millimetre of a surveyed corner the line ends at that corner, when that moves little enough (SNAP_AREA_M2).
         const near = fromP <= 0.001 ? p : legLen - fromP <= 0.001 ? q : null;
         const at = near && 0.5 * segLen * distance(near, x) <= SNAP_AREA_M2 ? near : null;
-        if (at) snaps.push({ at: { e: x.e, n: x.n }, to: at });
+        if (at) {
+          snaps.push({ at: { e: x.e, n: x.n }, to: at });
+          const same = here.find((h) => h.existing === at.src);
+          if (same) return same;
+        }
         c = { name: "", e: (at ?? x).e + o.e, n: (at ?? x).n + o.n, cut: ci, along: x.along, ...(at ? { existing: at.src! } : {}), from: p.src!, to: q.src!, distanceM: at === p ? 0 : at === q ? legLen : fromP };
       }
       here.push(c);
       return c;
     };
+    const stretches: [ProposedCorner, ProposedCorner][] = [];
     for (const [a0, b0] of met.inside) {
       const len0 = Math.abs(b0.along - a0.along);
       const ca = add(a0, len0);
       const cb = add(b0, len0);
+      stretches.push([ca, cb]);
       segments.push({ cut: ci, a: { e: ca.e, n: ca.n }, b: { e: cb.e, n: cb.n } });
     }
     // Named along the line, so P1 and P2 are the two ends of the first line; an end on a surveyed corner keeps its number.
@@ -270,29 +276,28 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     }
     corners.push(...here);
     cutCorners.push(here);
-    // One stretch inside the lot is a clean line. Two stretches meeting at a corner: the line runs through a corner pointing into the lot.
-    const touching = met.inside.some(([, b0], k) => met.inside[k + 1] && Math.abs(met.inside[k + 1]![0].along - b0.along) <= 1e-9);
-    const vertex = met.inside.find(([, b0], k) => met.inside[k + 1] && Math.abs(met.inside[k + 1]![0].along - b0.along) <= 1e-9)?.[1].vertex;
-    cutProblem.push(
-      met.inside.length === 1
-        ? null
-        : touching
-          ? `A dividing line runs through corner ${vertex?.src?.pointId ?? "?"}, which points into the lot, so a share would fall in two pieces joined there. Try lines the other way, other shares, or another leg.`
-          : `A dividing line crosses the lot's boundary ${met.inside.length * 2} times, so a share would fall in pieces. Try lines the other way, or another leg.`,
-    );
+    // One stretch inside the lot is a clean line. Between two stretches the line either passes through a corner pointing into the lot
+    // (the stretches share that corner), runs along one of its legs, or leaves the lot and comes back.
+    let problem: string | null = null;
+    for (let k = 0; k + 1 < stretches.length && !problem; k++) {
+      const end = stretches[k]![1];
+      const next = stretches[k + 1]![0];
+      if (end === next) problem = `A dividing line runs through corner ${end.name}, which points into the lot, so a share would fall in two pieces joined there. Try lines the other way, other shares, or another leg.`;
+      else if (onBoundary({ e: (end.e + next.e) / 2 - o.e, n: (end.n + next.n) / 2 - o.n }, ring)) problem = `A dividing line runs along the leg ${end.name} to ${next.name} between two parts of the lot, so a share would fall in pieces. Try lines the other way, other shares, or another leg.`;
+    }
+    if (!problem && stretches.length > 1) problem = `A dividing line crosses the lot's boundary ${stretches.length * 2} times, so a share would fall in pieces. Try lines the other way, or another leg.`;
+    cutProblem.push(problem);
   }
   const snapped = (piece: Local[]) => piece.map((p) => (p.src ? p : (snaps.find((x) => Math.hypot(x.at.e - p.e, x.at.n - p.n) <= 1e-6)?.to ?? p)));
 
-  const legLo = Math.min(dot(a, n), dot(b, n));
-  const legHi = Math.max(dot(a, n), dot(b, n));
   const bounds = [lo, ...cuts, hi];
   const shares: Share[] = targets.map((target, i) => {
-    const piece = dedupe(snapped(clip(clip(ring, n, bounds[i + 1]!, false), n, bounds[i]!, true)));
+    const piece = dedupe(unspike(dedupe(snapped(clip(clip(ring, n, bounds[i + 1]!, false), n, bounds[i]!, true)))));
     const areaM2 = area(piece);
     const s0 = bounds[i]!;
     const s1 = bounds[i + 1]!;
-    // Along the leg: for square lines, the part of the leg inside this share's slab; for parallel lines, the whole leg if it lies in it.
-    const alongLegM = legHi - legLo < 1e-9 ? (legLo >= s0 - 1e-9 && legLo <= s1 + 1e-9 ? len : 0) : Math.max(0, Math.min(s1, legHi) - Math.max(s0, legLo));
+    // Along the leg: the length of this share's outline lying on the chosen leg, after any snap onto a corner.
+    const alongLegM = alongLeg(piece, a, b);
     // Square lines: the least of its dividing lines' lengths and its mean depth (area over frontage), so a share that tapers away can't pass on its deepest side.
     const sides = [i > 0 ? chord(ring, n, s0) : Infinity, i < targets.length - 1 ? chord(ring, n, s1) : Infinity];
     const mean = alongLegM > 0 ? areaM2 / alongLegM : Infinity;
@@ -305,8 +310,56 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
   return { ok: true, feasible: shares.every((s) => s.problems.length === 0), lotM2, shares, corners, segments, bearing: bearing >= 180 ? bearing - 180 : bearing, sumM2, residualM2: lotM2 - sumM2, reminders: req.rules ? remindersFor(req.rules, lotM2, shares.length) : [], engine: PARTITION_ENGINE };
 }
 
-/** The most a snap onto a surveyed corner may move between two shares, in m²: half the area check, so a snapped share still passes it. */
-const SNAP_AREA_M2 = 0.005;
+/**
+ * The most one line end's snap onto a surveyed corner may move between two shares, in m². A share has at most four line ends (two
+ * lines, two ends each), so its snaps together move under 0.01 m², the area check.
+ */
+const SNAP_AREA_M2 = 0.002;
+
+/** How far under a minimum a figure must be to count as under it: the rounding it's shown with (0.01 m², 1 mm). */
+const AREA_TOLERANCE_M2 = 0.005;
+const LENGTH_TOLERANCE_M = 0.0005;
+
+/** The length of an outline lying on the segment a to b (within a millimetre). */
+function alongLeg(piece: readonly Point[], a: Point, b: Point): number {
+  const on = (p: Point) => pointSegmentDistance(p, a, b) <= 0.001;
+  let total = 0;
+  for (let j = 0; j < piece.length; j++) {
+    const x = piece[j]!;
+    const y = piece[(j + 1) % piece.length]!;
+    if (on(x) && on(y) && on({ e: (x.e + y.e) / 2, n: (x.n + y.n) / 2 })) total += distance(x, y);
+  }
+  return total;
+}
+
+/** Whether a point lies on a ring's boundary (within 0.1 µm). */
+function onBoundary(p: Point, ring: readonly Point[]): boolean {
+  for (let i = 0; i < ring.length; i++) if (pointSegmentDistance(p, ring[i]!, ring[(i + 1) % ring.length]!) <= 1e-7) return true;
+  return false;
+}
+
+/** An outline without fold-backs: a corner the outline reaches and turns straight back from (a line lying along a leg leaves one). */
+function unspike(piece: Local[]): Local[] {
+  const out = [...piece];
+  let changed = true;
+  while (changed && out.length > 3) {
+    changed = false;
+    for (let i = 0; i < out.length; i++) {
+      const p = out[(i - 1 + out.length) % out.length]!;
+      const v = out[i]!;
+      const q = out[(i + 1) % out.length]!;
+      const span = distance(p, q);
+      const off = span <= 1e-9 ? distance(p, v) : Math.abs(orient(p, q, v)) / span;
+      const back = (v.e - p.e) * (q.e - v.e) + (v.n - p.n) * (q.n - v.n) < 0;
+      if ((span <= 1e-9 || off <= 1e-7) && back) {
+        out.splice(i, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return out;
+}
 
 /** What stops a share being made as asked: its dividing lines' problems, an area it can't be given, and the rules' minimums when checked. */
 function judge(areaM2: number, targetM2: number, alongLegM: number, depthM: number, lineProblems: (string | null | undefined)[], rules: RuleSet | null, byWidth = false): string[] {
@@ -314,10 +367,10 @@ function judge(areaM2: number, targetM2: number, alongLegM: number, depthM: numb
   if (Math.abs(areaM2 - targetM2) > 0.01) problems.push(byWidth ? `Its outline comes to ${areaM2.toFixed(2)} m², not the ${targetM2.toFixed(2)} m² between its lines.` : `Its lines give it ${areaM2.toFixed(2)} m², not the ${targetM2.toFixed(2)} m² asked for.`);
   if (rules) {
     const min = rules.minimums;
-    if (areaM2 < min.areaM2) problems.push(`It's ${shortOf(areaM2, min.areaM2)} m², under ${rules.label} of ${minimumText(min.areaM2, false)} m².`);
-    if (min.frontageM > 0 && alongLegM === 0) problems.push("It doesn't touch the chosen leg, so it has no frontage on it.");
-    else if (alongLegM < min.frontageM) problems.push(`Its frontage is ${shortOf(alongLegM, min.frontageM)} m, under ${rules.label} of ${minimumText(min.frontageM, true)} m.`);
-    if (depthM < min.depthM) problems.push(`Its depth is ${shortOf(depthM, min.depthM)} m, under ${rules.label} of ${minimumText(min.depthM, true)} m.`);
+    if (areaM2 < min.areaM2 - AREA_TOLERANCE_M2) problems.push(`It's ${shortOf(areaM2, min.areaM2)} m², under ${rules.label} of ${minimumText(min.areaM2, false)} m².`);
+    if (min.frontageM > 0 && alongLegM < LENGTH_TOLERANCE_M) problems.push("It doesn't touch the chosen leg, so it has no frontage on it.");
+    else if (alongLegM < min.frontageM - LENGTH_TOLERANCE_M) problems.push(`Its frontage is ${shortOf(alongLegM, min.frontageM)} m, under ${rules.label} of ${minimumText(min.frontageM, true)} m.`);
+    if (depthM < min.depthM - LENGTH_TOLERANCE_M) problems.push(`Its depth is ${shortOf(depthM, min.depthM)} m, under ${rules.label} of ${minimumText(min.depthM, true)} m.`);
   }
   return problems;
 }

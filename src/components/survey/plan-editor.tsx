@@ -17,7 +17,7 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { formatDms, formatQuadrant, toDms } from "@/core/survey/angles";
 import { CODE_KINDS, LINE_STYLES, commonCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
 import { runsText, titleSentence } from "@/core/survey/description";
@@ -651,13 +651,13 @@ function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { d
         {doc.rules?.id === "own" ? (
           <>
             <div className="grid grid-cols-3 gap-3">
-              <MinimumField label="Least area (m²)" value={doc.rules.areaM2} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.areaM2 = v)))} />
-              <MinimumField label="Frontage (m)" value={doc.rules.frontageM} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.frontageM = v)))} />
-              <MinimumField label="Depth (m)" value={doc.rules.depthM} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.depthM = v)))} />
+              <MinimumField label="Least area (m²)" value={doc.rules.areaM2} max={10_000_000} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.areaM2 = v)), "rules.areaM2")} />
+              <MinimumField label="Frontage (m)" value={doc.rules.frontageM} max={10_000} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.frontageM = v)), "rules.frontageM")} />
+              <MinimumField label="Depth (m)" value={doc.rules.depthM} max={10_000} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.depthM = v)), "rules.depthM")} />
             </div>
             <label className="grid gap-1.5">
               <span className={LABEL_CLASSES}>Where they come from</span>
-              <input value={doc.rules.source} maxLength={200} disabled={readOnly} placeholder="The Development Plan and zone, for example" onChange={(e) => update((d) => void (d.rules?.id === "own" && (d.rules.source = e.target.value)))} className={inputClasses()} />
+              <input value={doc.rules.source} maxLength={200} disabled={readOnly} placeholder="The Development Plan and zone, for example" onChange={(e) => update((d) => void (d.rules?.id === "own" && (d.rules.source = e.target.value)), "rules.source")} className={inputClasses()} />
             </label>
           </>
         ) : null}
@@ -848,15 +848,25 @@ function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; update: Up
   );
 }
 
-/** A minimum typed as text and committed only while it reads as a number of zero or more, so a half-typed "1." isn't lost. */
-function MinimumField({ label, value, disabled, onCommit }: { label: string; value: number; disabled: boolean; onCommit: (v: number) => void }) {
+/**
+ * A minimum typed as text and committed only while it reads as a number from 0 to `max` (what the drawing can store), so a half-typed
+ * "1." isn't lost. Anything else is said beside the field, and the stored minimum stays as it was until the field reads right.
+ */
+function MinimumField({ label, value, max, disabled, onCommit }: { label: string; value: number; max: number; disabled: boolean; onCommit: (v: number) => void }) {
+  const id = useId();
   const [text, setText] = useState(String(value));
   const [seen, setSeen] = useState(value);
   // Undo or another change from outside: show the stored value again.
   if (value !== seen) {
     setSeen(value);
-    if (Number(text) !== value) setText(String(value));
+    if (readDecimal(text) !== value) setText(String(value));
   }
+  const typed = readDecimal(text);
+  const problem = !Number.isFinite(typed)
+    ? `Use a number, or 0 if it doesn't apply. The last one, ${value}, is kept until then.`
+    : typed > max
+      ? `At most ${max.toLocaleString("en-GB")}.`
+      : null;
   return (
     <label className="grid gap-1.5">
       <span className={LABEL_CLASSES}>{label}</span>
@@ -864,14 +874,21 @@ function MinimumField({ label, value, disabled, onCommit }: { label: string; val
         value={text}
         inputMode="decimal"
         disabled={disabled}
+        aria-invalid={problem ? true : undefined}
+        aria-describedby={problem ? id : undefined}
         onChange={(e) => {
           const t = e.target.value.slice(0, 12);
           setText(t);
           const v = readDecimal(t);
-          if (Number.isFinite(v)) onCommit(v);
+          if (Number.isFinite(v) && v <= max) onCommit(v);
         }}
         className={inputClasses()}
       />
+      {problem ? (
+        <span id={id} className="text-sm text-failed">
+          {problem}
+        </span>
+      ) : null}
     </label>
   );
 }

@@ -7,7 +7,7 @@
  */
 import { lotName, type DrawingSettings, type SheetFields, type SurveyDocument } from "./document";
 import type { SurveyPoint } from "./parcel";
-import { fmt } from "./units";
+import { minimumText } from "./rules";
 
 export type ChangeArea = "Lots" | "Roads" | "Adjoining lands" | "Lines and outlines" | "Title" | "Sheet" | "Codes" | "Notes" | "Checks";
 export interface Change {
@@ -191,7 +191,17 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   if (unkept > 0) add("Checks", `${unkept} ${unkept === 1 ? "near miss is" : "near misses are"} to be checked again.`);
   if (JSON.stringify(before.rules) !== JSON.stringify(after.rules)) {
     const rules = after.rules;
-    add("Checks", !rules ? "Lots are no longer checked against planning minimums." : rules.id === "uda-2020" ? "Lots are now checked against the UDA minimums." : `Lots are now checked against your own minimums (${fmt(rules.areaM2, 2)} m², ${fmt(rules.frontageM, 2)} m frontage, ${fmt(rules.depthM, 2)} m depth)${rules.source.trim() ? `, from ${short(rules.source)}` : ""}.`);
+    const figures = rules?.id === "own" ? `${minimumText(rules.areaM2, false)} m², ${minimumText(rules.frontageM, true)} m frontage, ${minimumText(rules.depthM, true)} m depth` : "";
+    add(
+      "Checks",
+      !rules
+        ? "Lots are no longer checked against planning minimums."
+        : rules.id === "uda-2020"
+          ? "Lots are now checked against the UDA minimums."
+          : rules.source.trim()
+            ? `Lots are now checked against your own minimums (${figures}), from ${short(rules.source)}.`
+            : `Your own minimums (${figures}) are set, and checked once you say where they come from.`,
+    );
   }
   // Items filled in by the AI: new ones, ones checked since, and ones that need checking again.
   const ai = (p: { source: string }) => p.source !== "engine";

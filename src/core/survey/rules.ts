@@ -80,10 +80,13 @@ export function ruleSetFrom(choice: PlanRulesChoice | null): RuleSet | null {
   return choice.source.trim() ? ownRules({ areaM2: choice.areaM2, frontageM: choice.frontageM, depthM: choice.depthM }, choice.source) : null;
 }
 
-/** A lot whose note marks it reserved ("(Res. for Access, 10ft. wide)"): not a building lot, so not held to the minimums. */
-export const RESERVED_NOTE = /^\(?\s*res(?:\.|erved\b|ervation\b)/i;
-/** A reserved lot that gives access: its legs count as road frontage for the lots beside it. */
-export const ACCESS_NOTE = /\b(?:access|road|lane|path|way)\b/i;
+/**
+ * A lot whose note marks it reserved: "(Res. for Access, 10ft. wide)", "Res for road", "Resd. for drain", "Reserved for…" or a
+ * "… Reservation". Not a building lot, so not held to the minimums.
+ */
+export const RESERVED_NOTE = /^\(?\s*res(?:\.|d\.|\b)|\breserv(?:ed|ation)\b/i;
+/** A reserved lot that gives access: its legs count as road frontage for the lots beside it. A way leave for a power line doesn't. */
+export const ACCESS_NOTE = /\b(?:access|road|roadway|lane|path|footpath|right of way|carriageway)\b/i;
 
 /** A figure under a minimum, with enough decimals that rounding never shows it equal to the minimum ("149.996", not "150.00"). */
 export function shortOf(value: number, min: number): string {

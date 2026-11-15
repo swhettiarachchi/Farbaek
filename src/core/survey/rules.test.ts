@@ -5,13 +5,14 @@ import { compareDocuments } from "./compare";
 import { emptyDocument, parseSurveyDocument, type SurveyDocument } from "./document";
 import { computeLots } from "./lots";
 import type { SurveyPoint } from "./parcel";
-import { checkSurvey } from "./qc";
+import { checkSurvey, frontageOn } from "./qc";
+import { ACCESS_NOTE, RESERVED_NOTE } from "./rules";
 import { approvalHash } from "./view";
 
 const SLD99 = crsById("EPSG:5235")!;
 const E0 = 500_000;
 const N0 = 600_000;
-const pt = (n: string, e: number, nn: number): SurveyPoint => ({ id: `00000000-0000-4000-d000-${n.padStart(12, "0")}`, pointId: n, e: E0 + e, n: N0 + nn, z: null, code: null });
+const pt = (n: string, e: number, nn: number): SurveyPoint => ({ id: `00000000-0000-4000-8000-${n.padStart(12, "0")}`, pointId: n, e: E0 + e, n: N0 + nn, z: null, code: null });
 
 // A road along the south (its north edge 1 to 4, its south edge R1 to R2), three lots fronting it and one behind.
 //   lot A: 1 (0, 0), 2 (12, 0), 7 (12, 25), 8 (0, 25): 300 m², 12 m on the road, 25 m deep.
@@ -63,7 +64,7 @@ describe("a plan's lots against planning rules", () => {
     d.rules = { id: "uda-2020" };
     const f = ruleFindings(d, pts);
     expect(f.map((x) => x.code)).toEqual(["RULES_LOTS_MEET", "RULES_REMINDER"]);
-    expect(f[0]!.message).toBe("All 2 lots meet the UDA minimums (150 m², 6.0 m frontage and 12.0 m depth).");
+    expect(f[0]!.message).toBe("All 2 lots checked meet the UDA minimums (150 m², 6.0 m frontage and 12.0 m depth).");
     expect(f[0]!.detail).toMatch(/ 1 reserved lot wasn't checked\.$/);
     // Without the strip, lot F has no frontage.
     d.lots = d.lots.slice(1);
@@ -74,15 +75,15 @@ describe("a plan's lots against planning rules", () => {
     const own = (source: string) => plan({ id: "own", areaM2: 200, frontageM: 0, depthM: 20, source });
     expect(ruleFindings(own("  ")).map((x) => x.code)).toEqual(["RULES_SOURCE_MISSING"]);
     const f = ruleFindings(own("Development Plan, zone R2"));
-    // Lot B is 125 m² (under 200); lot D 180 m² (under 200). Frontage isn't asked for, so lot D's missing frontage isn't reported; depths are 25 m.
-    expect(f.map((x) => x.message)).toEqual(["Lot B is 125.00 m², under the minimum you entered of 200 m².", "Lot D is 180.00 m², under the minimum you entered of 200 m²."]);
+    // Lot B is 125 m² (under 200); lot D 180 m² (under 200). Frontage isn't asked for, so lot D's missing frontage isn't reported, but its depth can't be measured.
+    expect(f.map((x) => x.message)).toEqual(["Lot B is 125.00 m², under the minimum you entered of 200 m².", "Lot D is 180.00 m², under the minimum you entered of 200 m².", "Depth wasn't measured for 1 lot: it has no leg along a road or reserved access lot."]);
     expect(f[0]!.detail).toBe("From the minimums you entered: Development Plan, zone R2.");
   });
 
   it("checks depth as area over frontage", () => {
     const f = ruleFindings(plan({ id: "own", areaM2: 0, frontageM: 0, depthM: 26, source: "a brief" }));
     // Lots A, B and C are 25 m deep; lot D has no frontage, so no depth.
-    expect(f.map((x) => x.message)).toEqual(["Lot A's mean depth (its area over its frontage) is 25.00 m, under the minimum you entered of 26.0 m.", "Lot B's mean depth (its area over its frontage) is 25.00 m, under the minimum you entered of 26.0 m.", "Lot C's mean depth (its area over its frontage) is 25.00 m, under the minimum you entered of 26.0 m."]);
+    expect(f.map((x) => x.message)).toEqual(["Lot A's mean depth (its area over its frontage) is 25.00 m, under the minimum you entered of 26.0 m.", "Lot B's mean depth (its area over its frontage) is 25.00 m, under the minimum you entered of 26.0 m.", "Lot C's mean depth (its area over its frontage) is 25.00 m, under the minimum you entered of 26.0 m.", "Depth wasn't measured for 1 lot: it has no leg along a road or reserved access lot."]);
   });
 
   it("says frontages weren't checked on a plan with no roads", () => {
@@ -95,11 +96,68 @@ describe("a plan's lots against planning rules", () => {
     const { rules: _r, ...older } = none;
     void _r;
     // A document without the field parses to null and hashes the same as one saved before it existed.
-    expect(parseSurveyDocument(JSON.parse(JSON.stringify(older)))?.rules ?? null).toBeNull();
+    const parsed = parseSurveyDocument(JSON.parse(JSON.stringify(older)));
+    expect(parsed).not.toBeNull();
+    expect(parsed!.rules).toBeNull();
+    const withRules = parseSurveyDocument(JSON.parse(JSON.stringify(plan({ id: "own", areaM2: 150.125, frontageM: 6.125, depthM: 12, source: "a plan" }))));
+    expect(withRules?.rules).toEqual({ id: "own", areaM2: 150.125, frontageM: 6.125, depthM: 12, source: "a plan" });
     const hash = (d: SurveyDocument) => approvalHash({ document: d, crsId: "EPSG:5235", points: PTS });
     const uda = plan({ id: "uda-2020" });
     expect(await hash(uda)).not.toBe(await hash(none));
     expect(compareDocuments(none, uda, PTS).map((c) => c.text)).toContain("Lots are now checked against the UDA minimums.");
     expect(compareDocuments(uda, none, PTS).map((c) => c.text)).toContain("Lots are no longer checked against planning minimums.");
+  });
+});
+
+describe("the stage 193 re-check's plan cases", () => {
+  it("counts a lot exactly at the minimums as meeting them, at grid coordinates on a slant", () => {
+    // 6.000 m along the road by 25.000 m deep (150 m² exactly), turned by atan(4/3).
+    const at = (n: string, e: number, nn: number): SurveyPoint => ({ id: `00000000-0000-4000-8000-${n.padStart(12, "0")}`, pointId: n, e, n: nn, z: null, code: null });
+    const pts = [at("1", 500124.918, 600457.623), at("2", 500128.518, 600462.423), at("3", 500108.518, 600477.423), at("4", 500104.918, 600472.623), at("21", 500100.118, 600446.823), at("22", 500150.118, 600484.323)];
+    const d = emptyDocument();
+    d.lots = [{ id: "lot-a", label: "A", sup: "", note: "", points: ["1", "2", "3", "4"].map((n) => pts.find((p) => p.pointId === n)!.id) }];
+    d.roads = [{ id: "road-1", name: "", edgeA: [pts[0]!.id, pts[1]!.id], edgeB: [pts[4]!.id, pts[5]!.id], width: "none", start: "", end: "" }];
+    d.rules = { id: "uda-2020" };
+    expect(ruleFindings(d, pts).map((x) => x.code)).toEqual(["RULES_LOTS_MEET", "RULES_REMINDER"]);
+  });
+
+  it("takes a corner lot's longer side where one road turns the corner", () => {
+    // A 20 m square with the road along its south and west sides, drawn as one road: frontage 20, mean depth 20.
+    const pts = [pt("1", 0, 0), pt("2", 20, 0), pt("3", 20, 20), pt("4", 0, 20), pt("21", 20, -6), pt("22", -6, -6), pt("23", -6, 20)];
+    const pid = (n: string) => pts.find((p) => p.pointId === n)!.id;
+    const d = emptyDocument();
+    d.lots = [{ id: "lot-a", label: "A", sup: "", note: "", points: ["1", "2", "3", "4"].map(pid) }];
+    d.roads = [{ id: "road-1", name: "", edgeA: [pid("2"), pid("1"), pid("4")], edgeB: [pid("21"), pid("22"), pid("23")], width: "none", start: "", end: "" }];
+    d.rules = { id: "uda-2020" };
+    expect(ruleFindings(d, pts).map((x) => x.code)).toEqual(["RULES_LOTS_MEET", "RULES_REMINDER"]);
+  });
+
+  it("measures frontage along part of a leg where the road ends", () => {
+    // A 20 m leg with a road edge along its first 8 m only.
+    const legs = [{ from: { e: 0, n: 0 }, to: { e: 20, n: 0 }, distance: 20 }, { from: { e: 20, n: 0 }, to: { e: 20, n: 10 }, distance: 10 }, { from: { e: 20, n: 10 }, to: { e: 0, n: 10 }, distance: 20 }, { from: { e: 0, n: 10 }, to: { e: 0, n: 0 }, distance: 10 }];
+    expect(frontageOn(legs, [[{ e: -5, n: 0.02 }, { e: 8, n: 0.02 }]])).toBeCloseTo(8, 9);
+    // A road touching only the corner gives none.
+    expect(frontageOn(legs, [[{ e: 20, n: 0 }, { e: 40, n: -20 }]])).toBe(0);
+  });
+
+  it("says only the area was met when some depths couldn't be measured, and names lots it left out", () => {
+    // Own minimums 0 / 0 / 20: lot A fronts the road (25 m deep), lot D doesn't.
+    const d = plan({ id: "own", areaM2: 100, frontageM: 0, depthM: 20, source: "a brief" }, [lot("a", "A", ["1", "2", "7", "8"]), lot("d", "D", ["8", "7", "9", "10"]), lot("x", "X", ["2", "6", "3", "7"])]);
+    const f = ruleFindings(d);
+    expect(f.map((x) => x.code)).toEqual(["RULES_LOTS_MEET", "RULES_DEPTH_UNMEASURED"]);
+    expect(f[0]!.message).toBe("All 2 lots checked meet the minimum area (100 m²).");
+    expect(f[0]!.detail).toBe("From the minimums you entered: a brief. 1 lot wasn't checked because its boundary crosses itself or a corner is missing.");
+  });
+
+  it("says History hasn't started checking own minimums without a source", () => {
+    const blank = plan({ id: "own", areaM2: 150.125, frontageM: 6.125, depthM: 20, source: "" });
+    expect(compareDocuments(plan(null), blank, PTS).map((c) => c.text)).toContain("Your own minimums (150.125 m², 6.125 m frontage, 20.0 m depth) are set, and checked once you say where they come from.");
+  });
+
+  it("knows reserved and access lots by their notes", () => {
+    for (const note of ["(Res. for Access, 10ft. wide)", "Res for road", "Resd. for drain", "Reserved for a footpath", "Road Reservation 20 ft"]) expect(RESERVED_NOTE.test(note), note).toBe(true);
+    for (const note of ["", "Resurvey of lot 4", "Residence", "Garden"]) expect(RESERVED_NOTE.test(note), note).toBe(false);
+    for (const note of ["(Res. for Access, 10ft. wide)", "Res for road", "Res. for footpath", "Reserved right of way"]) expect(ACCESS_NOTE.test(note), note).toBe(true);
+    expect(ACCESS_NOTE.test("(Res. for C.E.B. way leave)")).toBe(false);
   });
 });

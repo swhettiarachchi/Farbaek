@@ -242,6 +242,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           <p className="mt-1 text-sm text-ink-2">For a sub division: where the dividing lines fall for the shares you give, and how far along the boundary to peg each new corner, worked out from your surveyed corners. Nothing here changes the plan.</p>
           <div className="mt-5">
             <PartitionPanel
+              key={JSON.stringify(doc.rules)}
               lots={doc.lots}
               points={data.points}
               features={doc.features}

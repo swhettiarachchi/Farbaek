@@ -367,3 +367,64 @@ describe("the stage 193 review's cases", () => {
     expect(run({ shares: [null, 800] })).toEqual({ ok: false, error: "The stated shares take the whole lot, so nothing is left for the share left empty." });
   });
 });
+
+describe("the stage 193 re-check's engine cases", () => {
+  it("keeps snaps on both lines of a share within the area check", () => {
+    // Every line end 0.49 mm from a corner: each snap may move up to 0.0049 m², too much for four on one share, so none snaps.
+    const lot = ring([[0, 0], [20.00049, 0], [39.99951, 0], [60, 0], [60, 20], [39.99951, 20], [20.00049, 20], [0, 20]]);
+    const r = ok(partitionLot({ ring: lot, leg: 0, lines: "square", from: "start", shares: [400, 400, null], rules: null }));
+    expect(r.feasible).toBe(true);
+    expect(r.shares.map((x) => x.areaM2)).toEqual([400, 400, 400].map((x) => expect.closeTo(x, 6)));
+  });
+
+  it("leaves no spike where the line runs along a leg", () => {
+    const l = ring([[0, 0], [40, 0], [40, 10], [20, 10], [20, 20], [0, 20]]);
+    for (const by of ["width", "area"] as const) {
+      const r = ok(partitionLot({ ring: l, leg: 0, lines: "square", from: "start", by, shares: [by === "width" ? 20 : 400, null], rules: null }));
+      expect(r.shares[1]!.corners.map((c) => c.name), by).toEqual(["P1", "2", "3", "4"]);
+      expect(r.shares[1]!.areaM2).toBeCloseTo(200, 9);
+      expect(r.shares[0]!.corners.map((c) => c.name)).toEqual(["1", "P1", "4", "5", "6"]);
+    }
+  });
+
+  it("lists a corner once when both ends of a gap snap to it", () => {
+    // The notch's tip, corner 4, 0.1 mm short of the line x = 20: both ends near it snap to it (each moves under 0.002 m²).
+    const notch = ring([[0, 0], [40, 0], [40, 8], [19.9999, 10], [40, 12], [40, 20], [0, 20]]);
+    const r = ok(partitionLot({ ring: notch, leg: 0, lines: "square", from: "start", by: "width", shares: [20, null], rules: null }));
+    expect(r.corners.map((c) => c.name)).toEqual(["P1", "4", "P2"]);
+    expect(r.feasible).toBe(false);
+    expect(r.shares[0]!.problems[0]).toMatch(/^A dividing line runs through corner 4, which points into the lot/);
+  });
+
+  it("says a line runs along a leg between two parts of the lot", () => {
+    const c = ring([[0, 0], [40, 0], [40, 10], [20, 10], [20, 20], [40, 20], [40, 30], [0, 30]]);
+    const r = ok(partitionLot({ ring: c, leg: 0, lines: "square", from: "start", by: "width", shares: [20, null], rules: null }));
+    expect(r.feasible).toBe(false);
+    expect(r.shares[1]!.problems[0]).toBe("A dividing line runs along the leg 4 to 5 between two parts of the lot, so a share would fall in pieces. Try lines the other way, other shares, or another leg.");
+  });
+
+  it("measures frontage after the snap onto a corner", () => {
+    // The line at x = 5.9999 snaps onto corner 2 at (6, 0), moving 0.001 m²: share 1 runs 6.000 m along the leg.
+    const lot = ring([[0, 0], [6, 0], [40, 0], [40, 20], [0, 20]]);
+    const r = ok(partitionLot({ ring: lot, leg: 0, lines: "square", from: "start", shares: [119.998, null], rules: ownRules({ areaM2: 0, frontageM: 6, depthM: 0 }, "a brief") }));
+    expect(r.shares[0]!.alongLegM).toBeCloseTo(6, 9);
+    expect(r.shares[0]!.problems).toEqual([]);
+  });
+
+  it("counts a share exactly at the minimums as meeting them, on a slant at grid coordinates", () => {
+    // 12 m along the road by 25 m deep, turned by atan(3/4): two shares of 150 m² each, 6 m wide.
+    const c = 0.8;
+    const s = 0.6;
+    const at = (x: number, y: number): [number, number] => [123.456 + x * c - y * s, 456.789 + x * s + y * c];
+    const r = ok(partitionLot({ ring: ring([at(0, 0), at(12, 0), at(12, 25), at(0, 25)]), leg: 0, lines: "square", from: "start", shares: [150, null], rules: ownRules({ areaM2: 150, frontageM: 6, depthM: 12 }, "a brief") }));
+    expect(r.feasible).toBe(true);
+  });
+
+  it("measures parallel widths from the leg's own line", () => {
+    // Corner 5 sits 0.8 mm behind the leg's line: a 3.048 m strip still ends 3.048 m from the leg.
+    const lot = ring([[0, 0], [40, 0], [40, 20], [-5, 20], [-5, -0.0008]]);
+    const r = ok(partitionLot({ ring: lot, leg: 0, lines: "parallel", from: "start", by: "width", shares: [3.048, null], rules: null }));
+    expect(r.shares[0]!.depthM).toBeCloseTo(3.048 + 0.0008, 6);
+    expect(r.corners.find((c) => c.from.pointId === "2")!.distanceM).toBeCloseTo(3.048, 9);
+  });
+});
