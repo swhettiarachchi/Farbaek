@@ -70,6 +70,31 @@ Points can't be deleted, so the two "missing points" findings guard against a do
 
 The two `SHEET_MISSING_*` and three `SHEET_EMPTY_*` codes are built from the field name (`planNumber` becomes `PLAN_NUMBER`).
 
+## Lots, roads, adjoining lands and drafting (stages 191 and 192)
+
+Each per-lot boundary check above runs for every lot, its message starting "Lot B1:". These come from how the lots fit together ([`lots.ts`](../../src/core/survey/lots.ts)), the drawing's other items and the drafting assistant.
+
+| Code | Severity | Blocks | When |
+| --- | --- | --- | --- |
+| `LOT_LABEL_MISSING` | error | export, approval | A lot has no label (the engine never invents one) |
+| `LOT_LABEL_DUPLICATE` | error | export, approval | Two lots have the same label and raised part |
+| `LOTS_OVERLAP` | error | export, approval | Two lots overlap: a leg crosses, a corner or leg midpoint lies inside the other, or a point inside one lies inside the other (a lot entered twice) |
+| `LOTS_GAP` | error | export, approval | Land between the lots that no lot covers, including a gap pinched against the outline at one corner |
+| `ENTIRE_AREA_MISMATCH` | error | export, approval | The outline's area differs from the sum of the lots by more than 0.01 m² |
+| `LOTS_APART` | warning | none | The lots form separate pieces of land |
+| `POINTS_NEAR_DUPLICATE` | professional_review | approval | Corner numbers of different lots within 5 cm: perhaps one mark observed twice ("probably" under 1 cm). Every pair is found, through a 5 cm grid. Can be kept as surveyed |
+| `CORNER_NEAR_LEG` | professional_review | approval | A corner between 0.5 mm and 5 cm off another lot's leg, more than 5 cm from its ends (nearer its ends it's a corner near a corner, above); one finding per corner and leg. Can be kept as surveyed |
+| `POINTS_NEAR_DUPLICATE_KEPT`, `CORNER_NEAR_LEG_KEPT` | information | none | The surveyor kept that near miss as surveyed, in this version |
+| `ROAD_MISSING_POINTS` | error | export, approval | A road uses points that no longer exist |
+| `ADJOINING_NO_LEG` | error | export, approval | An adjoining land's leg (its two corners) is no longer a leg of its lot; the label isn't drawn |
+| `STATED_EXTENT_AGREES` | information | none | The stated extent is within 1% of the land computed from the points |
+| `STATED_EXTENT_DIFFERS` | warning | none | It differs by more than 1%; the detail gives both in m² and the difference in the stated units |
+| `STATED_EXTENT_UNREAD` | information | none | The stated extent isn't written in a way Farbaek reads for sure ([`extent.ts`](../../src/core/survey/extent.ts): every number must pair with a unit; anything ambiguous is unread), or the lots don't fit together yet |
+| `SHEET_PARENT_LOTS`, `SHEET_EXTRACT_LOT` | warning | none | A sub division or amalgamation names no parent lot; an extract names a lot the plan doesn't have |
+| `AI_ITEMS_UNREVIEWED` | professional_review | approval | Items the drafting assistant filled, still on the plan, not yet marked right or changed ([AI_DRAFTING.md](AI_DRAFTING.md)) |
+
+"Keep as surveyed" (ADR 0205) saves a new version with the near miss's key in the document's `kept` list, so the approval covers the answer and History shows it. Every save trims `kept` to near misses the plan has, so no answer outlives its near miss or arrives from outside. A document with an empty `kept` hashes as one saved before the field existed, so earlier approvals still stand. Nothing moves.
+
 ## The responsible surveyor
 
 | Code | Severity | Blocks | When | Message | Action |
@@ -91,6 +116,14 @@ From [`compose.ts`](../../src/core/survey/sheet/compose.ts). See [PLAN_SHEET_SPE
 | `TEXT_SCRIPT_NOT_SUPPORTED` | error | export | Any text on any page has a character from U+0900 to U+0DFF (the Indic blocks, Tamil and Sinhala included) | "Sinhala and Tamil text can't be printed on the sheet yet: it would come out as empty boxes." Detail: the first such text, up to 40 characters | "Write the sheet's fields in English for now. Sinhala and Tamil on the sheet come in a later stage." |
 
 Text widths for `TEXT_OVERFLOW` and `LABELS_OVERLAP` come from `textWidth` in [`scene.ts`](../../src/core/survey/sheet/scene.ts), which uses Geist's measured advance widths (see [PLAN_SHEET_SPECIFICATION.md](PLAN_SHEET_SPECIFICATION.md)).
+
+### Added in stages 191 and 192
+
+| Code | Severity | Blocks | When |
+| --- | --- | --- | --- |
+| `TEXT_OFF_SHEET` | error | export | Text on the front page runs past the frame (the plot stamp, under the frame on purpose, is exempt) |
+| `LABELS_ON_TITLE` | warning | none | A label in the drawing covers the Reference, the notes or the title block (classic layout) |
+| `LOT_LABEL_CRAMPED` | warning | none | A lot's label is bigger than the lot at this scale; it's written at the lot's deepest point, never outside it |
 
 ## Checks outside the findings
 

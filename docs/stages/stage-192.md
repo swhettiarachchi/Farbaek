@@ -18,4 +18,29 @@ Each milestone gets tests with hand-worked answers, a look in the browser, and a
 
 ## Done
 
-(Filled in as the work lands.)
+- **Stated extent** ([`extent.ts`](../../src/core/survey/extent.ts)): read strictly in acres, roods and perches (numbers first or letters first, with fractions and "and"), hectares, acres, perches or m², and set beside the computed land: agrees within 1%, differs (in the stated units), or unread. Anything ambiguous is unread.
+- **Near misses, kept as surveyed** (ADR 0205): corners of different lots within 5 cm, and corners within 5 cm of another lot's leg, hold approval until fixed or kept. The answer is saved in the version and trimmed on every save.
+- **Lot schedule CSV**, **plot stamp** under the frame, **inverse** between any two points, **two codes on a point** and notes after a slash.
+- **Dividing a lot into shares** (ADR 0206): stated or equal shares, square or parallel to a leg, with the area balance, setting-out distances and the UDA minimums when asked.
+- **Photos:** large phone photos decode at a smaller size.
+
+## Reviews
+
+A fresh reviewer found 8 problems in the first commits, all confirmed by running the code, and all fixed with tests:
+- deed wordings with the letters first, fractions or "and" were misread, sometimes as agreement;
+- adding the `kept` field would have made every earlier approval lapse;
+- near misses were capped at 20, so some could go unseen after keeping the rest;
+- corners 1 to 5 cm from a neighbour's corner went unreported;
+- END and CLO attached to description words, and single description letters became codes;
+- the stated extent wasn't compared for separate pieces of land;
+- `kept` could grow past its limit and make a version unreadable;
+- the plot stamp sat where many printers can't print.
+
+## Verified
+
+- Survey, design and fake-model tests: 311 pass; typecheck and lint pass.
+- In the browser on the demo build: the inverse (1 to 2 gives the schedule's 088°13′03″ and 48.22 m), the lot schedule download, the plot stamp on the sheet, the Check step, and dividing lot B¹ into three equal shares (lines at 178°13′03″, P1 to P4 with their setting-out distances).
+
+## Not done here
+
+- **The first real drafting call on production.** Stage 191 is live. Creating a project in the owner's workspace was refused by this session's permission check, as it should be. The owner makes the check by hand (steps in the final report).
