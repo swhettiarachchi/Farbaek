@@ -21,9 +21,16 @@ Stage 190 built the foundation and one complete workflow; stage 191 added severa
 - **Compare two versions** in words on the History step.
 - The CAD product study that shaped these choices: [CAD_PRODUCT_STUDY.md](CAD_PRODUCT_STUDY.md).
 
-## Next: subdivision proposals (planned)
+## Stage 192: a plan the surveyor can trust end to end (done)
 
-Splitting a parent parcel into lots and access roads, with a feasibility report, never presenting a layout that breaks a hard rule as feasible.
+- The stated extent read in its own units and set beside the computed land.
+- Near misses (a corner a few centimetres off a neighbour's leg, two marks within 1 cm) answered "keep as surveyed" in the version (ADR 0205).
+- The lot schedule as CSV, a plot stamp under the frame, the inverse between any two points, and two codes on one point with notes after a slash.
+- Dividing a lot into shares (ADR 0206): dividing lines square or parallel to a leg for stated or equal shares, the area balance, setting-out distances, and the UDA minimums when asked. A proposal to peg, never a change to the plan.
+
+## Next: subdivision with roads and rules (planned)
+
+Stage 192 divides one lot into shares. Still to come: access roads and strips cut out first, lines through a fixed point, layouts for a whole land with a feasibility report, never presenting a layout that breaks a hard rule as feasible.
 - **Rules as versioned data.** The UDA figures in [STANDARDS_RESEARCH.md](STANDARDS_RESEARCH.md) (minimum lot 150 m², 6.0 m frontage, 12.0 m depth, access rules, turning circles, open space), each citing the regulation, with a Development Plan override, and flagged as due for replacement on 31 December 2026. Schedule 4's width-to-lots pairing must not be encoded until a clean copy is found.
 - **Area conservation**: parent area, roads and reservations, the sum of the lots, the residual, and the tolerance.
 - **Block-out plans** at not less than 1:1000 (UDA reg. 8).
@@ -67,11 +74,8 @@ These are needed but have no stage number yet.
 | **Sinhala and Tamil text on sheets** | Fonts with those scripts (the embedded Geist has none). A release gate that compares PDFKit's glyph ids with HarfBuzz's (harfbuzzjs 1.6.4) for a fixed word list such as ශ්‍රී. Check fontkit's Indic output in the PDFKit version in use. DXF text keeps the `\U+` escapes, including the zero-width joiner; whether CAD programs draw it needs a hands-on test |
 | **A UDA submission profile** | A switchable set of sheet items from UDA regulation 9, named after the document it was built from: adjoining assessment numbers, access width, drainage flow, previous boundaries in red, street and building lines, and the existing permit box |
 | **Captions** | The template is chosen per drawing (classic or panel); let a surveyor edit its captions |
-| **A plot stamp** | One line in the margin with the drawing version, approval state, engine version and export date, so a paper copy can be traced (CAD_PRODUCT_STUDY.md) |
-| **A lot schedule CSV** | Each lot's area in m², hectares and A-R-P with a total row, cross-checked against the entire land, computed from the lots on every export |
-| **Near-miss findings** | Name a corner a few centimetres off a neighbour's leg, or two marks a few millimetres apart, and let the surveyor answer "keep as surveyed" in the hashed version. Never move a point |
 | **A plan-standard profile** | The sheet checks as named, versioned rules, each citing its source (the classic layout as observed practice, UDA regulation 9 as official text) |
-| **Field codes** | Two codes on one point (a mark that also ends a wall) and a note after a separator; curves and join-to-point after the curve engine; a code library per office |
+| **Field codes** | Curves and join-to-point after the curve engine; a code library per office |
 | **DXF in ZWCAD and AutoCAD LT** | Open the exports in both by hand before a release: the likeliest desktops a Sri Lankan surveyor uses |
 | **Dictating the description** | Speech to text for the Draft step, with its own privacy note |
 | **The surveyor's record** | A licence year and accreditation status on the surveyor profile, and plan numbering that exports cleanly to the Plan Issuing Register (format still unverified) |
