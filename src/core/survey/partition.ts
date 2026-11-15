@@ -69,7 +69,7 @@ export interface Share {
   corners: ShareCorner[];
   /** Its length along the chosen leg: its frontage when that leg is the road. Zero when it doesn't touch the leg. */
   alongLegM: number;
-  /** Its least depth: square lines, the shorter of its two sides running back from the leg; parallel lines, the distance between its two dividing lines. */
+  /** Its least depth: square lines, the least of its dividing lines' lengths and its mean depth (area over frontage); parallel lines, the distance between its two dividing lines. */
   depthM: number;
   /** What stops it being made as asked, and the UDA minimums it doesn't meet. */
   problems: string[];
@@ -214,8 +214,10 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     const s1 = bounds[i + 1]!;
     // Along the leg: for square lines, the part of the leg inside this share's slab; for parallel lines, the whole leg if it lies in it.
     const alongLegM = legHi - legLo < 1e-9 ? (legLo >= s0 - 1e-9 && legLo <= s1 + 1e-9 ? len : 0) : Math.max(0, Math.min(s1, legHi) - Math.max(s0, legLo));
-    // Square lines: the share's sides running back from the leg are its dividing lines (or the lot's ends); its depth is the shorter one, so a tapering share can't pass on its deepest point.
-    const depthM = req.lines === "square" ? Math.min(chord(ring, n, Math.min(s0 + 0.001, s1)), chord(ring, n, Math.max(s1 - 0.001, s0))) : s1 - s0;
+    // Square lines: the least of its dividing lines' lengths and its mean depth (area over frontage), so a share that tapers away can't pass on its deepest side.
+    const sides = [i > 0 ? chord(ring, n, s0) : Infinity, i < targets.length - 1 ? chord(ring, n, s1) : Infinity];
+    const mean = alongLegM > 0 ? areaM2 / alongLegM : Infinity;
+    const depthM = req.lines === "square" ? Math.min(...sides, mean) : s1 - s0;
     const problems = [cutProblem[i - 1], cutProblem[i]].filter((x): x is string => Boolean(x));
     if (req.uda) {
       if (areaM2 < UDA_MINIMUMS.areaM2) problems.push(`It's ${areaM2.toFixed(2)} m², under the UDA minimum of ${UDA_MINIMUMS.areaM2} m².`);

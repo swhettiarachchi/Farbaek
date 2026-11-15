@@ -91,14 +91,22 @@ describe("the re-check's cases", () => {
     expect(partitionLot({ ring: bow, leg: 0, lines: "square", from: "start", shares: [null, 20], uda: false }).ok).toBe(false);
   });
 
-  it("checks the UDA depth at the shallow end of a tapering share", () => {
-    // A trapezoid 40 m along the road, 20 m deep at the west end and 4 m at the east.
+  it("doesn't let a tapering share pass on its deepest side", () => {
+    // A trapezoid 40 m along the road, 20 m deep at the west end and 4 m at the east (480 m²). The east share of 240 m²
+    // starts at x = 50 - √1300 = 13.9445 m: its dividing line is 14.42 m long, but its mean depth is 240 / 26.0555 = 9.21 m.
     const t = ring([[0, 0], [40, 0], [40, 4], [0, 20]]);
     const r = ok(partitionLot({ ring: t, leg: 0, lines: "square", from: "start", shares: [null, 240], uda: true }));
     const east = r.shares[1]!;
-    expect(east.depthM).toBeCloseTo(4, 3);
-    expect(east.problems).toContain("Its depth is 4.00 m, under the UDA minimum of 12.0 m.");
+    expect(east.alongLegM).toBeCloseTo(40 - (50 - Math.sqrt(1300)), 6);
+    expect(east.depthM).toBeCloseTo(240 / (40 - (50 - Math.sqrt(1300))), 6);
+    expect(east.problems).toContain("Its depth is 9.21 m, under the UDA minimum of 12.0 m.");
     expect(r.feasible).toBe(false);
+  });
+
+  it("gives an end share with a slanted end its mean depth, not a sliver", () => {
+    const s = ring([[0, 0], [40, 0], [40, 20], [-1, 20]]);
+    const r = ok(partitionLot({ ring: s, leg: 0, lines: "square", from: "start", shares: [405, null], uda: false }));
+    expect(r.shares[0]!.depthM).toBeGreaterThan(19);
   });
 
   it("ends a line at a surveyed corner it passes through, instead of a new corner on top of it", () => {
