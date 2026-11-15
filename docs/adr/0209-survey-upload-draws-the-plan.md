@@ -34,6 +34,12 @@ The research (`reports/Survey instrument export formats.md`, notes in `research_
   - raw observations (Farbaek doesn't reduce them);
   - latitude and longitude;
   - GSI-8 grid coordinates that can't have kept their leading digits.
+- **Hostile files:** the readers run on the server, so none may slow down on a crafted file. XML is scanned in one pass without backtracking patterns; an XML file cut short is refused whole.
+
+**Typing is the second way in, as in CAD.** AutoCAD and ZWCAD take points by coordinates or by polar input ("@25.40<45°30'"). Survey Studio offers the same beside the upload, as two tables rather than a command line, because a table shows every value at once and can be checked against the field book:
+- **Type coordinates:** point, northing, easting, height and code; a block pasted from a spreadsheet fills the rows.
+- **Bearings and distances:** a field book typed leg by leg from a known point, the way Sri Lankan field books record each leg (DSR Chapter XXII §22.2.2). A leg that ends on a known point is a check: its misclosure is shown and never adjusted, since adjusting a traverse needs the surveyor's authorisation (survey skill, rule 7).
+Both go through the same reader, preview and confirmation as a file.
 
 **The table reads the file itself and says why.**
 - **Column roles:** column names decide first. Without them, the values decide: distinct numbers or names make the point number, words make the code, and the coordinates form a pair plus an elevation.
@@ -49,23 +55,28 @@ The research (`reports/Survey instrument export formats.md`, notes in `research_
 **The plan is drawn on import, by default, as a draft.**
 - **The one deliberate act before drawing:** the surveyor confirms that the coordinates are metres in the project's grid and that the columns are right. Rule 3 asks a person to confirm the system, and this confirmation is the same act as the import.
 - **Opting out:** a checkbox, on by default, draws the plan in the same step. Leaving it off imports the points only.
-- **What is drawn** (`src/core/survey/autodraft.ts`, `autodraft/1.0.0`):
+- **What is drawn** (`src/core/survey/autodraft.ts`, `autodraft/1.1.0`):
   - The lot goes through the boundary marks.
-    - Boundary marks are library marks that aren't utility posts, culverts, trees, wells or stations.
-    - They are taken in the order observed. Failing that, they are taken in order around their centre, but only when that outline covers at least 85% of their convex hull.
+    - Boundary marks are library marks whose meaning isn't a utility post, light, culvert, tree, well, valve, manhole, station, benchmark, monument or kilometre post (whole words, so "Street marker" is still a mark). A numbered code ("CP3") is looked up by its letters.
+    - A mark shot again at the same place (within half a millimetre) counts once.
+    - They are taken in the order observed when that order makes a simple outline; any inward corner is named for the surveyor to check ("a corner of the land, or a mark inside it?").
+    - Failing that, they are ordered around their centre only when every mark lies on their convex hull: a convex land has one outline, a notched one doesn't.
     - Otherwise no lot is drawn, and the reason is given. A sub division with marks inside the land is the usual case; it goes through the Lots step or the Draft step.
   - The lines and buildings come from the field codes, by the field-to-finish rules.
-  - A road is drawn from edges coded RD1 and RD2, or RDL and RDR.
+  - A road is drawn from edges coded RD1 and RD2, or RDL and RDR, only when the two edges make one road between 1 and 60 m wide, and only on a plan with no road yet.
+  - Drawing again never draws a line twice or replaces a road the surveyor named.
+  - **Limits:** 500 marks, 500 points a line, 300 lines and 200 points a road edge. What doesn't fit is listed as not drawn, with the reason.
   - The survey date is taken from the file where it states one (JobXML).
   - The surveyor block is filled from the importing surveyor's profile.
 - **What waits for a check:**
   - Inferences carry the provenance `auto`: the lot (which marks make it), the road (which edges pair) and the date. Each waits for the surveyor's "Looks right" and holds approval until then (`AUTO_ITEMS_UNREVIEWED`).
   - Lines drawn from codes are recorded like accepted field-to-finish suggestions. They are deterministic consequences of the crew's own codes.
-- **Limits on drawing:** nothing is drawn over a plan that has lots. No point is moved or changed.
+  - The Survey Department's code list, when chosen, waits for a check like the common list (`LEGEND_UNREVIEWED`); swapping lists clears the check.
+- **Limits on drawing:** nothing is drawn over a plan that has lots, or over a version whose settings can't be read. No point is moved or changed. A version is saved only when a lot, a line or a road was drawn.
 
-**One list of what's left.** The Plan step opens with a checklist:
-- the items drawn for the surveyor to check, each with where to check it;
-- what the checks still ask for before approval;
+**One list of what's left.** The Plan step opens with a checklist, once anything is drawn:
+- the items drawn for the surveyor to check, each with where to check it and the same name the editor gives it;
+- what the checks still ask for before approval or export;
 - once nothing is left, a link to approve.
 
 Approval remains a separate act.

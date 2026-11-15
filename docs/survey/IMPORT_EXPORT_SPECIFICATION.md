@@ -16,8 +16,10 @@ Files are untrusted input (skill rule 11). Nothing is guessed: not the column or
 | Sokkia SDR2x and SDR33 (stage 194) | `sdr` | `.sdr` | [`sdr.ts`](../../src/core/survey/import/sdr.ts) |
 | LandXML CgPoints (stage 194) | `landxml` | `.xml`, `.landxml` | [`landxml.ts`](../../src/core/survey/import/landxml.ts) |
 | Trimble JobXML (stage 194) | `jobxml` | `.jxl`, `.jobxml` | [`jobxml.ts`](../../src/core/survey/import/jobxml.ts) |
+| Field book: bearings and distances, typed (stage 194) | `fieldbook` | typed in the panel | [`fieldbook.ts`](../../src/core/survey/import/fieldbook.ts) |
 
-**Choosing the reader.** `detectFormat(fileName, text)` in [`detect.ts`](../../src/core/survey/import/detect.ts) reads the content first, then the name.
+**Choosing the reader.** `detectFormat(fileName, text)` in [`detect.ts`](../../src/core/survey/import/detect.ts) reads the content first, then the name. The panel shows the format it recognised in a "Read the file as" menu, and the surveyor can choose another; once chosen, typing never changes it back.
+- **Field book:** the `# Farbaek field book` header, or a first line starting `start,` or `leg,`.
 - **JobXML:** a `JOBFile` element, or `.jxl`.
 - **LandXML:** a `LandXML` element.
 - **SDR:** an `00NMSDR2x` or `00NMSDR33` header, or `.sdr`.
@@ -25,37 +27,49 @@ Files are untrusted input (skill rule 11). Nothing is guessed: not the column or
 - **GeoJSON:** a `.geojson` or `.json` name, or a `FeatureCollection`.
 - **Anything else** is delimited.
 
-**Files Farbaek can't read.** `unreadableFile` names them with what to export instead: instrument job databases (binary), Trimble DC, and Topcon GTS-7.
+**Files Farbaek can't read.** `unreadableFile` names them with what to export instead: instrument job databases (binary), Trimble DC, and Topcon GTS-7. A GTS-7 file is known by its first line: the `GTS-7` version record, or a GTS-7 keyword (JOB, STN, XYZ, HD and the rest) padded to 8 columns with the comma in column 9. A CSV whose rows start with STN or HD has its comma right after the word, so it isn't one.
 
 **One entry point.** `readPoints` in [`read.ts`](../../src/core/survey/import/read.ts) is used by both the panel and the server, so the preview is what is imported. People can also paste rows into the panel.
 
+**Typing points in, as in CAD** ([`manual-entry.tsx`](../../src/components/survey/manual-entry.tsx), stage 194). Two tables beside the upload, for points that come from a field book, a deed or an old plan rather than a file:
+- **Type coordinates:** point, northing, easting, height and code per row; pasting a block from a spreadsheet fills the rows. It writes a CSV the delimited reader reads like any other.
+- **Bearings and distances:** a starting point (or a point already in the project), then one leg per row: from, to, bearing, horizontal distance, code. Enter adds the next leg from the last point. Bearings are whole-circle from grid north in DMS or decimal degrees, or quadrant ("N 45 30 00 E"), read by the tested angle parser. It is CAD's polar input ("@25.40<45°30'") and a traverse editor in one table.
+- **The field book's rules** ([`fieldbook.ts`](../../src/core/survey/import/fieldbook.ts), `fieldbook/1.0.0`): coordinates are worked out at full precision and never rounded. A leg that ends on a known point is a check, not a new point: its misclosure and ratio over the legs so far are reported (`CLOSURE`), never adjusted, because adjusting a traverse needs the surveyor's authorisation and a chosen method (survey skill, rule 7). Heights aren't computed. The stored source is the typed text, so what was typed can be read again.
+
 **Reading the columns** ([`columns.ts`](../../src/core/survey/import/columns.ts), stage 194):
-- **Column names decide first.** X and Y are settled by the grid, since some instruments write X as the northing.
-- **Without names, the values decide.** Distinct numbers or names make the point number, words make the code, the first two coordinate columns are the horizontal pair, and a third is the elevation.
+- **Column names decide first.** Names are compared without case, quotes, underscores, hyphens or a unit of metres, so "Point_ID", "Easting (m)" and "EASTING_M" are understood. X and Y are settled by the grid, since some instruments write X as the northing. Names over columns the rows don't have are ignored.
+- **Without names, the values decide.** Distinct numbers or names make the point number, words make the code, the first two coordinate columns are the horizontal pair, and a third is the elevation. A column of small whole numbers that repeat is a numeric field code, not a coordinate, when two coordinate columns remain beside it; the panel asks the surveyor to check it.
+- **Typing keeps choices.** Editing the pasted text keeps the surveyor's column choices; the columns are read again only for a new file, text pasted into an empty box, or a change of format.
 - **Easting or northing.** The project's grid settles which is which only when exactly one order puts every point inside it. Across most of SLD99 both orders fit, so otherwise the file's shape decides, and the panel says so:
   - a code in the second column is the CASS `.dat` layout (name, code, easting, northing, height), read easting first;
   - anything else is read northing first, as the Survey Department's PNEZC file has it (DSR Chapter XXII §22.3).
 - **Text.** Full-width commas are read as commas. A file that isn't UTF-8 is read as GB18030, with a notice.
 - **Reasons shown.** Every choice is shown with its reason and can be changed.
-- **Latitude and longitude** are recognised and refused.
+- **Latitude and longitude** are recognised and refused. Only the chosen easting and northing columns are tested, so an elevation with many decimals beside grid coordinates can't set it off.
 
 **Each instrument reader's rules:**
 - **GSI.** Point (WI 11) with target (81 to 83) or station (84 to 86) coordinates, and a remark (71) or code (41) on the same line.
   - **Units:** only metre units (unit digits 0, 6 and 8) are read.
-  - **Refused, with the reason:** feet; raw observations (21, 22, 31); GSI-8 coordinates outside the grid, which likely lost their leading digits; and all-zero points.
+  - **Code:** the remark (71) when it's filled, else the code word (41); an empty remark is written as zeros.
+  - **Refused, with the reason:** feet; observation-only files (21, 22, 31); GSI-8 coordinates outside the grid, which likely lost their leading digits; all-zero points; coordinates without a point number (word 11 missing or all zeros); a word given twice on one line.
+  - **Left out and counted** (`RECORDS_LEFT_OUT`): lines of raw angles and distances beside the coordinates, and heights alone (83 without 81 and 82).
   - **Code lines standing alone** aren't tied to a point.
+  - **Zero fill:** "0000A110" is "A110" and "000012.5" is "12.5"; a "0." is kept.
 - **SDR.** 08 coordinate and 02 station records, by Sokkia's byte layout (SDR2x narrow fields, SDR33 16-byte fields), with zero-filled numbers unfilled.
-  - **Repeated points:** a later record of the same point replaces the earlier one, as in the SDR, with a warning.
-  - **Refused:** feet (header byte 42, or a `13DU` note) and observation-only files.
-  - **Not imported:** RTK (18) and latitude and longitude (24) records.
+  - **Repeated points:** a later record of the same point replaces the earlier one, as in the SDR, with a warning (`DUPLICATE_POINT_REPLACED`).
+  - **Units:** header byte 42 must be 1 (metres). Feet (2, or a `13DU` note) are refused, and so is any other value or none.
+  - **Refused:** observation-only files, and more than 20,000 coordinate records.
+  - **Not imported, and counted:** observations (09, 11) beside the coordinates, RTK (18) and latitude and longitude (24) records.
   - **Display order:** an easting-first display setting gets a warning.
 - **LandXML.** CgPoint text as northing, easting and an optional elevation; `name` is the point; `code`, or else `desc`, is the code.
   - **Units:** metric units are scaled exactly; imperial is refused.
-  - **References:** `pntRef`-only points are left out.
-  - **Observations without points** are refused.
+  - **References:** `pntRef`-only points are left out, and counted.
+  - **Observations:** a file of observations without points is refused; observations beside points are counted and left out.
 - **JobXML.** `Reductions/Point/Grid` (North, East, Elevation; JobXML stores metres).
-  - **Left out:** points whose field-book record is `Deleted`; points with only WGS84 or local values, with a warning.
+  - **Left out:** points whose field-book record is `Deleted` (`true` or `1`); points with only WGS84 or local values, with a warning.
   - **Survey date:** the last day a point was observed is offered as the survey date.
+- **XML, both formats** ([`xml.ts`](../../src/core/survey/import/xml.ts)). Read in one pass with `indexOf`, never a backtracking pattern, so a 2 MiB file with a tag, quote or comment left open takes as long as a well-formed one. Line numbers come from one index of the line starts. A file cut short (its root, an element, a tag, a quote or a comment never closed), or with a reference to a character XML doesn't allow, is refused whole with its line (`FILE_CUT_SHORT`). Comments and processing instructions are blanked rather than removed, so the lines after them keep their numbers, and a `>` inside a quoted value is part of the value.
+- **Every reader** refuses control and invisible characters in point numbers and codes: C0 and C1 controls, the soft hyphen, zero-width characters, direction marks and overrides, line and paragraph separators and the byte-order mark. A number holding one would look the same as one without it.
 
 **Drawing the plan on import (ADR 0209).** The import can draw the plan in the same step.
 - **Condition:** the plan has no lots, and the "Draw the plan" box (on by default) is ticked.
@@ -64,8 +78,9 @@ Files are untrusted input (skill rule 11). Nothing is guessed: not the column or
   - the lines from the codes;
   - the road from RD1 and RD2 edges;
   - the stated survey date and the importing surveyor.
-- **Code list:** when the file uses the Survey Department's codes, the panel offers to draw with that list.
-- **Result:** a new drawing version noted "Drawn from <file>".
+- **Code list:** when the file uses the Survey Department's codes, the panel offers to draw with that list. It then waits for the surveyor's check like the common list (`LEGEND_UNREVIEWED`), and swapping lists clears the check.
+- **Result:** a new drawing version noted "Drawn from <file>", only when a lot, a line or a road was drawn. A survey date or surveyor block alone isn't saved as a version, and nothing is drawn over a latest version whose settings can't be read. If drawing fails, the import still stands and the panel says the plan wasn't drawn.
+- **Preview:** the dashed lot outline and the lines are shown only when the plan will be drawn. Numbered codes ("MW1", "MW2") are looked up by their letters, as field-to-finish reads them.
 
 ### Limits
 
@@ -145,13 +160,20 @@ The panel starts on PNEZD. Each column has its own role menu (point number, east
 | `MISSING_MAPPING` | error | delimited | No point, easting or northing column chosen |
 | `WRONG_COLUMN_COUNT` | error | delimited | A row has too few cells for the mapping |
 | `MISSING_POINT_ID` | error | delimited | Empty point number |
-| `POINT_ID_TOO_LONG` | error | both | Over 32 characters, or control characters; for GeoJSON also an empty number |
-| `CODE_NOT_READABLE` | error | both | A code over 64 characters, or with control characters |
+| `POINT_ID_TOO_LONG` | error | both | Over 32 characters, or control or invisible characters; for GeoJSON also an empty number |
+| `CODE_NOT_READABLE` | error | both | A code over 64 characters, or with control or invisible characters |
 | `EXTRA_COLUMNS` | error | delimited | A row with more cells than the mapping, except extra words in a space-separated file whose last column is the code |
 | `NOT_A_NUMBER` | error | both | A coordinate or elevation that isn't a plain number |
 | `MISSING_COORDINATE` | error (delimited), warning (GeoJSON) | both | An empty easting or northing; for GeoJSON, a feature that isn't a point |
 | `DUPLICATE_POINT_SAME` | warning | delimited | An exact repeat, kept once |
 | `DUPLICATE_POINT_CONFLICT` | error | both | One point number with a different E, N, Z or code (delimited), or named twice (GeoJSON) |
+| `DUPLICATE_POINT_REPLACED` | warning | SDR | A point stored again with new values; the later record is used, as the SDR's own rule says |
+| `FILE_CUT_SHORT` | error | LandXML, JobXML | Cut short or not well formed where Farbaek reads it; the whole file is refused |
+| `RECORDS_LEFT_OUT` | warning | GSI, SDR, LandXML | Observations, heights alone, RTK or latitude-longitude records, or references, left out and counted |
+| `CLOSURE` | warning | field book | A leg closing on a known point: the misclosure and ratio, unadjusted |
+| `CHECK_FILE` | warning | GSI, SDR | Something to check by eye: GSI-8 and GSI-16 words mixed, or an easting-first display setting |
+
+Only `DUPLICATE_POINT_SAME` with a line counts as a repeat in the panel and the import message; every other warning is a note the panel lists.
 
 ### All or nothing
 

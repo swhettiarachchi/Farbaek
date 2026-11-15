@@ -44,19 +44,60 @@
   - [`landxml.ts`](../../src/core/survey/import/landxml.ts): CgPoints as northing, easting and elevation; metric units scaled exactly; imperial refused; references left out.
   - [`jobxml.ts`](../../src/core/survey/import/jobxml.ts): Reductions grid coordinates, with deleted points left out and the last day observed taken as the survey date.
   - [`detect.ts`](../../src/core/survey/import/detect.ts) and [`read.ts`](../../src/core/survey/import/read.ts): detection, the files Farbaek can't read (job databases, Trimble DC, Topcon GTS-7) with what to export, and one entry point for the panel and the server.
-- **Codes.** The Survey Department's list ([`codes.ts`](../../src/core/survey/codes.ts), `DSR_CODES`) is on the Plan step and offered on import. Stations are never lot corners.
+- **Typing points in, as in CAD** ([`manual-entry.tsx`](../../src/components/survey/manual-entry.tsx), [`fieldbook.ts`](../../src/core/survey/import/fieldbook.ts)). Two tables beside the upload:
+  - **Type coordinates**, where a block pasted from a spreadsheet fills the rows;
+  - **Bearings and distances**, a field book typed leg by leg (polar input and a traverse in one table). A leg onto a known point reports its misclosure and ratio, unadjusted.
+- **Codes.** The Survey Department's list ([`codes.ts`](../../src/core/survey/codes.ts), `DSR_CODES`) is on the Plan step and offered on import. Stations are never lot corners. Its fences, walls, drains and tar edges have their own layers.
 - **The review checklist** ([`review-checklist.tsx`](../../src/components/survey/review-checklist.tsx)) lists what was drawn to check, then what the checks still ask for, then the way to approval.
 - **Schema v95** lets the stored source keep its true format. Its DB test checks the list matches the app's.
+
+## Reviews
+
+Two independent reviewers read the stage before its PR, one on the draft flow and one on the readers. They found 40 bugs, all fixed with a test each (commits `ed35048d` and `dd26188e`):
+- **The draft:**
+  - drawing again duplicated lines and replaced a named road;
+  - nothing capped the work on a large file;
+  - ordering around the centre accepted notched lots;
+  - a mark shot twice counted twice;
+  - a road was paired from edges hundreds of metres apart;
+  - "Street marker" read as a tree.
+- **The flow around it:**
+  - the Survey Department's list never waited for a check, and swapping lists kept "checked";
+  - its fences and drains fell on the walls layer;
+  - a version was saved when only a date was filled;
+  - History said drawn items waited for a check when they were checked;
+  - the checklist named title fields from their keys and ignored export blockers.
+- **The panel:**
+  - typing re-guessed the columns on every key;
+  - one-line XML gave every point the same preview id;
+  - numbered codes showed as unknown;
+  - the lot outline showed when nothing would be drawn;
+  - a failed draw looked like success.
+- **The readers:**
+  - backtracking patterns that let a crafted 2 MB XML file stall the server;
+  - line counting that grew with the square of the points;
+  - XML files cut short read as complete;
+  - GSI lines with coordinates but no point number silently skipped;
+  - a repeated GSI word read as one;
+  - an empty remark hid the code;
+  - SDR accepted any unit byte but 2 and had no row limit;
+  - invisible characters were allowed in point numbers;
+  - an elevation column could set off the latitude-and-longitude refusal;
+  - CSVs starting with STN were taken for Topcon files;
+  - closure notes were counted as repeated rows.
 
 ## Verified
 
 - **Unit tests:**
-  - auto-draft: 8;
-  - columns: 7;
+  - auto-draft and the draft flow: 18;
+  - the readers review: 18;
+  - columns: 8;
   - GSI, on Leica's own lines: 9;
   - SDR: 5;
   - LandXML and JobXML: 6;
+  - field book: 5;
   - detection: 3.
+- **All survey tests:** 252 pass.
 - **DB test** for v95 (16 in the file).
 - **Gates:** typecheck, lint and the design tests passed.
 - **Browser** (dev demo, with the Sample's import panel unlocked for the check and locked again before committing):
@@ -68,5 +109,6 @@
 
 - Lots from closed boundary linework, as Carlson and Civil 3D do, for sub divisions.
 - Real instrument files from Sri Lankan surveyors as fixtures.
-- Text encodings other than UTF-8.
+- Text encodings other than UTF-8 and GB18030.
+- The GTS-7 XYZ record, once a real Topcon file confirms its axis order.
 - The first real model call on production (the owner's check, still open since stage 191).
