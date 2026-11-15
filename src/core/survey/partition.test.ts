@@ -190,3 +190,79 @@ describe("shares by width", () => {
     expect(r.feasible).toBe(false);
   });
 });
+
+describe("lines through a corner", () => {
+  // A 20 m square, corners 1 (0, 0), 2 (20, 0), 3 (20, 20), 4 (0, 20): 400 m².
+  const sq = ring([[0, 0], [20, 0], [20, 20], [0, 20]]);
+  const fanRun = (r: Partial<PartitionRequest>) => partitionLot({ ring: sq, leg: 0, lines: "through", corner: 0, from: "start", shares: [null, null], uda: false, ...r });
+
+  it("cuts off a triangle with a line from the corner to the far leg", () => {
+    // Triangle 1-2-Q with Q = (20, y): 20y / 2 = 100, so y = 10: Q is 10 m from corner 2 towards 3.
+    const r = ok(fanRun({ shares: [100, null] }));
+    expect(r.shares.map((x) => x.areaM2)).toEqual([100, 300].map((x) => expect.closeTo(x, 9)));
+    expect(r.corners).toHaveLength(1);
+    const q = r.corners[0]!;
+    expect([q.name, q.from.pointId, q.to.pointId]).toEqual(["P1", "2", "3"]);
+    expect(q.distanceM).toBeCloseTo(10, 9);
+    // From corner 1 to (20, 10): bearing atan(20 / 10) = 63.4349°, length √500.
+    expect(r.rays).toEqual([{ from: "1", to: "P1", bearing: expect.closeTo((Math.atan2(20, 10) * 180) / Math.PI, 9), lengthM: expect.closeTo(Math.sqrt(500), 9) }]);
+    expect(r.bearing).toBeNull();
+    expect(r.segments).toEqual([{ cut: 0, a: { e: E0, n: N0 }, b: { e: expect.closeTo(E0 + 20, 6), n: expect.closeTo(N0 + 10, 6) } }]);
+    expect(r.shares[0]!.corners.map((c) => c.name)).toEqual(["1", "2", "P1"]);
+    expect(r.shares[0]!.alongLegM).toBeCloseTo(20, 9);
+    expect(r.shares[1]!.alongLegM).toBe(0);
+  });
+
+  it("goes past a corner onto the next leg, and ends on a corner it reaches", () => {
+    // 300 m²: the triangle to corner 3 is 200, then 10 (20 - x) more along the top: x = 10, 10 m from corner 3 towards 4.
+    const far = ok(fanRun({ shares: [300, null] }));
+    expect([far.corners[0]!.from.pointId, far.corners[0]!.to.pointId]).toEqual(["3", "4"]);
+    expect(far.corners[0]!.distanceM).toBeCloseTo(10, 9);
+    // 200 m²: the diagonal, ending on corner 3.
+    const diag = ok(fanRun({ shares: [200, null] }));
+    expect(diag.corners.map((c) => [c.name, Boolean(c.existing)])).toEqual([["3", true]]);
+    expect(diag.shares[0]!.corners.map((c) => c.name)).toEqual(["1", "2", "3"]);
+  });
+
+  it("fans several shares out from the corner, either way round", () => {
+    const r = ok(fanRun({ shares: [100, 200, null] }));
+    expect(r.shares.map((x) => x.areaM2)).toEqual([100, 200, 100].map((x) => expect.closeTo(x, 9)));
+    expect(r.corners.map((c) => [c.name, c.from.pointId, c.to.pointId])).toEqual([["P1", "2", "3"], ["P2", "3", "4"]]);
+    expect(r.corners.map((c) => c.distanceM)).toEqual([10, 10].map((x) => expect.closeTo(x, 9)));
+    // Going the other way from corner 1: up the west side to 4, then along the top. 100 m² is 10x, so x = 10: 10 m from corner 3 towards 4.
+    const back = ok(fanRun({ from: "end", shares: [100, null] }));
+    expect([back.corners[0]!.from.pointId, back.corners[0]!.to.pointId]).toEqual(["3", "4"]);
+    expect(back.corners[0]!.distanceM).toBeCloseTo(10, 9);
+    expect(back.shares[0]!.areaM2).toBeCloseTo(100, 9);
+  });
+
+  it("finds a line that stays inside an L-shaped lot, and says when none does", () => {
+    // Corners 1 (0, 0), 2 (20, 0), 3 (20, 10), 4 (10, 10), 5 (10, 20), 6 (0, 20): 300 m². Lines through corner 2.
+    const l = ring([[0, 0], [20, 0], [20, 10], [10, 10], [10, 20], [0, 20]]);
+    const run2 = (shares: (number | null)[]) => partitionLot({ ring: l, leg: 0, lines: "through", corner: 1, from: "start", shares, uda: false });
+    // 40 m²: the triangle 2-3-Q along 3 to 4 is 5 (20 - x), so x = 12, 8 m from corner 3. (The line to (6, 20) also cuts off 40 m² as signed area, but leaves the lot.)
+    const r = ok(run2([40, null]));
+    expect(r.feasible).toBe(true);
+    expect([r.corners[0]!.from.pointId, r.corners[0]!.distanceM]).toEqual(["3", expect.closeTo(8, 9)]);
+    expect(r.shares[0]!.areaM2).toBeCloseTo(40, 9);
+    // 250 m²: the line to (0, 5) on the west side, inside the lot.
+    const w = ok(run2([250, null]));
+    expect(w.feasible).toBe(true);
+    expect([w.corners[0]!.from.pointId, w.corners[0]!.distanceM]).toEqual(["6", expect.closeTo(15, 9)]);
+    // 60 m²: only the line to (4, 20), which crosses the leg 3 to 4 and leaves the lot.
+    const bad = ok(run2([60, null]));
+    expect(bad.feasible).toBe(false);
+    expect(bad.shares[0]!.problems[0]).toBe("The line from corner 2 to P1 leaves the lot or crosses its boundary, so a share would fall in pieces. Try going round the other way, another corner, or lines square to a leg.");
+  });
+
+  it("divides by area only, and needs its corner", () => {
+    expect(fanRun({ by: "width", shares: [5, null] })).toEqual({ ok: false, error: "Lines through a corner divide by area. Give the shares as areas." });
+    expect(fanRun({ corner: 7, shares: [100, null] })).toEqual({ ok: false, error: "Choose the corner the lines pass through." });
+  });
+
+  it("checks the UDA minimums on the fan's shares", () => {
+    const r = ok(fanRun({ shares: [100, null], uda: true }));
+    expect(r.shares[0]!.problems).toContain("It's 100.00 m², under the UDA minimum of 150 m².");
+    expect(r.shares[1]!.problems).toContain("It doesn't touch the chosen leg, so it has no frontage on it.");
+  });
+});

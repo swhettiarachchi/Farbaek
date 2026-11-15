@@ -1,10 +1,12 @@
 /**
  * Partitioning a lot into shares (stage 193): where the dividing lines of a
  * sub division fall, computed by tested code, never by AI. The surveyor
- * chooses the lot, a leg the lines run parallel or square to, which end the
- * first share starts from, and the shares (stated areas or widths, one of
- * which may take what's left). The engine finds each dividing line (by
- * bisection for areas, at the stated distance for widths) and reports:
+ * chooses the lot, a leg the lines run parallel or square to (or a corner
+ * they all pass through), which end the first share starts from, and the
+ * shares (stated areas or widths, one of which may take what's left). The
+ * engine finds each dividing line (by bisection for areas, at the stated
+ * distance for widths, exactly along each leg for lines through a corner)
+ * and reports:
  * - each share's area, its length along the chosen leg (its frontage when
  *   that leg is the road) and its extent across the dividing lines;
  * - the proposed corners where each line meets the lot's boundary, with the
@@ -18,7 +20,7 @@
  * skill, subdivision engine: a proposal is not proof of approval).
  */
 import { bearingFromDeltas } from "./angles";
-import { area, distance, selfIntersections, signedArea, type Point } from "./geometry";
+import { area, distance, orient, pointSegmentDistance, segmentsIntersect, selfIntersections, signedArea, type Point } from "./geometry";
 import type { SurveyPoint } from "./parcel";
 
 export const PARTITION_ENGINE = "partition/1.1.0";
@@ -29,11 +31,16 @@ export const UDA_MINIMUMS = { areaM2: 150, frontageM: 6, depthM: 12 } as const;
 export interface PartitionRequest {
   /** The lot's corners in order. */
   ring: readonly SurveyPoint[];
-  /** The leg the dividing lines refer to: leg i runs from corner i to corner i + 1. */
+  /** The leg the dividing lines refer to (leg i runs from corner i to corner i + 1); for lines through a corner, the leg frontages are measured along. */
   leg: number;
-  /** Lines parallel to that leg (shares one behind another, away from it), or square to it (shares side by side along it). */
-  lines: "parallel" | "square";
-  /** For square lines: the first share starts at the leg's first corner, or its second. */
+  /** Lines parallel to that leg (shares one behind another, away from it), square to it (shares side by side along it), or through one corner (shares fanning out from it). */
+  lines: "parallel" | "square" | "through";
+  /** For lines through a corner: that corner, by its place in the ring. */
+  corner?: number;
+  /**
+   * For square lines: the first share starts at the leg's first corner, or its second. For lines through a corner: the first share takes
+   * the boundary leaving that corner forwards in the ring (start) or backwards (end).
+   */
   from: "start" | "end";
   /** Each share's area in m² (or width in metres, with `by: "width"`), in order. One share may be null: it takes what's left. */
   shares: (number | null)[];
@@ -90,8 +97,12 @@ export type PartitionResult =
       lotM2: number;
       shares: Share[];
       corners: ProposedCorner[];
-      /** The dividing lines' bearing, whole-circle from grid north, 0 to 180. */
-      bearing: number;
+      /** Each dividing line where it runs inside the lot, for a preview. */
+      segments: { cut: number; a: Point; b: Point }[];
+      /** The dividing lines' bearing, whole-circle from grid north, 0 to 180; null for lines through a corner, which each have their own. */
+      bearing: number | null;
+      /** Lines through a corner: each line's bearing from that corner and its length, for setting out by angle and distance. */
+      rays?: { from: string; to: string; bearing: number; lengthM: number }[];
       sumM2: number;
       residualM2: number;
       engine: string;
@@ -162,6 +173,7 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
   if (req.shares.length < 2 || req.shares.length > 50) return fail("Divide the lot into 2 to 50 shares.");
   if (req.shares.filter((x) => x === null).length > 1) return fail("Only one share can take what's left.");
   if (req.shares.some((x) => x !== null && !(Number.isFinite(x) && x > 0))) return fail(width ? "Every stated share needs a width above zero." : "Every stated share needs an area above zero.");
+  if (width && req.lines === "through") return fail("Lines through a corner divide by area. Give the shares as areas.");
   const f = frame(req);
   if (typeof f === "string") return fail(f);
   const { o, ring, lotM2, a, b, len, u, across, n, lo, hi } = f;
@@ -170,7 +182,14 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
   const rest = req.shares.some((x) => x === null);
   const stated = req.shares.reduce<number>((s, x) => s + (x ?? 0), 0);
   const cuts: number[] = [];
-  let targets: number[];
+  let targets: number[] = [];
+  if (!width) {
+    if (stated > lotM2 + 0.005) return fail(`The stated shares come to ${stated.toFixed(2)} m², more than the lot's ${lotM2.toFixed(2)} m².`);
+    if (!rest && Math.abs(stated - lotM2) > 0.01) return fail(`The shares come to ${stated.toFixed(2)} m², not the lot's ${lotM2.toFixed(2)} m². Let one share take what's left.`);
+    if (rest && lotM2 - stated < 0.01) return fail("The stated shares take the whole lot, so nothing is left for the last share.");
+    targets = req.shares.map((x) => x ?? lotM2 - stated);
+  }
+  if (req.lines === "through") return fan(req, f, targets);
   if (width) {
     // By width: each line at its stated distance. Square lines measure along the leg from the starting corner, so the widths share the
     // leg (a lot reaching past either end of it adds to the end shares); parallel lines measure from the leg, so they share the depth.
@@ -187,10 +206,6 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     const edges = [lo, ...cuts, hi];
     targets = widths.map((_, i) => below(edges[i + 1]!) - below(edges[i]!));
   } else {
-    if (stated > lotM2 + 0.005) return fail(`The stated shares come to ${stated.toFixed(2)} m², more than the lot's ${lotM2.toFixed(2)} m².`);
-    if (!rest && Math.abs(stated - lotM2) > 0.01) return fail(`The shares come to ${stated.toFixed(2)} m², not the lot's ${lotM2.toFixed(2)} m². Let one share take what's left.`);
-    if (rest && lotM2 - stated < 0.01) return fail("The stated shares take the whole lot, so nothing is left for the last share.");
-    targets = req.shares.map((x) => x ?? lotM2 - stated);
     // Each dividing line by bisection on its offset: the area below it grows steadily from 0 to the whole lot.
     let cum = 0;
     for (let i = 0; i < targets.length - 1; i++) {
@@ -257,23 +272,144 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     const sides = [i > 0 ? chord(ring, n, s0) : Infinity, i < targets.length - 1 ? chord(ring, n, s1) : Infinity];
     const mean = alongLegM > 0 ? areaM2 / alongLegM : Infinity;
     const depthM = req.lines === "square" ? Math.min(...sides, mean) : s1 - s0;
-    const problems = [cutProblem[i - 1], cutProblem[i]].filter((x): x is string => Boolean(x));
-    if (req.uda) {
-      if (areaM2 < UDA_MINIMUMS.areaM2) problems.push(`It's ${areaM2.toFixed(2)} m², under the UDA minimum of ${UDA_MINIMUMS.areaM2} m².`);
-      if (alongLegM === 0) problems.push("It doesn't touch the chosen leg, so it has no frontage on it.");
-      else if (alongLegM < UDA_MINIMUMS.frontageM) problems.push(`Its frontage is ${alongLegM.toFixed(2)} m, under the UDA minimum of 6.0 m.`);
-      if (depthM < UDA_MINIMUMS.depthM) problems.push(`Its depth is ${depthM.toFixed(2)} m, under the UDA minimum of 12.0 m.`);
-    }
-    const named = (p: Local): ShareCorner => {
-      if (p.src) return { name: p.src.pointId, e: p.src.e, n: p.src.n, proposed: false };
-      const pc = [...(cutCorners[i - 1] ?? []), ...(cutCorners[i] ?? [])].reduce<ProposedCorner | null>((best, c) => (!best || Math.hypot(c.e - o.e - p.e, c.n - o.n - p.n) < Math.hypot(best.e - o.e - p.e, best.n - o.n - p.n) ? c : best), null);
-      return { name: pc?.name ?? "?", e: p.e + o.e, n: p.n + o.n, proposed: !pc?.existing };
-    };
-    return { targetM2: target, areaM2, corners: piece.map(named), alongLegM, depthM, problems };
+    const problems = judge(areaM2, target, alongLegM, depthM, [cutProblem[i - 1], cutProblem[i]], req.uda);
+    return { targetM2: target, areaM2, corners: piece.map((p) => nameCorner(p, [...(cutCorners[i - 1] ?? []), ...(cutCorners[i] ?? [])], o)), alongLegM, depthM, problems };
   });
   const sumM2 = shares.reduce((s, x) => s + x.areaM2, 0);
   const bearing = bearingFromDeltas(lineDir.e, lineDir.n)!;
-  return { ok: true, feasible: shares.every((s) => s.problems.length === 0), lotM2, shares, corners, bearing: bearing >= 180 ? bearing - 180 : bearing, sumM2, residualM2: lotM2 - sumM2, engine: PARTITION_ENGINE };
+  // Each line's corners in order along it: the line runs inside the lot between the first and second, the third and fourth.
+  const segments = cutCorners.flatMap((here) => here.flatMap((c, k) => (k % 2 === 0 && here[k + 1] ? [{ cut: c.cut, a: { e: c.e, n: c.n }, b: { e: here[k + 1]!.e, n: here[k + 1]!.n } }] : [])));
+  return { ok: true, feasible: shares.every((s) => s.problems.length === 0), lotM2, shares, corners, segments, bearing: bearing >= 180 ? bearing - 180 : bearing, sumM2, residualM2: lotM2 - sumM2, engine: PARTITION_ENGINE };
+}
+
+/** What stops a share being made as asked: its dividing lines' problems, an area it can't be given, and the UDA minimums when checked. */
+function judge(areaM2: number, targetM2: number, alongLegM: number, depthM: number, lineProblems: (string | null | undefined)[], uda: boolean): string[] {
+  const problems = [...new Set(lineProblems.filter((x): x is string => Boolean(x)))];
+  if (Math.abs(areaM2 - targetM2) > 0.01) problems.push(`Its lines give it ${areaM2.toFixed(2)} m², not the ${targetM2.toFixed(2)} m² asked for.`);
+  if (uda) {
+    if (areaM2 < UDA_MINIMUMS.areaM2) problems.push(`It's ${areaM2.toFixed(2)} m², under the UDA minimum of ${UDA_MINIMUMS.areaM2} m².`);
+    if (alongLegM === 0) problems.push("It doesn't touch the chosen leg, so it has no frontage on it.");
+    else if (alongLegM < UDA_MINIMUMS.frontageM) problems.push(`Its frontage is ${alongLegM.toFixed(2)} m, under the UDA minimum of 6.0 m.`);
+    if (depthM < UDA_MINIMUMS.depthM) problems.push(`Its depth is ${depthM.toFixed(2)} m, under the UDA minimum of 12.0 m.`);
+  }
+  return problems;
+}
+
+/** A share's corner by name: a surveyed corner keeps its number; a computed one takes the name of the nearest new corner on its lines. */
+function nameCorner(p: Local, near: readonly ProposedCorner[], o: Point): ShareCorner {
+  if (p.src) return { name: p.src.pointId, e: p.src.e, n: p.src.n, proposed: false };
+  const pc = near.reduce<ProposedCorner | null>((best, c) => (!best || Math.hypot(c.e - o.e - p.e, c.n - o.n - p.n) < Math.hypot(best.e - o.e - p.e, best.n - o.n - p.n) ? c : best), null);
+  return { name: pc?.name ?? "?", e: p.e + o.e, n: p.n + o.n, proposed: !pc?.existing };
+}
+
+/** Whether a point lies inside a ring (crossing count). */
+function inside(p: Point, ring: readonly Point[]): boolean {
+  let c = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]!;
+    const b = ring[j]!;
+    if (a.n > p.n !== b.n > p.n && p.e < ((b.e - a.e) * (p.n - a.n)) / (b.n - a.n) + a.e) c = !c;
+  }
+  return c;
+}
+
+/**
+ * Lines through one corner, fanning out across the lot. With the corner fixed and the far end of a line moving along one leg, the area
+ * cut off changes linearly, so each line's end is solved exactly on every leg that can give the area; the first that stays inside the
+ * lot is used. A lot the fan can't cover from that corner (an L seen round its bend) gets a line that leaves it, and says so.
+ */
+function fan(req: PartitionRequest, f: Frame, targets: number[]): PartitionResult {
+  const { o, ring, lotM2, a, b } = f;
+  const k = req.corner ?? -1;
+  if (!Number.isInteger(k) || k < 0 || k >= ring.length) return { ok: false, error: "Choose the corner the lines pass through." };
+  const m = ring.length;
+  const P = ring[k]!;
+  // The boundary from the corner's neighbour round to its other neighbour, in the chosen direction.
+  const path = Array.from({ length: m - 1 }, (_, j) => ring[(k + (req.from === "start" ? j + 1 : m - j - 1)) % m]!);
+  const sign = signedArea([P, ...path]) >= 0 ? 1 : -1;
+  // The area cut off with the line's end at each path corner, from 0 to the whole lot.
+  const at = [0];
+  for (let j = 0; j + 1 < path.length; j++) at.push(at[j]! + (sign * orient(P, path[j]!, path[j + 1]!)) / 2);
+
+  const ok = (q: Point, j: number, snap: Local | null) => {
+    for (let i = 0; i < m; i++) {
+      const e0 = ring[i]!;
+      const e1 = ring[(i + 1) % m]!;
+      if (e0 === P || e1 === P) continue;
+      if (snap ? e0 === snap || e1 === snap : (e0 === path[j] && e1 === path[j + 1]) || (e1 === path[j] && e0 === path[j + 1])) continue;
+      if (segmentsIntersect(P, q, e0, e1)) return false;
+    }
+    return inside({ e: (P.e + q.e) / 2, n: (P.n + q.n) / 2 }, ring);
+  };
+  type End = { t: number; j: number; q: Local; snap: Local | null; good: boolean };
+  const ends: End[] = [];
+  let acc = 0;
+  for (let i = 0; i + 1 < targets.length; i++) {
+    acc += targets[i]!;
+    const found: End[] = [];
+    for (let j = 0; j + 1 < path.length; j++) {
+      const c0 = at[j]!;
+      const c1 = at[j + 1]!;
+      if (c0 === c1 || (acc - c0) * (acc - c1) > 0) continue;
+      const r = (acc - c0) / (c1 - c0);
+      const p0 = path[j]!;
+      const p1 = path[j + 1]!;
+      const q = { e: p0.e + r * (p1.e - p0.e), n: p0.n + r * (p1.n - p0.n) };
+      // Within a millimetre of a surveyed corner, the line ends at that corner.
+      const snap = distance(q, p0) <= 0.001 ? p0 : distance(q, p1) <= 0.001 ? p1 : null;
+      const end = snap ?? { ...q, src: null };
+      found.push({ t: j + r, j, q: end, snap, good: ok(end, j, snap) });
+    }
+    const after = found.filter((x) => x.t > (ends[ends.length - 1]?.t ?? 0));
+    const pick = after.find((x) => x.good) ?? after[0] ?? found[0];
+    if (!pick) return { ok: false, error: "Those shares can't be cut off with lines through that corner." };
+    ends.push(pick);
+  }
+
+  const corners: ProposedCorner[] = ends.map((x, ci) => {
+    const p0 = path[x.j]!;
+    const p1 = path[x.j + 1]!;
+    // Setting out runs along the leg in the ring's own order, from its first corner.
+    const [first, second] = req.from === "start" ? [p0, p1] : [p1, p0];
+    const name = x.snap ? x.snap.src!.pointId : `P${ends.slice(0, ci + 1).filter((y) => !y.snap).length}`;
+    return { name, e: x.q.e + o.e, n: x.q.n + o.n, cut: ci, along: distance(P, x.q), ...(x.snap ? { existing: x.snap.src! } : {}), from: first.src!, to: second.src!, distanceM: distance(first, x.q) };
+  });
+  const lineProblem = ends.map((x, ci) => (x.good ? null : `The line from corner ${P.src!.pointId} to ${corners[ci]!.name} leaves the lot or crosses its boundary, so a share would fall in pieces. Try going round the other way, another corner, or lines square to a leg.`));
+
+  const legOn = (p: Point) => pointSegmentDistance(p, a, b) <= 0.001;
+  const shares: Share[] = targets.map((target, i) => {
+    const t0 = i === 0 ? 0 : ends[i - 1]!.t;
+    const t1 = i === ends.length ? path.length - 1 : ends[i]!.t;
+    const start = i === 0 ? path[0]! : ends[i - 1]!.q;
+    const end = i === ends.length ? path[path.length - 1]! : ends[i]!.q;
+    const piece = dedupe([P, start, ...path.filter((_, j) => j > t0 + 1e-12 && j < t1 - 1e-12), end]);
+    const areaM2 = area(piece);
+    let alongLegM = 0;
+    for (let j = 0; j < piece.length; j++) {
+      const x = piece[j]!;
+      const y = piece[(j + 1) % piece.length]!;
+      if (legOn(x) && legOn(y) && legOn({ e: (x.e + y.e) / 2, n: (x.n + y.n) / 2 })) alongLegM += distance(x, y);
+    }
+    const sides = [i > 0 ? distance(P, start) : Infinity, i < ends.length ? distance(P, end) : Infinity];
+    const depthM = Math.min(...sides, alongLegM > 0 ? areaM2 / alongLegM : Infinity);
+    const near = [corners[i - 1], corners[i]].filter((c): c is ProposedCorner => Boolean(c));
+    return { targetM2: target, areaM2, corners: piece.map((p) => nameCorner(p, near, o)), alongLegM, depthM: Number.isFinite(depthM) ? depthM : 0, problems: judge(areaM2, target, alongLegM, depthM, [lineProblem[i - 1], lineProblem[i]], req.uda) };
+  });
+  const sumM2 = shares.reduce((s, x) => s + x.areaM2, 0);
+  const from = { e: P.e + o.e, n: P.n + o.n };
+  return {
+    ok: true,
+    feasible: shares.every((s) => s.problems.length === 0),
+    lotM2,
+    shares,
+    corners,
+    segments: corners.map((c) => ({ cut: c.cut, a: from, b: { e: c.e, n: c.n } })),
+    bearing: null,
+    rays: ends.map((x, ci) => ({ from: P.src!.pointId, to: corners[ci]!.name, bearing: bearingFromDeltas(x.q.e - P.e, x.q.n - P.n) ?? 0, lengthM: distance(P, x.q) })),
+    sumM2,
+    residualM2: lotM2 - sumM2,
+    engine: PARTITION_ENGINE,
+  };
 }
 
 /** Consecutive points within a millimetre of each other as one (keeping a surveyed corner over a computed point). */

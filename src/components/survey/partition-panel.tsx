@@ -30,7 +30,8 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
   const usable = lots.filter((l) => l.points.length >= 3 && l.points.every((id) => byId.has(id)) && selfIntersections(l.points.map((id) => byId.get(id)!)).length === 0);
   const [lotId, setLotId] = useState(usable[0]?.id ?? "");
   const [leg, setLeg] = useState(0);
-  const [lines, setLines] = useState<"square" | "parallel">("square");
+  const [lines, setLines] = useState<"square" | "parallel" | "through">("square");
+  const [corner, setCorner] = useState(0);
   const [from, setFrom] = useState<"start" | "end">("start");
   const [by, setBy] = useState<By>("area");
   const [unit, setUnit] = useState<Unit>("perch");
@@ -40,11 +41,13 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
   const lot = usable.find((l) => l.id === lotId) ?? usable[0];
   const ring = lot ? lot.points.map((id) => byId.get(id)!) : [];
   const legAt = Math.min(leg, Math.max(ring.length - 1, 0));
+  const cornerAt = Math.min(corner, Math.max(ring.length - 1, 0));
   const parsed = shares.map((v) => (v.trim() === "" ? null : Number(v) * FACTOR[unit]));
   const invalid = parsed.some((x) => x !== null && !Number.isFinite(x));
-  const result = lot && !invalid ? partitionLot({ ring, leg: legAt, lines, from, by, shares: parsed, uda }) : null;
+  const result = lot && !invalid ? partitionLot({ ring, leg: legAt, lines, corner: cornerAt, from, by, shares: parsed, uda }) : null;
   // What the shares divide: the lot's area, or for widths the leg's length (square lines) or the lot's depth from the leg (parallel lines).
   const total = !lot ? null : by === "area" ? area(ring) : widthRoom({ ring, leg: legAt, lines, from });
+  const pointAt = (k: number) => ring[((k % ring.length) + ring.length) % ring.length]?.pointId ?? "";
 
   if (usable.length === 0) return <p className="text-sm text-ink-2">Add a lot with at least three corners first.</p>;
 
@@ -80,7 +83,7 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Lot to divide</span>
-          <select value={lot?.id ?? ""} onChange={(e) => (setLotId(e.target.value), setLeg(0))} className={inputClasses()}>
+          <select value={lot?.id ?? ""} onChange={(e) => (setLotId(e.target.value), setLeg(0), setCorner(0))} className={inputClasses()}>
             {usable.map((l) => (
               <option key={l.id} value={l.id}>
                 Lot {lotName(l) || "without a label"}
@@ -89,7 +92,7 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
           </select>
         </label>
         <label className="grid gap-1.5">
-          <span className={LABEL_CLASSES}>Dividing lines refer to the leg</span>
+          <span className={LABEL_CLASSES}>{lines === "through" ? "Frontage along the leg" : "Dividing lines refer to the leg"}</span>
           <select value={legAt} onChange={(e) => setLeg(Number(e.target.value))} className={inputClasses()}>
             {ring.map((p, k) => (
               <option key={k} value={k}>
@@ -100,11 +103,41 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
         </label>
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Lines</span>
-          <select value={lines} onChange={(e) => setLines(e.target.value as "square" | "parallel")} className={inputClasses()}>
+          <select
+            value={lines}
+            onChange={(e) => {
+              const next = e.target.value as "square" | "parallel" | "through";
+              setLines(next);
+              if (next === "through" && by === "width") chooseBy("area");
+            }}
+            className={inputClasses()}
+          >
             <option value="square">Square to it: shares side by side along it</option>
             <option value="parallel">Parallel to it: shares one behind another</option>
+            <option value="through">Through one corner: shares fan out from it</option>
           </select>
         </label>
+        {lines === "through" ? (
+          <>
+            <label className="grid gap-1.5">
+              <span className={LABEL_CLASSES}>Lines pass through corner</span>
+              <select value={cornerAt} onChange={(e) => setCorner(Number(e.target.value))} className={inputClasses()}>
+                {ring.map((p, k) => (
+                  <option key={k} value={k}>
+                    {p.pointId}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1.5">
+              <span className={LABEL_CLASSES}>First share goes towards</span>
+              <select value={from} onChange={(e) => setFrom(e.target.value as "start" | "end")} className={inputClasses()}>
+                <option value="start">Corner {pointAt(cornerAt + 1)}</option>
+                <option value="end">Corner {pointAt(cornerAt - 1)}</option>
+              </select>
+            </label>
+          </>
+        ) : null}
         {lines === "square" ? (
           <label className="grid gap-1.5">
             <span className={LABEL_CLASSES}>First share starts at</span>
@@ -122,7 +155,9 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
           <span className="text-sm text-ink-2">By</span>
           <select aria-label="Shares by" value={by} onChange={(e) => chooseBy(e.target.value as By)} className={inputClasses("w-auto")}>
             <option value="area">area</option>
-            <option value="width">width</option>
+            <option value="width" disabled={lines === "through"}>
+              width
+            </option>
           </select>
           <span className="text-sm text-ink-2">in</span>
           <select aria-label={by === "area" ? "Area unit" : "Width unit"} value={unit} onChange={(e) => (setUnit(e.target.value as Unit), setShares((s) => s.map(() => "")))} className={inputClasses("w-auto")}>
@@ -169,7 +204,9 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
           </label>
         </div>
         <p className="text-sm text-ink-3">
-          {by === "width"
+          {lines === "through"
+            ? `Each line runs from corner ${pointAt(cornerAt)} to the far side, cutting off the shares in order. `
+            : by === "width"
             ? lines === "square"
               ? `Each width runs along the leg from corner ${ring[from === "start" ? legAt : (legAt + 1) % ring.length]?.pointId ?? ""}, in order. Where the lot reaches past the leg, the end shares take that part too. `
               : "Each width runs back from the leg, in order: a strip for an access road first, for example. "
@@ -191,7 +228,7 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
           <div className="grid content-start gap-4">
             <div className="flex flex-wrap items-center gap-2">
               {result.feasible ? <StatusBadge status="done" label="Every share can be made" /> : <StatusBadge status="attention" label="Not every share can be made as asked" />}
-              <span className="text-sm text-ink-2">Lines at {formatDms(toDms(result.bearing, 0))} from grid north.</span>
+              {result.bearing !== null ? <span className="text-sm text-ink-2">Lines at {formatDms(toDms(result.bearing, 0))} from grid north.</span> : null}
             </div>
             <div className="overflow-x-auto rounded-md ring-1 ring-line">
               <table className="w-full min-w-[30rem] text-left text-sm">
@@ -232,6 +269,15 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
             </p>
             <div className="grid gap-2">
               <h3 className="text-sm font-medium text-ink">Setting out the new corners</h3>
+              {result.rays ? (
+                <ul className="grid gap-1 text-sm text-ink-2">
+                  {result.rays.map((r) => (
+                    <li key={r.to}>
+                      The line from corner {r.from} to <span className="font-medium text-ink">{r.to}</span> runs at <span className="tabular">{formatDms(toDms(r.bearing, 0))}</span> for <span className="tabular">{fmt(r.lengthM, 3)} m</span>.
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <ul className="grid gap-1 text-sm text-ink-2">
                 {result.corners.map((c) =>
                   c.existing ? (
@@ -268,12 +314,7 @@ function Preview({ ring, result }: { ring: SurveyPoint[]; result: Extract<Return
   const pad = Math.max(w, h) * 0.08;
   const x = (e: number) => e - minE + pad;
   const y = (n: number) => maxN - n + pad;
-  // Each line's corners in order along it: the line runs inside the lot between the first and second, the third and fourth.
-  const cuts: { a: { e: number; n: number }; b: { e: number; n: number } }[] = [];
-  for (const c of new Set(result.corners.map((x) => x.cut))) {
-    const on = result.corners.filter((x) => x.cut === c);
-    for (let i = 0; i + 1 < on.length; i += 2) cuts.push({ a: on[i]!, b: on[i + 1]! });
-  }
+  const cuts = result.segments;
   const centre = (cs: { e: number; n: number }[]) => ({ e: cs.reduce((s, c) => s + c.e, 0) / cs.length, n: cs.reduce((s, c) => s + c.n, 0) / cs.length });
   const stroke = Math.max(w, h) / 250;
   return (
