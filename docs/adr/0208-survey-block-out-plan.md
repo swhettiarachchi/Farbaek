@@ -28,20 +28,28 @@ The divide panel runs in the browser on the saved version. Its new corners are n
 
 **Drawing-only corners.** The new corners become points that exist only for the drawing:
 - **Ids:** a fixed id pattern (`b10c0000-…`) that no imported point has.
-- **Names:** P1, P2… as the division names them.
+- **Names:** P1, P2… as the division names them. Names the project's own points already use are skipped, in the panel and on the sheet alike.
 - **Kept out of the project:** never saved, never imported, never in the point list.
 - **On the sheet:** a note names them as "worked out from the surveyed corners and not yet pegged".
 
 **The sheet is the classic one, marked as what it is.**
-- **Title and heading:** headed BLOCK OUT PLAN. The title sentence is composed as a sub division of the divided lot.
+- **Title and heading:** headed BLOCK OUT PLAN. The title sentence reads "being a planned sub division of lot X depicted in my Plan No. …" (this plan, not the parent's earlier one). The whole land's bounded-as-follows lines are left blank, since they describe the land, not this lot.
 - **Not-surveyed marks:**
   - a red "NOT YET SURVEYED" notice in place of the draft notice;
   - no plan number and no survey dates;
   - the plot stamp reads "block-out plan from version N, a planned division worked out by partition/1.1.0, not a survey".
 - **Lot labels:** the shares are labelled B¹, B², B³ for lot B, or 1, 2, 3 for a lot that already has a raised part.
 - **Setting out:** point numbers and leg dimensions are on the face.
-- **What it shows:** only the divided lot, the roads, and the features inside it; adjoining labels are left out.
-- **Scale:** when the automatic scale is smaller than 1:1000, the sheet is tried again at 1:1000 on the paper that holds it.
+- **What it shows:**
+  - only the divided lot;
+  - the roads within 10 m of it, so a far road doesn't shrink the scale;
+  - the features inside it.
+
+  Adjoining labels are left out. Every layer is shown, whatever the plan hides. The surveyor's check of the code list carries over.
+- **Scale:** when the automatic scale is smaller than 1:1000 and the drawing could fit A2 at 1:1000, the sheet is tried again at 1:1000.
+- **Bounded work and clean input:**
+  - A division over 4,000 corner-shares (lot corners times shares) is refused, since composing it would take seconds of server time.
+  - Text the database's JSON type can't store (a lone surrogate) is refused before anything is drawn.
 
 **Recorded like every export.** It is recorded as a PDF with its SHA-256 and `options.content = "blockout"`, together with the lot, scale, paper, engine and the division. A division too long for the 4 KB options column keeps only its SHA-256. History calls it "Block-out plan".
 

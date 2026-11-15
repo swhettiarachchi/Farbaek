@@ -80,6 +80,13 @@ Three fresh reviews found real bugs after every test passed. Each was confirmed 
   - History said own minimums were checked without a source.
   - The editor could store a minimum the drawing can't hold.
   - A test passed without testing anything.
+- **Block-out review: 9 bugs.**
+  - New corner names could clash with the project's point numbers.
+  - The title cited the parent's earlier plan, and the whole land's bounds were printed for one lot.
+  - Hidden layers removed the setting-out figures, and a far road shrank the scale.
+  - A checked code list was printed as unchecked, and the overleaf still said DRAFT.
+  - A lone surrogate rendered a PDF the database then refused.
+  - Very large divisions took seconds of server time.
 
 ## Verified
 
