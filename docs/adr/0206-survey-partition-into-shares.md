@@ -37,6 +37,10 @@ Many Sri Lankan plans are sub divisions: a lot partitioned among owners by share
   - **Concave lots:** the first candidate whose line stays inside the lot is used. On an L-shaped lot, a signed-area answer can lie outside the lot. When no line stays inside, the result says so, and the share isn't feasible.
   - **Setting out:** each line's bearing and length from the corner, besides the distance along the far leg.
 - **Every mode checks each share's area** against what was asked (to 0.01 m²), so a share whose lines can't give its area is never shown as feasible.
+- **Snapping to a surveyed corner.** A line end within 1 mm of a surveyed corner ends on it only when that moves at most 0.002 m² (half its length times the offset). A share has at most four line ends, so its snaps stay inside the area check. The snap is applied to both shares' outlines.
+- **Where a line meets the lot.** This is worked out from every crossing and every corner on the line.
+  - A line through a corner pointing into the lot, or along one of its legs between two parts, leaves a share in pieces and says so.
+  - A share's outline never folds back along the line.
 - **Minimums:** they come from a versioned rule set or the surveyor's own figures (ADR 0207), not constants.
 - **Engine:** `partition/1.1.0`.
 

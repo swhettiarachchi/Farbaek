@@ -61,6 +61,26 @@ Each milestone has hand-worked tests, a look in the browser and a commit. Then c
   - the current-state row;
   - the public /survey page copy.
 
+## Reviews
+
+Three fresh reviews found real bugs after every test passed. Each was confirmed by running code and fixed with a regression test.
+- **First review: 5 bugs.**
+  - Snapping left a sliver, or made a share fail its own area check.
+  - A false "leaves the lot" near sharp corners.
+  - A line through an inward-pointing corner was judged differently from each end.
+  - Minimums were shown rounded, and a shortfall could round up to the minimum.
+- **Re-check: 12 bugs.**
+  - Snaps on a share's two lines added up past the area check.
+  - A fold-back spike where a line runs along a leg.
+  - A corner listed twice.
+  - Frontage was measured before the snap.
+  - Lots exactly at a minimum were reported under it.
+  - A corner lot on a turning road had its frontage summed.
+  - "Meets" claimed checks that didn't run, and lots were skipped silently.
+  - History said own minimums were checked without a source.
+  - The editor could store a minimum the drawing can't hold.
+  - A test passed without testing anything.
+
 ## Verified
 
 - **Unit tests:** 28 partition tests with hand-worked answers:
