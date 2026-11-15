@@ -17,11 +17,12 @@ import { bounds } from "../geometry";
 import type { PlanLots } from "../lots";
 import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
+import { arpClassic, hectares } from "../formats";
 import { fmt, fromSquareMetres, formatArp, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 import { composeClassic } from "./classic";
-import { Placer, atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawRoads, drawScaleBar, drawSimpleNorth, overlappingLabels, suggestScale, type DrawCtx } from "./draw";
-import { textWidth, wrap, type SceneColor, type SceneItem, type SheetPage, type Viewport } from "./scene";
+import { Placer, atPage, textQuad, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawRoads, drawScaleBar, drawSimpleNorth, overlappingLabels, suggestScale, type DrawCtx } from "./draw";
+import { textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import type { SheetTemplate } from "./template";
 
 export { fmt } from "../units";
@@ -77,7 +78,19 @@ export function entireAreaM2(lots: PlanLots): number | null {
 }
 
 /** Findings that apply to every layout: crowded labels, scripts the fonts can't draw. */
-export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: number | null, findings: Finding[]): void {
+export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: number | null, findings: Finding[], frame: { inner: [number, number, number, number]; ctx: DrawCtx | null } | null = null): void {
+  if (frame) {
+    // Nothing may run past the sheet's border: what's cut off on paper is missing from a legal document.
+    const [x0, y0, x1, y1] = frame.inner;
+    const off = pages[0]!.items.filter((i): i is SceneText => i.kind === "text").filter((t) => textQuad(t).some(([x, y]) => x < x0 - 0.2 || x > x1 + 0.2 || y < y0 - 0.2 || y > y1 + 0.2));
+    const outside = [...new Set([...(frame.ctx?.outside ?? []), ...off.map((t) => t.text)])];
+    if (outside.length > 0) {
+      findings.push({ code: "TEXT_OFF_SHEET", severity: "error", message: "Some text runs past the sheet's border, so it would be cut off.", target: { kind: "sheet" }, detail: outside.slice(0, 4).map((t) => `"${t.slice(0, 40)}"`).join(", "), action: "Shorten it, choose a larger sheet or scale, or drag the label inside the border.", blocks: ["export"] });
+    }
+    if (frame.ctx && frame.ctx.cramped.length > 0) {
+      findings.push({ code: "LOT_LABEL_CRAMPED", severity: "warning", message: `The label of lot ${frame.ctx.cramped.join(", lot ")} is bigger than the lot${scale ? ` at 1:${scale}` : ""}.`, target: { kind: "sheet" }, action: "It's written at the lot's widest point. Check it reads clearly, or choose a larger scale.", blocks: [] });
+    }
+  }
   const crowded = overlappingLabels(drawing);
   if (crowded.length > 0) {
     findings.push({
@@ -185,8 +198,8 @@ export function usedCodes(doc: SurveyDocument, lots: PlanLots, points: readonly 
 }
 
 /** A drawing context on a page. */
-export function drawCtx(out: SceneItem[], v: Viewport, input: ComposeInput, sizes: DrawCtx["sizes"], lines: DrawCtx["lines"], slant: number): DrawCtx {
-  return { out, v, doc: input.document, byId: new Map(input.points.map((p) => [p.id, p])), sizes, lines, slant, placer: new Placer() };
+export function drawCtx(out: SceneItem[], v: Viewport, input: ComposeInput, sizes: DrawCtx["sizes"], lines: DrawCtx["lines"], slant: number, bounds: DrawCtx["bounds"] = null): DrawCtx {
+  return { out, v, doc: input.document, byId: new Map(input.points.map((p) => [p.id, p])), sizes, lines, slant, placer: new Placer(), bounds, cramped: [], outside: [] };
 }
 
 function composePanel(input: ComposeInput): ComposedSheet {
@@ -221,6 +234,7 @@ function composePanel(input: ComposeInput): ComposedSheet {
 
   const byId = new Map(input.points.map((p) => [p.id, p]));
   const b = bounds(drawnPoints(doc, byId));
+  let drawingCtx: DrawCtx | null = null;
   let viewport: Viewport | null = null;
   let suggested: number | null = null;
   let scale: number | null = null;
@@ -236,7 +250,8 @@ function composePanel(input: ComposeInput): ComposedSheet {
       if ((b.maxE - b.minE) * kmm > vp.w || (b.maxN - b.minN) * kmm > vp.h) {
         findings.push({ code: "DRAWING_OFF_SHEET", severity: "error", message: `At 1:${scale} the drawing doesn't fit the sheet.`, target: { kind: "sheet" }, detail: `It needs ${fmt((b.maxE - b.minE) * kmm, 0)} × ${fmt((b.maxN - b.minN) * kmm, 0)} mm; the drawing area is ${fmt(vp.w, 0)} × ${fmt(vp.h, 0)} mm.`, action: suggested ? `Use 1:${suggested}, or a larger sheet.` : "Use a larger sheet.", blocks: ["export"] });
       }
-      const ctx = drawCtx(drawing, viewport, input, { label: t.text.label, small: t.text.small, lotLabel: t.text.body * 1.35, body: t.text.body, heading: t.text.heading }, { boundary: t.lines.boundary, feature: t.lines.feature, thin: t.lines.thin }, doc.settings.slant ? 12 : 0);
+      const ctx = drawCtx(drawing, viewport, input, { label: t.text.label, small: t.text.small, lotLabel: t.text.body * 1.35, body: t.text.body, heading: t.text.heading }, { boundary: t.lines.boundary, feature: t.lines.feature, thin: t.lines.thin }, doc.settings.slant ? 12 : 0, [vp.x - 4, vp.y - 4, vp.x + vp.w + 4, vp.y + vp.h + 4]);
+      drawingCtx = ctx;
       const first = input.lots.lots.find((r) => r.parcel && r.parcel.vertices.length >= 3)?.parcel ?? null;
       drawRoads(ctx, doc.roads);
       drawFeatures(ctx, first ? atPage(ctx, first.labelAt) : null);
@@ -279,7 +294,7 @@ function composePanel(input: ComposeInput): ComposedSheet {
 
   const pages: SheetPage[] = [{ widthMm: w, heightMm: h, role: "front", items: front }];
   if (doc.settings.overleaf) pages.push(...overleafPages(input, { w, h, m, text: t.text, frame: t.lines.frame, thin: t.lines.thin, planCaption: t.captions.planNumber }));
-  commonFindings(pages, drawing, scale, findings);
+  commonFindings(pages, drawing, scale, findings, { inner: [m, m, w - m, h - m], ctx: drawingCtx });
   return { pages, viewport, scale, suggestedScale: suggested, paper, findings };
 }
 
@@ -385,6 +400,8 @@ export interface OverleafStyle {
   banner?: { text: string; color: SceneColor } | null;
   /** Extra lines after the areas: the grid, the bearing convention, the engine. */
   notes?: string[];
+  /** Extents written as on the classic sheet's face: hectares to 5 decimals and "0 A. 2 R. 04.60 P.". */
+  classicExtent?: boolean;
 }
 
 /**
@@ -394,6 +411,9 @@ export interface OverleafStyle {
  */
 export function overleafPages(input: ComposeInput, st: OverleafStyle): SheetPage[] {
   const { document: doc } = input;
+  // The same figures in the same words as the front page, so the two never read differently.
+  const extentWords = (a: number) =>
+    st.classicExtent ? `${hectares(a)} Hectares ( ${arpClassic(toArp(a, doc.settings.perchDecimals))} )` : `${fmt(fromSquareMetres(a, "ha"), 6)} ha, ${formatArp(toArp(a, doc.settings.perchDecimals))}`;
   const usable = input.lots.lots.filter((r) => r.parcel && r.parcel.vertices.length >= 3);
   if (usable.length === 0) return [];
   const { w, h, m } = st;
@@ -468,7 +488,7 @@ export function overleafPages(input: ComposeInput, st: OverleafStyle): SheetPage
       ],
       p.legs.map((l) => [l.from.pointId, l.to.pointId, l.bearing === null ? "" : formatDms(toDms(l.bearing, doc.settings.secondDecimals)), fmt(l.distance, doc.settings.distanceDecimals)]),
     );
-    paragraph(`Area ${fmt(p.areaM2, 3)} m², ${fmt(fromSquareMetres(p.areaM2, "ha"), 6)} ha, ${formatArp(toArp(p.areaM2, doc.settings.perchDecimals))}. Perimeter ${fmt(p.perimeterM, 3)} m.`);
+    paragraph(`Area ${fmt(p.areaM2, 3)} m², ${extentWords(p.areaM2)}. Perimeter ${fmt(p.perimeterM, 3)} m.`);
   }
 
   const seen = new Set<string>();
@@ -487,7 +507,7 @@ export function overleafPages(input: ComposeInput, st: OverleafStyle): SheetPage
 
   heading("Extent");
   const total = entireAreaM2(input.lots);
-  if (total !== null) paragraph(`Entire land: ${fmt(total, 3)} m², ${fmt(fromSquareMetres(total, "ha"), 6)} ha, ${formatArp(toArp(total, doc.settings.perchDecimals))}, by the coordinate method on grid coordinates.`);
+  if (total !== null) paragraph(`Entire land: ${fmt(total, 3)} m², ${extentWords(total)}, by the coordinate method on grid coordinates.`);
   paragraph("1 perch = 25.29285264 m² (from the international yard); 40 perches = 1 rood; 4 roods = 1 acre.");
   if (doc.sheet.statedExtent.trim()) paragraph(`Stated extent (as given, not computed): ${doc.sheet.statedExtent.trim()}.`);
   for (const n of st.notes ?? [BEARING_CONVENTION, `Computed by ${SURVEY_ENGINE_VERSION}.`]) paragraph(n);

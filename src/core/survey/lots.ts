@@ -30,7 +30,12 @@ export interface PlanLots {
   /** How many separate pieces the lots form, and how many holes lie between them. */
   pieces: number;
   holes: number;
+  /** Distinct corner points closer than NEAR_DUPLICATE_M: likely one mark shot twice under two numbers. */
+  nearDuplicates: { a: SurveyPoint; b: SurveyPoint; distanceM: number }[];
 }
+
+/** Two different corner numbers closer than this are reported as possibly one mark (1 cm). */
+export const NEAR_DUPLICATE_M = 0.01;
 
 type Edge = { a: SurveyPoint; b: SurveyPoint };
 
@@ -70,7 +75,34 @@ function strictlyInside(p: Point, ring: readonly Point[]): boolean {
   return inside;
 }
 
-/** Whether two rings overlap in area: a leg of one crosses a leg of the other, or a corner of one lies inside the other. Shared legs and corners don't count. */
+/**
+ * A point strictly inside a simple ring: the middle of the widest span a
+ * horizontal line cuts through it, tried at several heights. Null for a ring
+ * with no inside (all on one line).
+ */
+export function interiorPoint(ring: readonly Point[]): Point | null {
+  const ns = ring.map((p) => p.n);
+  const lo = Math.min(...ns);
+  const hi = Math.max(...ns);
+  let best: { p: Point; w: number } | null = null;
+  for (const f of [0.5, 0.37, 0.63, 0.25, 0.75, 0.13, 0.87, 0.06, 0.94]) {
+    const y = lo + (hi - lo) * f;
+    const xs: number[] = [];
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i]!;
+      const b = ring[(i + 1) % ring.length]!;
+      if (a.n > y !== b.n > y) xs.push(a.e + ((y - a.n) * (b.e - a.e)) / (b.n - a.n));
+    }
+    xs.sort((u, v) => u - v);
+    for (let i = 0; i + 1 < xs.length; i += 2) {
+      const w = xs[i + 1]! - xs[i]!;
+      if (w > 2 * TOUCH_TOLERANCE_M && (!best || w > best.w)) best = { p: { e: (xs[i]! + xs[i + 1]!) / 2, n: y }, w };
+    }
+  }
+  return best ? best.p : null;
+}
+
+/** Whether two rings overlap in area: a leg of one crosses a leg of the other, a corner or leg midpoint of one lies inside the other, or a point inside one lies inside the other (which catches a lot entered twice). Shared legs and corners don't count. */
 function ringsOverlap(r1: readonly Point[], r2: readonly Point[]): boolean {
   for (let i = 0; i < r1.length; i++) {
     const a = r1[i]!;
@@ -87,7 +119,26 @@ function ringsOverlap(r1: readonly Point[], r2: readonly Point[]): boolean {
   }
   // Midpoints of legs and corners, so a lot lying wholly inside another is caught too.
   const probes = (r: readonly Point[]) => r.flatMap((p, i) => [p, { e: (p.e + r[(i + 1) % r.length]!.e) / 2, n: (p.n + r[(i + 1) % r.length]!.n) / 2 }]);
-  return probes(r1).some((p) => strictlyInside(p, r2)) || probes(r2).some((p) => strictlyInside(p, r1));
+  if (probes(r1).some((p) => strictlyInside(p, r2)) || probes(r2).some((p) => strictlyInside(p, r1))) return true;
+  const i1 = interiorPoint(r1);
+  const i2 = interiorPoint(r2);
+  return (i1 !== null && strictlyInside(i1, r2)) || (i2 !== null && strictlyInside(i2, r1));
+}
+
+/** Splits a ring that passes through one corner twice (a figure of eight, where a gap pinches the outline at a corner) into simple rings. */
+function splitAtRepeats(ring: SurveyPoint[]): SurveyPoint[][] {
+  const out: SurveyPoint[][] = [];
+  const stack: SurveyPoint[] = [];
+  for (const p of ring) {
+    const k = stack.findIndex((q) => q.id === p.id);
+    if (k >= 0) {
+      const loop = stack.splice(k);
+      if (loop.length >= 3) out.push(loop);
+    }
+    stack.push(p);
+  }
+  if (stack.length >= 3) out.push(stack);
+  return out;
 }
 
 /** Joins edges used once into closed rings. */
@@ -105,7 +156,7 @@ function chain(edges: Edge[]): SurveyPoint[][] {
       ring.push(e.a.id === tail.id ? e.b : e.a);
     }
     if (ring[ring.length - 1]!.id === ring[0]!.id) ring.pop();
-    rings.push(ring);
+    rings.push(...splitAtRepeats(ring));
   }
   return rings;
 }
@@ -126,7 +177,17 @@ export function computeLots(points: readonly SurveyPoint[], lots: readonly Lot[]
     }
   }
 
-  if (usable.length === 0) return { lots: results, outline: null, sumAreaM2, outlineAreaM2: null, overlaps, pieces: 0, holes: 0 };
+  // Two different numbers on (nearly) the same spot, used as corners: probably one mark observed twice.
+  const cornerList = [...new Map(usable.flatMap((x) => x.r.parcel.vertices).map((p) => [p.id, p])).values()];
+  const nearDuplicates: PlanLots["nearDuplicates"] = [];
+  for (let a = 0; a < cornerList.length && nearDuplicates.length < 20; a++) {
+    for (let b = a + 1; b < cornerList.length; b++) {
+      const d = distance(cornerList[a]!, cornerList[b]!);
+      if (d < NEAR_DUPLICATE_M) nearDuplicates.push({ a: cornerList[a]!, b: cornerList[b]!, distanceM: d });
+    }
+  }
+
+  if (usable.length === 0) return { lots: results, outline: null, sumAreaM2, outlineAreaM2: null, overlaps, pieces: 0, holes: 0, nearDuplicates };
 
   // Legs used by one lot form the outline; legs two lots share cancel out.
   const corners = usable.flatMap((x) => x.r.parcel.vertices);
@@ -144,5 +205,5 @@ export function computeLots(points: readonly SurveyPoint[], lots: readonly Lot[]
   const holes = rings.filter((r, i) => rings.some((o, j) => j !== i && area(o) > area(r) && r.every((p) => strictlyInside(p, o) || o.some((q) => q.id === p.id)))).length;
   const pieces = rings.length - holes;
   const single = rings.length === 1 ? rings[0]! : null;
-  return { lots: results, outline: single, sumAreaM2, outlineAreaM2: single ? area(single) : null, overlaps, pieces, holes };
+  return { lots: results, outline: single, sumAreaM2, outlineAreaM2: single ? area(single) : null, overlaps, pieces, holes, nearDuplicates };
 }

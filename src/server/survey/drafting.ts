@@ -8,8 +8,8 @@
  * they want it. One audit event records the run, with counts only.
  */
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
-import { acceptDraft, fold, type DraftResult } from "@/core/survey/ai-draft";
-import type { SurveyDocument } from "@/core/survey/document";
+import { acceptDraft, rawTokens, type DraftResult } from "@/core/survey/ai-draft";
+import { surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { routeModel } from "@/server/ai/routing";
 import { SURVEY_DRAFT_PROMPT, SURVEY_READ_PROMPT, SURVEY_READ_TOKENS_PER_IMAGE, surveyDraftMessage, surveyReadMessage, type DraftRequest, type ReadRequest, type SurveyDraftOutcome, type SurveyDrafter } from "@/server/ai/survey-drafter";
@@ -47,8 +47,8 @@ interface Common {
 
 /** Only the points the brief names go to the model: the draft may use no others, and the rest are none of its business. */
 export function namedPoints(brief: string, points: readonly SurveyPoint[]): DraftRequest["points"] {
-  const words = new Set(fold(brief).split(" "));
-  return points.filter((p) => words.has(fold(p.pointId))).slice(0, 1_000).map((p) => ({ number: p.pointId, code: p.code }));
+  const words = new Set(rawTokens(brief).map((t) => t.toLowerCase()));
+  return points.filter((p) => words.has(p.pointId.trim().toLowerCase())).slice(0, 1_000).map((p) => ({ number: p.pointId, code: p.code }));
 }
 
 async function run(
@@ -75,8 +75,13 @@ async function run(
     await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage, reason: "failed" });
     return fail(outcome.failure === "PROVIDER_BUSY" ? "AI_BUSY" : outcome.failure === "REFUSED" ? "AI_REFUSED" : "AI_INCOMPLETE", FAILURES[outcome.failure]);
   }
-  await settleUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage });
   const result = check(outcome);
+  // A draft that wouldn't save is Farbaek's mistake, not the person's: refunded, never charged.
+  if (!surveyDocumentSchema.safeParse(result.document).success) {
+    await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage, reason: "failed" });
+    return fail("AI_INCOMPLETE", FAILURES.INCOMPLETE);
+  }
+  await settleUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage });
   // The audit line is a record, not a gate: the usage is already settled and nothing was saved.
   await deps
     .recordAiDraft({ orgId: input.orgId, actor: input.userId, projectId: input.projectId, operation: input.operation, model: outcome.usage.model, accepted: Math.min(result.accepted.length, 1000), dropped: Math.min(result.dropped.length, 1000), questions: result.questions.length })

@@ -13,11 +13,11 @@
  */
 import { formatDms, toDms } from "../angles";
 import type { CrsRecord } from "../crs";
-import type { LayerId, SurveyDocument } from "../document";
+import { legIndex, type LayerId, type SurveyDocument } from "../document";
 import type { PlanLots } from "../lots";
 import type { SurveyPoint } from "../parcel";
 import { roadCentreline } from "../roads";
-import { formatArp, toArp } from "../units";
+import { formatArp, roundTo, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 
 /** AutoCAD colour index and line type per layer. */
@@ -128,6 +128,7 @@ export function writeDxf(input: DxfInput): string {
 
   // Every lot's boundary, its corners (once each), leg labels and its label with the raised part as its own text.
   const cornerSeen = new Set<string>();
+  const legSeen = new Set<string>();
   for (const r of input.lots.lots) {
     const parcel = r.parcel;
     if (!parcel || parcel.vertices.length < 2) continue;
@@ -147,13 +148,17 @@ export function writeDxf(input: DxfInput): string {
     }
     parcel.legs.forEach((leg) => {
       if (leg.bearing === null) return;
+      // A leg two lots share is labelled once, by the first lot that has it.
+      const legKey = leg.from.id < leg.to.id ? `${leg.from.id}|${leg.to.id}` : `${leg.to.id}|${leg.from.id}`;
+      if (legSeen.has(legKey)) return;
+      legSeen.add(legKey);
       let angle = (Math.atan2(leg.to.n - leg.from.n, leg.to.e - leg.from.e) * 180) / Math.PI;
       if (angle > 90) angle -= 180;
       if (angle < -90) angle += 180;
-      const label = `${formatDms(toDms(leg.bearing, doc.settings.secondDecimals))} ${leg.distance.toFixed(doc.settings.distanceDecimals)}`;
+      const label = `${formatDms(toDms(leg.bearing, doc.settings.secondDecimals))} ${roundTo(leg.distance, doc.settings.distanceDecimals).toFixed(doc.settings.distanceDecimals)}`;
       text("DIMENSIONS", (leg.from.e + leg.to.e) / 2, (leg.from.n + leg.to.n) / 2, label, h(2.2), angle);
     });
-    if (parcel.vertices.length >= 3 && parcel.crossings.length === 0) {
+    if (parcel.vertices.length >= 3 && parcel.crossings.length === 0 && r.lot.label.trim()) {
       const { label, sup } = r.lot;
       text("LOT_TEXT", parcel.labelAt.e, parcel.labelAt.n + h(2), `Lot ${label}`, h(3.2));
       if (sup) text("LOT_TEXT", parcel.labelAt.e + h(3.2) * 0.62 * (`Lot ${label}`.length / 2 + 0.6), parcel.labelAt.n + h(2) + h(3.2) * 0.42, sup, h(2), 0, false);
@@ -178,12 +183,15 @@ export function writeDxf(input: DxfInput): string {
     }
   }
 
-  // Adjoining-land labels, beside the middle of their leg.
+  // Adjoining-land labels, beside the middle of their leg (only where the lot still has that leg).
   for (const adj of doc.adjoining) {
-    const parcel = input.lots.lots.find((r) => r.lot.id === adj.lot)?.parcel;
-    if (!parcel || parcel.vertices.length < 3) continue;
-    const a = parcel.vertices[adj.leg % parcel.vertices.length]!;
-    const b = parcel.vertices[(adj.leg + 1) % parcel.vertices.length]!;
+    const found = input.lots.lots.find((r) => r.lot.id === adj.lot);
+    const parcel = found?.parcel;
+    if (!found || !parcel || parcel.vertices.length < 3) continue;
+    const k = legIndex(found.lot, adj.from, adj.to);
+    if (k < 0) continue;
+    const a = parcel.vertices[k]!;
+    const b = parcel.vertices[(k + 1) % parcel.vertices.length]!;
     const len = Math.hypot(b.e - a.e, b.n - a.n) || 1;
     // Outside the lot: to the left of each leg on a clockwise ring, to the right on an anticlockwise one.
     const sign = parcel.clockwise ? -1 : 1;

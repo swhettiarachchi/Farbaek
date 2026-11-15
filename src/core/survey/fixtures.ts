@@ -49,9 +49,9 @@ export function sampleDocument(): SurveyDocument {
   ];
   doc.roads = [{ id: "road-1", name: "Sample Road", edgeA: [id(9), id(10)], edgeB: [id(11), id(12)], width: "feet", start: "From Main Road", end: "To Houses" }];
   doc.adjoining = [
-    { id: "adj-west", text: "Land claimed by the sample owner", lot: "lot-b2", leg: 3 },
-    { id: "adj-north", text: "Land of the sample neighbour", lot: "lot-b3", leg: 2 },
-    { id: "adj-east", text: "Lot 2 in Plan No. SAMPLE-0", lot: "lot-b3", leg: 1 },
+    { id: "adj-west", text: "Land claimed by the sample owner", lot: "lot-b2", from: id(6), to: id(7) },
+    { id: "adj-north", text: "Land of the sample neighbour", lot: "lot-b3", from: id(4), to: id(5) },
+    { id: "adj-east", text: "Lot 2 in Plan No. SAMPLE-0", lot: "lot-b3", from: id(3), to: id(4) },
   ];
   doc.features = [
     { id: "f1", layer: "BUILDINGS", code: "P", closed: true, points: [id(13), id(14), id(15), id(16)] },

@@ -60,7 +60,8 @@ export type DrawingFeature = z.infer<typeof featureSchema>;
 /** A lot: its label as written on the plan ("B" with a raised "1"), its corners in order, and a note such as "Res. for Access, 10ft. wide". */
 export const lotSchema = z.object({
   id: entityId,
-  label: text(12).pipe(z.string().min(1)),
+  /** Up to 40 characters, as written; empty until the surveyor gives one (the checks stop the export until then). */
+  label: text(40),
   /** The raised part of the label (B¹, 4ᴬ), or empty. */
   sup: text(6),
   points: z.array(pointRef).max(500),
@@ -87,10 +88,18 @@ export const adjoiningSchema = z.object({
   id: entityId,
   text: text(200).pipe(z.string().min(1)),
   lot: entityId,
-  /** The leg's index in the lot's ring: leg i runs from corner i to corner i + 1. */
-  leg: z.number().int().min(0).max(499),
+  /** The leg it lies beside, by its two corners (either way round), so changing the lot's other corners never moves it to another side. */
+  from: pointRef,
+  to: pointRef,
 });
 export type Adjoining = z.infer<typeof adjoiningSchema>;
+
+/** Where the leg between two corners sits in a lot's ring (leg i runs from corner i to corner i + 1), either way round, or -1 when the lot has no such leg. */
+export function legIndex(lot: Pick<Lot, "points">, from: string, to: string): number {
+  const n = lot.points.length;
+  if (n < 2) return -1;
+  return lot.points.findIndex((id, k) => (id === from && lot.points[(k + 1) % n] === to) || (id === to && lot.points[(k + 1) % n] === from));
+}
 
 export const OPERATIONS = ["resurvey", "subdivision", "amalgamation", "custom"] as const;
 export type Operation = (typeof OPERATIONS)[number];
@@ -257,16 +266,31 @@ export function emptyDocument(): SurveyDocument {
 
 /** Every point a document uses, by id. */
 export function usedPointIds(doc: SurveyDocument): Set<string> {
-  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.features.flatMap((f) => f.points)]);
+  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...doc.features.flatMap((f) => f.points)]);
 }
 
 /** A lot's label as plain text, "B1" for B with a raised 1. */
 export const lotName = (lot: Pick<Lot, "label" | "sup">) => `${lot.label}${lot.sup}`;
 
-/** Items the AI filled that the surveyor hasn't reviewed yet. */
+/** Whether the item a provenance key names is still in the document (a removed lot's mark is just left over). */
+export function provenanceLive(doc: SurveyDocument, key: string): boolean {
+  const has = (prefix: string, ids: { id: string }[]) => ids.some((x) => `${prefix}${x.id}` === key);
+  if (key.startsWith("lot:")) return has("lot:", doc.lots);
+  if (key.startsWith("road:")) return has("road:", doc.roads);
+  if (key.startsWith("adjoining:")) return has("adjoining:", doc.adjoining);
+  if (key.startsWith("feature:")) return has("feature:", doc.features);
+  return true;
+}
+
+/** The document without marks for items it no longer has. */
+export function pruneProvenance(doc: SurveyDocument): SurveyDocument {
+  return { ...doc, provenance: Object.fromEntries(Object.entries(doc.provenance).filter(([k]) => provenanceLive(doc, k))) };
+}
+
+/** Items the AI filled that the surveyor hasn't reviewed yet, of those still on the plan. */
 export function unreviewed(doc: SurveyDocument): string[] {
   return Object.entries(doc.provenance)
-    .filter(([, p]) => p.source !== "engine" && !p.reviewed)
+    .filter(([k, p]) => p.source !== "engine" && !p.reviewed && provenanceLive(doc, k))
     .map(([k]) => k);
 }
 
@@ -310,9 +334,18 @@ const legacySchema = z.object({
   surveyorUserId: z.string().uuid().nullable(),
 });
 
-/** Codes from a schema 1 legend: the common entry's drawing kind where the code matches, its own meaning kept. */
+/** Stage 190's starting legend, which new projects got before anyone checked it. */
+const STAGE_190_EXAMPLES = ["MW", "MDn", "CP", "EP", "TP", "St", "M", "P", "NF", "RW"];
+
+/**
+ * Codes from a schema 1 legend: the common entry's drawing kind where the code
+ * matches, its own meaning kept. A legend still exactly stage 190's starting
+ * examples was never checked, so it becomes the common list, which the checks
+ * hold until the surveyor marks it checked.
+ */
 function codesFromLegend(legend: { code: string; meaning: string }[]): CodeEntry[] {
   const common = commonCodes();
+  if (legend.length === STAGE_190_EXAMPLES.length && legend.every((e, i) => e.code === STAGE_190_EXAMPLES[i])) return common;
   const out = legend.map((e) => {
     const known = common.find((c) => c.code === e.code);
     return known ? { ...known, meaning: e.meaning } : { code: e.code, meaning: e.meaning, kind: "mark" as const, line: "solid" as const, legend: true };
@@ -335,13 +368,14 @@ export function parseSurveyDocument(raw: unknown): SurveyDocument | null {
   const { lot, legend, ...sheet } = d.sheet;
   return {
     schema: 2,
-    lots: d.boundary.length > 0 ? [{ id: "lot-1", label: lot.trim() || "1", sup: "", points: d.boundary, note: "" }] : [],
+    // An empty lot stays empty: the checks ask for a label rather than inventing one.
+    lots: d.boundary.length > 0 ? [{ id: "lot-1", label: lot.trim(), sup: "", points: d.boundary, note: "" }] : [],
     roads: [],
     adjoining: [],
     features: d.features,
     notes: [],
     codes: codesFromLegend(legend),
-    labelOffsets: Object.fromEntries(Object.entries(d.labelOffsets).map(([k, v]) => [k === "lot" ? "lot:lot-1" : k, v])),
+    labelOffsets: Object.fromEntries(Object.entries(d.labelOffsets).map(([k, v]) => [k === "lot" ? "lot:lot-1" : k === "lot-extent" ? "lot-extent:lot-1" : k, v])),
     layers: { ...defaultLayers(), ...d.layers },
     sheet: { ...emptySheetFields(), ...sheet, statement: "" },
     settings: { ...defaultSettings(), ...d.settings, template: "panel", slant: false, faceDimensions: true },

@@ -3,8 +3,8 @@
 import { CameraIcon, CheckCircleIcon, CircleNotchIcon, FloppyDiskIcon, PenNibIcon, QuestionIcon, TrashIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
-import { fold } from "@/core/survey/ai-draft";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { applyReview, itemsInReview, rawTokens, type AcceptedItem } from "@/core/survey/ai-draft";
 import { lotName, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { buildPlan } from "@/core/survey/view";
@@ -56,48 +56,51 @@ async function shrink(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("encode"))), "image/jpeg", 0.85));
 }
 
-/** A dotted provenance key's value in a document: "sheet.boundaries.north", "notes". */
-function getPath(doc: SurveyDocument, key: string): unknown {
-  return key.split(".").reduce<unknown>((o, k) => (o && typeof o === "object" ? (o as Record<string, unknown>)[k] : undefined), doc);
-}
-function setPath(doc: SurveyDocument, key: string, value: unknown) {
-  const parts = key.split(".");
-  const last = parts.pop()!;
-  const target = parts.reduce<Record<string, unknown>>((o, k) => o[k] as Record<string, unknown>, doc as unknown as Record<string, unknown>);
-  target[last] = structuredClone(value);
-}
-
 const KIND_ORDER = ["lot", "road", "adjoining", "sheet", "notes"] as const;
 const KIND_TITLES: Record<(typeof KIND_ORDER)[number], string> = { lot: "Lots", road: "Roads", adjoining: "Adjoining lands", sheet: "Title and boundaries", notes: "Notes" };
 const kindOf = (key: string): (typeof KIND_ORDER)[number] => (key.startsWith("lot:") ? "lot" : key.startsWith("road:") ? "road" : key.startsWith("adjoining:") ? "adjoining" : key === "notes" ? "notes" : "sheet");
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function DraftPanel(props: DraftPanelProps) {
   const router = useRouter();
   const [brief, setBrief] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [shrinking, setShrinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Done | null>(null);
-  const [proposal, setProposal] = useState<SurveyDocument | null>(null);
-  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
+  const [confirmed, setConfirmed] = useState<ReadonlySet<string>>(new Set());
   const [running, startRunning] = useTransition();
   const [saving, startSaving] = useTransition();
   const [which, setWhich] = useState<"draft" | "read" | null>(null);
 
-  // The point numbers the description names, against the project's points, as it's typed.
+  // Object URLs of the photo previews, released when the panel goes away.
+  const urls = useRef<string[]>([]);
+  useEffect(() => {
+    const list = urls.current;
+    return () => list.forEach((u) => URL.revokeObjectURL(u));
+  }, []);
+
+  // The point numbers the description names, as it's typed. A number beside them that isn't a point is probably a typo.
   const named = useMemo(() => {
-    const byNumber = new Map(props.points.map((p) => [fold(p.pointId), p.pointId]));
-    const words = [...new Set(fold(brief).split(" ").filter((w) => /^\d+[a-z]?$/.test(w)))];
-    return { known: words.filter((w) => byNumber.has(w)).length, unknown: words.filter((w) => !byNumber.has(w)).slice(0, 6) };
+    const known = new Set(props.points.map((p) => p.pointId.toLowerCase()));
+    const tokens = rawTokens(brief);
+    const isKnown = (t: string | undefined) => t !== undefined && known.has(t.toLowerCase());
+    const found = new Set(tokens.filter((t) => isKnown(t)).map((t) => t.toLowerCase()));
+    const unknown = [...new Set(tokens.filter((t, i) => /^\d+[a-z]?$/i.test(t) && !isKnown(t) && (isKnown(tokens[i - 1]) || isKnown(tokens[i + 1]))))].slice(0, 6);
+    return { known: found.size, unknown };
   }, [brief, props.points]);
 
+  const review = useMemo(() => ({ removed, confirmed }), [removed, confirmed]);
+  const proposal = useMemo(() => (result ? applyReview(props.document, result, review) : null), [result, props.document, review]);
   const preview = useMemo(() => (proposal ? buildPlan({ points: props.points, document: proposal, crsId: props.crsId, crsConfirmation: props.crsConfirmation, surveyor: null, approval: null }) : null), [proposal, props.points, props.crsId, props.crsConfirmation]);
 
   const take = (r: SurveyDraftState) => {
     if (r.status === "error") return setError(r.message);
     if (r.status !== "done") return;
     setResult(r);
-    setProposal(r.document);
     setRemoved(new Set());
+    setConfirmed(new Set());
     setError(null);
   };
 
@@ -123,18 +126,22 @@ export function DraftPanel(props: DraftPanelProps) {
     if (files.length === 0) return;
     setError(null);
     const room = PHOTO_MAX - photos.length;
-    const picked = files.slice(0, room);
     if (files.length > room) setError(`Up to ${PHOTO_MAX} photos at a time.`);
+    // The picker stays off while these are shrunk, so a second pick can't pass the limit.
+    setShrinking(true);
     const added: Photo[] = [];
-    for (const f of picked) {
+    for (const f of files.slice(0, room)) {
       try {
         const blob = await shrink(f);
-        added.push({ name: f.name, blob, url: URL.createObjectURL(blob) });
+        const url = URL.createObjectURL(blob);
+        urls.current.push(url);
+        added.push({ name: f.name, blob, url });
       } catch {
         setError(`Farbaek couldn't open ${f.name}. Use a JPEG or PNG photo or scan.`);
       }
     }
-    setPhotos((p) => [...p, ...added]);
+    setPhotos((p) => [...p, ...added].slice(0, PHOTO_MAX));
+    setShrinking(false);
   };
 
   const removePhoto = (i: number) =>
@@ -142,33 +149,6 @@ export function DraftPanel(props: DraftPanelProps) {
       URL.revokeObjectURL(p[i]!.url);
       return p.filter((_, j) => j !== i);
     });
-
-  /** Takes an item out of the draft: a lot, road or adjoining land goes; a field goes back to what the plan had. */
-  const remove = (key: string) => {
-    if (!proposal || !result) return;
-    const next = structuredClone(proposal);
-    const id = key.slice(key.indexOf(":") + 1);
-    if (key.startsWith("lot:")) {
-      next.lots = next.lots.filter((l) => l.id !== id);
-      next.adjoining = next.adjoining.filter((a) => a.lot !== id);
-      if (next.sheet.extractOf === id) next.sheet.extractOf = "";
-    } else if (key.startsWith("road:")) next.roads = next.roads.filter((r) => r.id !== id);
-    else if (key.startsWith("adjoining:")) next.adjoining = next.adjoining.filter((a) => a.id !== id);
-    else setPath(next, key, getPath(props.document, key));
-    delete next.provenance[key];
-    for (const k of Object.keys(next.provenance)) if (k.startsWith("adjoining:") && !next.adjoining.some((a) => `adjoining:${a.id}` === k)) delete next.provenance[k];
-    setProposal(next);
-    setRemoved((s) => new Set(s).add(key));
-  };
-
-  /** The surveyor checked an item: it counts from now on. */
-  const confirm = (key: string) => {
-    if (!proposal) return;
-    const next = structuredClone(proposal);
-    const p = next.provenance[key];
-    if (p) next.provenance[key] = { ...p, reviewed: true };
-    setProposal(next);
-  };
 
   const save = () => {
     if (!proposal || !result) return;
@@ -183,23 +163,49 @@ export function DraftPanel(props: DraftPanelProps) {
 
   const discard = () => {
     setResult(null);
-    setProposal(null);
     setRemoved(new Set());
+    setConfirmed(new Set());
   };
 
-  const items = result ? result.accepted.filter((a) => !removed.has(a.key)) : [];
-  const groups = KIND_ORDER.map((k) => ({ kind: k, items: items.filter((a) => kindOf(a.key) === k) })).filter((g) => g.items.length > 0);
-  const replacesLots = result && proposal && result.accepted.some((a) => a.key.startsWith("lot:")) && props.document.lots.length > 0;
-  const page = preview?.sheet.pages[0];
-
   if (result && proposal) {
+    const items = itemsInReview(result, proposal, review);
+    const groups = KIND_ORDER.map((k) => ({ kind: k, items: items.filter((a) => kindOf(a.key) === k) })).filter((g) => g.items.length > 0);
+    const drafted = (prefix: string) => new Set(result.accepted.filter((a) => a.key.startsWith(prefix)).map((a) => a.key.slice(prefix.length)));
+    const draftedLots = drafted("lot:");
+    const draftedRoads = drafted("road:");
+    const replaces = [
+      proposal.lots.some((l) => draftedLots.has(l.id)) && props.document.lots.length > 0 ? count(props.document.lots.length, "lot", "lots") : null,
+      proposal.roads.some((r) => draftedRoads.has(r.id)) && props.document.roads.length > 0 ? count(props.document.roads.length, "road", "roads") : null,
+    ].filter(Boolean);
+    const page = preview?.sheet.pages[0];
+    const row = (a: AcceptedItem) => {
+      const checked = proposal.provenance[a.key]?.reviewed === true;
+      return (
+        <li key={a.key} className="grid gap-2 rounded-sm bg-canvas-2 p-3 ring-1 ring-line sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <span className="min-w-0 break-words text-sm text-ink">{a.label}</span>
+          <span className="flex flex-wrap items-center gap-2">
+            {checked ? (
+              <StatusBadge status="done" label="Checked" />
+            ) : (
+              <button type="button" onClick={() => setConfirmed((s) => new Set(s).add(a.key))} className={buttonClasses("secondary", "sm")}>
+                <CheckCircleIcon size={16} weight="bold" aria-hidden />
+                Looks right
+              </button>
+            )}
+            <button type="button" aria-label={`Take out ${a.label}`} onClick={() => setRemoved((s) => new Set(s).add(a.key))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
+              <TrashIcon size={16} weight="bold" aria-hidden />
+            </button>
+          </span>
+        </li>
+      );
+    };
     return (
       <Card>
         <CardTitle icon={CheckCircleIcon}>Check the draft</CardTitle>
         <p className="mt-1 text-sm text-ink-2">
           {result.source === "ai_brief" ? "Read from your description." : "Read from your photos."} Every area, extent and width on the sheet is computed from your points, not by the AI. Mark each item as right, take out what isn&apos;t, then save it as a new version. You can change anything afterwards on the Lots and Plan steps.
         </p>
-        {replacesLots ? <p className="mt-3 text-sm text-ink">The drafted lots replace the {props.document.lots.length} the plan has now.</p> : null}
+        {replaces.length > 0 ? <p className="mt-3 text-sm text-ink">The draft replaces the plan&apos;s {replaces.join(" and ")}. Take out every drafted one to keep the plan&apos;s own.</p> : null}
 
         <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <div className="grid content-start gap-5">
@@ -207,29 +213,7 @@ export function DraftPanel(props: DraftPanelProps) {
             {groups.map((g) => (
               <section key={g.kind} aria-label={KIND_TITLES[g.kind]} className="grid gap-2">
                 <h3 className="text-sm font-medium text-ink">{KIND_TITLES[g.kind]}</h3>
-                <ul className="grid gap-2">
-                  {g.items.map((a) => {
-                    const checked = proposal.provenance[a.key]?.reviewed === true;
-                    return (
-                      <li key={a.key + a.label} className="grid gap-2 rounded-sm bg-canvas-2 p-3 ring-1 ring-line sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                        <span className="min-w-0 break-words text-sm text-ink">{a.label}</span>
-                        <span className="flex flex-wrap items-center gap-2">
-                          {checked ? (
-                            <StatusBadge status="done" label="Checked" />
-                          ) : (
-                            <button type="button" onClick={() => confirm(a.key)} className={buttonClasses("secondary", "sm")}>
-                              <CheckCircleIcon size={16} weight="bold" aria-hidden />
-                              Looks right
-                            </button>
-                          )}
-                          <button type="button" aria-label={`Take out ${a.label}`} onClick={() => remove(a.key)} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
-                            <TrashIcon size={16} weight="bold" aria-hidden />
-                          </button>
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <ul className="grid gap-2">{g.items.map(row)}</ul>
               </section>
             ))}
 
@@ -295,13 +279,14 @@ export function DraftPanel(props: DraftPanelProps) {
     );
   }
 
+  const pickerOff = photos.length >= PHOTO_MAX || running || shrinking || props.readOff !== null;
   return (
     <div className="grid gap-6">
       <Card>
         <CardTitle icon={PenNibIcon}>Describe the job</CardTitle>
         <p className="mt-1 text-sm text-ink-2">
-          Write it as you&apos;d brief someone drawing it for you: each lot and its corner points in order, roads and the points along their edges, what adjoins between which points, the land&apos;s name and where it is, the earlier plan and the dates. Farbaek reads it into the plan and computes every area,
-          extent and width from your points. Nothing you didn&apos;t write is added, and each item waits for you to check it.
+          Write it as you&apos;d brief someone drawing it for you: each lot and its corner points in order, roads and the points along their edges, what adjoins between which points, the land&apos;s name and where it is, the earlier plan and the dates. Farbaek reads it into the plan and
+          computes every area, extent and width from your points. Nothing you didn&apos;t write is added, and each item waits for you to check it.
         </p>
         <label className="mt-4 grid gap-1.5">
           <span className={LABEL_CLASSES}>Your description</span>
@@ -315,7 +300,7 @@ export function DraftPanel(props: DraftPanelProps) {
             className={textareaClasses()}
           />
           <span className="text-sm text-ink-3">
-            {named.known > 0 ? `Names ${named.known} of your points.` : "Name the corner points by their numbers."}
+            {named.known === 0 ? "Name the corner points by their numbers." : `Names ${named.known === 1 ? "one of your points" : `${named.known} of your points`}.`}
             {named.unknown.length > 0 ? ` Not in this project: ${named.unknown.join(", ")}.` : ""} {brief.length > BRIEF_MAX - 400 ? `${BRIEF_MAX - brief.length} characters left.` : ""}
           </span>
         </label>
@@ -331,8 +316,8 @@ export function DraftPanel(props: DraftPanelProps) {
       <Card>
         <CardTitle icon={CameraIcon}>Read an old plan</CardTitle>
         <p className="mt-1 text-sm text-ink-2">
-          Photograph or scan the earlier plan or the deed. Farbaek reads its title, the earlier plan&apos;s number, date and surveyor, the location, what bounds the land and the extent as stated. It never takes points or measurements from a photo: those come from your survey. For small
-          lettering, photograph the title and the boundaries close up.
+          Photograph or scan the earlier plan or the deed. Farbaek reads its title, the earlier plan&apos;s number, date and surveyor, the location, what bounds the land and the extent as stated. It never takes points, measurements or notes from a photo: those come from your survey. Lay the sheet
+          flat in even light and photograph the title and the boundaries close up.
         </p>
         <div className="mt-4 grid gap-3">
           {photos.length > 0 ? (
@@ -349,10 +334,16 @@ export function DraftPanel(props: DraftPanelProps) {
               ))}
             </ul>
           ) : null}
-          <label className={`${buttonClasses("secondary", "md")} w-fit ${photos.length >= PHOTO_MAX || running || props.readOff ? "pointer-events-none opacity-50" : "cursor-pointer"}`}>
-            <CameraIcon size={16} weight="bold" aria-hidden />
-            {photos.length === 0 ? "Choose photos" : "Add a photo"}
-            <input type="file" accept="image/*" multiple className="sr-only" disabled={photos.length >= PHOTO_MAX || running || props.readOff !== null} onChange={(e) => {
+          <label className={`${buttonClasses("secondary", "md")} w-fit has-focus-visible:outline-2 has-focus-visible:outline-accent ${pickerOff ? "pointer-events-none opacity-50" : "cursor-pointer"}`}>
+            {shrinking ? <CircleNotchIcon size={16} weight="bold" className="motion-safe:animate-spin" aria-hidden /> : <CameraIcon size={16} weight="bold" aria-hidden />}
+            {shrinking ? "Preparing the photos" : photos.length === 0 ? "Choose photos" : "Add a photo"}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              disabled={pickerOff}
+              onChange={(e) => {
                 const list = [...(e.target.files ?? [])];
                 e.target.value = "";
                 void choose(list);
@@ -364,7 +355,7 @@ export function DraftPanel(props: DraftPanelProps) {
           </p>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={read} disabled={running || props.readOff !== null || photos.length === 0} className={buttonClasses("primary", "md")}>
+          <button type="button" onClick={read} disabled={running || shrinking || props.readOff !== null || photos.length === 0} className={buttonClasses("primary", "md")}>
             {running && which === "read" ? <CircleNotchIcon size={16} weight="bold" className="motion-safe:animate-spin" aria-hidden /> : <CameraIcon size={16} weight="bold" aria-hidden />}
             {running && which === "read" ? "Reading the photos" : "Read the photos"}
           </button>
@@ -386,7 +377,7 @@ export function DraftPanel(props: DraftPanelProps) {
         </Link>
         .
       </p>
-      {props.document.lots.length > 0 ? <p className="text-sm text-ink-3">The plan has {props.document.lots.map((l) => `lot ${lotName(l)}`).join(", ")} now.</p> : null}
+      {props.document.lots.length > 0 ? <p className="text-sm text-ink-3">The plan has {props.document.lots.map((l) => `lot ${lotName(l) || "without a label"}`).join(", ")} now.</p> : null}
     </div>
   );
 }

@@ -2,7 +2,30 @@
 
 A plan sheet is built in two steps. A versioned **template** (data) says how the sheet looks. `composeSheet` turns a template, a drawing version and the points into a **sheet scene**: drawing primitives in millimetres that the SVG preview, the PDF writer and the checks all read (ADR 0201). Code: [`template.ts`](../../src/core/survey/sheet/template.ts), [`scene.ts`](../../src/core/survey/sheet/scene.ts), [`compose.ts`](../../src/core/survey/sheet/compose.ts).
 
-## The template: `SRI_LANKA_CADASTRAL_V1`
+## Two layouts
+
+A drawing's `settings.template` picks one: `classic` (the default since stage 191, `SRI_LANKA_CLASSIC_V1`, below) or `panel` (stage 190's layout, `SRI_LANKA_CADASTRAL_V1`, after it). `composeSheet` dispatches to `composeClassic` (`classic.ts`) or the panel composer; both share the drawing primitives in [`draw.ts`](../../src/core/survey/sheet/draw.ts), the overleaf schedule and the findings.
+
+## The classic Sri Lankan sheet: `SRI_LANKA_CLASSIC_V1`
+
+`id: "lk-classic"`, `version: 1`. Laid out as six plans by a practising licensed surveyor are ([REFERENCE_PLANS_ANALYSIS.md](REFERENCE_PLANS_ANALYSIS.md), structure only). This is observed practice, not an official specification ([STANDARDS_RESEARCH.md](STANDARDS_RESEARCH.md)); every caption is template data.
+
+**Sizes are shares of the frame height**, so one layout serves A4 to A2: region lines 2%, heading 1.8%, plan number 1.5%, lot labels 1.3%, title sentence 0.95%, body 0.88%, labels 0.75%, small text 0.68%. Line weights in mm: frame 0.35, boundary 0.45, feature 0.25, thin 0.18. Lettering leans 15° when `slant` is on (an SVG `skewX`, a PDF shear), except the region lines, PLAN and the DRAFT notice, which stay upright.
+
+**Top to bottom:**
+- **Header.** The surveyor's block top left (name, designation, address). "PLAN No." and the number top right, with "Extract of Lot …" in red under it on an extract. Until approval, the red DRAFT notice centred at the top.
+- **The drawing band.** The lots (boundary weight), their raised labels placed inside each lot clear of other text, corner marks with their codes placed in one of eight directions, loose marks and symbols (a well is a circle with a cross), lines and outlines from the code library's styles, roads from both edges with the name and computed width along the centreline and direction texts at the ends, and adjoining-land labels outside their leg with a leader and arrowhead. The needle north arrow at the right of the band. The 100 mm check line above the title when there's room.
+- **Reference.** Bottom left of the band: only the codes the plan uses (`usedCodes`: marks at corners and loose points, lines and outlines), then "Note:-" lines.
+- **Title block.** "Scale:- 1:N", "PLAN", the title sentence (`titleSentence`: land names in capitals, lot suffixes raised, blanks for anything missing), the DISTRICT and PROVINCE lines, the bounded-as-follows lines with a ":-" column ("Entire land" for several lots, the lot itself on an extract), and "Containing in Extent X Hectares ( a A. r R. pp.pp P. )".
+- **Footer.** The dates ("Surveyed & partitioned on", or either alone), the statement and the overleaf pointer bottom left, the signature block bottom right.
+
+**Bearings and distances** go overleaf unless `faceDimensions` is on. The overleaf **boundaries schedule** lists each lot's legs (from, to, bearing, distance) and area, the corner coordinates, the entire extent, the grid and the notes, with headers repeated across pages.
+
+**Paper and scale.** With `paper: "auto"` and no fixed scale, the composer tries 1:500 then the next standard scale (1:1000, 1:1250 …) in the outer loop and A4 then A3 in the inner loop, and A2 only when nothing smaller fits. A fixed scale that doesn't fit is a finding that blocks export; the drawing is never shrunk.
+
+**Labels** are placed greedily against everything already drawn (`Placer`, a separating-axis overlap test that also handles segments). Geometry never moves; what still overlaps is reported.
+
+## The panel layout: `SRI_LANKA_CADASTRAL_V1`
 
 `id: "lk-cadastral"`, `version: 1`, name "Sri Lankan land survey plan". It follows the sections in the owner's brief for a Sri Lankan land survey plan. The reference plan image wasn't available when it was made; the layout is a starting template, and where no official source sets a wording, the wording is a caption a surveyor can change in a later stage (see the status table below). `TEMPLATES` lists this one template.
 
@@ -16,11 +39,11 @@ A plan sheet is built in two steps. A versioned **template** (data) says how the
 
 Captions: "PLAN No.", "Lot", "Plan of the land called", "Situated at", "Extent", "Computed from coordinates", "Stated extent", "Boundaries", "North by", "East by", "South by", "West by", "References" (the legend), "Survey", "Surveyed on", "Plan date", "Previous plans", "Remarks", "Licensed surveyor", "Signature", "Seal", "For the development permit", "Grid", "Overleaf schedule", "Coordinates of boundary points", "Bearings and distances", "Area".
 
-The drawing document doesn't yet record which template or template version it used; `buildPlan` always uses this one.
+The drawing records which layout it uses (`settings.template`), not yet the template's version.
 
 ## Paper
 
-`PAPER_SIZES`: A4 210 × 297, A3 297 × 420, A2 420 × 594 mm, in landscape or portrait. A new project starts on A3 landscape.
+`PAPER_SIZES`: A4 210 × 297, A3 297 × 420, A2 420 × 594 mm, in landscape or portrait. A new project starts on the classic layout, portrait, with the paper chosen automatically.
 
 ## The sheet scene
 
@@ -28,7 +51,7 @@ The drawing document doesn't yet record which template or template version it us
 - **Units and axes.** Millimetres on paper, origin at the top-left corner, y downward.
 - **Primitives.** `path` (points, closed, stroke width in mm, colour, optional fill and dash pattern in mm), `text` (position, size in mm, regular or bold, sans or mono, anchor start, middle or end, rotation in degrees clockwise about its position, colour) and `circle`.
 - **Colours** are names: `ink`, `muted`, `faint`, `red`, `paper`. The renderer chooses the actual colour.
-- **Tags.** Every primitive has a layer (one of the 14 drawing layers, or `SHEET`) and, where it belongs to a drawing entity, an `entity` id for selection.
+- **Tags.** Every primitive has a layer (one of the 15 drawing layers, or `SHEET`) and, where it belongs to a drawing entity, an `entity` id for selection.
 - **Pages.** A list of pages, each with its size and role, `front` or `overleaf`.
 - **Model to paper.** `toPage(viewport, e, n)`: one metre on the ground is `1000 / scale` mm on paper, about the viewport's centre, with north up. `toModel` is the inverse, for clicks.
 - **Text width.** `textWidth` adds up each character's advance width in em, then multiplies by the size and by 1.04:

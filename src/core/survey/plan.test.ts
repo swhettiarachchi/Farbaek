@@ -490,3 +490,105 @@ describe("exports (synthetic)", () => {
     expect(empty.pages).toHaveLength(1);
   });
 });
+
+describe("the second review's cases (synthetic)", () => {
+  /** Points on a local grid, offset into SLD99's range: number, east, north. */
+  const grid = (rows: [string, number, number][]): SurveyPoint[] => rows.map(([n, e, nn]) => ({ id: `00000000-0000-4000-9000-${n.padStart(12, "0")}`, pointId: n, e: 500_000 + e, n: 600_000 + nn, z: null, code: null }));
+  const lot = (pts: SurveyPoint[], label: string, numbers: string[]) => ({ id: `lot-${label}`, label, sup: "", note: "", points: numbers.map((n) => pts.find((p) => p.pointId === n)!.id) });
+  const docOf = (lots: ReturnType<typeof lot>[]) => ({ ...emptyDocument(), lots });
+  const qcOf = (pts: SurveyPoint[], d: ReturnType<typeof emptyDocument>) => checkSurvey({ points: pts, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(pts, d.lots), surveyorProfile: false }).map((f) => f.code);
+  const square = grid([["1", 0, 0], ["2", 10, 0], ["3", 10, 10], ["4", 0, 10]]);
+  const compose = (d: ReturnType<typeof emptyDocument>, pts: readonly SurveyPoint[]) => composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: d, points: pts, lots: computeLots(pts, d.lots), crs: SLD99, crsConfirmation: "Test", surveyor: null, approval: null });
+
+  it("catches one lot entered twice, which would double the extent", () => {
+    for (const second of [["1", "2", "3", "4"], ["4", "3", "2", "1"]]) {
+      const lots = [lot(square, "A", ["1", "2", "3", "4"]), lot(square, "B", second)];
+      expect(computeLots(square, lots).overlaps).toEqual([[0, 1]]);
+      expect(qcOf(square, docOf(lots))).toContain("LOTS_OVERLAP");
+    }
+  });
+
+  it("finds a gap pinched against the outline at one corner, whatever order the lots come in", () => {
+    const pts = grid([["1", 0, 0], ["2", 20, 0], ["3", 20, 20], ["4", 0, 20], ["5", 0, 10], ["6", 10, 5], ["7", 10, 15]]);
+    const a = lot(pts, "A", ["3", "4", "5", "7"]);
+    const b = lot(pts, "B", ["2", "3", "7", "6"]);
+    const c = lot(pts, "C", ["1", "2", "6", "5"]);
+    for (const order of [[a, b, c], [b, c, a], [c, a, b], [a, c, b]]) {
+      const r = computeLots(pts, order);
+      expect([r.holes, r.pieces]).toEqual([1, 1]);
+      expect(qcOf(pts, docOf(order))).toContain("LOTS_GAP");
+    }
+  });
+
+  it("reads a T-junction as joined, with nothing missing", () => {
+    // Lot B's corner 5 rests on lot A's leg 2-3 without being one of A's corners.
+    const pts = grid([["1", 0, 0], ["2", 10, 0], ["3", 10, 10], ["4", 0, 10], ["5", 10, 5], ["6", 20, 5], ["7", 20, 10]]);
+    const r = computeLots(pts, [lot(pts, "A", ["1", "2", "3", "4"]), lot(pts, "B", ["5", "6", "7", "3"])]);
+    expect([r.overlaps, r.holes, r.pieces]).toEqual([[], 0, 1]);
+    expect(r.outlineAreaM2).toBeCloseTo(150, 9);
+    expect(r.sumAreaM2).toBeCloseTo(150, 9);
+  });
+
+  it("names two corner numbers a couple of millimetres apart as probably one mark", () => {
+    const pts = grid([["1", 0, 0], ["2", 10, 0], ["3", 10, 10], ["4", 0, 10], ["20", 10.002, 0], ["30", 10.002, 10], ["5", 20, 0], ["6", 20, 10]]);
+    expect(qcOf(pts, docOf([lot(pts, "A", ["1", "2", "3", "4"]), lot(pts, "B", ["20", "5", "6", "30"])]))).toContain("POINTS_NEAR_DUPLICATE");
+  });
+
+  it("keeps an adjoining land on its leg however the lot's corners are listed, and stops the export when the leg is gone", () => {
+    const d = sampleDocument();
+    const b2 = d.lots.find((l) => l.id === "lot-b2")!;
+    b2.points = [b2.points[1]!, b2.points[2]!, b2.points[3]!, b2.points[0]!];
+    const adjText = (s: ReturnType<typeof compose>) => s.pages[0]!.items.filter((i) => i.kind === "text" && i.layer === "ADJOINING").map((i) => (i as { text: string }).text).join(" ");
+    expect(adjText(compose(d, SAMPLE_POINTS))).toContain("sample owner");
+    // Leave out corner 6: the label's leg 6 to 7 no longer exists.
+    const six = SAMPLE_POINTS.find((p) => p.pointId === "6")!.id;
+    b2.points = b2.points.filter((id) => id !== six);
+    expect(qcOf(SAMPLE_POINTS, d)).toContain("ADJOINING_NO_LEG");
+    expect(adjText(compose(d, SAMPLE_POINTS))).not.toContain("sample owner");
+  });
+
+  it("writes a lot's label inside that lot, even a narrow access strip", () => {
+    const pts = grid([["1", 0, 0], ["2", 80, 0], ["3", 80, 80], ["4", 77, 80], ["5", 77, 3], ["6", 0, 3], ["7", 0, 80]]);
+    const strip = lot(pts, "R", ["1", "2", "3", "4", "5", "6"]);
+    const rest = lot(pts, "A", ["6", "5", "4", "7"]);
+    for (const scale of [500, 1000]) {
+      const d = { ...docOf([rest, strip]), settings: { ...emptyDocument().settings, scale } };
+      const sheet = compose(d, pts);
+      const label = sheet.pages[0]!.items.find((i) => i.kind === "text" && i.entity === "lot:lot-R") as { x: number; y: number } | undefined;
+      expect(label).toBeDefined();
+      const at = toModel(sheet.viewport!, label!.x, label!.y);
+      const e = at.e - 500_000;
+      const n = at.n - 600_000;
+      // Inside the L: the 3 m strip along the south or along the east.
+      expect((n > 0 && n < 3 && e > 0 && e < 80) || (e > 77 && e < 80 && n > 0 && n < 80)).toBe(true);
+    }
+  });
+
+  it("asks for a lot's label instead of inventing one, and upgrades stage 190's unchecked legend to the common list", () => {
+    const sheetV1 = { planNumber: "", planDate: "", lot: "", landName: "", village: "", gnDivision: "", dsDivision: "", district: "", province: "", previousPlans: "", boundaries: { north: "", east: "", south: "", west: "" }, statedExtent: "", surveyDate: "", remarks: "", legend: ["MW", "MDn", "CP", "EP", "TP", "St", "M", "P", "NF", "RW"].map((code) => ({ code, meaning: code })) };
+    const v1 = { schema: 1, boundary: SAMPLE_POINTS.slice(0, 4).map((p) => p.id), features: [], labelOffsets: { "lot-extent": { dx: 1, dy: 2 } }, layers: Object.fromEntries(Object.entries(emptyDocument().layers).filter(([k]) => k !== "ADJOINING")), sheet: sheetV1, settings: { paper: "A3", orientation: "landscape", scale: null, perchDecimals: 2, secondDecimals: 0, distanceDecimals: 2, overleaf: true, permitBox: false }, surveyorUserId: null };
+    const up = parseSurveyDocument(v1)!;
+    expect(up.lots[0]!.label).toBe("");
+    expect(up.labelOffsets["lot-extent:lot-1"]).toEqual({ dx: 1, dy: 2 });
+    expect(surveyDocumentSchema.safeParse(up).success).toBe(true);
+    expect(qcOf(SAMPLE_POINTS, up)).toEqual(expect.arrayContaining(["LOT_LABEL_MISSING", "LEGEND_UNREVIEWED"]));
+    const long = parseSurveyDocument({ ...v1, sheet: { ...sheetV1, lot: "Lot 12 of Plan 1234" } })!;
+    expect(surveyDocumentSchema.safeParse(long).success).toBe(true);
+  });
+
+  it("ignores marks for items no longer on the plan", () => {
+    const d = sampleDocument();
+    d.provenance["lot:gone"] = { source: "ai_brief", reviewed: false };
+    d.provenance["sheet.landName"] = { source: "ai_brief", reviewed: false };
+    expect(unreviewed(d)).toEqual(["sheet.landName"]);
+  });
+
+  it("labels each leg once in the DXF, shared legs included", () => {
+    const d = sampleDocument();
+    const dxf = writeDxf({ document: d, points: SAMPLE_POINTS, lots: computeLots(SAMPLE_POINTS, d.lots), crs: SLD99, scale: 500, projectName: "Sample", status: "DRAFT" });
+    const parsed = new DxfParser().parseSync(dxf)!;
+    const dims = (parsed.entities.filter((e) => e.type === "TEXT") as unknown as { text: string; layer: string }[]).filter((t) => t.layer === "DIMENSIONS");
+    // B1 has 5 legs, B2 and B3 4 each; 7-8, 8-3 and 8-5 are shared.
+    expect(dims).toHaveLength(10);
+  });
+});

@@ -13,6 +13,7 @@
  * nothing smaller fits.
  */
 import { BEARING_CONVENTION } from "../angles";
+import { codesAreCommonList } from "../codes";
 import { lotName, PAPER_SIZES, type PaperSize } from "../document";
 import { titleSentence, regionLine, type Run } from "../description";
 import { arpClassic, dotDate, hectares } from "../formats";
@@ -21,7 +22,7 @@ import type { Finding } from "../qc";
 import { fmt, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 import { BLANK, commonFindings, drawCtx, drawnPoints, entireAreaM2, overleafPages, usedCodes, type ComposeInput, type ComposedSheet } from "./compose";
-import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads } from "./draw";
+import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads, type DrawCtx } from "./draw";
 import { advanceWidth, textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import { SRI_LANKA_CLASSIC_V1 as T } from "./template";
 
@@ -235,7 +236,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     const titleTop = y;
 
     // The drawing band, between the header and the title block, less a strip for the legend and notes.
-    const legendRows = used.length;
+    const legendRows = used.length > 0 ? used.length + (codesAreCommonList(doc.codes) && !doc.provenance["codes"]?.reviewed ? 1 : 0) : 0;
     const notes = doc.notes.flatMap((n) => wrap(`${cap.note} ${n}`, z.label, f.fw * 0.4));
     const legendH = legendRows > 0 || notes.length ? (legendRows > 0 ? z.label * 2.2 + legendRows * z.label * 1.3 : 0) + notes.length * z.label * 1.3 + z.label : 0;
     const bandTop = headerBottom + f.fh * 0.01;
@@ -292,9 +293,12 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   // --- The drawing.
   const drawing: SceneItem[] = [];
   let viewport: Viewport | null = null;
+  let drawingCtx: DrawCtx | null = null;
   if (b && scale) {
     viewport = { ...lay.vp, scale, centreE: (b.minE + b.maxE) / 2, centreN: (b.minN + b.maxN) / 2 };
-    const ctx = drawCtx(drawing, viewport, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, { boundary: T.lines.boundary, feature: T.lines.feature, thin: T.lines.thin }, slant);
+    // Text in the drawing stays inside the frame and above the Reference and title block.
+    const ctx = drawCtx(drawing, viewport, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, { boundary: T.lines.boundary, feature: T.lines.feature, thin: T.lines.thin }, slant, [f.x0 + 1, lay.bandTop, f.x0 + f.fw - 1, lay.vp.y + lay.vp.h]);
+    drawingCtx = ctx;
     drawRoads(ctx, doc.roads);
     drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: extract?.id ?? null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals });
     const first = input.lots.lots.find((r) => r.parcel && r.parcel.vertices.length >= 3)?.parcel;
@@ -329,6 +333,11 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
       front.push({ kind: "text", x: lx + codeW + z.label * 2.5, y: ly, text: u.meaning || "(not in the code library)", size: z.label, weight: "regular", font: "sans", anchor: "start", rotate: 0, color: u.meaning ? "ink" : "red", layer: "TITLE", entity: "legend", ...(slant ? { slant } : {}) });
     }
   }
+  // The common code list isn't an official one: until the surveyor checks it, the sheet says so.
+  if (used.length > 0 && codesAreCommonList(doc.codes) && !doc.provenance["codes"]?.reviewed) {
+    ly += z.label * 1.3;
+    front.push({ kind: "text", x: lx, y: ly, text: "Codes from the common list, not yet checked by the surveyor.", size: z.small, weight: "regular", font: "sans", anchor: "start", rotate: 0, color: "red", layer: "TITLE", entity: "legend", ...(slant ? { slant } : {}) });
+  }
   for (const n of lay.notes) {
     ly += z.label * 1.3;
     front.push({ kind: "text", x: lx, y: ly, text: n, size: z.label, weight: "regular", font: "sans", anchor: "start", rotate: 0, color: "ink", layer: "TITLE", entity: "notes", ...(slant ? { slant } : {}) });
@@ -358,6 +367,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
         h: f.h,
         m: f.m,
         text: { heading: z.body * 1.2, body: z.body, tableBody: z.body, small: z.small },
+        classicExtent: true,
         frame: T.lines.frame,
         thin: T.lines.thin,
         planCaption: T.captions.planNumber,
@@ -367,6 +377,6 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
       }),
     );
   }
-  commonFindings(pages, drawing, scale, findings);
+  commonFindings(pages, drawing, scale, findings, { inner: [f.x0, f.y0, f.x0 + f.fw, f.y0 + f.fh], ctx: drawingCtx });
   return { pages, viewport, scale, suggestedScale: suggested, paper: f.paper, findings };
 }

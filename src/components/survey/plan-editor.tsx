@@ -505,7 +505,8 @@ function describeSelection(entity: string | null, plan: ReturnType<typeof buildP
     const a = doc.adjoining.find((x) => `adjoining:${x.id}` === entity);
     if (!a) return null;
     const lot = doc.lots.find((l) => l.id === a.lot);
-    return { title: "Adjoining land", rows: [["Text", a.text], ["Beside", lot ? `Lot ${lotName(lot)}, leg ${a.leg + 1}` : "No lot"]], note: "Change it on the Lots step." };
+    const num = (id: string) => points.find((x) => x.id === id)?.pointId ?? "?";
+    return { title: "Adjoining land", rows: [["Text", a.text], ["Beside", lot ? `Lot ${lotName(lot)}, between ${num(a.from)} and ${num(a.to)}` : "No lot"]], note: "Change it on the Lots step." };
   }
   if (entity.startsWith("feature:")) {
     const f = doc.features.find((x) => `feature:${x.id}` === entity);
@@ -541,7 +542,7 @@ function CheckMark({ doc, field, update, readOnly }: { doc: SurveyDocument; fiel
 
 function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { doc: SurveyDocument; update: Update; readOnly: boolean; surveyors: SurveyorOption[]; suggested: number | null; paper: string }) {
   // The label names the input by id, so the "Looks right" button beside it stays outside the label.
-  const field = (label: string, value: string, key: string, set: (d: SurveyDocument, v: string) => void, max: number, opts: { long?: boolean; hint?: string; type?: string; mark?: boolean } = {}) => {
+  const field = (label: string, value: string, key: string, set: (d: SurveyDocument, v: string) => void, max: number, opts: { long?: boolean; hint?: string; type?: string } = {}) => {
     const id = `sheet-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
     return (
       <div className="grid gap-1.5">
@@ -549,7 +550,7 @@ function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { d
           <label htmlFor={id} className={LABEL_CLASSES}>
             {label}
           </label>
-          {opts.mark === false ? null : <CheckMark doc={doc} field={`sheet.${key}`} update={update} readOnly={readOnly} />}
+          <CheckMark doc={doc} field={`sheet.${key}`} update={update} readOnly={readOnly} />
         </span>
         {opts.long ? (
           <textarea id={id} value={value} maxLength={max} rows={3} disabled={readOnly} onChange={(e) => update((d) => (set(d, e.target.value), touched(d, `sheet.${key}`)), key)} className={textareaClasses()} />
@@ -653,17 +654,20 @@ function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { d
         </div>
         {s.operation === "custom" ? field("After “being”", s.customClause, "customClause", (d, v) => void (d.sheet.customClause = v), 800, { long: true }) : null}
         <div className="grid grid-cols-2 gap-3">
-          {field("Depicted in Plan No.", s.previousPlan.number, "previousPlan", (d, v) => void (d.sheet.previousPlan.number = v), 40)}
-          {field("Dated", s.previousPlan.date, "previousPlan", (d, v) => void (d.sheet.previousPlan.date = v), 20, { type: "date", mark: false })}
+          {field("Depicted in Plan No.", s.previousPlan.number, "previousPlan.number", (d, v) => void (d.sheet.previousPlan.number = v), 40)}
+          {field("Dated", s.previousPlan.date, "previousPlan.date", (d, v) => void (d.sheet.previousPlan.date = v), 20, { type: "date" })}
         </div>
-        {check("It's my own earlier plan (“my Plan No.”)", s.previousPlan.mine, (d, v) => (void (d.sheet.previousPlan.mine = v), touched(d, "sheet.previousPlan")))}
+        <div className="flex flex-wrap items-center gap-2">
+          {check("It's my own earlier plan (“my Plan No.”)", s.previousPlan.mine, (d, v) => (void (d.sheet.previousPlan.mine = v), touched(d, "sheet.previousPlan.mine")))}
+          <CheckMark doc={doc} field="sheet.previousPlan.mine" update={update} readOnly={readOnly} />
+        </div>
         {s.previousPlan.mine ? null : (
           <div className="grid grid-cols-2 gap-3">
-            {field("Made by", s.previousPlan.by, "previousPlan", (d, v) => void (d.sheet.previousPlan.by = v), 80, { mark: false })}
-            {field("Their designation", s.previousPlan.byDesignation, "previousPlan", (d, v) => void (d.sheet.previousPlan.byDesignation = v), 60, { mark: false })}
+            {field("Made by", s.previousPlan.by, "previousPlan.by", (d, v) => void (d.sheet.previousPlan.by = v), 80)}
+            {field("Their designation", s.previousPlan.byDesignation, "previousPlan.byDesignation", (d, v) => void (d.sheet.previousPlan.byDesignation = v), 60)}
           </div>
         )}
-        {field("Filed of record in (optional)", s.previousPlan.filing, "previousPlan", (d, v) => void (d.sheet.previousPlan.filing = v), 160, { hint: "A court and case number, when the plan was filed.", mark: false })}
+        {field("Filed of record in (optional)", s.previousPlan.filing, "previousPlan", (d, v) => void (d.sheet.previousPlan.filing = v), 160, { hint: "A court and case number, when the plan was filed." })}
         <div className="grid grid-cols-2 gap-3">
           {field("Village", s.village, "village", (d, v) => void (d.sheet.village = v), 60)}
           {field("Pattu", s.pattu, "pattu", (d, v) => void (d.sheet.pattu = v), 60, { hint: "As written, ending in “Pattu”." })}

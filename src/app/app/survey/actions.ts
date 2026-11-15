@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { crsById } from "@/core/survey/crs";
-import { emptyDocument, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
+import { emptyDocument, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
 import { IMPORT_LIMITS, parseDelimited, type ColumnRole, type Delimiter, type ImportIssue } from "@/core/survey/import/delimited";
 import { parseGeoJsonPoints } from "@/core/survey/import/geojson";
 import { approvalHash, buildPlan } from "@/core/survey/view";
@@ -135,7 +135,8 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
   if (doc.data.surveyorUserId && !data.profiles.some((p) => p.user_id === doc.data.surveyorUserId)) {
     return { status: "error", message: "The chosen surveyor hasn't entered their details in this workspace yet." };
   }
-  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: doc.data, note: input.note?.slice(0, 200) ?? null });
+  // Marks for items no longer on the plan are dropped, so none can hold an approval with nothing to check.
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: pruneProvenance(doc.data), note: input.note?.slice(0, 200) ?? null });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };

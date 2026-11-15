@@ -7,10 +7,11 @@
 import { codeOf, codesAreCommonList, lookupCode } from "./codes";
 import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
-import { lotName, unreviewed, type SurveyDocument } from "./document";
+import { legIndex, lotName, unreviewed, type SurveyDocument } from "./document";
 import { TOUCH_TOLERANCE_M, distance, orient, type Point } from "./geometry";
 import type { PlanLots } from "./lots";
 import type { SurveyPoint } from "./parcel";
+import { fmt } from "./units";
 
 export type Severity = "error" | "warning" | "information" | "professional_review";
 
@@ -117,7 +118,11 @@ export function checkSurvey(input: QcInput): Finding[] {
   }
 
   // How the lots fit together.
-  const labels = doc.lots.map(lotName);
+  const unlabelled = doc.lots.filter((l) => !l.label.trim()).length;
+  if (unlabelled > 0) {
+    add({ code: "LOT_LABEL_MISSING", severity: "error", message: unlabelled === 1 ? "A lot has no label." : `${unlabelled} lots have no label.`, target: { kind: "lot" }, action: "Give each lot its letter or number on the Lots step, as it appears in the title.", blocks: ["export", "approval"] });
+  }
+  const labels = doc.lots.map(lotName).filter(Boolean);
   const dup = labels.filter((l, i) => labels.indexOf(l) !== i);
   if (dup.length > 0) {
     add({ code: "LOT_LABEL_DUPLICATE", severity: "error", message: `Two lots have the same label: ${[...new Set(dup)].join(", ")}.`, target: { kind: "lot" }, action: "Give each lot its own label.", blocks: ["export", "approval"] });
@@ -127,6 +132,10 @@ export function checkSurvey(input: QcInput): Finding[] {
   }
   if (input.lots.holes > 0) {
     add({ code: "LOTS_GAP", severity: "error", message: `There ${input.lots.holes === 1 ? "is a gap" : `are ${input.lots.holes} gaps`} between the lots that no lot covers.`, target: { kind: "lot" }, action: "Check the shared legs: neighbouring lots must use the same corners along the leg they share.", blocks: ["export", "approval"] });
+  }
+  if (input.lots.nearDuplicates.length > 0) {
+    const d = input.lots.nearDuplicates[0]!;
+    add({ code: "POINTS_NEAR_DUPLICATE", severity: "professional_review", message: `Corner points ${d.a.pointId} and ${d.b.pointId} are ${fmt(d.distanceM * 1000, 1)} mm apart${input.lots.nearDuplicates.length > 1 ? `, and ${input.lots.nearDuplicates.length - 1} more pairs` : ""}: probably one mark observed twice.`, target: { kind: "lot" }, detail: input.lots.nearDuplicates.map((x) => `${x.a.pointId} and ${x.b.pointId}`).join(", "), action: "Use one point number for the mark in every lot that shares it, so their legs meet.", blocks: ["approval"] });
   }
   if (input.lots.pieces > 1) {
     add({ code: "LOTS_APART", severity: "warning", message: `The lots form ${input.lots.pieces} separate pieces of land.`, target: { kind: "lot" }, action: "If this plan really shows separate lands, describe each in the title; otherwise check the shared corners.", blocks: [] });
@@ -148,8 +157,8 @@ export function checkSurvey(input: QcInput): Finding[] {
   }
   for (const a of doc.adjoining) {
     const lot = doc.lots.find((l) => l.id === a.lot);
-    if (!lot || a.leg >= lot.points.length) {
-      add({ code: "ADJOINING_NO_LEG", severity: "warning", message: `The label "${a.text.slice(0, 40)}" points at a leg the lot no longer has.`, target: { kind: "field", id: "adjoining" }, action: "Choose its lot and leg again.", blocks: [] });
+    if (!lot || legIndex(lot, a.from, a.to) < 0) {
+      add({ code: "ADJOINING_NO_LEG", severity: "error", message: `The label "${a.text.slice(0, 40)}" is beside a leg ${lot ? `lot ${lotName(lot)} no longer has` : "of a lot that's no longer on the plan"}, so it isn't drawn.`, target: { kind: "field", id: "adjoining" }, action: "Choose its lot and leg again on the Lots step, or remove it.", blocks: ["export", "approval"] });
     }
   }
 
@@ -193,7 +202,7 @@ export function checkSurvey(input: QcInput): Finding[] {
   // What the AI filled in, until the surveyor has looked at each item.
   const open = unreviewed(doc);
   if (open.length > 0) {
-    add({ code: "AI_ITEMS_UNREVIEWED", severity: "professional_review", message: `${open.length} ${open.length === 1 ? "item" : "items"} filled in from your description or a photo ${open.length === 1 ? "hasn't" : "haven't"} been checked yet.`, target: { kind: "field", id: "review" }, detail: open.slice(0, 6).join(", ") + (open.length > 6 ? ", and more" : ""), action: "Open Review the draft, and accept, change or remove each item.", blocks: ["approval"] });
+    add({ code: "AI_ITEMS_UNREVIEWED", severity: "professional_review", message: `${open.length} ${open.length === 1 ? "item" : "items"} filled in from your description or a photo ${open.length === 1 ? "hasn't" : "haven't"} been checked yet.`, target: { kind: "field", id: "review" }, detail: open.slice(0, 6).join(", ") + (open.length > 6 ? ", and more" : ""), action: "Mark each one as right, or change it: on the Lots step for lots, roads and adjoining lands, on the Plan step for the title and notes.", blocks: ["approval"] });
   }
 
   if (!doc.surveyorUserId) {

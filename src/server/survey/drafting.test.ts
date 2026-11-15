@@ -104,12 +104,15 @@ describe("drafting from the surveyor's description", () => {
     expect(await draftSurveyPlan(f.deps, { family: "anthropic", create }, { ...common, brief: "lot A" })).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
     expect(await draftSurveyPlan(f.deps, { family: "anthropic", create }, { ...common, brief: "x".repeat(4_001) })).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
     expect(await draftSurveyPlan(f.deps, { family: "anthropic", create }, { ...common, points: [], brief: BRIEF })).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
-    expect(await draftSurveyPlan(fakeDeps("viewer").deps, { family: "anthropic", create }, { ...common, brief: BRIEF })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    const viewer = fakeDeps("viewer");
+    expect(await draftSurveyPlan(viewer.deps, { family: "anthropic", create }, { ...common, brief: BRIEF })).toMatchObject({ ok: false, code: "FORBIDDEN" });
     expect(f.calls).toEqual([]);
+    expect(viewer.calls).toEqual([]);
   });
 
-  it("matches point numbers as whole words", () => {
+  it("matches point numbers as whole words, as written", () => {
     expect(namedPoints("points 12 and 3", SAMPLE_POINTS).map((p) => p.number)).toEqual(["3", "12"]);
+    expect(namedPoints("points BM-1 and 1.5", SAMPLE_POINTS)).toEqual([]);
   });
 });
 

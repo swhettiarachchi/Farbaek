@@ -63,6 +63,25 @@ const shown = (v: unknown): string => {
 };
 const changed = (label: string, a: unknown, b: unknown) => (b === "" || b === null ? `${label} cleared (was ${shown(a)}).` : a === "" || a === null ? `${label} set to ${shown(b)}.` : `${label} changed from ${shown(a)} to ${shown(b)}.`);
 
+/** Pairs items of two versions: by id first, then by name among the rest. */
+function pair<T extends { id: string }>(before: readonly T[], after: readonly T[], name: (x: T) => string): { matched: [T, T][]; added: T[]; removed: T[] } {
+  const left = [...before];
+  const matched: [T, T][] = [];
+  const added: T[] = [];
+  const pending: T[] = [];
+  for (const x of after) {
+    const i = left.findIndex((y) => y.id === x.id);
+    if (i >= 0) matched.push([left.splice(i, 1)[0]!, x]);
+    else pending.push(x);
+  }
+  for (const x of pending) {
+    const i = left.findIndex((y) => name(y) === name(x));
+    if (i >= 0) matched.push([left.splice(i, 1)[0]!, x]);
+    else added.push(x);
+  }
+  return { matched, added, removed: left };
+}
+
 /** The changes from `before` to `after`, in reading order. */
 export function compareDocuments(before: SurveyDocument, after: SurveyDocument, points: readonly SurveyPoint[]): Change[] {
   const out: Change[] = [];
@@ -70,55 +89,43 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   const numbers = new Map(points.map((p) => [p.id, p.pointId]));
   const ring = (ids: readonly string[]) => ids.map((id) => numbers.get(id) ?? "?").join(" ");
 
-  // Lots, matched by their label as written on the plan.
-  const lotsBefore = new Map(before.lots.map((l) => [lotName(l), l]));
-  const lotsAfter = new Map(after.lots.map((l) => [lotName(l), l]));
-  for (const [name, l] of lotsAfter) {
-    const was = lotsBefore.get(name);
-    if (!was) add("Lots", `Lot ${name} added, corners ${ring(l.points)}.`);
-    else {
-      if (ring(was.points) !== ring(l.points)) add("Lots", `Lot ${name}'s corners changed from ${ring(was.points)} to ${ring(l.points)}.`);
-      if (was.note !== l.note) add("Lots", changed(`Lot ${name}'s note`, was.note, l.note));
-    }
+  // Lots, roads and adjoining lands are matched by id, then by name: a redraft that renumbers ids still reads as the same lot.
+  const lotTitle = (l: SurveyDocument["lots"][number]) => lotName(l) || "without a label";
+  const lots = pair(before.lots, after.lots, lotTitle);
+  for (const [was, l] of lots.matched) {
+    const name = lotTitle(l);
+    if (lotTitle(was) !== name) add("Lots", `Lot ${lotTitle(was)} is now lot ${name}.`);
+    if (ring(was.points) !== ring(l.points)) add("Lots", `Lot ${name}'s corners changed from ${ring(was.points)} to ${ring(l.points)}.`);
+    if (was.note !== l.note) add("Lots", changed(`Lot ${name}'s note`, was.note, l.note));
   }
-  for (const name of lotsBefore.keys()) if (!lotsAfter.has(name)) add("Lots", `Lot ${name} removed.`);
+  for (const l of lots.added) add("Lots", `Lot ${lotTitle(l)} added, corners ${ring(l.points)}.`);
+  for (const l of lots.removed) add("Lots", `Lot ${lotTitle(l)} removed.`);
 
-  // Roads, by name (or id when unnamed).
-  const roadKey = (r: SurveyDocument["roads"][number]) => r.name.trim() || r.id;
-  const roadsBefore = new Map(before.roads.map((r) => [roadKey(r), r]));
-  const roadsAfter = new Map(after.roads.map((r) => [roadKey(r), r]));
-  for (const [name, r] of roadsAfter) {
-    const was = roadsBefore.get(name);
-    if (!was) add("Roads", `${name} added, along ${ring(r.edgeA)}${r.edgeB.length ? ` and ${ring(r.edgeB)}` : ""}.`);
-    else {
-      if (ring(was.edgeA) !== ring(r.edgeA) || ring(was.edgeB) !== ring(r.edgeB)) add("Roads", `${name}'s edges changed to ${ring(r.edgeA)}${r.edgeB.length ? ` and ${ring(r.edgeB)}` : ""}.`);
-      if (was.width !== r.width) add("Roads", `${name}'s width is now written ${r.width === "none" ? "nowhere" : `in ${r.width}`}.`);
-      if (was.start !== r.start || was.end !== r.end) add("Roads", `${name}'s direction texts changed.`);
-    }
+  const roadTitle = (r: SurveyDocument["roads"][number]) => r.name.trim() || "A road without a name";
+  const roads = pair(before.roads, after.roads, roadTitle);
+  for (const [was, r] of roads.matched) {
+    const name = roadTitle(r);
+    if (roadTitle(was) !== name) add("Roads", `${roadTitle(was)} is now called ${name}.`);
+    if (ring(was.edgeA) !== ring(r.edgeA) || ring(was.edgeB) !== ring(r.edgeB)) add("Roads", `${name}'s edges changed to ${ring(r.edgeA)}${r.edgeB.length ? ` and ${ring(r.edgeB)}` : ""}.`);
+    if (was.width !== r.width) add("Roads", `${name}'s width is now written ${r.width === "none" ? "nowhere" : `in ${r.width}`}.`);
+    if (was.start !== r.start || was.end !== r.end) add("Roads", `${name}'s direction texts changed.`);
   }
-  for (const name of roadsBefore.keys()) if (!roadsAfter.has(name)) add("Roads", `${name} removed.`);
+  for (const r of roads.added) add("Roads", `${roadTitle(r)} added, along ${ring(r.edgeA)}${r.edgeB.length ? ` and ${ring(r.edgeB)}` : ""}.`);
+  for (const r of roads.removed) add("Roads", `${roadTitle(r)} removed.`);
 
-  // Adjoining lands, by their text; where they sit, by lot label and leg.
-  const lotLabel = (doc: SurveyDocument, id: string) => {
-    const l = doc.lots.find((x) => x.id === id);
-    return l ? lotName(l) : "?";
-  };
   const where = (doc: SurveyDocument, a: SurveyDocument["adjoining"][number]) => {
     const l = doc.lots.find((x) => x.id === a.lot);
     if (!l) return "a lot that's no longer on the plan";
-    const from = numbers.get(l.points[a.leg] ?? "") ?? "?";
-    const to = numbers.get(l.points[(a.leg + 1) % l.points.length] ?? "") ?? "?";
-    return `lot ${lotName(l)} between ${from} and ${to}`;
+    return `lot ${lotTitle(l)} between ${numbers.get(a.from) ?? "?"} and ${numbers.get(a.to) ?? "?"}`;
   };
-  const adjBefore = new Map(before.adjoining.map((a) => [a.text, a]));
-  const adjAfter = new Map(after.adjoining.map((a) => [a.text, a]));
-  for (const [text, a] of adjAfter) {
-    const was = adjBefore.get(text);
-    if (!was) add("Adjoining lands", `${short(text)} added, beside ${where(after, a)}.`);
-    else if (!after.lots.some((l) => l.id === a.lot)) add("Adjoining lands", `${short(text)} is left beside a lot that's no longer on the plan.`);
-    else if (where(before, was) !== where(after, a)) add("Adjoining lands", `${short(text)} moved to ${where(after, a)}.`);
+  const adj = pair(before.adjoining, after.adjoining, (x) => x.text);
+  for (const [was, a] of adj.matched) {
+    if (was.text !== a.text) add("Adjoining lands", changed(`The label beside ${where(after, a)}`, was.text, a.text));
+    if (!after.lots.some((l) => l.id === a.lot)) add("Adjoining lands", `${short(a.text)} is left beside a lot that's no longer on the plan.`);
+    else if (where(before, was) !== where(after, a)) add("Adjoining lands", `${short(a.text)} moved to ${where(after, a)}.`);
   }
-  for (const text of adjBefore.keys()) if (!adjAfter.has(text)) add("Adjoining lands", `${short(text)} removed.`);
+  for (const a of adj.added) add("Adjoining lands", `${short(a.text)} added, beside ${where(after, a)}.`);
+  for (const a of adj.removed) add("Adjoining lands", `${short(a.text)} removed.`);
 
   // Lines and outlines, counted by code.
   const featureCount = (doc: SurveyDocument) => {
@@ -150,7 +157,7 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   for (const key of Object.keys(SIDES) as (keyof SheetFields["boundaries"])[]) {
     if (before.sheet.boundaries[key] !== after.sheet.boundaries[key]) add("Title", changed(SIDES[key], before.sheet.boundaries[key], after.sheet.boundaries[key]));
   }
-  if (before.sheet.extractOf !== after.sheet.extractOf) add("Sheet", after.sheet.extractOf ? `Now an extract of lot ${lotLabel(after, after.sheet.extractOf)}.` : "No longer an extract: the whole plan.");
+  if (before.sheet.extractOf !== after.sheet.extractOf) add("Sheet", after.sheet.extractOf ? `Now an extract of lot ${(() => { const l = after.lots.find((x) => x.id === after.sheet.extractOf); return l ? lotTitle(l) : "?"; })()}.` : "No longer an extract: the whole plan.");
   if (before.surveyorUserId !== after.surveyorUserId) add("Title", after.surveyorUserId ? "The responsible surveyor changed." : "No surveyor is chosen now.");
 
   // Sheet settings and presentation.
@@ -176,10 +183,14 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   for (const n of after.notes) if (!before.notes.includes(n)) add("Notes", `Added: ${short(n)}`);
   for (const n of before.notes) if (!after.notes.includes(n)) add("Notes", `Removed: ${short(n)}`);
 
-  // AI-filled items the surveyor checked, or that arrived.
+  // Items filled in by the AI: new ones, ones checked since, and ones that need checking again.
+  const ai = (p: { source: string }) => p.source !== "engine";
+  const arrived = Object.entries(after.provenance).filter(([k, p]) => ai(p) && !before.provenance[k]);
+  const arrivedChecked = arrived.filter(([, p]) => p.reviewed).length;
   const checkedNow = Object.entries(after.provenance).filter(([k, p]) => p.reviewed && before.provenance[k] && !before.provenance[k]!.reviewed).length;
-  const arrived = Object.entries(after.provenance).filter(([k, p]) => !p.reviewed && p.source !== "engine" && !before.provenance[k]).length;
-  if (arrived > 0) add("Checks", `${arrived} ${arrived === 1 ? "item was" : "items were"} filled in by the AI, waiting to be checked.`);
+  const again = Object.entries(after.provenance).filter(([k, p]) => ai(p) && !p.reviewed && before.provenance[k]?.reviewed).length;
+  if (arrived.length > 0) add("Checks", `${arrived.length} ${arrived.length === 1 ? "item was" : "items were"} filled in by the AI${arrivedChecked === arrived.length ? ", all checked" : arrivedChecked > 0 ? `, ${arrivedChecked} of them checked` : ", waiting to be checked"}.`);
   if (checkedNow > 0) add("Checks", `${checkedNow} ${checkedNow === 1 ? "item filled in by the AI was" : "items filled in by the AI were"} checked.`);
+  if (again > 0) add("Checks", `${again} ${again === 1 ? "item needs" : "items need"} checking again.`);
   return out;
 }

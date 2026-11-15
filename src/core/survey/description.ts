@@ -24,7 +24,7 @@ const orBlank = (s: string) => (s.trim() ? s.trim() : BLANK);
 
 /** "B¹" as runs: the label, then its raised part. */
 export function lotRuns(lot: Pick<Lot, "label" | "sup" | "note">, withNote = true): Run[] {
-  const runs: Run[] = [plain(lot.label)];
+  const runs: Run[] = [plain(lot.label.trim() || BLANK)];
   if (lot.sup) runs.push({ text: lot.sup, style: "sup" });
   if (withNote && lot.note.trim()) runs.push(plain(`(${lot.note.trim()})`));
   return runs;

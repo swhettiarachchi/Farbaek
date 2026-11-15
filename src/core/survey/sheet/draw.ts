@@ -14,7 +14,7 @@ import type { Point } from "../geometry";
 import type { PlanLots } from "../lots";
 import type { SurveyPoint } from "../parcel";
 import { roadCentreline, roadWidth } from "../roads";
-import { STANDARD_SCALES } from "../document";
+import { STANDARD_SCALES, legIndex } from "../document";
 import { fmt, roundTo } from "../units";
 import { advanceWidth, textWidth, toPage, wrap, type SceneColor, type SceneItem, type SceneLayer, type SceneText, type Viewport } from "./scene";
 
@@ -57,9 +57,18 @@ export interface DrawCtx {
   /** Degrees of lean for slanted lettering, or 0. */
   slant: number;
   placer: Placer;
+  /** Where drawing text may go on the page (x0, y0, x1, y1): inside the frame and clear of the title block. */
+  bounds: [number, number, number, number] | null;
+  /** Lots whose label is bigger than the lot at this scale (still written inside it), for the checks. */
+  cramped: string[];
+  /** Texts that found no place inside the bounds, for the checks. */
+  outside: string[];
 }
 
 export const visible = (doc: SurveyDocument, l: LayerId) => doc.layers[l]?.visible !== false;
+
+/** Whether a box lies inside the context's bounds (always, when there are none). */
+export const inBounds = (ctx: DrawCtx, q: Quad) => !ctx.bounds || q.every(([x, y]) => x >= ctx.bounds![0] && x <= ctx.bounds![2] && y >= ctx.bounds![1] && y <= ctx.bounds![3]);
 export const atPage = (ctx: DrawCtx, p: Point) => toPage(ctx.v, p.e, p.n);
 
 /** A text item, nudged by the surveyor's saved offset for its entity. */
@@ -195,17 +204,73 @@ export function drawLotLabels(ctx: DrawCtx, lots: PlanLots, opts: { extentUnder:
     const extent = !minor && opts.extentUnder ? opts.extentUnder(p.areaM2) : null;
     const w = Math.max(textWidth(base, size) + (r.lot.sup ? textWidth(r.lot.sup, size * 0.62) : 0), extent ? textWidth(extent, ctx.sizes.body) : 0);
     const h = size * 1.1 + (extent ? ctx.sizes.body * 1.4 : 0);
+    if (!r.lot.label.trim()) continue;
     const [cx0, cy0] = atPage(ctx, p.labelAt);
+    // Positions to try: round the centre of gravity, then points across the whole lot, deepest inside first.
     const candidates: [number, number][] = [[cx0, cy0]];
     for (const rad of [3, 6, 9, 13, 18]) for (let k = 0; k < 8; k++) candidates.push([cx0 + Math.cos((k * Math.PI) / 4) * rad, cy0 + Math.sin((k * Math.PI) / 4) * rad]);
+    const deep = interiorSamples(ring);
+    candidates.push(...deep);
     const box = (x: number, y: number): Quad => [[x - w / 2, y - h / 2], [x + w / 2, y - h / 2], [x + w / 2, y + h / 2], [x - w / 2, y + h / 2]];
     const within = (x: number, y: number) => box(x, y).every(([qx, qy]) => insidePage(qx, qy, ring));
-    const [cx, cy] = candidates.find(([x, y]) => within(x, y) && ctx.placer.free(box(x, y))) ?? [cx0, cy0];
+    const fits = candidates.find(([x, y]) => within(x, y) && ctx.placer.free(box(x, y))) ?? candidates.find(([x, y]) => within(x, y));
+    // A label never sits outside its own lot: if it can't fit, it goes at the point deepest inside, and the checks say so.
+    const fallback = insidePage(cx0, cy0, ring) ? ([cx0, cy0] as [number, number]) : (deep[0] ?? ([cx0, cy0] as [number, number]));
+    if (!fits) ctx.cramped.push(`${r.lot.label}${r.lot.sup}`);
+    const [cx, cy] = fits ?? fallback;
     const top = cy - h / 2;
     supLabel(ctx, "LOT_TEXT", `lot:${r.lot.id}`, cx, top + size * 0.95, base, r.lot.sup, size, "regular");
     if (extent) text(ctx, "LOT_TEXT", `lot-extent:${r.lot.id}`, cx, top + size * 1.1 + ctx.sizes.body * 1.15, extent, ctx.sizes.body);
     ctx.placer.add(box(cx, cy));
   }
+}
+
+/**
+ * Points inside a ring, the farthest from its legs first: where a label has
+ * the most room. Taken as the middles of the spans that horizontal and
+ * vertical lines cut through the ring, so even a narrow strip (an access
+ * reservation) gets points, which a grid can step over.
+ */
+function interiorSamples(ring: [number, number][]): [number, number][] {
+  const xs = ring.map((p) => p[0]);
+  const ys = ring.map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const out: { p: [number, number]; d: number }[] = [];
+  const spans = (axis: 0 | 1, at: number): [number, number][] => {
+    const cuts: number[] = [];
+    for (let k = 0; k < ring.length; k++) {
+      const a = ring[k]!;
+      const b = ring[(k + 1) % ring.length]!;
+      const [ua, va, ub, vb] = axis === 0 ? [a[0], a[1], b[0], b[1]] : [a[1], a[0], b[1], b[0]];
+      if (va > at !== vb > at) cuts.push(ua + ((at - va) * (ub - ua)) / (vb - va));
+    }
+    cuts.sort((p, q) => p - q);
+    const mids: [number, number][] = [];
+    for (let k = 0; k + 1 < cuts.length; k += 2) {
+      const m = (cuts[k]! + cuts[k + 1]!) / 2;
+      mids.push(axis === 0 ? [m, at] : [at, m]);
+    }
+    return mids;
+  };
+  const n = 40;
+  const points: [number, number][] = [];
+  for (let i = 1; i < n; i++) {
+    points.push(...spans(0, y0 + ((y1 - y0) * i) / n), ...spans(1, x0 + ((x1 - x0) * i) / n));
+  }
+  for (const [x, y] of points) {
+    {
+      let d = Infinity;
+      for (let k = 0; k < ring.length; k++) {
+        const [ax, ay] = ring[k]!;
+        const [bx, by] = ring[(k + 1) % ring.length]!;
+        const L = (bx - ax) ** 2 + (by - ay) ** 2 || 1;
+        const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / L));
+        d = Math.min(d, Math.hypot(x - (ax + t * (bx - ax)), y - (ay + t * (by - ay))));
+      }
+      out.push({ p: [x, y], d });
+    }
+  }
+  return out.sort((a, b) => b.d - a.d).map((o) => o.p);
 }
 
 /** Ray-casting point-in-polygon on page coordinates. */
@@ -388,8 +453,11 @@ export function drawAdjoining(ctx: DrawCtx, adjoining: readonly Adjoining[], lot
     const r = lots.lots.find((l) => l.lot.id === adj.lot);
     const p = r?.parcel;
     if (!p || p.vertices.length < 3) continue;
-    const a = p.vertices[adj.leg % p.vertices.length]!;
-    const b = p.vertices[(adj.leg + 1) % p.vertices.length]!;
+    // A label whose leg the lot no longer has isn't drawn anywhere: the checks say so and stop the export.
+    const k = legIndex(r.lot, adj.from, adj.to);
+    if (k < 0) continue;
+    const a = p.vertices[k]!;
+    const b = p.vertices[(k + 1) % p.vertices.length]!;
     const [x1, y1] = atPage(ctx, a);
     const [x2, y2] = atPage(ctx, b);
     const ring = p.vertices.map((v) => atPage(ctx, v));
@@ -406,6 +474,7 @@ export function drawAdjoining(ctx: DrawCtx, adjoining: readonly Adjoining[], lot
     const ux = (x2 - x1) / len;
     const uy = (y2 - y1) / len;
     let chosen: [number, number] | null = null;
+    let firstInBounds: [number, number] | null = null;
     for (const dist of [3, 6, 10, 15, 21]) {
       for (const shift of [0, 0.25, -0.25]) {
         // The block's centre, far enough out that its nearest side clears the leg.
@@ -413,6 +482,8 @@ export function drawAdjoining(ctx: DrawCtx, adjoining: readonly Adjoining[], lot
         const cx = mx + ux * shift * len + nx * reach;
         const cy = my + uy * shift * len + ny * reach;
         const q: Quad = [[cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]];
+        if (!inBounds(ctx, q)) continue;
+        firstInBounds ??= [cx, cy];
         if (ctx.placer.free(q)) {
           chosen = [cx, cy];
           break;
@@ -420,7 +491,20 @@ export function drawAdjoining(ctx: DrawCtx, adjoining: readonly Adjoining[], lot
       }
       if (chosen) break;
     }
-    const [cx, cy] = chosen ?? [mx + nx * (6 + w / 2), my + ny * (6 + h / 2)];
+    // No room for a block beside the leg: write it along the leg, outside the lot, as surveyors do on side legs.
+    if (!chosen) {
+      const along = alongLeg(ctx, adj.text, size, [x1, y1], [x2, y2], [nx, ny]);
+      if (along) {
+        for (const t of along) {
+          text(ctx, "ADJOINING", `adjoining:${adj.id}`, t.x, t.y, t.text, size, { rotate: t.rotate });
+          ctx.placer.add(textQuad(t));
+        }
+        continue;
+      }
+    }
+    const fallback: [number, number] = [mx + nx * (6 + w / 2), my + ny * (6 + h / 2)];
+    if (!chosen && !firstInBounds) ctx.outside.push(adj.text);
+    const [cx, cy] = chosen ?? firstInBounds ?? fallback;
     let ty = cy - h / 2;
     for (const line of lines) {
       ty += size * 1.25;
@@ -442,6 +526,37 @@ export function drawAdjoining(ctx: DrawCtx, adjoining: readonly Adjoining[], lot
       ctx.out.push({ kind: "path", points: [[ex, ey], [ex + ax * 1.6 - ay * 0.5, ey + ay * 1.6 + ax * 0.5], [ex + ax * 1.6 + ay * 0.5, ey + ay * 1.6 - ax * 0.5]], closed: true, width: ctx.lines.thin, color: "ink", fill: "ink", layer: "ADJOINING", entity: `adjoining:${adj.id}` });
     }
   }
+}
+
+/**
+ * An adjoining-land label written along its leg, just outside the lot, read
+ * left to right (or bottom to top), wrapped to the leg's length. Null when no
+ * offset keeps it inside the bounds and clear of what's drawn.
+ */
+function alongLeg(ctx: DrawCtx, value: string, size: number, [x1, y1]: [number, number], [x2, y2]: [number, number], [nx, ny]: [number, number]): SceneText[] | null {
+  const len = Math.hypot(x2 - x1, y2 - y1);
+  if (len < size * 4) return null;
+  let angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+  if (angle > 90) angle -= 180;
+  if (angle <= -90) angle += 180;
+  const rad = (angle * Math.PI) / 180;
+  const [c, s] = [Math.cos(rad), Math.sin(rad)];
+  const lines = wrap(value, size, len * 0.95);
+  // The text's "up" is (s, -c) on the page; when the outside of the lot is up, the first line goes farthest out.
+  const outIsUp = nx * s - ny * c > 0;
+  const [mx, my] = [(x1 + x2) / 2, (y1 + y2) / 2];
+  for (const dist of [1.2, 2.5, 4, 6]) {
+    const items: SceneText[] = lines.map((line, k) => {
+      const row = outIsUp ? lines.length - 1 - k : k;
+      const off = dist + size * 0.46 + row * size * 1.25;
+      const [cx, cy] = [mx + nx * off, my + ny * off];
+      // A line's visual middle sits 0.26 of its size above its baseline.
+      return { kind: "text", x: cx - 0.26 * size * s, y: cy + 0.26 * size * c, text: line, size, rotate: angle, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer: "ADJOINING" };
+    });
+    const quads = items.map(textQuad);
+    if (quads.every((q) => inBounds(ctx, q) && ctx.placer.free(q))) return items;
+  }
+  return null;
 }
 
 /** The tall needle north arrow seen on Sri Lankan plans: a thin arrow with its head filled on one side and an N worked across the shaft. */

@@ -1,14 +1,16 @@
 /**
  * The AI drafting contract (ADR 0202): synthetic briefs only. The model's
  * output is faked here; what's tested is the deterministic check that decides
- * what of it may enter a plan.
+ * what of it may enter a plan, and how the surveyor's review applies.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { acceptDraft, DraftOutputSchema, fold, isoDateOf, mentions, quotes, type DraftOutput } from "./ai-draft";
-import { unreviewed } from "./document";
+import { acceptDraft, applyReview, DraftOutputSchema, fold, hasPhrase, isoDateOf, itemsInReview, quotes, rawTokens, type DraftOutput } from "./ai-draft";
+import { emptyDocument, unreviewed, type SurveyDocument } from "./document";
 import { sampleDocument, SAMPLE_POINTS } from "./fixtures";
-import { emptyDocument } from "./document";
+import type { SurveyPoint } from "./parcel";
+
+const id = (n: number | string) => SAMPLE_POINTS.find((p) => p.pointId === String(n))!.id;
 
 const BRIEF = [
   "Sub division of lot B depicted in Plan No. SAMPLE-0 dated 15.01.2020 made by A. Sample, Licensed Surveyor.",
@@ -48,29 +50,30 @@ function goodDraft(): DraftOutput {
   };
 }
 
-const accept = (output: DraftOutput, source: "ai_brief" | "ai_photo" = "ai_brief", brief = BRIEF, document = emptyDocument()) => acceptDraft(output, { document, points: SAMPLE_POINTS, source, brief });
+const accept = (output: DraftOutput, source: "ai_brief" | "ai_photo" = "ai_brief", brief = BRIEF, document = emptyDocument(), points: readonly SurveyPoint[] = SAMPLE_POINTS) => acceptDraft(output, { document, points, source, brief });
+const why = (r: ReturnType<typeof accept>) => r.dropped.map((d) => `${d.what}: ${d.why}`);
 
-describe("folding and quoting", () => {
-  it("matches a quote however it was typed", () => {
-    expect(fold("  Lot  B¹’s “corner”,  POINT 12A ")).toBe(fold("lot b¹ s corner point 12a"));
+describe("folding, quoting and words", () => {
+  it("matches a quote however it was typed, but only as whole words", () => {
+    expect(fold("  Lot  B¹’s “corner”,  POINT 12A ")).toBe(fold("lot b1 s corner point 12a"));
     expect(quotes(BRIEF, "lot b2 is points 7 8 5 and 6")).toBe(true);
-    expect(quotes(BRIEF, "Lot B4 is points 1 2 3")).toBe(false);
+    expect(quotes("Plan No. 12345", "Plan No. 1234")).toBe(false);
+    expect(quotes("Lot B12 is points 1 2 3 45", "Lot B12 is points 1 2 3 4")).toBe(false);
     expect(quotes(BRIEF, "")).toBe(false);
     expect(quotes(BRIEF, "a")).toBe(false);
+    expect(hasPhrase("lot B12", "B1")).toBe(false);
   });
 
-  it("finds point numbers and labels only as words of their own", () => {
-    expect(mentions("points 1 2 3 8 7", "8")).toBe(true);
-    expect(mentions("points 12 13", "1")).toBe(false);
-    expect(mentions("lot B1", "B1")).toBe(true);
-    expect(mentions("lot B12", "B1")).toBe(false);
+  it("keeps point numbers whole: BM-1 is not point 1", () => {
+    expect(rawTokens("points BM-1, 2 and (4).")).toEqual(["points", "BM-1", "2", "and", "4"]);
   });
 
-  it("reads dates as written into yyyy-mm-dd, and leaves anything else alone", () => {
+  it("reads only whole calendar dates", () => {
     expect(isoDateOf("15.01.2020")).toBe("2020-01-15");
     expect(isoDateOf("5/1/2020")).toBe("2020-01-05");
     expect(isoDateOf("2020-1-5")).toBe("2020-01-05");
-    expect(isoDateOf("January 2020")).toBe("January 2020");
+    expect(isoDateOf("January 2020")).toBeNull();
+    expect(isoDateOf("31.02.2020")).toBeNull();
   });
 });
 
@@ -81,84 +84,102 @@ describe("the output the model fills", () => {
     expect(json).not.toMatch(/"(area|distance|bearing|scale|extent|width|length)"\s*:/i);
   });
 
-  it("drops anything outside the schema and refuses unknown fields", () => {
-    const parsed = DraftOutputSchema.parse({ ...empty(), lots: [{ label: "B", sup: "1", note: "", corners: ["1"], evidence: "x", areaM2: 100 }] });
+  it("has no length limits that would fail a whole draft for one long quote, and drops anything extra", () => {
+    const parsed = DraftOutputSchema.parse({ ...empty(), lots: [{ label: "B", sup: "1", note: "", corners: ["1"], evidence: "x".repeat(5000), areaM2: 100 }] });
     expect(parsed.lots[0]).not.toHaveProperty("areaM2");
     expect(DraftOutputSchema.safeParse({ ...empty(), fields: [{ field: "computedArea", value: "1", evidence: "x" }] }).success).toBe(false);
   });
 });
 
 describe("accepting a draft from a brief", () => {
-  it("takes everything the brief says, marked for the surveyor to check", () => {
+  it("takes everything the brief says, under fresh ids, marked for the surveyor to check", () => {
     const r = accept(goodDraft());
     expect(r.dropped).toEqual([]);
     expect(r.document.lots.map((l) => `${l.label}${l.sup}`)).toEqual(["B1", "B2", "B3"]);
-    expect(r.document.lots[0]!.points).toEqual(["1", "2", "3", "8", "7"].map((n) => SAMPLE_POINTS.find((p) => p.pointId === n)!.id));
+    expect(r.document.lots[0]!.points).toEqual(["1", "2", "3", "8", "7"].map(id));
     expect(r.document.roads).toHaveLength(1);
-    expect(r.document.roads[0]!.width).toBe("feet");
-    // Lot B2 runs 7, 8, 5, 6: the leg from 6 to 7 is its fourth.
-    expect(r.document.adjoining).toEqual([{ id: "adj-0", text: "Land claimed by the sample owner", lot: r.document.lots[1]!.id, leg: 3 }]);
+    expect(r.document.adjoining).toEqual([{ id: expect.any(String), text: "Land claimed by the sample owner", lot: r.document.lots[1]!.id, from: id(6), to: id(7) }]);
     const s = r.document.sheet;
     expect(s.operation).toBe("subdivision");
     expect(s.previousPlan).toMatchObject({ number: "SAMPLE-0", date: "2020-01-15", by: "A. Sample", byDesignation: "Licensed Surveyor" });
     expect(s.landName).toBe("SAMPLE WATTA");
-    expect(s.boundaries.north).toBe("Land of the sample neighbour");
     expect(s.surveyDate).toBe("2026-11-15");
     expect(r.questions).toEqual(["Which district and province is the land in?"]);
-    // Every item waits for the surveyor; nothing is reviewed on their behalf.
-    const open = unreviewed(r.document);
-    expect(open).toContain(`lot:${r.document.lots[0]!.id}`);
-    expect(open).toContain("sheet.landName");
-    expect(open).toContain("sheet.previousPlan");
+    // One mark per value: checking the earlier plan's number never checks its date.
+    expect(Object.keys(r.document.provenance)).toEqual(expect.arrayContaining(["sheet.previousPlan.number", "sheet.previousPlan.date", "sheet.previousPlan.by"]));
+    expect(unreviewed(r.document)).toHaveLength(r.accepted.length);
     expect(Object.values(r.document.provenance).every((p) => p.source === "ai_brief" && !p.reviewed)).toBe(true);
   });
 
-  it("drops a field whose quote isn't in the brief", () => {
-    const d = goodDraft();
-    d.fields = [{ field: "landName", value: "Imaginary Estate", evidence: "called Imaginary Estate" }];
-    const r = accept(d);
-    expect(r.document.sheet.landName).toBe("");
-    expect(r.dropped).toEqual([{ what: "Land called", why: "It isn't in your description's words." }]);
-  });
-
-  it("drops a value its own quote doesn't support", () => {
-    const d = goodDraft();
-    d.fields = [
-      { field: "landName", value: "Other Watta", evidence: "called Sample Watta" },
-      { field: "district", value: "Sample", evidence: "at Sample Village" },
-    ];
-    const r = accept(d);
-    expect(r.document.sheet.landName).toBe("");
-    // "Sample" is in the quote: the words are the surveyor's, the field is for them to check.
-    expect(r.document.sheet.district).toBe("Sample");
-    expect(r.dropped.map((x) => x.what)).toEqual(["Land called"]);
-  });
-
-  it("refuses a point the project doesn't have", () => {
-    const d = { ...empty(), lots: [{ label: "C", sup: "", note: "", corners: ["1", "2", "99"], evidence: "Lot C is points 1 2 99" }] };
-    const r = accept(d, "ai_brief", "Lot C is points 1 2 99");
+  it("drops a quote that isn't in the brief, even as part of a longer word", () => {
+    const r = accept({ ...empty(), lots: [{ label: "C", sup: "", note: "", corners: ["1", "2", "4", "1"], evidence: "Lot C is points 1 2 4 1" }] }, "ai_brief", "Lot C is points 1 2 4 16");
     expect(r.document.lots).toEqual([]);
-    expect(r.dropped).toEqual([{ what: "Lot C", why: "Point 99 isn't in this project." }]);
+    const f = accept({ ...empty(), fields: [{ field: "planNumber", value: "1234", evidence: "Plan No. 1234" }] }, "ai_brief", "Plan No. 12345");
+    expect(f.document.sheet.planNumber).toBe("");
   });
 
-  it("refuses corners the brief didn't name", () => {
-    const d = goodDraft();
-    d.lots = [{ label: "B", sup: "1", note: "", corners: ["1", "2", "3", "4"], evidence: "Lot B1 is points 1 2 3 8 7" }];
-    const r = accept(d);
+  it("drops a value that isn't one phrase of its quote", () => {
+    const brief = "North by land of A. Sample. East by land of K. Other.";
+    const r = accept({ ...empty(), fields: [{ field: "boundaryNorth", value: "Land of K. Sample", evidence: brief }] }, "ai_brief", brief);
+    expect(r.document.sheet.boundaries.north).toBe("");
+    expect(why(r)).toEqual(["North by: It isn't in your description's words."]);
+  });
+
+  it("refuses a raised part or a note the brief doesn't write", () => {
+    const brief = "Lot B is points 1 2 4 6";
+    const sup = accept({ ...empty(), lots: [{ label: "B", sup: "7", note: "", corners: ["1", "2", "4", "6"], evidence: brief }] }, "ai_brief", brief);
+    expect(sup.document.lots).toEqual([]);
+    const note = accept({ ...empty(), lots: [{ label: "B", sup: "", note: "Res. for Access, 20ft. wide", corners: ["1", "2", "4", "6"], evidence: brief }] }, "ai_brief", brief);
+    expect(note.document.lots.map((l) => [l.label, l.note])).toEqual([["B", ""]]);
+    expect(why(note)).toEqual(["Lot B's note: It isn't in your description's words."]);
+  });
+
+  it("takes corners only as the brief lists them, from any corner, and never skipped or reordered", () => {
+    const run = (corners: string[]) => accept({ ...empty(), lots: [{ label: "B", sup: "1", note: "", corners, evidence: "Lot B1 is points 1 2 3 8 7" }] }).document.lots.length;
+    expect(run(["2", "3", "8", "7", "1"])).toBe(1);
+    expect(run(["1", "2", "3", "7"])).toBe(0);
+    expect(run(["1", "3", "2", "8", "7"])).toBe(0);
+  });
+
+  it("never reads BM-1 as point 1", () => {
+    const points = [...SAMPLE_POINTS, { id: "00000000-0000-4000-8000-000000000099", pointId: "BM-1", e: 499_990, n: 599_990, z: null, code: null }];
+    const r = accept({ ...empty(), lots: [{ label: "C", sup: "", note: "", corners: ["1", "2", "4"], evidence: "Lot C is points BM-1 2 4" }] }, "ai_brief", "Lot C is points BM-1 2 4", emptyDocument(), points);
     expect(r.document.lots).toEqual([]);
-    expect(r.dropped[0]!.what).toBe("Lot B1");
   });
 
-  it("refuses a ring that crosses itself or repeats a corner", () => {
+  it("sets the kind of survey and 'my own plan' only when the words say so", () => {
+    const brief = "Lot A is points 1 2 4 6. Depicted in Plan No. 77.";
+    const r = accept(
+      {
+        ...empty(),
+        fields: [
+          { field: "operation", value: "amalgamation", evidence: "Lot A is points" },
+          { field: "previousPlanMine", value: "yes", evidence: "Depicted in Plan No. 77" },
+        ],
+      },
+      "ai_brief",
+      brief,
+    );
+    expect(r.document.sheet.operation).toBe("resurvey");
+    expect(r.document.sheet.previousPlan.mine).toBe(false);
+    const mine = accept({ ...empty(), fields: [{ field: "previousPlanMine", value: "yes", evidence: "depicted in my Plan No. 77" }] }, "ai_brief", "Lot A depicted in my Plan No. 77.");
+    expect(mine.document.sheet.previousPlan.mine).toBe(true);
+  });
+
+  it("refuses a point the project doesn't have, a ring that crosses itself or repeats a corner", () => {
+    expect(why(accept({ ...empty(), lots: [{ label: "C", sup: "", note: "", corners: ["1", "2", "99"], evidence: "Lot C is points 1 2 99" }] }, "ai_brief", "Lot C is points 1 2 99"))).toEqual(["Lot C: Its corners aren't the points your description lists for it, in that order."]);
     const brief = "Lot X is points 1 4 2 6. Lot Y is points 1 2 3 2.";
-    const d = {
-      ...empty(),
-      lots: [
-        { label: "X", sup: "", note: "", corners: ["1", "4", "2", "6"], evidence: "Lot X is points 1 4 2 6" },
-        { label: "Y", sup: "", note: "", corners: ["1", "2", "3", "2"], evidence: "Lot Y is points 1 2 3 2" },
-      ],
-    };
-    const r = accept(d, "ai_brief", brief);
+    const r = accept(
+      {
+        ...empty(),
+        lots: [
+          { label: "X", sup: "", note: "", corners: ["1", "4", "2", "6"], evidence: "Lot X is points 1 4 2 6" },
+          { label: "Y", sup: "", note: "", corners: ["1", "2", "3", "2"], evidence: "Lot Y is points 1 2 3 2" },
+        ],
+      },
+      "ai_brief",
+      brief,
+    );
     expect(r.document.lots).toEqual([]);
     expect(r.dropped.map((x) => x.why)).toEqual(["Its corners in this order make the boundary cross itself.", "It names point 2 twice."]);
   });
@@ -168,72 +189,117 @@ describe("accepting a draft from a brief", () => {
     d.lots.push({ ...d.lots[0]! });
     const r = accept(d);
     expect(r.document.lots).toHaveLength(3);
-    expect(r.dropped).toEqual([{ what: "Lot B1", why: "The draft named it twice; the first is kept." }]);
+    expect(why(r)).toEqual(["Lot B1: The draft named it twice; the first is kept."]);
   });
 
-  it("puts adjoining land only beside a real leg of a lot", () => {
+  it("puts adjoining land only beside a real leg whose points the quote names", () => {
     const d = goodDraft();
     d.adjoining = [{ text: "Land claimed by the sample owner", lot: "B2", from: "6", to: "8", evidence: "Between points 6 and 7 of lot B2 is land claimed by the sample owner" }];
     expect(accept(d).document.adjoining).toEqual([]);
     d.adjoining = [{ text: "Land claimed by the sample owner", lot: "B2", from: "5", to: "6", evidence: "Lot B2 is points 7, 8, 5 and 6" }];
-    // The quote names the points but doesn't say what adjoins.
     expect(accept(d).document.adjoining).toEqual([]);
   });
 
-  it("replaces the plan's lots and takes their stale labels and marks with them", () => {
+  it("gives drafted items new ids, so labels on the lots it replaces never land on a new lot", () => {
     const before = sampleDocument();
-    before.provenance["lot:lot-b1"] = { source: "ai_brief", reviewed: false };
-    before.sheet.extractOf = "lot-b2";
-    const d = { ...empty(), lots: [{ label: "A", sup: "", note: "", corners: ["1", "2", "4", "6"], evidence: "Lot A is points 1 2 4 6" }] };
-    const r = accept(d, "ai_brief", "Lot A is points 1 2 4 6", before);
-    expect(r.document.lots.map((l) => l.label)).toEqual(["A"]);
+    before.lots = [{ id: "lot-A", label: "A", sup: "", points: [id(1), id(2), id(4), id(6)], note: "" }];
+    before.adjoining = [{ id: "adj-road", text: "Road", lot: "lot-A", from: id(1), to: id(2) }];
+    before.provenance["lot:lot-A"] = { source: "ai_brief", reviewed: false };
+    before.sheet.extractOf = "lot-A";
+    const r = accept({ ...empty(), lots: [{ label: "A", sup: "", note: "", corners: ["6", "4", "2", "1"], evidence: "Lot A is points 6 4 2 1" }] }, "ai_brief", "Lot A is points 6 4 2 1", before);
+    expect(r.document.lots.map((l) => l.id)).not.toContain("lot-A");
     expect(r.document.adjoining).toEqual([]);
     expect(r.document.sheet.extractOf).toBe("");
-    expect(r.document.provenance["lot:lot-b1"]).toBeUndefined();
-    // The document passed in is never changed.
-    expect(before.lots).toHaveLength(3);
-  });
-});
-
-describe("accepting what was read from a photo", () => {
-  it("fills the title without quotes, and never the geometry", () => {
-    const d = goodDraft();
-    d.fields = [
-      { field: "landName", value: "Sample Watta", evidence: "" },
-      { field: "statedExtent", value: "0 A. 2 R. 04.60 P.", evidence: "" },
-    ];
-    const r = accept(d, "ai_photo", "");
-    expect(r.document.lots).toEqual([]);
-    expect(r.document.roads).toEqual([]);
-    expect(r.document.sheet.landName).toBe("Sample Watta");
-    // A stated extent stays text in its own field: the computed extent comes from the lots.
-    expect(r.document.sheet.statedExtent).toBe("0 A. 2 R. 04.60 P.");
-    expect(r.document.provenance["sheet.statedExtent"]).toEqual({ source: "ai_photo", reviewed: false });
-    expect(r.dropped[0]!.what).toBe("Lots, roads and adjoining lands");
+    expect(r.document.provenance["lot:lot-A"]).toBeUndefined();
+    expect(why(r)).toEqual(["1 adjoining land on the lots the draft replaces: Add them again beside the new lots on the Lots step."]);
+    expect(before.lots).toHaveLength(1);
   });
 
-  it("keeps the earlier plan's own number and dates out of the new plan's", () => {
+  it("keeps fields within the plan's limits, and dates whole", () => {
+    const brief = `North by ${"the land of a very long description ".repeat(7)}. Surveyed in January 2020.`;
     const r = accept(
       {
         ...empty(),
         fields: [
-          { field: "planNumber", value: "SAMPLE-0", evidence: "" },
-          { field: "surveyDate", value: "15.01.2020", evidence: "" },
-          { field: "previousPlanNumber", value: "SAMPLE-0", evidence: "" },
+          { field: "boundaryNorth", value: "the land of a very long description ".repeat(7).trim(), evidence: brief },
+          { field: "surveyDate", value: "January 2020", evidence: "Surveyed in January 2020" },
         ],
       },
-      "ai_photo",
-      "",
+      "ai_brief",
+      brief,
     );
-    expect(r.document.sheet.planNumber).toBe("");
+    expect(r.document.sheet.boundaries.north).toBe("");
     expect(r.document.sheet.surveyDate).toBe("");
+    expect(why(r)).toEqual(["North by: It's longer than 200 characters.", "Surveyed on: It isn't a whole date with day, month and year."]);
+    expect(r.questions[0]).toMatch(/full date for "Surveyed on"/);
+  });
+});
+
+describe("accepting what was read from a photo", () => {
+  it("fills the title without quotes, and never the geometry, notes or the new plan's own number", () => {
+    const d = goodDraft();
+    d.fields = [
+      { field: "landName", value: "Sample Watta", evidence: "" },
+      { field: "statedExtent", value: "0 A. 2 R. 04.60 P.", evidence: "" },
+      { field: "planNumber", value: "SAMPLE-0", evidence: "" },
+      { field: "previousPlanNumber", value: "SAMPLE-0", evidence: "" },
+    ];
+    d.notes = [{ text: "Road reservation 20 ft wide", evidence: "" }];
+    const r = accept(d, "ai_photo", "");
+    expect(r.document.lots).toEqual([]);
+    expect(r.document.roads).toEqual([]);
+    expect(r.document.notes).toEqual([]);
+    expect(r.document.sheet.landName).toBe("Sample Watta");
+    expect(r.document.sheet.planNumber).toBe("");
     expect(r.document.sheet.previousPlan.number).toBe("SAMPLE-0");
-    expect(r.dropped.map((x) => x.what)).toEqual(["Plan number", "Surveyed on"]);
+    // A stated extent stays text in its own field: the computed extent comes from the lots.
+    expect(r.document.sheet.statedExtent).toBe("0 A. 2 R. 04.60 P.");
+    expect(r.document.provenance["sheet.statedExtent"]).toEqual({ source: "ai_photo", reviewed: false });
+    expect(r.dropped.map((x) => x.what)).toEqual(["Lots, roads and adjoining lands", "Notes", "Plan number"]);
+  });
+});
+
+describe("the surveyor's review", () => {
+  const base = (): SurveyDocument => {
+    const d = sampleDocument();
+    d.sheet.landName = "Old Name";
+    d.provenance["sheet.landName"] = { source: "ai_photo", reviewed: false };
+    return d;
+  };
+  const draftOn = (doc: SurveyDocument) => accept(goodDraft(), "ai_brief", BRIEF, doc);
+  const none = { removed: new Set<string>(), confirmed: new Set<string>() };
+
+  it("marks only what the surveyor confirmed, and never a removed item", () => {
+    const r = draftOn(base());
+    const lot = `lot:${r.document.lots[0]!.id}`;
+    const doc = applyReview(base(), r, { removed: new Set(["sheet.village"]), confirmed: new Set([lot, "sheet.village"]) });
+    expect(doc.provenance[lot]).toEqual({ source: "ai_brief", reviewed: true });
+    expect(doc.provenance["sheet.village"]).toBeUndefined();
+    expect(doc.sheet.village).toBe("Sample");
   });
 
-  it("refuses a value longer than its field", () => {
-    const r = accept({ ...empty(), fields: [{ field: "landName", value: "x".repeat(121), evidence: "" }] }, "ai_photo", "");
-    expect(r.document.sheet.landName).toBe("");
-    expect(r.dropped[0]!.why).toMatch(/longer than 120/);
+  it("puts a removed field back as it was, with its own mark still waiting", () => {
+    const r = draftOn(base());
+    const doc = applyReview(base(), r, { removed: new Set(["sheet.landName"]), confirmed: new Set() });
+    expect(doc.sheet.landName).toBe("Old Name");
+    expect(doc.provenance["sheet.landName"]).toEqual({ source: "ai_photo", reviewed: false });
+    expect(unreviewed(doc)).toContain("sheet.landName");
+  });
+
+  it("takes a lot's adjoining lands out with it, and brings the plan's own lots back when every drafted one is out", () => {
+    const r = draftOn(base());
+    const b2 = `lot:${r.document.lots[1]!.id}`;
+    const one = applyReview(base(), r, { removed: new Set([b2]), confirmed: new Set() });
+    expect(one.adjoining).toEqual([]);
+    expect(itemsInReview(r, one, { removed: new Set([b2]), confirmed: new Set() }).some((a) => a.key.startsWith("adjoining:"))).toBe(false);
+    const all = new Set(r.document.lots.map((l) => `lot:${l.id}`));
+    const back = applyReview(base(), r, { removed: all, confirmed: new Set() });
+    expect(back.lots.map((l) => l.id)).toEqual(["lot-b1", "lot-b2", "lot-b3"]);
+    expect(back.adjoining.map((a) => a.id)).toEqual(["adj-west", "adj-north", "adj-east"]);
+  });
+
+  it("lists every drafted item until it's taken out", () => {
+    const r = draftOn(base());
+    expect(itemsInReview(r, applyReview(base(), r, none), none)).toHaveLength(r.accepted.length);
   });
 });

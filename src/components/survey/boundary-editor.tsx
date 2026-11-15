@@ -3,7 +3,7 @@
 import { CheckCircleIcon, ListPlusIcon, PlusIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { FEATURE_LAYERS, lotName, type Adjoining, type DrawingFeature, type Lot, type Provenance, type Road, type SurveyDocument } from "@/core/survey/document";
+import { FEATURE_LAYERS, legIndex, lotName, pruneProvenance, type Adjoining, type DrawingFeature, type Lot, type Provenance, type Road, type SurveyDocument } from "@/core/survey/document";
 import { suggestFeatures } from "@/core/survey/fieldToFinish";
 import { roadWidthText, arpClassic, hectares } from "@/core/survey/formats";
 import { computeLots } from "@/core/survey/lots";
@@ -28,6 +28,9 @@ function readOrder(text: string, byNumber: Map<string, SurveyPoint>): { ids: str
   }
   return { ids, unknown };
 }
+
+/** A lot's first leg, as its two corners, for a new label or a label moved to another lot. */
+const firstLeg = (lot: Lot | undefined) => ({ from: lot?.points[0] ?? "", to: lot?.points[1] ?? lot?.points[0] ?? "" });
 
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
@@ -85,7 +88,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
   const lotDocs: Lot[] = lots.map((l) => {
     const r = readOrder(l.order, byNumber);
     unknownAll.push(...r.unknown);
-    return { id: l.id, label: l.label.trim() || "?", sup: l.sup.trim(), note: l.note.trim(), points: r.ids };
+    return { id: l.id, label: l.label.trim(), sup: l.sup.trim(), note: l.note.trim(), points: r.ids };
   });
   const roadDocs: Road[] = roads.map((r) => {
     const a = readOrder(r.a, byNumber);
@@ -95,7 +98,9 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
   });
   const plan = computeLots(points, lotDocs);
   const total = plan.outlineAreaM2 ?? (plan.sumAreaM2 > 0 ? plan.sumAreaM2 : null);
-  const next: SurveyDocument = { ...document, lots: lotDocs, roads: roadDocs.filter((r) => r.edgeA.length >= 2), adjoining, features, provenance };
+  // Marks for removed lots, roads, labels and lines go with them, so nothing is left waiting to be checked that isn't there.
+  const next: SurveyDocument = pruneProvenance({ ...document, lots: lotDocs, roads: roadDocs, adjoining, features, provenance });
+  const shortRoads = roadDocs.filter((r) => r.edgeA.length < 2).map((r) => r.name || "A road without a name");
   const changed = JSON.stringify([next.lots, next.roads, next.adjoining, next.features, next.provenance]) !== JSON.stringify([document.lots, document.roads, document.adjoining, document.features, document.provenance]);
 
   const addFeature = () => {
@@ -110,6 +115,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
   const save = () =>
     start(async () => {
       if (unknownAll.length > 0) return setMessage({ tone: "error", text: `These point numbers aren't in the project: ${[...new Set(unknownAll)].join(", ")}.` });
+      if (shortRoads.length > 0) return setMessage({ tone: "error", text: `${shortRoads.join(", ")} needs at least two points along its first edge. Add them, or remove the road.` });
       const r = await saveSurveyDrawingAction({ projectId, baseVersion, document: next, note: "Lots, roads and features" });
       if (r.status === "done") {
         setMessage({ tone: "done", text: r.message });
@@ -274,7 +280,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                 <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
                   <label className="grid gap-1.5">
                     <span className={LABEL_CLASSES}>Beside lot</span>
-                    <select value={a.lot} disabled={ro} onChange={(e) => set({ lot: e.target.value, leg: 0 })} className={inputClasses()}>
+                    <select value={a.lot} disabled={ro} onChange={(e) => set({ lot: e.target.value, ...firstLeg(lotDocs.find((l) => l.id === e.target.value)) })} className={inputClasses()}>
                       {lotDocs.map((l) => (
                         <option key={l.id} value={l.id}>
                           {lotName(l)}
@@ -284,7 +290,12 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                   </label>
                   <label className="grid gap-1.5">
                     <span className={LABEL_CLASSES}>Leg</span>
-                    <select value={a.leg} disabled={ro || !lot} onChange={(e) => set({ leg: Number(e.target.value) })} className={inputClasses()}>
+                    <select value={lot ? legIndex(lot, a.from, a.to) : -1} disabled={ro || !lot} onChange={(e) => lot && set({ from: lot.points[Number(e.target.value)]!, to: lot.points[(Number(e.target.value) + 1) % lot.points.length]! })} className={inputClasses()}>
+                      {lot && legIndex(lot, a.from, a.to) < 0 ? (
+                        <option value={-1} disabled>
+                          Choose a leg
+                        </option>
+                      ) : null}
                       {(lot?.points ?? []).map((id, k, all) => (
                         <option key={k} value={k}>
                           {byId.get(id)?.pointId ?? "?"} to {byId.get(all[(k + 1) % all.length]!)?.pointId ?? "?"}
@@ -300,7 +311,10 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
             );
           })}
         </ul>
-        <button type="button" disabled={ro || lotDocs.length === 0 || adjoining.length >= 80} onClick={() => setAdjoining((all) => [...all, { id: newId("adj"), text: "Land claimed by", lot: lotDocs[0]!.id, leg: 0 }])} className={buttonClasses("secondary", "sm", "justify-self-start")}>
+        <button type="button" disabled={ro || !lotDocs.some((l) => l.points.length >= 2) || adjoining.length >= 80} onClick={() => {
+            const lot = lotDocs.find((l) => l.points.length >= 2)!;
+            setAdjoining((all) => [...all, { id: newId("adj"), text: "Land claimed by", lot: lot.id, ...firstLeg(lot) }]);
+          }} className={buttonClasses("secondary", "sm", "justify-self-start")}>
           <PlusIcon size={16} weight="bold" aria-hidden />
           Add an adjoining land
         </button>

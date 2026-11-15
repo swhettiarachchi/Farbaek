@@ -163,6 +163,10 @@ describe("AI drafting (v94)", () => {
     await expect(q("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_read', 'Robert''); drop', 1, 0, 0)", [org, USERS.alice, project])).rejects.toThrow(/INVALID_MODEL/);
     await expect(q("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_read', 'claude-sonnet-5-5', -1, 0, 0)", [org, USERS.alice, project])).rejects.toThrow(/INVALID_COUNTS/);
     await expect(q("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_read', 'claude-sonnet-5-5', 1, 0, 0)", [org, USERS.bob, project])).rejects.toThrow(/FORBIDDEN/);
+    // A viewer of the workspace can't either.
+    await su("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'viewer')", [org, USERS.bob]);
+    await expect(q("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_read', 'claude-sonnet-5-5', 1, 0, 0)", [org, USERS.bob, project])).rejects.toThrow(/FORBIDDEN/);
+    await su("delete from public.organization_members where org_id = $1 and user_id = $2", [org, USERS.bob]);
     await as(db, "authenticated", USERS.alice, async () => {
       await expect(db.query("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_draft', 'claude-sonnet-5-5', 1, 0, 0)", [org, USERS.alice, project])).rejects.toThrow(/permission denied/);
     });
