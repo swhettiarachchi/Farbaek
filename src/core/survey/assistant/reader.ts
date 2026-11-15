@@ -150,10 +150,13 @@ export function readCommand(original: string): ReadResult {
   // Dividing: equal lots, or an access strip along one side. The divide panel shows the lines before anything is kept.
   const divide = /^divide (lot [a-z0-9]+(?: [a-z0-9]+)?|the land|this land|it|the lot|this lot) into (\S+(?: \S+)?) (?:equal )?(?:lots|parts|shares|plots|blocks)$/.exec(t);
   if (divide) return out([{ op: "divide", lot: /^lot /.test(divide[1]!) ? divide[1]! : "", by: "area", count: divide[2]!, values: "", unit: "", lines: "", side: "", quote: original }]);
-  const access = /^(?:add|make|leave|reserve) (?:an? )?(?:access )?(?:road|strip|reservation|lane|path)(?: (.+?) wide)? (?:along|on|by) the (north|east|south|west)(?:ern)? (?:boundary|side|edge)(?: of (lot [a-z0-9]+(?: [a-z0-9]+)?))?(?:,? (.+?) wide)?$/.exec(t);
+  // Commas matter here: in "of lot B one, ten feet wide" the comma ends the lot's name. Without one, only a name written with
+  // its figure (B3) is taken before a width, so "lot B one ten feet wide" is never read as lot B and a width of "one ten".
+  const tc = original.normalize("NFKC").toLowerCase().replace(/[.!?;]+/g, " ").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim().replace(/,$/, "");
+  const access = /^(?:add|make|leave|reserve) (?:an? )?(?:access )?(?:road|strip|reservation|lane|path)(?: ([^,]+?) wide)?,? (?:along|on|by) the (north|east|south|west)(?:ern)? (?:boundary|side|edge)(?: of (?:(lot [a-z0-9]+(?: [a-z0-9]+)?)(?=,|$)|(lot [a-z]*\d[a-z0-9]*)(?= [^,]+ wide$)))?(?:,? (?!of )([^,]+?) wide)?$/.exec(tc);
   if (access) {
-    const width = access[1] ?? access[4] ?? "";
-    return out([{ op: "divide", lot: access[3] ?? "", by: "width", count: "", values: width, unit: /\b(feet|foot|ft)\b/.test(width) ? "ft" : width ? "m" : "", lines: "parallel", side: access[2] as "east", quote: original }]);
+    const width = access[1] ?? access[5] ?? "";
+    return out([{ op: "divide", lot: access[3] ?? access[4] ?? "", by: "width", count: "", values: width, unit: /\b(feet|foot|ft)\b/.test(width) ? "ft" : width ? "m" : "", lines: "parallel", side: access[2] as "east", quote: original }]);
   }
 
   // Questions the engine answers.

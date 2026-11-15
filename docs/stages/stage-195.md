@@ -61,7 +61,7 @@
 
 - **Unit tests:**
   - spoken reading: 11;
-  - the assistant's core: 19;
+  - the assistant's core: 21, including the owner's example instructions read without AI;
   - the server turn with a fake model: 3;
   - where the microphone is allowed: 2.
 - **DB tests:** v96's constraint, grants, roles, decisions, retention and cascade (19 in the file).

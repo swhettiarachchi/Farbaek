@@ -279,5 +279,11 @@ describe("the owner's example instructions, read without AI", () => {
     one.lots = [one.lots[0]!];
     expect(check("Add an access road along the eastern boundary", [], one).question?.text).toMatch(/How wide/);
     expect(check("Add an access road ten feet wide along the eastern boundary", [], one).ops[0]).toMatchObject({ kind: "divide", by: "width", values: [10], unit: "ft", lines: "parallel", leg: 1 });
+    for (const words of ["Add an access road along the eastern boundary of lot B3, ten feet wide", "Add an access road along the eastern boundary of lot B3 ten feet wide"]) {
+      expect(check(words).ops[0], words).toMatchObject({ kind: "divide", lotId: "lot-b3", by: "width", values: [10], unit: "ft" });
+    }
+    expect(check("Add an access strip along the east side of lot B one, three metres wide").ops[0]).toMatchObject({ kind: "divide", lotId: "lot-b1", values: [3], unit: "m" });
+    // Without a comma, "lot B one ten feet wide" reads two ways: it isn't read locally, so nothing is guessed.
+    expect(readCommand("Add an access road along the eastern boundary of lot B one ten feet wide")).toBeNull();
   });
 });

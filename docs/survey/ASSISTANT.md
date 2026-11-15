@@ -13,6 +13,8 @@ Talk or type to the plan (stage 195, [ADR 0210](../adr/0210-survey-drafting-assi
    - moving the picked label or putting it back;
    - the area, the perimeter, the checks, what's missing and the scale;
    - "add the north arrow" (it always prints);
+   - a lot from the points picked on the sheet ("create the boundary using these survey points") or from points said ("add lot B4 from points 1 to 4"); without a name it asks for one, and never makes one up;
+   - dividing a lot into equal lots, and an access road or strip along a side, handed to the divide panel (the width is asked for when it isn't said);
    - conversation words: apply, discard, stop listening, save, read it back, go to a step.
 
    English, plus Sinhala command words awaiting review by Sinhala-speaking surveyors.
@@ -74,6 +76,10 @@ Read-backs go the other way: digit by digit, "decimal" for the point, degrees, m
 - **The level** shown while listening is the microphone's real level, on computers only. Phones show the growing caption instead.
 - **Spoken replies** are opt-in and use local voices only, so plan text doesn't go to a network voice. They're never spoken over the microphone, and they're off on iOS 27.0 to 27.2. Where there's no voice for a language, the reply stays text and says so.
 - **First use:** before the first listen, the bar says who turns speech into text in this browser and that Farbaek gets only the text.
+
+## Questions
+
+A question card offers answers to tap. A tapped, typed or spoken answer carries on the instruction that raised the question ("create the boundary using these survey points", then "lot C"), unless the answer is an instruction of its own.
 
 ## The picked points
 
