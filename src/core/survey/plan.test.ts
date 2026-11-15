@@ -5,7 +5,9 @@
 import DxfParser from "dxf-parser";
 import { describe, expect, it } from "vitest";
 import { crsById, looksSwapped } from "./crs";
-import { commonCodes } from "./codes";
+import { codeNote, codeOf, commonCodes } from "./codes";
+import { formatDms, toDms } from "./angles";
+import { inverse } from "./cogo";
 import { regionLine, runsText, titleSentence } from "./description";
 import { emptyDocument, parseSurveyDocument, surveyDocumentSchema, unreviewed } from "./document";
 import { writeDxf } from "./export/dxf";
@@ -672,5 +674,30 @@ describe("the lot schedule CSV (stage 192, synthetic)", () => {
       expect.stringMatching(/^Entire land,[\d ]+,2267\.410,0\.22674,0 A\. 2 R\. 09\.65 P\.$/),
       "",
     ]);
+  });
+});
+
+describe("field codes with two codes and a note, and the inverse (stage 192, synthetic)", () => {
+  const p = (n: string, e: number, nn: number, code: string | null, z: number | null = null): SurveyPoint => ({ id: `00000000-0000-4000-b000-${n.padStart(12, "0")}`, pointId: n, e, n: nn, z, code });
+
+  it("joins a point with two codes into both lines, and reads a note after a slash as a note", () => {
+    const pts = [p("1", 0, 0, "MW"), p("2", 10, 0, "MW"), p("3", 20, 0, "CP MW"), p("4", 20, 10, "CP LF / found"), p("5", 20, 20, "LF END"), p("6", 30, 30, "St / disturbed")];
+    const s = suggestFeatures(pts, commonCodes());
+    expect(s.map((f) => [f.code, f.pointNumbers.join(" ")])).toEqual([
+      ["MW", "1 2 3"],
+      ["LF", "4 5"],
+    ]);
+    expect(codeOf("St / disturbed")).toBe("St");
+    expect(codeNote("St / disturbed")).toBe("disturbed");
+  });
+
+  it("works out the inverse between two points by hand", () => {
+    // 3-4-5 triangle: bearing atan2(3, 4) = 36.869897...°, distance 5.
+    const r = inverse(p("1", 500_000, 600_000, null, 21.5), p("2", 500_003, 600_004, null, 22));
+    expect(r.distanceM).toBeCloseTo(5, 12);
+    expect(r.bearing!).toBeCloseTo(36.86989764584402, 10);
+    expect(formatDms(toDms(r.bearing!, 0))).toBe("036°52′12″");
+    expect([r.dE, r.dN, r.dZ]).toEqual([3, 4, 0.5]);
+    expect(inverse(p("1", 1, 1, null), p("2", 1, 1, null)).bearing).toBeNull();
   });
 });

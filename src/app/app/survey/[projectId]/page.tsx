@@ -24,6 +24,7 @@ import { FindingsList } from "@/components/survey/findings";
 import { DraftPanel } from "@/components/survey/draft-panel";
 import { ApproveForm, SurveyProjectSettingsForm } from "@/components/survey/forms";
 import { ImportPanel } from "@/components/survey/import-panel";
+import { InverseTool } from "@/components/survey/inverse-tool";
 import { PlanEditor } from "@/components/survey/plan-editor";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
@@ -162,6 +163,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       ) : null}
 
       {step === "points" ? (
+        <div className="grid gap-6">
         <Card>
           <CardTitle icon={MapPinSimpleIcon}>Points</CardTitle>
           <p className="mt-1 text-sm text-ink-2">
@@ -196,6 +198,16 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
             </div>
           )}
         </Card>
+        {data.points.length >= 2 ? (
+          <Card>
+            <CardTitle icon={RulerIcon}>Bearing and distance between two points</CardTitle>
+            <p className="mt-1 text-sm text-ink-2">A check by hand on any two points, such as a tie to a control mark or across a lot.</p>
+            <div className="mt-4">
+              <InverseTool points={data.points} />
+            </div>
+          </Card>
+        ) : null}
+        </div>
       ) : null}
 
       {step === "draft" ? (

@@ -72,5 +72,16 @@ export function lookupCode(codes: readonly CodeEntry[], code: string | null | un
 
 /** The first word of a field code: total stations often record "MW wall corner", where the code is "MW". */
 export function codeOf(raw: string | null | undefined): string {
-  return (raw ?? "").trim().split(/\s+/)[0] ?? "";
+  return codeText(raw).split(/\s+/)[0] ?? "";
+}
+
+/** A point's codes without its note: the field note after a slash ("St / found") is the crew's, not a code. */
+export function codeText(raw: string | null | undefined): string {
+  return (raw ?? "").split("/")[0]!.trim();
+}
+
+/** The note after a slash in a point's code, or empty. */
+export function codeNote(raw: string | null | undefined): string {
+  const i = (raw ?? "").indexOf("/");
+  return i < 0 ? "" : raw!.slice(i + 1).trim();
 }
