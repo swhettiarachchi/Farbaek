@@ -67,6 +67,14 @@ export interface DrawCtx {
 
 export const visible = (doc: SurveyDocument, l: LayerId) => doc.layers[l]?.visible !== false;
 
+/** A text angle (degrees, clockwise) turned to read left to right, and up the page (bottom to top) within 10° of upright, as plans letter them. */
+export function readable(angle: number): number {
+  let a = angle;
+  while (a > 80) a -= 180;
+  while (a <= -100) a += 180;
+  return a;
+}
+
 /** Whether a box lies inside the context's bounds (always, when there are none). */
 export const inBounds = (ctx: DrawCtx, q: Quad) => !ctx.bounds || q.every(([x, y]) => x >= ctx.bounds![0] && x <= ctx.bounds![2] && y >= ctx.bounds![1] && y <= ctx.bounds![3]);
 export const atPage = (ctx: DrawCtx, p: Point) => toPage(ctx.v, p.e, p.n);
@@ -402,9 +410,7 @@ export function drawRoads(ctx: DrawCtx, roads: readonly Road[]): void {
     for (let i = 1; i + 1 < centre.length; i++) if (Math.hypot(centre[i + 1]![0] - centre[i]![0], centre[i + 1]![1] - centre[i]![1]) > Math.hypot(centre[k + 1]![0] - centre[k]![0], centre[k + 1]![1] - centre[k]![1])) k = i;
     const [x1, y1] = centre[k]!;
     const [x2, y2] = centre[k + 1]!;
-    let theta = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
-    if (theta > 90) theta -= 180;
-    if (theta < -90) theta += 180;
+    const theta = readable((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
     const mx = (x1 + x2) / 2;
     const my = (y1 + y2) / 2;
     const width = road.width !== "none" && b.length >= 2 ? roadWidth(a, b) : null;
@@ -432,9 +438,7 @@ export function drawRoads(ctx: DrawCtx, roads: readonly Road[]): void {
       const uy = (ey - ny) / len;
       const tx = ex + ux * 6;
       const ty = ey + uy * 6;
-      let th = (Math.atan2(uy, ux) * 180) / Math.PI;
-      if (th > 90) th -= 180;
-      if (th < -90) th += 180;
+      const th = readable((Math.atan2(uy, ux) * 180) / Math.PI);
       const t = text(ctx, "ROADS", `road-dir-${i}:${road.id}`, tx, ty, value.trim(), ctx.sizes.small, { rotate: th });
       ctx.placer.add(textQuad(t));
     });
@@ -536,9 +540,7 @@ export function drawAdjoining(ctx: DrawCtx, adjoining: readonly Adjoining[], lot
 function alongLeg(ctx: DrawCtx, value: string, size: number, [x1, y1]: [number, number], [x2, y2]: [number, number], [nx, ny]: [number, number]): SceneText[] | null {
   const len = Math.hypot(x2 - x1, y2 - y1);
   if (len < size * 4) return null;
-  let angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
-  if (angle > 90) angle -= 180;
-  if (angle <= -90) angle += 180;
+  const angle = readable((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
   const rad = (angle * Math.PI) / 180;
   const [c, s] = [Math.cos(rad), Math.sin(rad)];
   const lines = wrap(value, size, len * 0.95);
@@ -626,9 +628,7 @@ export function suggestScale(extentE: number, extentN: number, viewportW: number
  */
 export function besideSegment(x1: number, y1: number, x2: number, y2: number, side: [number, number], size: number): { x: number; y: number; theta: number } {
   const len = Math.hypot(x2 - x1, y2 - y1) || 1;
-  let theta = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
-  if (theta > 90) theta -= 180;
-  if (theta < -90) theta += 180;
+  const theta = readable((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
   let nx = -(y2 - y1) / len;
   let ny = (x2 - x1) / len;
   if (nx * side[0] + ny * side[1] < 0) {
