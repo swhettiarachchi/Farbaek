@@ -83,8 +83,9 @@ export function sessionReducer(s: SessionState, e: SessionEvent): SessionState {
     case "failed":
       return { ...s, phase: "failed", failures: s.failures + 1, message: e.message };
     case "decided":
-      // After an Apply or Discard the line clears; a live conversation listens again.
-      return { ...s, phase: s.live ? "listening" : "idle", text: "", interim: "" };
+      // After an Apply or Discard the line clears. A live conversation stays open, but the state says listening only once the
+      // microphone has really started again ("listen"), never before.
+      return { ...s, phase: "idle", text: "", interim: "" };
     case "cancel":
       return { ...s, phase: "idle", live: false, interim: "" };
     case "stop_live":

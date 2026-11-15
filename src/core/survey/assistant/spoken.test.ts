@@ -11,8 +11,8 @@ describe("numbers from words", () => {
     expect(readNumber("four five zero zero one two point three four five")?.text).toBe("450012.345");
     expect(readNumber("four five oh oh one two decimal three four five")?.text).toBe("450012.345");
     expect(readNumber("distance two five point four zero metres")?.text).toBe("25.40");
-    // "point" first is the survey point, not a decimal point.
-    expect(readNumber("point forty five")?.text).toBe("45");
+    // "point" first reads two ways (the survey point, or a decimal), so it is refused.
+    expect(readNumber("point forty five")).toBeNull();
     expect(readNumber("zero point forty five")?.text).toBe("0.45");
     expect(readNumber("one hundred and five")?.text).toBe("105");
     expect(readNumber("two lakh fifty thousand and twelve")?.text).toBe("250012");

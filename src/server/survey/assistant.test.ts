@@ -9,7 +9,7 @@ import type { AssistRequest, SurveyAssistOutcome, SurveyAssistant } from "@/serv
 import type { AiUsageDeps } from "@/server/workspace/ai-usage";
 import type { OrgRole } from "@/server/workspace/types";
 import type { WriteDeps } from "@/server/workspace/use-cases";
-import { runAssistant, type SurveyAssistDeps } from "./assistant";
+import { recordedOps, runAssistant, type SurveyAssistDeps } from "./assistant";
 
 const usage = { model: "claude-haiku-5-5", inputTokens: 3_100, outputTokens: 180, cacheWriteTokens: 0, cacheReadTokens: 2_800 };
 const WORDS = "add lot B4 from points 1 to 3 and 8, and the land name Ambagahawatta";
@@ -103,5 +103,18 @@ describe("the drafting assistant's turn", () => {
     expect(await runAssistant(f.deps, a, { ...input, words: "x".repeat(2_001) })).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
     expect(viewer.calls).toEqual([]);
     expect(f.calls).toEqual([]);
+  });
+});
+
+describe("the turn record stays inside the table's size check", () => {
+  it("shortens quotes, and keeps only the kinds when a long dictation is still too large", () => {
+    const quote = "q".repeat(2_000);
+    const notes = Array.from({ length: 30 }, () => ({ kind: "note_add" as const, text: "A note", quote }));
+    const short = recordedOps(notes) as { quote: string }[];
+    expect(short[0]!.quote).toHaveLength(200);
+    expect(JSON.stringify(short).length).toBeLessThan(64_000);
+    const rows = Array.from({ length: 400 }, (_, i) => ({ from: String(i), to: String(i + 1), bearing: "45 30 15", distance: "25.40", code: "CP" }));
+    const big = recordedOps(Array.from({ length: 5 }, () => ({ kind: "measure" as const, mode: "bearings" as const, rows, quote })));
+    expect(big).toEqual(Array.from({ length: 5 }, () => ({ kind: "measure", shortened: true })));
   });
 });

@@ -31,11 +31,20 @@ const REPEAT: Record<string, number> = { double: 2, triple: 3 };
 
 type Tok = { kind: "digits"; text: string } | { kind: "unit"; n: number; zeroWord: boolean } | { kind: "teen"; n: number } | { kind: "tens"; n: number } | { kind: "scale"; n: number } | { kind: "point" } | { kind: "and" } | { kind: "repeat"; n: number } | { kind: "minus" } | { kind: "word"; text: string };
 
+/**
+ * Thousands separators in digits are joined only where they can't be a list: with a decimal part (450,012.345), a first group of one
+ * or two digits (1,000 and 12,500), or every later group 000 (100,000). "120,150,200" stays three numbers, and an integer such as
+ * "450,012" reads as two, so a reader expecting one number refuses it rather than guess.
+ */
+function joinThousands(text: string): string {
+  return text.replace(/(?<![\d.,])(\d{1,3})((?:,\d{3})+)(\.\d+)?(?![\d,])/g, (all, first: string, rest: string, dec: string | undefined) =>
+    dec || first.length < 3 || /^(?:,000)+$/.test(rest) ? `${first}${rest.replace(/,/g, "")}${dec ?? ""}` : all,
+  );
+}
+
 /** Words as tokens: "twenty-five" splits, "25.4" stays whole, a trailing full stop or comma goes. */
 function tokens(text: string): Tok[] {
-  const words = text
-    .normalize("NFKC")
-    .replace(/(\d),(?=\d{3}\b)/g, "$1") // thousands separators in digits: 450,012.345
+  const words = joinThousands(text.normalize("NFKC"))
     .replace(/[‐-―−]/g, "-")
     // A comma or semicolon ends a number: "lot B one, 25.4 metres" is two.
     .replace(/[,;]/g, " , ")
@@ -166,7 +175,8 @@ function numberRuns(toks: Tok[]): Tok[][] {
   toks.forEach((t, i) => {
     const prev = cur[cur.length - 1];
     if (isNumberTok(t)) cur.push(t);
-    else if (t.kind === "point" && prev && isNumberTok(prev) && toks[i + 1] && isNumberTok(toks[i + 1]!)) cur.push(t);
+    // A leading point starts a run of its own, which is then refused rather than read as the number after it.
+    else if (t.kind === "point" && toks[i + 1] && isNumberTok(toks[i + 1]!) && (!prev || isNumberTok(prev))) cur.push(t);
     else if (t.kind === "and" && prev?.kind === "scale") cur.push(t);
     else if (t.kind === "minus" && toks[i + 1] && isNumberTok(toks[i + 1]!)) {
       flush();
@@ -191,6 +201,8 @@ function numberOfRun(run: readonly Tok[]): ReadNumber | null {
     const text = `${sign}${r[0]!.text}`;
     return { text, value: Number(text) };
   }
+  // A leading "point" reads two ways: the survey point ("point forty five") or a decimal ("point five" as 0.5). It's refused.
+  if (p === 0) return null;
   const intPart = integerOf(p < 0 ? r : r.slice(0, p));
   if (intPart === null) return null;
   if (p < 0) return { text: `${sign}${intPart}`, value: Number(`${sign}${intPart}`) };
@@ -245,14 +257,18 @@ export function readPointList(text: string, known: ReadonlySet<string>): PointLi
   const items: string[] = [];
   const unknown: string[] = [];
   let pendingRange = false;
-  const lookup = (id: string) => (known.has(id) ? id : ([...known].find((k) => k.toLowerCase() === id.toLowerCase()) ?? null));
+  // One lookup table, built once: a long list against a large project stays fast on the server.
+  const folded = new Map<string, string>();
+  for (const k of known) if (!folded.has(k.toLowerCase())) folded.set(k.toLowerCase(), k);
+  const lookup = (id: string) => (known.has(id) ? id : (folded.get(id.toLowerCase()) ?? null));
+  const MAX_ITEMS = 500;
   const push = (id: string) => {
     if (pendingRange) {
       pendingRange = false;
       const from = items[items.length - 1];
       if (from === undefined || !/^\d+$/.test(from) || !/^\d+$/.test(id)) return false;
       const [a, b] = [Number(from), Number(id)];
-      if (b <= a || b - a > 500) return false;
+      if (b <= a || b - a > MAX_ITEMS || items.length + unknown.length + (b - a) > MAX_ITEMS) return false;
       for (let n = a + 1; n <= b; n++) {
         const k = lookup(String(n));
         if (k) items.push(k);
@@ -260,6 +276,7 @@ export function readPointList(text: string, known: ReadonlySet<string>): PointLi
       }
       return true;
     }
+    if (items.length + unknown.length >= MAX_ITEMS) return false;
     const k = lookup(id);
     if (k) items.push(k);
     else unknown.push(id);
@@ -303,7 +320,7 @@ export function readPointList(text: string, known: ReadonlySet<string>): PointLi
     if (!push(w)) return null;
   }
   if (pendingRange) return null;
-  if (items.length + unknown.length === 0 || items.length > 500) return null;
+  if (items.length + unknown.length === 0) return null;
   return { ids: items, unknown };
 }
 
@@ -314,19 +331,35 @@ const SUP_WORDS: Record<string, string> = { ...Object.fromEntries(Object.entries
  * a short suffix is label and superscript (B¹, 4ᴬ), as the plans write them.
  */
 export function readLotName(text: string): { label: string; sup: string } | null {
-  const words = text
-    .normalize("NFKC")
-    .replace(/\b(lots?|allotments?|no\.?|number|superscript|sup)\b/gi, " ")
-    .split(/[\s,;.]+/)
-    .filter(Boolean);
-  if (words.length === 0 || words.length > 3) return null;
-  const part = (w: string) => SUP_WORDS[w.toLowerCase()] ?? (/^[A-Za-z]$/.test(w) ? w.toUpperCase() : /^\d{1,3}$/.test(w) ? w : /^[A-Za-z]{1,2}\d{1,3}$|^\d{1,3}[A-Za-z]{1,2}$/.test(w) ? w.toUpperCase() : null);
+  const plain = text.normalize("NFKC").replace(/\b(lots?|allotments?|no\.?|number)\b/gi, " ");
+  const wordsOf = (s: string) => s.split(/[\s,;.]+/).filter(Boolean);
+  const part = (w: string) => SUP_WORDS[w.toLowerCase()] ?? (/^[A-Za-z]{1,2}$/.test(w) ? w.toUpperCase() : /^\d{1,3}$/.test(w) ? w : null);
+  // "lot 1 superscript 2" says where the superscript starts.
+  const sup = /\b(?:superscript|sup)\b/i.exec(plain);
+  if (sup) {
+    const before = wordsOf(plain.slice(0, sup.index)).map(part);
+    const after = wordsOf(plain.slice(sup.index + sup[0].length)).map(part);
+    if (before.length !== 1 || after.length !== 1 || before[0] === null || after[0] === null) return null;
+    return { label: before[0]!, sup: after[0]! };
+  }
+  const words = wordsOf(plain);
+  if (words.length === 1) {
+    // Written whole: "B1", "4A", "12", "B".
+    const m = /^([A-Za-z]{1,2})(\d{1,3})?$|^(\d{1,3})([A-Za-z]{1,2})?$/.exec(words[0]!);
+    if (m) return m[1] ? { label: m[1].toUpperCase(), sup: m[2] ?? "" } : { label: m[3]!, sup: (m[4] ?? "").toUpperCase() };
+    const w = part(words[0]!);
+    return w === null ? null : { label: w, sup: "" };
+  }
+  if (words.length < 2 || words.length > 3) return null;
   const parts = words.map(part);
   if (parts.some((p) => p === null)) return null;
-  const joined = (parts as string[]).join("");
-  const m = /^([A-Z]{1,2}|\d{1,3})([A-Z]{1,2}|\d{1,3})?$/.exec(joined);
-  if (!m) return null;
-  return { label: m[1]!, sup: m[2] ?? "" };
+  const [label, ...rest] = parts as string[];
+  const letter = (s: string) => /^[A-Z]{1,2}$/.test(s);
+  // A letter then digits ("B one", "B one two"), or digits then a letter ("four A"). Two numbers side by side ("12 34", "2 1")
+  // read two ways (a number, or a number and its superscript), so they're refused.
+  if (letter(label!) && rest.every((r) => /^\d{1,3}$/.test(r)) && rest.join("").length <= 3) return { label: label!, sup: rest.join("") };
+  if (!letter(label!) && rest.length === 1 && letter(rest[0]!)) return { label: label!, sup: rest[0]! };
+  return null;
 }
 
 /**
@@ -364,21 +397,42 @@ function cardinalGroups(run: readonly Tok[]): Tok[][] {
  * fifteen", "N 45 30 E", "north forty five east". Null when a part doesn't read, or there are more than three.
  */
 export function bearingParts(text: string): { quadrant: [string, string] | null; parts: string[] } | null {
-  const quadrant = /\b(north|south)\b(.*)\b(east|west)\b/i.exec(text);
-  const inner = quadrant ? quadrant[2]! : text;
+  // Quadrant letters may touch the figures: "N45°30'E", "S45 30 15 W".
+  const spaced = text
+    .normalize("NFKC")
+    .replace(/(^|[^\p{L}])([NSns])(?=\d)/gu, "$1$2 ")
+    .replace(/([\d°'"′″])([EWew])(?![\p{L}])/gu, "$1 $2");
   // The marks and the words degrees, minutes and seconds end a part; so does each number written in digits.
-  const toks = settleZeroWords(tokens(inner.replace(/[°'"′″]/g, " , ")));
+  const all = settleZeroWords(tokens(spaced.replace(/[°'"′″]/g, " , ")));
+  const word = (t: Tok | undefined) => (t?.kind === "word" ? t.text.toLowerCase() : "");
+  // The words that may stand around the figures without changing them.
+  const MARK_WORDS = new Set(["degrees", "degree", "deg", "minutes", "minute", "min", "mins", "seconds", "second", "sec", "secs", ",", "bearing", "of"]);
+  const ends = all.map((t, i) => i).filter((i) => !(all[i]!.kind === "word" && MARK_WORDS.has(word(all[i]))));
+  const FIRST: Record<string, string> = { north: "N", n: "N", south: "S", s: "S" };
+  const LAST: Record<string, string> = { east: "E", e: "E", west: "W", w: "W" };
+  const first = ends[0];
+  const last = ends[ends.length - 1];
+  const head = first === undefined ? undefined : FIRST[word(all[first])];
+  const tail = last === undefined || last === first ? undefined : LAST[word(all[last])];
+  // A quadrant is both letters or neither: "S 45 30" alone isn't a bearing Farbaek reads for certain.
+  if (Boolean(head) !== Boolean(tail)) return null;
+  const quadrant: [string, string] | null = head && tail ? [head, tail] : null;
+  const inner = quadrant ? all.slice(first! + 1, last) : all;
   const groups: Tok[][] = [];
   let cur: Tok[] = [];
   const end = () => {
     if (cur.length) groups.push(...cardinalGroups(cur));
     cur = [];
   };
-  for (const t of toks) {
+  for (const t of inner) {
     if (t.kind === "digits") {
       end();
       groups.push([t]);
-    } else if (t.kind === "word") end();
+    } else if (t.kind === "word") {
+      // Any other word inside a bearing ("S", "about", a stray letter) means it doesn't read for certain.
+      if (!MARK_WORDS.has(t.text.toLowerCase())) return null;
+      end();
+    } else if (t.kind === "and" && cur.length === 0) continue;
     else cur.push(t);
   }
   end();
@@ -390,7 +444,7 @@ export function bearingParts(text: string): { quadrant: [string, string] | null;
     parts.push(n.text);
   }
   if (parts.length === 0 || parts.length > 3) return null;
-  return { quadrant: quadrant ? [quadrant[1]![0]!.toUpperCase(), quadrant[3]![0]!.toUpperCase()] : null, parts };
+  return { quadrant, parts };
 }
 
 /** The bearing as digits ("45 30 15", "N 45 30 E"), as the typed tables take it, or null. */
@@ -407,22 +461,35 @@ export function readBearing(text: string): ParsedBearing | null {
   return t === null ? null : parseBearing(t);
 }
 
-/** A drawing scale: "1:500", "1/500", "one to five hundred", "1 in 500", "scale 500"; "automatic" is null. Only 50 to 100,000. */
+/**
+ * A drawing scale: "1:500", "1/500", "one to five hundred", "1 in 500", "set the scale to 1:500", "scale 500"; "automatic" is null.
+ * A number alone is a scale only beside the word scale, so "500 perch lots" isn't one. Only 50 to 100,000.
+ */
 export function readScale(text: string): { scale: number | null } | null {
   if (/\b(auto|automatic|automatically|best)\b/i.test(text)) return { scale: null };
-  const t = text.replace(/\bscale\b/gi, " ");
-  const ratio = /(?:^|\s)(\S+(?:\s+\S+)*?)\s*(?::|\/|\bto\b|\bin\b)\s*(.+)$/i.exec(t.trim());
+  const t = joinThousands(text.normalize("NFKC"));
+  const ratio = /(?:^|[^\p{L}\p{N}.])(?:1|one)\s*(?::|\/|\bto\b|\bin\b)\s*(.+)$/iu.exec(t);
   let n: number | null = null;
   if (ratio) {
-    const one = readNumber(ratio[1]!);
-    const den = readNumber(ratio[2]!);
-    if (!one || one.value !== 1 || !den) return null;
+    const den = readNumber(ratio[1]!);
+    if (!den) return null;
     n = den.value;
-  } else {
-    const only = readNumber(t);
+  } else if (/\bscale\b/i.test(t)) {
+    const only = readNumber(t.replace(/\bscale\b/gi, " "));
     n = only ? only.value : null;
-  }
+  } else return null;
   return n !== null && Number.isInteger(n) && n >= 50 && n <= 100_000 ? { scale: n } : null;
+}
+
+/** Whether the text says any number at all, readable or not ("point five" is one, though it reads two ways). */
+export function saysNumber(text: string): boolean {
+  return numberRuns(settleZeroWords(tokens(text))).length > 0;
+}
+
+/** Every number said in the text, or null when any run of number words doesn't read one way only. For lists that must be whole. */
+export function numbersExactly(text: string): ReadNumber[] | null {
+  const read = numberRuns(settleZeroWords(tokens(text))).map(numberOfRun);
+  return read.some((n) => n === null) ? null : (read as ReadNumber[]);
 }
 
 /** A length with its unit: metres unless feet are said. */

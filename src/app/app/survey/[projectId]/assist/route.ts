@@ -20,7 +20,8 @@ const MAX_BODY = 1_500_000;
 
 const Body = z.object({
   words: z.string().min(1).max(ASSIST_LIMITS.words),
-  lang: z.enum(LANGUAGES.filter((l) => l.enabled).map((l) => l.id) as ["en", "si"]),
+  // Every language in the registry: a typed Tamil instruction is answered too, though Tamil speech isn't on yet.
+  lang: z.enum(LANGUAGES.map((l) => l.id) as ["en", "si", "ta"]),
   inputMethod: z.enum(["voice", "typed"]),
   document: z.unknown(),
   selection: z.array(z.string().max(120)).max(500),
@@ -103,6 +104,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
     { orgId, userId: ctx.user.id, projectId, document: doc.data, points: data.points, selection: body.data.selection, words: body.data.words, lang: body.data.lang, inputMethod: body.data.inputMethod, recent: body.data.recent },
     request.signal,
   );
-  if (!r.ok) return refuse(r.message, r.code === "AI_BUSY" ? 503 : r.code === "FORBIDDEN" ? 403 : 502);
+  if (!r.ok) {
+    const status =
+      r.code === "AI_BUSY" || r.code === "ENTITLEMENT_UNAVAILABLE"
+        ? 503
+        : r.code === "FORBIDDEN" || r.code === "WORKSPACE_SUSPENDED"
+          ? 403
+          : r.code === "QUOTA_EXCEEDED" || r.code === "TRIAL_CAP_REACHED"
+            ? 402
+            : r.code === "INVALID_REQUEST"
+              ? 400
+              : 502;
+    return refuse(r.message, status);
+  }
   return json({ ok: true, turnId: r.value.turnId, output: r.value.output, model: r.value.model });
 }

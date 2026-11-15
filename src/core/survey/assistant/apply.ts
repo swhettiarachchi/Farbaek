@@ -93,17 +93,19 @@ export function applyOps(base: SurveyDocument, ops: readonly PlanOp[], points: r
           skipped.push({ what: "A lot", why: "It was removed since this was suggested." });
           break;
         }
+        if (op.points && !realPoints(op.points)) {
+          skipped.push({ what: "A lot's corners", why: "One of them isn't in the project any more." });
+          break;
+        }
         if (op.label !== undefined) lot.label = op.label;
         if (op.sup !== undefined) lot.sup = op.sup;
         if (op.note !== undefined) lot.note = op.note;
+        // Only new corners come from the assistant. A new name or note keeps where the corners came from, and whether they were
+        // checked: renaming an unchecked AI-drafted lot doesn't check its corners.
         if (op.points) {
-          if (!realPoints(op.points)) {
-            skipped.push({ what: "A lot's corners", why: "One of them isn't in the project any more." });
-            break;
-          }
           lot.points = [...op.points];
+          doc.provenance[`lot:${lot.id}`] = assisted;
         }
-        doc.provenance[`lot:${lot.id}`] = assisted;
         touched.push(`lot:${lot.id}`);
         parts.add("lots").add("provenance");
         break;

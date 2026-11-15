@@ -51,18 +51,32 @@ export function plainCommand(text: string): string {
 }
 
 const out = (ops: AssistOp[], say = ""): ReadResult => ({ kind: "output", output: { say, ops } });
+
+/**
+ * A piece of the plain form as the original wrote it, punctuation and case kept ("points 1 2 and 3" is "points 1, 2 and 3"), since
+ * quotes are checked as written. The piece is returned unchanged when it can't be found, and the check then leaves it out.
+ */
+function asSaid(original: string, piece: string): string {
+  const words = piece
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.replace(/[\\^$.*+?()[\]{}|/-]/g, "\\$&"));
+  if (words.length === 0) return piece;
+  const m = new RegExp(`(?<![\\p{L}\\p{N}])${words.join("[\\s.!?,;]+")}(?![\\p{L}\\p{N}])`, "iu").exec(original.normalize("NFKC"));
+  return m ? m[0] : piece;
+}
 const none = { from: "none" as const, quote: "" };
 
 /** Sinhala command words, matched on the whole instruction (after trimming). */
-const SINHALA: [RegExp, () => ReadResult][] = [
+const SINHALA: [RegExp, (quote: string) => ReadResult][] = [
   [/^(?:හරි|ඔව්|යොදන්න|යොදන්න හරි)$/, () => ({ kind: "control", control: "apply" })],
   [/^(?:එපා|නැහැ|අවලංගු කරන්න)$/, () => ({ kind: "control", control: "discard" })],
   [/^(?:නවත්වන්න|ඇති)$/, () => ({ kind: "control", control: "stop" })],
   [/^(?:සුරකින්න)$/, () => ({ kind: "control", control: "save" })],
-  [/^(?:ආපසු(?: හරවන්න)?)$/, () => out([{ op: "history", action: "undo", quote: "" }])],
-  [/^(?:විශාල කරන්න)$/, () => out([{ op: "view", action: "zoom_in", target: "", points: none, quote: "" }])],
-  [/^(?:කුඩා කරන්න)$/, () => out([{ op: "view", action: "zoom_out", target: "", points: none, quote: "" }])],
-  [/^(?:මුළු පිටුවම?|සම්පූර්ණ පිටුව)$/, () => out([{ op: "view", action: "whole_sheet", target: "", points: none, quote: "" }])],
+  [/^(?:ආපසු(?: හරවන්න)?)$/, (q) => out([{ op: "history", action: "undo", quote: q }])],
+  [/^(?:විශාල කරන්න)$/, (q) => out([{ op: "view", action: "zoom_in", target: "", points: none, quote: q }])],
+  [/^(?:කුඩා කරන්න)$/, (q) => out([{ op: "view", action: "zoom_out", target: "", points: none, quote: q }])],
+  [/^(?:මුළු පිටුවම?|සම්පූර්ණ පිටුව)$/, (q) => out([{ op: "view", action: "whole_sheet", target: "", points: none, quote: q }])],
   [/^(?:මුළු )?(?:වර්ගඵලය|ප්‍රමාණය)(?: කීයද)?$/, () => out([{ op: "answer", topic: "total_area", target: "" }])],
 ];
 
@@ -70,7 +84,7 @@ const SINHALA: [RegExp, () => ReadResult][] = [
 export function readCommand(original: string): ReadResult {
   const t = plainCommand(original);
   if (!t) return null;
-  for (const [re, make] of SINHALA) if (re.test(t)) return make();
+  for (const [re, make] of SINHALA) if (re.test(t)) return make(original);
 
   // Conversation controls.
   if (/^(?:apply|apply (?:it|that|them|this|the changes?|all)|yes(?: apply)?|confirm|go ahead|do it|looks (?:good|right)|that's right|correct)$/.test(t)) return { kind: "control", control: "apply" };
@@ -90,12 +104,12 @@ export function readCommand(original: string): ReadResult {
   if (/^(?:clear (?:the )?selection|deselect(?: all)?|select nothing|unselect(?: all)?)$/.test(t)) return out([{ op: "view", action: "clear_selection", target: "", points: none, quote: original }]);
   const focus = /^(?:zoom to|zoom in on|show me|focus on|go to|find) (lot .+|points? .+)$/.exec(t);
   if (focus) {
-    const what = focus[1]!;
+    const what = asSaid(original, focus[1]!);
     return /^points? /.test(what) ? out([{ op: "view", action: "focus", target: "", points: { from: "words", quote: what }, quote: what }]) : out([{ op: "view", action: "focus", target: what, points: none, quote: what }]);
   }
   const select = /^select (lot .+|points? .+)$/.exec(t);
   if (select) {
-    const what = select[1]!;
+    const what = asSaid(original, select[1]!);
     return /^points? /.test(what) ? out([{ op: "view", action: "select", target: "", points: { from: "words", quote: what }, quote: what }]) : out([{ op: "view", action: "select", target: what, points: none, quote: what }]);
   }
 
@@ -124,7 +138,7 @@ export function readCommand(original: string): ReadResult {
   const orient = /^(?:make it |turn it |set it to |)(portrait|landscape)$/.exec(t);
   if (orient) return out([{ op: "set_sheet", setting: "orientation", value: orient[1]!, quote: original }]);
   const scale = /\bscale (?:to |of |at )?(.+)$/.exec(t);
-  if (scale && /^(?:set (?:the )?|change (?:the )?|make (?:the )?|use (?:a )?|)scale\b/.test(t)) return out([{ op: "set_number", setting: "scale", quote: t.slice(t.indexOf("scale")) }]);
+  if (scale && /^(?:set (?:the )?|change (?:the )?|make (?:the )?|use (?:a )?|)scale\b/.test(t)) return out([{ op: "set_number", setting: "scale", quote: asSaid(original, t.slice(t.indexOf("scale"))) }]);
   const template = /^(?:use (?:the )?|switch to (?:the )?|)(classic|panel) (?:layout|template|sheet)$/.exec(t);
   if (template) return out([{ op: "set_sheet", setting: "template", value: template[1]!, quote: original }]);
 
@@ -142,21 +156,23 @@ export function readCommand(original: string): ReadResult {
   if (picked) {
     const name = picked[1] ?? picked[2] ?? picked[3];
     if (!name) return out([{ op: "ask", question: "What should the new lot be called? Say its name, such as lot B.", choices: [] }]);
-    return out([{ op: "add_lot", label: name, corners: { from: "selection", quote: "" }, note: "", quote: original }]);
+    return out([{ op: "add_lot", label: asSaid(original, name), corners: { from: "selection", quote: "" }, note: "", quote: original }]);
   }
   const named = /^(?:create|make|add|draw|form) (lot [a-z0-9]+(?: [a-z0-9]+)?) (?:using|from|through|with|by|joining) ((?:survey |boundary )?(?:points?|marks|corners) .+)$/.exec(t);
-  if (named) return out([{ op: "add_lot", label: named[1]!, corners: { from: "words", quote: named[2]! }, note: "", quote: original }]);
+  if (named) return out([{ op: "add_lot", label: asSaid(original, named[1]!), corners: { from: "words", quote: asSaid(original, named[2]!) }, note: "", quote: original }]);
 
   // Dividing: equal lots, or an access strip along one side. The divide panel shows the lines before anything is kept.
   const divide = /^divide (lot [a-z0-9]+(?: [a-z0-9]+)?|the land|this land|it|the lot|this lot) into (\S+(?: \S+)?) (?:equal )?(?:lots|parts|shares|plots|blocks)$/.exec(t);
-  if (divide) return out([{ op: "divide", lot: /^lot /.test(divide[1]!) ? divide[1]! : "", by: "area", count: divide[2]!, values: "", unit: "", lines: "", side: "", quote: original }]);
+  if (divide) return out([{ op: "divide", lot: /^lot /.test(divide[1]!) ? asSaid(original, divide[1]!) : "", by: "area", count: asSaid(original, divide[2]!), values: "", unit: "", lines: "", side: "", quote: original }]);
   // Commas matter here: in "of lot B one, ten feet wide" the comma ends the lot's name. Without one, only a name written with
   // its figure (B3) is taken before a width, so "lot B one ten feet wide" is never read as lot B and a width of "one ten".
   const tc = original.normalize("NFKC").toLowerCase().replace(/[.!?;]+/g, " ").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim().replace(/,$/, "");
-  const access = /^(?:add|make|leave|reserve) (?:an? )?(?:access )?(?:road|strip|reservation|lane|path)(?: ([^,]+?) wide)?,? (?:along|on|by) the (north|east|south|west)(?:ern)? (?:boundary|side|edge)(?: of (?:(lot [a-z0-9]+(?: [a-z0-9]+)?)(?=,|$)|(lot [a-z]*\d[a-z0-9]*)(?= [^,]+ wide$)))?(?:,? (?!of )([^,]+?) wide)?$/.exec(tc);
+  const access = /^(?:add|make|leave|reserve) (?:an? )?(?:access )?(?:road|strip|reservation|lane|path)(?: ([^,]+?) wide)?,? (?:along|on|by) the (north|east|south|west)(?:ern)? (?:boundary|side|edge)(?: of (?:(lot [a-z0-9]+(?: [a-z0-9]+)?)(?=,|$)|(lot [a-z]*\d[a-z0-9]*)(?= [^,]+ wide$)))?(?:,? (?!of )([^,]+?) wide)?(?: (?:in )?(feet|foot|ft|metres?|meters?))?$/.exec(tc);
   if (access) {
+    // The unit is read from the words by the check; an answer to "feet or metres?" may follow the width.
     const width = access[1] ?? access[5] ?? "";
-    return out([{ op: "divide", lot: access[3] ?? access[4] ?? "", by: "width", count: "", values: width, unit: /\b(feet|foot|ft)\b/.test(width) ? "ft" : width ? "m" : "", lines: "parallel", side: access[2] as "east", quote: original }]);
+    const lot = access[3] ?? access[4] ?? "";
+    return out([{ op: "divide", lot: lot ? asSaid(original, lot) : "", by: "width", count: "", values: width ? asSaid(original, width) : "", unit: "", lines: "parallel", side: access[2] as "east", quote: original }]);
   }
 
   // Questions the engine answers.

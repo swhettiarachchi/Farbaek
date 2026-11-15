@@ -245,6 +245,9 @@ describe("sides, measurements, languages and the conversation", () => {
     expect(live.phase).toBe("countdown");
     live = sessionReducer(sessionReducer(live, { type: "countdown_done" }), { type: "result", phase: "applied" });
     live = sessionReducer(live, { type: "decided" });
+    // The conversation stays open, but it says listening only once the microphone has really started again.
+    expect(live).toMatchObject({ phase: "idle", live: true });
+    live = sessionReducer(live, { type: "listen", live: true });
     expect(live).toMatchObject({ phase: "listening", live: true });
     expect(sessionReducer(live, { type: "stop_live" })).toMatchObject({ phase: "idle", live: false });
     const unclear = sessionReducer(sessionReducer(initialSession(), { type: "listen", live: false }), { type: "final", text: "points 2 to 4", review: false });

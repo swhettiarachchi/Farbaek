@@ -11,7 +11,7 @@ import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { checkTurn } from "@/core/survey/assistant/check";
 import { assistContext } from "@/core/survey/assistant/context";
 import type { AssistLanguage } from "@/core/survey/assistant/languages";
-import type { AssistOutput } from "@/core/survey/assistant/ops";
+import type { AssistOutput, PlanOp } from "@/core/survey/assistant/ops";
 import type { SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { routeModel } from "@/server/ai/routing";
@@ -35,6 +35,15 @@ const FAILURES = {
   PROVIDER_BUSY: "The AI provider is busy, so it wasn't counted. Try again in a minute.",
   PROVIDER_ERROR: "The assistant didn't finish, so it wasn't counted. Try again.",
 } as const;
+
+/**
+ * The operations as kept in the turn's record, inside the table's 64 KB check: each quote shortened, and when they're still too large
+ * (a long dictation), only what kind each was. The surveyor's full words are kept beside them.
+ */
+export function recordedOps(ops: readonly PlanOp[]): unknown[] {
+  const short = ops.map((o) => ({ ...o, quote: o.quote.slice(0, 200) }));
+  return JSON.stringify(short).length <= 60_000 ? short : ops.map((o) => ({ kind: o.kind, shortened: true }));
+}
 
 export interface AssistInput {
   orgId: string;
@@ -101,8 +110,8 @@ export async function runAssistant(deps: Deps, source: ModelSource<SurveyAssista
       inputMethod: input.inputMethod,
       words,
       reply: checked.say,
-      operations: checked.ops,
-      dropped: checked.dropped,
+      operations: recordedOps(checked.ops),
+      dropped: checked.dropped.slice(0, 40).map((d) => ({ what: d.what.slice(0, 200), why: d.why.slice(0, 300) })),
       outcome: usable ? "suggested" : "failed",
       model: outcome.usage.model,
     })

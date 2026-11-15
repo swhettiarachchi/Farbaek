@@ -81,18 +81,29 @@ export function readLegs(text: string): { rows: LegRow[]; problems: string[] } {
 }
 
 const KEY = /\b(northing|north|easting|east|height|elevation|level|rl|code)\b/gi;
+const KEY_GROUP: Record<string, string> = { northing: "n", north: "n", easting: "e", east: "e", height: "z", elevation: "z", level: "z", rl: "z", code: "code" };
+const NUMBER_WORD = "zero|oh|nought|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh";
 
 /** Coordinate rows from the words: "point 215 northing … easting … height … code CP". Each problem names the row. */
 export function readCoordinateRows(text: string): { rows: CoordinateRow[]; problems: string[] } {
   const rows: CoordinateRow[] = [];
   const problems: string[] = [];
+  // A new row starts at "point", except where "point" is a decimal point: right after a figure or a number word ("450012 point 345").
+  const startsRow = new RegExp(`(?<!(?:\\d|\\b(?:${NUMBER_WORD}))\\s*)(?=\\bpoint\\b)`, "i");
   const parts = text
-    .split(/\s*(?:;|\bthen\b|\bnext\b)\s*|(?=\bpoint\b)/i)
+    .split(/\s*(?:;|\bthen\b|\bnext\b)\s*/i)
+    .flatMap((s) => s.split(startsRow))
     .map((s) => s.trim())
     .filter((s) => /\bpoint\b/i.test(s) || /\bnorth|east/i.test(s));
   parts.forEach((part, i) => {
     const what = `Row ${i + 1}`;
     const marks = [...part.matchAll(KEY)].map((m) => ({ key: m[1]!.toLowerCase(), at: m.index!, end: m.index! + m[0].length }));
+    // A value said twice in one row ("height 21 point 216 northing …") means a row ran into the next: say "then" between them.
+    const groups = marks.map((m) => KEY_GROUP[m.key]);
+    if (new Set(groups).size !== groups.length) {
+      problems.push(`${what}: it has two of the same value. Say "then" between points.`);
+      return;
+    }
     const nameText = part.slice(0, marks[0]?.at ?? part.length);
     const point = pointName(nameText);
     const value = (keys: string[]) => {
