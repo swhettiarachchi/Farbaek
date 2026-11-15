@@ -38,7 +38,7 @@ const STEPS: { icon: Icon; title: string; body: string }[] = [
   {
     icon: PenNibIcon,
     title: "Describe the job, or draw it yourself",
-    body: "Write each lot's corner points, the roads, what adjoins between which points and the title in your own words, or photograph the earlier plan. The AI reads only what you wrote, asks about what's missing and marks every item for you to check. Or type each lot's corners yourself: areas and widths appear as you go.",
+    body: "Write each lot's corner points, the roads, what adjoins between which points and the title in your own words, or photograph the earlier plan. The AI reads only what you wrote, asks about what's missing and marks every item for you to check. Or type each lot's corners yourself: areas and widths appear as you go. For a sub division, Farbaek works out where the dividing lines fall for the shares you give, and how far along the boundary to peg each new corner.",
   },
   {
     icon: LayoutIcon,
@@ -48,7 +48,7 @@ const STEPS: { icon: Icon; title: string; body: string }[] = [
   {
     icon: ListChecksIcon,
     title: "Check it",
-    body: "Every problem is listed with what to do about it. A problem that would make the plan wrong stops the export until it's fixed.",
+    body: "Every problem is listed with what to do about it. A problem that would make the plan wrong stops the export until it's fixed. Lots that nearly meet are named with the distance, for you to fix or keep as surveyed, and the deed's extent is set beside the one computed from your points.",
   },
   {
     icon: SignatureIcon,
