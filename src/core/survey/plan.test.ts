@@ -143,30 +143,11 @@ describe("lots and their checks (synthetic)", () => {
     expect([lots.pieces, lots.holes]).toEqual([1, 0]);
   });
 
-  it("reads a T-junction: a corner resting on a neighbour's leg splits that leg, so the land still closes", () => {
-    // Lot T1 runs along 1-2-3 without corner 8's neighbour; lot T2 rests corner 8 on nothing extra: build one where 3 lies on T1's leg.
-    const t1 = { id: "t1", label: "T", sup: "1", note: "", points: [SAMPLE_POINTS[0]!.id, SAMPLE_POINTS[1]!.id, SAMPLE_POINTS[3]!.id, SAMPLE_POINTS[7]!.id, SAMPLE_POINTS[6]!.id] };
-    const pts = SAMPLE_POINTS.map((p) => (p.pointId === "3" ? { ...p, e: 500_049.2, n: 600_023.15 } : p));
-    // Put 3 exactly on the straight leg 2 to 4.
-    const p2 = pts[1]!;
-    const p4 = pts[3]!;
-    const p3 = { ...pts[2]!, e: p2.e + (p4.e - p2.e) * 0.5, n: p2.n + (p4.n - p2.n) * 0.5 };
-    const all = pts.map((p) => (p.pointId === "3" ? p3 : p));
-    const t2 = { id: "t2", label: "T", sup: "2", note: "", points: [SAMPLE_POINTS[7]!.id, SAMPLE_POINTS[2]!.id, SAMPLE_POINTS[3]!.id, SAMPLE_POINTS[4]!.id] };
-    const r = computeLots(all, [{ ...t1, points: [SAMPLE_POINTS[0]!.id, SAMPLE_POINTS[1]!.id, SAMPLE_POINTS[2]!.id, SAMPLE_POINTS[7]!.id, SAMPLE_POINTS[6]!.id] }, t2]);
-    expect(r.overlaps).toEqual([]);
-    expect(r.outlineAreaM2).not.toBeNull();
-    expect(r.outlineAreaM2!).toBeCloseTo(r.sumAreaM2, 6);
-    void t1;
-  });
-
-  it("catches overlapping lots, a gap between lots, and a repeated label", () => {
+  it("catches overlapping lots and a repeated label (gaps and T-junctions are tested below)", () => {
     const over = { ...doc, lots: [doc.lots[0]!, { ...doc.lots[1]!, points: [SAMPLE_POINTS[0]!.id, SAMPLE_POINTS[1]!.id, SAMPLE_POINTS[4]!.id, SAMPLE_POINTS[5]!.id] }] };
     expect(qc(over).map((f) => f.code)).toContain("LOTS_OVERLAP");
-    // Drop B² from the middle: B¹ and B³ alone leave a notch, not a hole; take B² out of a ring of four instead.
-    const ring = { ...doc, lots: [doc.lots[0]!, doc.lots[2]!] };
-    const codes = qc(ring).map((f) => f.code);
-    expect(codes).not.toContain("LOTS_OVERLAP");
+    // B¹ and B³ alone touch along a leg: no overlap.
+    expect(qc({ ...doc, lots: [doc.lots[0]!, doc.lots[2]!] }).map((f) => f.code)).not.toContain("LOTS_OVERLAP");
     const dup = { ...doc, lots: doc.lots.map((l) => ({ ...l, sup: "1" })) };
     expect(qc(dup).map((f) => f.code)).toContain("LOT_LABEL_DUPLICATE");
   });
@@ -565,7 +546,7 @@ describe("the second review's cases (synthetic)", () => {
   });
 
   it("asks for a lot's label instead of inventing one, and upgrades stage 190's unchecked legend to the common list", () => {
-    const sheetV1 = { planNumber: "", planDate: "", lot: "", landName: "", village: "", gnDivision: "", dsDivision: "", district: "", province: "", previousPlans: "", boundaries: { north: "", east: "", south: "", west: "" }, statedExtent: "", surveyDate: "", remarks: "", legend: ["MW", "MDn", "CP", "EP", "TP", "St", "M", "P", "NF", "RW"].map((code) => ({ code, meaning: code })) };
+    const sheetV1 = { planNumber: "", planDate: "", lot: "", landName: "", village: "", gnDivision: "", dsDivision: "", district: "", province: "", previousPlans: "", boundaries: { north: "", east: "", south: "", west: "" }, statedExtent: "", surveyDate: "", remarks: "", legend: [["MW", "Masonry wall"], ["MDn", "Masonry drain"], ["CP", "Concrete post"], ["EP", "Electric post"], ["TP", "Telephone post"], ["St", "Stake"], ["M", "Mark"], ["P", "Permanent building"], ["NF", "Net fence"], ["RW", "Retaining wall"]].map(([code, meaning]) => ({ code, meaning })) };
     const v1 = { schema: 1, boundary: SAMPLE_POINTS.slice(0, 4).map((p) => p.id), features: [], labelOffsets: { "lot-extent": { dx: 1, dy: 2 } }, layers: Object.fromEntries(Object.entries(emptyDocument().layers).filter(([k]) => k !== "ADJOINING")), sheet: sheetV1, settings: { paper: "A3", orientation: "landscape", scale: null, perchDecimals: 2, secondDecimals: 0, distanceDecimals: 2, overleaf: true, permitBox: false }, surveyorUserId: null };
     const up = parseSurveyDocument(v1)!;
     expect(up.lots[0]!.label).toBe("");
@@ -574,6 +555,9 @@ describe("the second review's cases (synthetic)", () => {
     expect(qcOf(SAMPLE_POINTS, up)).toEqual(expect.arrayContaining(["LOT_LABEL_MISSING", "LEGEND_UNREVIEWED"]));
     const long = parseSurveyDocument({ ...v1, sheet: { ...sheetV1, lot: "Lot 12 of Plan 1234" } })!;
     expect(surveyDocumentSchema.safeParse(long).success).toBe(true);
+    // A surveyor who rewrote a meaning keeps their words.
+    const edited = parseSurveyDocument({ ...v1, sheet: { ...sheetV1, legend: sheetV1.legend.map((e) => (e.code === "P" ? { ...e, meaning: "Permanent building, 2 storey" } : e)) } })!;
+    expect(edited.codes.find((c) => c.code === "P")!.meaning).toBe("Permanent building, 2 storey");
   });
 
   it("ignores marks for items no longer on the plan", () => {
@@ -590,5 +574,36 @@ describe("the second review's cases (synthetic)", () => {
     const dims = (parsed.entities.filter((e) => e.type === "TEXT") as unknown as { text: string; layer: string }[]).filter((t) => t.layer === "DIMENSIONS");
     // B1 has 5 legs, B2 and B3 4 each; 7-8, 8-3 and 8-5 are shared.
     expect(dims).toHaveLength(10);
+  });
+});
+
+describe("the second review's re-check (synthetic)", () => {
+  const compose = (d: ReturnType<typeof sampleDocument>) => composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: d, points: SAMPLE_POINTS, lots: computeLots(SAMPLE_POINTS, d.lots), crs: SLD99, crsConfirmation: "Test", surveyor: null, approval: null });
+
+  it("reads plans saved while stage 191 was built, with an adjoining land's leg as a number", () => {
+    const d = sampleDocument() as unknown as Record<string, unknown>;
+    const old = { ...d, adjoining: [{ id: "adj-west", text: "Land claimed by the sample owner", lot: "lot-b2", leg: 3 }, { id: "adj-gone", text: "Gone", lot: "lot-x", leg: 0 }] };
+    const up = parseSurveyDocument(old)!;
+    expect(up.adjoining).toEqual([{ id: "adj-west", text: "Land claimed by the sample owner", lot: "lot-b2", from: SAMPLE_POINTS.find((p) => p.pointId === "6")!.id, to: SAMPLE_POINTS.find((p) => p.pointId === "7")!.id }]);
+  });
+
+  it("stops the export when text runs past the border, and says when a lot's label is bigger than the lot", () => {
+    const d = sampleDocument();
+    d.labelOffsets["adjoining:adj-east"] = { dx: 60, dy: 0 };
+    expect(compose(d).findings.map((f) => f.code)).toContain("TEXT_OFF_SHEET");
+    const tiny = sampleDocument();
+    tiny.settings.scale = 10000;
+    tiny.settings.paper = "A4";
+    expect(compose(tiny).findings.map((f) => f.code)).toContain("LOT_LABEL_CRAMPED");
+  });
+
+  it("keeps drawing labels off the north arrow", () => {
+    const sheet = compose(sampleDocument());
+    const front = sheet.pages[0]!.items;
+    const arrow = front.filter((i) => i.kind === "path" && i.layer === "TITLE");
+    const xs = arrow.flatMap((i) => (i.kind === "path" ? i.points.map((p) => p[0]) : []));
+    const right = Math.min(...xs.filter((x) => x > 150));
+    const labels = front.filter((i) => i.kind === "text" && i.layer === "ADJOINING") as { x: number }[];
+    expect(labels.every((t) => t.x < right)).toBe(true);
   });
 });

@@ -23,7 +23,7 @@ A drawing's `settings.template` picks one: `classic` (the default since stage 19
 
 **Paper and scale.** With `paper: "auto"` and no fixed scale, the composer tries 1:500 then the next standard scale (1:1000, 1:1250 …) in the outer loop and A4 then A3 in the inner loop, and A2 only when nothing smaller fits. A fixed scale that doesn't fit is a finding that blocks export; the drawing is never shrunk.
 
-**Labels** are placed greedily against everything already drawn (`Placer`, a separating-axis overlap test that also handles segments). Geometry never moves; what still overlaps is reported.
+**Labels** are placed greedily against everything already drawn (`Placer`, a separating-axis overlap test that also handles segments), with the north arrow and the check line reserved first. A lot's label is always inside its lot, clear of its legs (`LOT_LABEL_CRAMPED` when it can't fit). An adjoining land's label goes beside its leg, or along it when there's no room, reading up the page on side legs; text past the frame stops the export (`TEXT_OFF_SHEET`), and drawing text over the Reference or title is a warning (`LABELS_ON_TITLE`). Geometry never moves; what still overlaps is reported.
 
 ## The panel layout: `SRI_LANKA_CADASTRAL_V1`
 

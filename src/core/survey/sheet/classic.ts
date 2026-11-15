@@ -22,7 +22,7 @@ import type { Finding } from "../qc";
 import { fmt, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 import { BLANK, commonFindings, drawCtx, drawnPoints, entireAreaM2, overleafPages, usedCodes, type ComposeInput, type ComposedSheet } from "./compose";
-import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads, type DrawCtx } from "./draw";
+import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads, quadsOverlap, textQuad, type DrawCtx } from "./draw";
 import { advanceWidth, textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import { SRI_LANKA_CLASSIC_V1 as T } from "./template";
 
@@ -294,11 +294,16 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   const drawing: SceneItem[] = [];
   let viewport: Viewport | null = null;
   let drawingCtx: DrawCtx | null = null;
+  const needle = { x: f.x0 + f.fw * 0.92, top: lay.bandTop + f.fh * 0.01, h: f.fh * 0.13 };
+  const checkLine = f.fw * 0.5 >= 104 ? { x: f.x0 + f.fw * 0.97 - 100, y: lay.titleTop - z.small * 1.2 } : null;
   if (b && scale) {
     viewport = { ...lay.vp, scale, centreE: (b.minE + b.maxE) / 2, centreN: (b.minN + b.maxN) / 2 };
     // Text in the drawing stays inside the frame and above the Reference and title block.
     const ctx = drawCtx(drawing, viewport, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, { boundary: T.lines.boundary, feature: T.lines.feature, thin: T.lines.thin }, slant, [f.x0 + 1, lay.bandTop, f.x0 + f.fw - 1, lay.vp.y + lay.vp.h]);
     drawingCtx = ctx;
+    // The north arrow and the check line are drawn later, outside this context: reserve their room first.
+    ctx.placer.add([[needle.x - needle.h * 0.2, needle.top], [needle.x + needle.h * 0.2, needle.top], [needle.x + needle.h * 0.2, needle.top + needle.h], [needle.x - needle.h * 0.2, needle.top + needle.h]]);
+    if (checkLine) ctx.placer.add([[checkLine.x, checkLine.y - z.small * 2], [checkLine.x + 100, checkLine.y - z.small * 2], [checkLine.x + 100, checkLine.y + 1], [checkLine.x, checkLine.y + 1]]);
     drawRoads(ctx, doc.roads);
     drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: extract?.id ?? null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals });
     const first = input.lots.lots.find((r) => r.parcel && r.parcel.vertices.length >= 3)?.parcel;
@@ -312,9 +317,9 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   // North needle, right of the drawing band.
   {
     const ctx = drawCtx(front, viewport ?? { ...lay.vp, scale: 500, centreE: 0, centreN: 0 }, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, { boundary: T.lines.boundary, feature: T.lines.feature, thin: T.lines.thin }, slant);
-    drawNeedleNorth(ctx, f.x0 + f.fw * 0.92, lay.bandTop + f.fh * 0.01, f.fh * 0.13);
-    // The 100 mm check line, in the legend strip's right when there's room, else under the arrow.
-    if (f.fw * 0.5 >= 104) drawCheckLine(ctx, f.x0 + f.fw * 0.97 - 100, lay.titleTop - z.small * 1.2);
+    drawNeedleNorth(ctx, needle.x, needle.top, needle.h);
+    // The 100 mm check line, in the legend strip's right when there's room.
+    if (checkLine) drawCheckLine(ctx, checkLine.x, checkLine.y);
   }
 
   // Reference legend and notes, bottom left of the drawing band.
@@ -376,6 +381,12 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
         notes: [crsLine, `${BEARING_CONVENTION} Distances are horizontal grid distances in metres.`, scale ? `Scale 1:${fmt(scale, 0)} on ${f.paper}. Print at 100% (actual size): fitting to the page changes the scale.` : "", `Prepared with Farbaek Survey Studio (${SURVEY_ENGINE_VERSION}).`].filter(Boolean),
       }),
     );
+  }
+  // Drawing text that covers the Reference, the notes or the title block.
+  const titleBoxes = front.filter((i): i is SceneText => i.kind === "text" && (i.layer === "TITLE" || i.layer === "SHEET")).map(textQuad);
+  const onTitle = drawing.filter((i): i is SceneText => i.kind === "text").filter((t) => titleBoxes.some((q) => quadsOverlap(textQuad(t), q)));
+  if (onTitle.length > 0) {
+    findings.push({ code: "LABELS_ON_TITLE", severity: "warning", message: `${onTitle.length === 1 ? "A label in the drawing covers" : `${onTitle.length} labels in the drawing cover`} the Reference or the title.`, target: { kind: "sheet" }, detail: onTitle.slice(0, 4).map((t) => `"${t.text.slice(0, 30)}"`).join(", "), action: "Drag it clear in the editor, or choose a larger sheet or scale.", blocks: [] });
   }
   commonFindings(pages, drawing, scale, findings, { inner: [f.x0, f.y0, f.x0 + f.fw, f.y0 + f.fh], ctx: drawingCtx });
   return { pages, viewport, scale, suggestedScale: suggested, paper: f.paper, findings };

@@ -282,8 +282,9 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                     <span className={LABEL_CLASSES}>Beside lot</span>
                     <select value={a.lot} disabled={ro} onChange={(e) => set({ lot: e.target.value, ...firstLeg(lotDocs.find((l) => l.id === e.target.value)) })} className={inputClasses()}>
                       {lotDocs.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {lotName(l)}
+                        <option key={l.id} value={l.id} disabled={l.points.length < 2}>
+                          {lotName(l) || "Without a label"}
+                          {l.points.length < 2 ? " (no corners yet)" : ""}
                         </option>
                       ))}
                     </select>

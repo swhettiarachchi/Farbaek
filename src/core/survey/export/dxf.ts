@@ -156,7 +156,12 @@ export function writeDxf(input: DxfInput): string {
       if (angle > 90) angle -= 180;
       if (angle < -90) angle += 180;
       const label = `${formatDms(toDms(leg.bearing, doc.settings.secondDecimals))} ${roundTo(leg.distance, doc.settings.distanceDecimals).toFixed(doc.settings.distanceDecimals)}`;
-      text("DIMENSIONS", (leg.from.e + leg.to.e) / 2, (leg.from.n + leg.to.n) / 2, label, h(2.2), angle);
+      // On the lot's own side of the leg, so where one lot's corner rests on another's leg the two labels don't overlap.
+      const len = Math.hypot(leg.to.e - leg.from.e, leg.to.n - leg.from.n) || 1;
+      const inward = parcel.clockwise ? 1 : -1;
+      const ox = ((leg.to.n - leg.from.n) / len) * h(1.8) * inward;
+      const oy = (-(leg.to.e - leg.from.e) / len) * h(1.8) * inward;
+      text("DIMENSIONS", (leg.from.e + leg.to.e) / 2 + ox, (leg.from.n + leg.to.n) / 2 + oy, label, h(2.2), angle);
     });
     if (parcel.vertices.length >= 3 && parcel.crossings.length === 0 && r.lot.label.trim()) {
       const { label, sup } = r.lot;

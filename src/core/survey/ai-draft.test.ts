@@ -167,7 +167,7 @@ describe("accepting a draft from a brief", () => {
   });
 
   it("refuses a point the project doesn't have, a ring that crosses itself or repeats a corner", () => {
-    expect(why(accept({ ...empty(), lots: [{ label: "C", sup: "", note: "", corners: ["1", "2", "99"], evidence: "Lot C is points 1 2 99" }] }, "ai_brief", "Lot C is points 1 2 99"))).toEqual(["Lot C: Its corners aren't the points your description lists for it, in that order."]);
+    expect(why(accept({ ...empty(), lots: [{ label: "C", sup: "", note: "", corners: ["1", "2", "99"], evidence: "Lot C is points 1 2 99" }] }, "ai_brief", "Lot C is points 1 2 99"))).toEqual(["Lot C: Point 99 isn't in this project."]);
     const brief = "Lot X is points 1 4 2 6. Lot Y is points 1 2 3 2.";
     const r = accept(
       {
@@ -301,5 +301,63 @@ describe("the surveyor's review", () => {
   it("lists every drafted item until it's taken out", () => {
     const r = draftOn(base());
     expect(itemsInReview(r, applyReview(base(), r, none), none)).toHaveLength(r.accepted.length);
+  });
+});
+
+describe("the first review's re-check (synthetic)", () => {
+  const two = "Lot B1 is points 1 2 3 8 7. Lot B2 is points 7 8 5 6.";
+  const lotDraft = (label: string, sup: string, corners: string[], evidence: string): DraftOutput => ({ ...empty(), lots: [{ label, sup, note: "", corners, evidence }] });
+
+  it("takes a lot's corners only from its own list, never another lot's, and never a corner short", () => {
+    expect(accept(lotDraft("B", "1", ["7", "8", "5", "6"], two), "ai_brief", two).document.lots).toEqual([]);
+    expect(accept(lotDraft("B", "1", ["1", "2", "3", "8"], two), "ai_brief", two).document.lots).toEqual([]);
+    expect(accept(lotDraft("B", "1", ["3", "8", "7", "1", "2"], two), "ai_brief", two).document.lots).toHaveLength(1);
+    const run = "Lot A is points 1 2 4 6 and lot C is points 7 8 5.";
+    expect(accept(lotDraft("A", "", ["4", "6", "7", "8"], run), "ai_brief", run).document.lots).toEqual([]);
+  });
+
+  it("names a lot only where the words say lot", () => {
+    const brief = "Road along points 1 2 3.";
+    expect(accept(lotDraft("3", "", ["1", "2", "3"], "points 1 2 3"), "ai_brief", brief).document.lots).toEqual([]);
+  });
+
+  it("refuses a description cut short", () => {
+    const brief = "North by land of A. Perera's heirs. East by the road.";
+    const cut = accept({ ...empty(), fields: [{ field: "boundaryNorth", value: "land of A. Perera", evidence: "North by land of A. Perera" }] }, "ai_brief", brief);
+    expect(cut.document.sheet.boundaries.north).toBe("");
+    const whole = accept({ ...empty(), fields: [{ field: "boundaryNorth", value: "land of A. Perera's heirs", evidence: "North by land of A. Perera's heirs" }] }, "ai_brief", brief);
+    expect(whole.document.sheet.boundaries.north).toBe("land of A. Perera's heirs");
+  });
+
+  it("reads 'not my plan' as not mine, and a sub division as a sub division", () => {
+    const brief = "Depicted in Plan No. 77 made by A. Sample, not my plan. Resurvey and sub division of lot B.";
+    const r = accept(
+      {
+        ...empty(),
+        fields: [
+          { field: "previousPlanMine", value: "yes", evidence: "made by A. Sample, not my plan" },
+          { field: "operation", value: "resurvey", evidence: "Resurvey and sub division of lot B" },
+        ],
+      },
+      "ai_brief",
+      brief,
+    );
+    expect(r.document.sheet.previousPlan.mine).toBe(false);
+    expect(r.document.sheet.operation).toBe("resurvey");
+    expect(r.dropped.map((d) => d.what)).toEqual(["My own earlier plan", "The survey"]);
+  });
+
+  it("asks which lot an adjoining land is beside when the leg is shared", () => {
+    const d = goodDraft();
+    d.adjoining = [{ text: "the drain", lot: "B1", from: "7", to: "8", evidence: "Between points 7 and 8 is the drain" }];
+    const brief = BRIEF + "\nBetween points 7 and 8 is the drain.";
+    expect(accept(d, "ai_brief", brief).document.adjoining).toEqual([]);
+  });
+
+  it("matches point numbers in their own case when two differ only by case", () => {
+    const points = [...SAMPLE_POINTS, { id: "00000000-0000-4000-8000-0000000000a1", pointId: "A1", e: 500_010, n: 600_010, z: null, code: null }, { id: "00000000-0000-4000-8000-0000000000a2", pointId: "a1", e: 500_011, n: 600_011, z: null, code: null }];
+    const brief = "Lot Q is points 1 2 A1.";
+    const r = accept(lotDraft("Q", "", ["1", "2", "A1"], "Lot Q is points 1 2 A1"), "ai_brief", brief, emptyDocument(), points);
+    expect(r.document.lots[0]!.points[2]).toBe("00000000-0000-4000-8000-0000000000a1");
   });
 });

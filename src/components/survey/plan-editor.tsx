@@ -661,13 +661,13 @@ function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { d
           {check("It's my own earlier plan (“my Plan No.”)", s.previousPlan.mine, (d, v) => (void (d.sheet.previousPlan.mine = v), touched(d, "sheet.previousPlan.mine")))}
           <CheckMark doc={doc} field="sheet.previousPlan.mine" update={update} readOnly={readOnly} />
         </div>
-        {s.previousPlan.mine ? null : (
+        {s.previousPlan.mine && !doc.provenance["sheet.previousPlan.by"] ? null : (
           <div className="grid grid-cols-2 gap-3">
             {field("Made by", s.previousPlan.by, "previousPlan.by", (d, v) => void (d.sheet.previousPlan.by = v), 80)}
             {field("Their designation", s.previousPlan.byDesignation, "previousPlan.byDesignation", (d, v) => void (d.sheet.previousPlan.byDesignation = v), 60)}
           </div>
         )}
-        {field("Filed of record in (optional)", s.previousPlan.filing, "previousPlan", (d, v) => void (d.sheet.previousPlan.filing = v), 160, { hint: "A court and case number, when the plan was filed." })}
+        {field("Filed of record in (optional)", s.previousPlan.filing, "previousPlan.filing", (d, v) => void (d.sheet.previousPlan.filing = v), 160, { hint: "A court and case number, when the plan was filed." })}
         <div className="grid grid-cols-2 gap-3">
           {field("Village", s.village, "village", (d, v) => void (d.sheet.village = v), 60)}
           {field("Pattu", s.pattu, "pattu", (d, v) => void (d.sheet.pattu = v), 60, { hint: "As written, ending in “Pattu”." })}

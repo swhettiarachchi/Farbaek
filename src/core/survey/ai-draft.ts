@@ -232,6 +232,8 @@ const LIMITS: Partial<Record<DraftField, number>> = {
   statedExtent: 80,
 };
 const DATE_FIELDS = new Set<DraftField>(["previousPlanDate", "surveyDate", "partitionDate"]);
+/** Fields that describe something in full, which a shortened phrase would change. */
+const WHOLE_FIELDS = new Set<DraftField>(["boundaryNorth", "boundaryEast", "boundarySouth", "boundaryWest", "statedExtent", "previousPlanFiling"]);
 /** Fields about the new survey: an earlier plan's photo can't fill them (its own number and date are the "previous plan"). */
 const NEW_SURVEY_ONLY = new Set<DraftField>(["planNumber", "surveyDate", "partitionDate"]);
 const MAX = { lots: 60, roads: 20, adjoining: 80, fields: 40, notes: 10, questions: 12, label: 40, sup: 6, note: 80, roadName: 80, direction: 60, adjoiningText: 200, corners: 500, edge: 200, noteText: 300, question: 300 } as const;
@@ -255,15 +257,63 @@ function setPath(doc: SurveyDocument, key: string, value: unknown) {
   target[last] = structuredClone(value);
 }
 
-/** Whether `seq` is written in `run` as one stretch: in the same order, starting at any corner for a ring, or either way for a line. */
-function writtenInOrder(seq: readonly string[], run: readonly string[], kind: "ring" | "line"): boolean {
-  const s = seq.map((x) => x.toLowerCase());
-  const n = s.length;
-  if (n === 0 || n > run.length) return false;
-  const eq = (a: readonly string[], b: readonly string[]) => a.every((x, i) => x === b[i]);
-  for (let i = 0; i + n <= run.length; i++) {
-    const w = run.slice(i, i + n).map((x) => x.toLowerCase());
-    if (kind === "line" ? eq(w, s) || eq(w, [...s].reverse()) : s.some((_, r) => eq(w, [...s.slice(r), ...s.slice(0, r)]))) return true;
+const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+/** Whether a ring of corners is the same ring as `list`, starting at any corner. */
+const sameRing = (corners: readonly string[], list: readonly string[]) => corners.length === list.length && corners.some((_, r) => same([...corners.slice(r), ...corners.slice(0, r)], list));
+const sameLine = (edge: readonly string[], list: readonly string[]) => same(edge, list) || same([...edge].reverse(), list);
+
+/** The quote as words, each with whether it ends a sentence (a full stop, semicolon or line end after it). */
+function wordsOf(quote: string): { word: string; ends: boolean }[] {
+  return quote
+    .normalize("NFKC")
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map((raw) => ({ word: raw.replace(/^[([{"'\u2018\u201c]+|[)\]}"'\u2019\u201d.:;!?]+$/g, ""), ends: /[.;!?]$/.test(raw) }))
+    .filter((w) => w.word !== "");
+}
+
+/**
+ * The corner lists a quote gives one lot: for each time it writes "lot B1"
+ * (or "lot B 1"), the point numbers after it, up to the next lot or the end
+ * of the sentence. Empty when the quote never names that lot.
+ */
+export function lotCornersIn(quote: string, label: string, sup: string, isPoint: (word: string) => boolean): string[][] {
+  const lists: string[][] = [];
+  const words = wordsOf(quote);
+  const want = [fold(label + sup), ...(sup ? [`${fold(label)} ${fold(sup)}`] : [])];
+  for (let i = 0; i + 1 < words.length; i++) {
+    if (!/^lots?$/i.test(words[i]!.word)) continue;
+    const one = fold(words[i + 1]!.word);
+    const two = i + 2 < words.length ? `${one} ${fold(words[i + 2]!.word)}` : "";
+    const after = want.includes(one) ? i + 2 : sup && want.includes(two) ? i + 3 : -1;
+    if (after < 0) continue;
+    const list: string[] = [];
+    if (!words[after - 1]!.ends) {
+      for (let k = after; k < words.length; k++) {
+        const w = words[k]!;
+        if (/^lots?$/i.test(w.word)) break;
+        if (isPoint(w.word)) list.push(w.word);
+        if (w.ends) break;
+      }
+    }
+    lists.push(list);
+  }
+  return lists;
+}
+
+/**
+ * Whether the brief writes `value` and ends a clause right after it (a full
+ * stop, comma, semicolon, colon, bracket or the end), so a description isn't
+ * cut short: "land of A. Perera" doesn't stand for "land of A. Perera's heirs".
+ */
+export function writtenWhole(brief: string, value: string): boolean {
+  const words = fold(value).split(" ").filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (words.length === 0) return false;
+  const re = new RegExp(`(?<![\\p{L}\\p{M}\\p{N}])${words.join("[^\\p{L}\\p{M}\\p{N}]+")}(?![\\p{L}\\p{M}\\p{N}])`, "giu");
+  const text = brief.normalize("NFKC");
+  for (const m of text.matchAll(re)) {
+    const rest = text.slice((m.index ?? 0) + m[0].length);
+    if (/^[ \t]*([.,;:)(\]\n!?]|$)/.test(rest)) return true;
   }
   return false;
 }
@@ -279,7 +329,15 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
   const accepted: AcceptedItem[] = [];
   const dropped: { what: string; why: string }[] = [];
   const questions: string[] = [];
-  const byNumber = new Map(input.points.map((p) => [p.pointId.trim().toLowerCase(), p]));
+  const exact = new Map(input.points.map((p) => [p.pointId.trim(), p]));
+  const folded = new Map<string, SurveyPoint | null>();
+  for (const p of input.points) {
+    const k = p.pointId.trim().toLowerCase();
+    folded.set(k, folded.has(k) ? null : p);
+  }
+  /** A point by its number as written: exactly, or in another case when only one point could be meant. */
+  const pointBy = (n: string): SurveyPoint | undefined => exact.get(n.trim()) ?? folded.get(n.trim().toLowerCase()) ?? undefined;
+  const byNumber = { has: (n: string) => pointBy(n) !== undefined, get: pointBy };
   const numberOf = (id: string) => input.points.find((p) => p.id === id)?.pointId ?? "?";
   const fromBrief = input.source === "ai_brief";
   const NOT_WRITTEN = "It isn't in your description's words.";
@@ -288,14 +346,14 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
     accepted.push({ key, label });
   };
   /** The project's point numbers written in a quote, in order. */
-  const runOf = (quote: string) => rawTokens(quote).filter((t) => byNumber.has(t.toLowerCase()));
+  const runOf = (quote: string) => rawTokens(quote).filter((t) => byNumber.has(t));
   const ids = (numbers: string[], what: string): string[] | null => {
-    const missing = numbers.filter((n) => !byNumber.has(n.trim().toLowerCase()));
+    const missing = numbers.filter((n) => !byNumber.has(n));
     if (missing.length > 0) {
       dropped.push({ what, why: `Point ${missing.slice(0, 5).join(", ")} isn't in this project.` });
       return null;
     }
-    return numbers.map((n) => byNumber.get(n.trim().toLowerCase())!.id);
+    return numbers.map((n) => byNumber.get(n)!.id);
   };
   const taken = new Set([...doc.lots.map((l) => l.id), ...doc.roads.map((r) => r.id), ...doc.adjoining.map((a) => a.id)]);
   /** A fresh id, never one an earlier lot, road or label used, so nothing left over can attach to a drafted item. */
@@ -333,16 +391,17 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
       dropped.push({ what: name, why: "Its label or its list of corners is too long." });
       continue;
     }
-    if (!quotes(input.brief, l.evidence) || !(hasPhrase(l.evidence, `${label}${sup}`) || (sup !== "" && hasPhrase(l.evidence, `${label} ${sup}`)))) {
-      dropped.push({ what: name, why: NOT_WRITTEN });
-      continue;
-    }
-    if (!writtenInOrder(l.corners, runOf(l.evidence), "ring")) {
-      dropped.push({ what: name, why: "Its corners aren't the points your description lists for it, in that order." });
+    const listed = quotes(input.brief, l.evidence) ? lotCornersIn(l.evidence, label, sup, (w) => byNumber.has(w)) : [];
+    if (listed.length === 0) {
+      dropped.push({ what: name, why: "Your description doesn't name it as a lot in those words." });
       continue;
     }
     const pts = ids(l.corners, name);
     if (!pts) continue;
+    if (!listed.some((list) => sameRing(pts, list.map((n) => pointBy(n)!.id)))) {
+      dropped.push({ what: name, why: "Its corners aren't the points your description lists for it, all of them in that order." });
+      continue;
+    }
     const parcel = computeParcel(input.points, pts);
     if (!parcel.ok || parcel.parcel.vertices.length < 3) {
       dropped.push({ what: name, why: "It needs at least three corners." });
@@ -361,7 +420,7 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
       continue;
     }
     let note = l.note.trim();
-    if (note && (note.length > MAX.note || !hasPhrase(l.evidence, note))) {
+    if (note && (note.length > MAX.note || !hasPhrase(l.evidence, note) || !writtenWhole(input.brief, note))) {
       dropped.push({ what: `${name}'s note`, why: NOT_WRITTEN });
       note = "";
     }
@@ -389,9 +448,13 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
       dropped.push({ what: name, why: NOT_WRITTEN });
       continue;
     }
-    const run = runOf(r.evidence);
-    if (!writtenInOrder(r.edgeA, run, "line") || (r.edgeB.length > 0 && !writtenInOrder(r.edgeB, run, "line"))) {
-      dropped.push({ what: name, why: "Its edge points aren't the ones your description lists for it, in that order." });
+    // The quote's points are exactly the two edges, one after the other, each either way along.
+    const run = runOf(r.evidence).map((n) => pointBy(n)!.id);
+    const A = r.edgeA.map((n) => pointBy(n)?.id ?? `?${n}`);
+    const B = r.edgeB.map((n) => pointBy(n)?.id ?? `?${n}`);
+    const ok = run.length === A.length + B.length && ((sameLine(A, run.slice(0, A.length)) && sameLine(B, run.slice(A.length))) || (sameLine(B, run.slice(0, B.length)) && sameLine(A, run.slice(B.length))));
+    if (!ok) {
+      dropped.push({ what: name, why: "Its edge points aren't the ones your description lists for it, all of them in that order." });
       continue;
     }
     const a = ids(r.edgeA, name);
@@ -413,20 +476,28 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
   for (const a of capped(geometry.adjoining, MAX.adjoining, "Adjoining lands")) {
     const text = a.text.trim();
     const what = `"${text.slice(0, 40)}"`;
-    const run = runOf(a.evidence).map((t) => t.toLowerCase());
-    if (!text || text.length > MAX.adjoiningText || !quotes(input.brief, a.evidence) || !hasPhrase(a.evidence, text) || !run.includes(a.from.trim().toLowerCase()) || !run.includes(a.to.trim().toLowerCase())) {
+    const run = runOf(a.evidence).map((t) => pointBy(t)!.id);
+    const fromP = pointBy(a.from);
+    const toP = pointBy(a.to);
+    if (!text || text.length > MAX.adjoiningText || !quotes(input.brief, a.evidence) || !hasPhrase(a.evidence, text) || !writtenWhole(input.brief, text) || !fromP || !toP || !run.includes(fromP.id) || !run.includes(toP.id)) {
       dropped.push({ what, why: "It and the points it lies between aren't in your description's words." });
       continue;
     }
     const lot = doc.lots.find((l) => `${l.label}${l.sup}`.toLowerCase() === a.lot.replace(/\s+/g, "").toLowerCase());
-    const from = byNumber.get(a.from.trim().toLowerCase());
-    const to = byNumber.get(a.to.trim().toLowerCase());
-    if (!lot || !from || !to) {
+    const from = fromP;
+    const to = toP;
+    if (!lot) {
       dropped.push({ what, why: "Its lot or leg isn't on the plan." });
       continue;
     }
     if (legIndex(lot, from.id, to.id) < 0) {
       dropped.push({ what, why: `Points ${from.pointId} and ${to.pointId} aren't neighbouring corners of lot ${lot.label}${lot.sup}.` });
+      continue;
+    }
+    // A leg two lots share: the quote must say which lot the land is beside.
+    const sharing = doc.lots.filter((l) => legIndex(l, from.id, to.id) >= 0);
+    if (sharing.length > 1 && !hasPhrase(a.evidence, `${lot.label}${lot.sup}`) && !hasPhrase(a.evidence, `${lot.label} ${lot.sup}`)) {
+      dropped.push({ what, why: `Points ${from.pointId} and ${to.pointId} are a leg of more than one lot, and your description doesn't say which.` });
       continue;
     }
     adjoining.push({ id: freshId("adj", text), text, lot: lot.id, from: from.id, to: to.id });
@@ -459,7 +530,10 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
     }
     if (f.field === "operation") {
       const op = (Object.keys(OPERATION_WORDS) as (keyof typeof OPERATION_WORDS)[]).find((k) => OPERATION_WORDS[k].test(fold(value)) || fold(value) === k);
-      if (!op || (fromBrief && !OPERATION_WORDS[op].test(fold(f.evidence)))) {
+      // The most specific kind the words name wins: "resurvey and sub division" is a sub division.
+      const said = fold(f.evidence);
+      const named = OPERATION_WORDS.subdivision.test(said) ? "subdivision" : OPERATION_WORDS.amalgamation.test(said) ? "amalgamation" : OPERATION_WORDS.resurvey.test(said) ? "resurvey" : null;
+      if (!op || (fromBrief && named !== op)) {
         dropped.push({ what: label, why: op ? NOT_WRITTEN : "It isn't one of the kinds of survey Farbaek writes." });
         continue;
       }
@@ -470,7 +544,8 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
     if (f.field === "previousPlanMine") {
       // Only "it's my own plan" changes anything; it must be said in the words.
       if (!/^(yes|true|mine|my own)$/i.test(value)) continue;
-      if (fromBrief && !/\bmy\b(?: \w+){0,2} plan\b/.test(fold(f.evidence))) {
+      const said = fold(f.evidence);
+      if (fromBrief && (!/\bmy\b(?: \w+){0,2} plan\b/.test(said) || /\b(not|isn t|isnt|never|no)\b(?: \w+){0,2} my\b/.test(said))) {
         dropped.push({ what: label, why: NOT_WRITTEN });
         continue;
       }
@@ -478,7 +553,8 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
       mark(FIELD_KEY.previousPlanMine, `${label}: yes`);
       continue;
     }
-    if (fromBrief && !hasPhrase(f.evidence, value)) {
+    // Descriptions must be written whole, so a shortened one ("land of A. Perera" for "land of A. Perera's heirs") can't stand.
+    if (fromBrief && (!hasPhrase(f.evidence, value) || (WHOLE_FIELDS.has(f.field) && !writtenWhole(input.brief, value)))) {
       dropped.push({ what: label, why: NOT_WRITTEN });
       continue;
     }
@@ -532,7 +608,7 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
   for (const n of fromBrief ? capped(output.notes, MAX.notes, "Notes") : []) {
     const t = n.text.trim();
     if (!t) continue;
-    if (t.length > MAX.noteText || !quotes(input.brief, n.evidence) || !hasPhrase(n.evidence, t)) {
+    if (t.length > MAX.noteText || !quotes(input.brief, n.evidence) || !hasPhrase(n.evidence, t) || !writtenWhole(input.brief, t)) {
       dropped.push({ what: "A note", why: NOT_WRITTEN });
       continue;
     }

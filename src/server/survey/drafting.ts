@@ -75,7 +75,14 @@ async function run(
     await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage, reason: "failed" });
     return fail(outcome.failure === "PROVIDER_BUSY" ? "AI_BUSY" : outcome.failure === "REFUSED" ? "AI_REFUSED" : "AI_INCOMPLETE", FAILURES[outcome.failure]);
   }
-  const result = check(outcome);
+  let result: DraftResult;
+  try {
+    result = check(outcome);
+  } catch {
+    // A failure in Farbaek's own checks is never charged.
+    await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage, reason: "failed" });
+    return fail("AI_INCOMPLETE", FAILURES.INCOMPLETE);
+  }
   // A draft that wouldn't save is Farbaek's mistake, not the person's: refunded, never charged.
   if (!surveyDocumentSchema.safeParse(result.document).success) {
     await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage, reason: "failed" });

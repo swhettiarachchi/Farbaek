@@ -334,8 +334,19 @@ const legacySchema = z.object({
   surveyorUserId: z.string().uuid().nullable(),
 });
 
-/** Stage 190's starting legend, which new projects got before anyone checked it. */
-const STAGE_190_EXAMPLES = ["MW", "MDn", "CP", "EP", "TP", "St", "M", "P", "NF", "RW"];
+/** Stage 190's starting legend, codes and meanings, which new projects got before anyone checked it. */
+const STAGE_190_EXAMPLES: [string, string][] = [
+  ["MW", "Masonry wall"],
+  ["MDn", "Masonry drain"],
+  ["CP", "Concrete post"],
+  ["EP", "Electric post"],
+  ["TP", "Telephone post"],
+  ["St", "Stake"],
+  ["M", "Mark"],
+  ["P", "Permanent building"],
+  ["NF", "Net fence"],
+  ["RW", "Retaining wall"],
+];
 
 /**
  * Codes from a schema 1 legend: the common entry's drawing kind where the code
@@ -345,7 +356,8 @@ const STAGE_190_EXAMPLES = ["MW", "MDn", "CP", "EP", "TP", "St", "M", "P", "NF",
  */
 function codesFromLegend(legend: { code: string; meaning: string }[]): CodeEntry[] {
   const common = commonCodes();
-  if (legend.length === STAGE_190_EXAMPLES.length && legend.every((e, i) => e.code === STAGE_190_EXAMPLES[i])) return common;
+  // Only an untouched list: a surveyor who rewrote a meaning keeps their words.
+  if (legend.length === STAGE_190_EXAMPLES.length && legend.every((e, i) => e.code === STAGE_190_EXAMPLES[i]![0] && e.meaning === STAGE_190_EXAMPLES[i]![1])) return common;
   const out = legend.map((e) => {
     const known = common.find((c) => c.code === e.code);
     return known ? { ...known, meaning: e.meaning } : { code: e.code, meaning: e.meaning, kind: "mark" as const, line: "solid" as const, legend: true };
@@ -355,12 +367,34 @@ function codesFromLegend(legend: { code: string; meaning: string }[]): CodeEntry
 }
 
 /**
+ * Early schema 2 documents (saved while stage 191 was being built) named an
+ * adjoining land's leg by its number; it's now the leg's two corners. A
+ * label whose lot is gone is dropped, as the checks would have reported it.
+ */
+function legsAsCorners(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || (raw as { schema?: unknown }).schema !== 2) return raw;
+  const doc = raw as { lots?: unknown; adjoining?: unknown };
+  if (!Array.isArray(doc.adjoining) || !Array.isArray(doc.lots)) return raw;
+  const lots = doc.lots as { id?: unknown; points?: unknown }[];
+  const adjoining = (doc.adjoining as Record<string, unknown>[]).flatMap((a) => {
+    if (typeof a.leg !== "number" || "from" in a) return [a];
+    const lot = lots.find((l) => l.id === a.lot);
+    const pts = Array.isArray(lot?.points) ? (lot!.points as unknown[]) : [];
+    if (pts.length < 2) return [];
+    const { leg, ...rest } = a;
+    const k = (leg as number) % pts.length;
+    return [{ ...rest, from: pts[k], to: pts[(k + 1) % pts.length] }];
+  });
+  return { ...doc, adjoining };
+}
+
+/**
  * Reads a stored document of either schema: schema 2 as it is, schema 1
  * upgraded (its boundary becomes the first lot, its legend the code library,
  * in the panel layout it was drawn with). Null when it matches neither.
  */
 export function parseSurveyDocument(raw: unknown): SurveyDocument | null {
-  const v2 = surveyDocumentSchema.safeParse(raw);
+  const v2 = surveyDocumentSchema.safeParse(legsAsCorners(raw));
   if (v2.success) return v2.data;
   const v1 = legacySchema.safeParse(raw);
   if (!v1.success) return null;

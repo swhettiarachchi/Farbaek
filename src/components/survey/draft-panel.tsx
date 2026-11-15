@@ -173,9 +173,11 @@ export function DraftPanel(props: DraftPanelProps) {
     const drafted = (prefix: string) => new Set(result.accepted.filter((a) => a.key.startsWith(prefix)).map((a) => a.key.slice(prefix.length)));
     const draftedLots = drafted("lot:");
     const draftedRoads = drafted("road:");
+    const draftedAdjoining = drafted("adjoining:");
     const replaces = [
       proposal.lots.some((l) => draftedLots.has(l.id)) && props.document.lots.length > 0 ? count(props.document.lots.length, "lot", "lots") : null,
       proposal.roads.some((r) => draftedRoads.has(r.id)) && props.document.roads.length > 0 ? count(props.document.roads.length, "road", "roads") : null,
+      proposal.adjoining.some((a) => draftedAdjoining.has(a.id)) && props.document.adjoining.length > 0 ? count(props.document.adjoining.length, "adjoining land", "adjoining lands") : null,
     ].filter(Boolean);
     const page = preview?.sheet.pages[0];
     const row = (a: AcceptedItem) => {
@@ -205,7 +207,7 @@ export function DraftPanel(props: DraftPanelProps) {
         <p className="mt-1 text-sm text-ink-2">
           {result.source === "ai_brief" ? "Read from your description." : "Read from your photos."} Every area, extent and width on the sheet is computed from your points, not by the AI. Mark each item as right, take out what isn&apos;t, then save it as a new version. You can change anything afterwards on the Lots and Plan steps.
         </p>
-        {replaces.length > 0 ? <p className="mt-3 text-sm text-ink">The draft replaces the plan&apos;s {replaces.join(" and ")}. Take out every drafted one to keep the plan&apos;s own.</p> : null}
+        {replaces.length > 0 ? <p className="mt-3 text-sm text-ink">The draft replaces the plan&apos;s {replaces.length > 1 ? `${replaces.slice(0, -1).join(", ")} and ${replaces[replaces.length - 1]}` : replaces[0]}. Take out every drafted one of a kind to keep the plan&apos;s own.</p> : null}
 
         <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <div className="grid content-start gap-5">

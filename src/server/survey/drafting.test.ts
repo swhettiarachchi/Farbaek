@@ -110,6 +110,15 @@ describe("drafting from the surveyor's description", () => {
     expect(viewer.calls).toEqual([]);
   });
 
+  it("refunds a draft that wouldn't save or that Farbaek's own checks fail on", async () => {
+    const f = fakeDeps();
+    const broken = { ...OUTPUT, lots: null as unknown as DraftOutput["lots"] };
+    const r = await draftSurveyPlan(f.deps, { family: "anthropic", create: () => fakeDrafter({ ok: true, output: broken, usage }) }, { ...common, brief: BRIEF });
+    expect(r).toMatchObject({ ok: false, code: "AI_INCOMPLETE" });
+    expect(f.calls.map((c) => c.name)).toEqual(["reserve", "settle"]);
+    expect(f.calls[1]!.input).toMatchObject({ status: "refunded" });
+  });
+
   it("matches point numbers as whole words, as written", () => {
     expect(namedPoints("points 12 and 3", SAMPLE_POINTS).map((p) => p.number)).toEqual(["3", "12"]);
     expect(namedPoints("points BM-1 and 1.5", SAMPLE_POINTS)).toEqual([]);

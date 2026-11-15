@@ -220,7 +220,9 @@ export function drawLotLabels(ctx: DrawCtx, lots: PlanLots, opts: { extentUnder:
     const deep = interiorSamples(ring);
     candidates.push(...deep);
     const box = (x: number, y: number): Quad => [[x - w / 2, y - h / 2], [x + w / 2, y - h / 2], [x + w / 2, y + h / 2], [x - w / 2, y + h / 2]];
-    const within = (x: number, y: number) => box(x, y).every(([qx, qy]) => insidePage(qx, qy, ring));
+    // Inside the lot: every corner inside and no leg through the box, so a label can't straddle a notch.
+    const legs: Quad[] = ring.map((p, k) => [p, ring[(k + 1) % ring.length]!]);
+    const within = (x: number, y: number) => box(x, y).every(([qx, qy]) => insidePage(qx, qy, ring)) && !legs.some((l) => quadsOverlap(box(x, y), l));
     const fits = candidates.find(([x, y]) => within(x, y) && ctx.placer.free(box(x, y))) ?? candidates.find(([x, y]) => within(x, y));
     // A label never sits outside its own lot: if it can't fit, it goes at the point deepest inside, and the checks say so.
     const fallback = insidePage(cx0, cy0, ring) ? ([cx0, cy0] as [number, number]) : (deep[0] ?? ([cx0, cy0] as [number, number]));
