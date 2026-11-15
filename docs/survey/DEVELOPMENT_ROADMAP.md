@@ -35,6 +35,20 @@ Stage 190 built the foundation and one complete workflow; stage 191 added severa
 - **Rules as versioned data** (ADR 0207): the UDA minimums with their document, sections and review date (31 December 2026), cited reminders for consent, the RQP declaration and open space, and the surveyor's own minimums for a Development Plan or other rule. A plan's own lots are checked against the chosen set.
 - **The block-out plan** (ADR 0208): a division printed as a classic sheet headed BLOCK OUT PLAN, worked out again on the server, with the new corners as drawing-only points and a warning when a dividing line runs through a building.
 
+## Stage 194: upload the field data and the plan draws itself (done)
+
+- **One upload for every instrument export** (ADR 0209): CSV, TXT and DAT (PNEZC as the Survey Department asks), Leica GSI, Sokkia SDR, LandXML and Trimble JobXML.
+  - **Strict readers:** the server reads the stored file again with the same code.
+  - **Named instead of read:** job databases, Trimble DC and Topcon GTS-7, with what to export instead.
+- **A smart table.** It reads the columns itself and says why, previews the points and the lot on a small map, lists the codes with their meanings, and offers the Survey Department's code list when the file uses it.
+- **The plan drawn on import, as a draft:**
+  - the lot through the boundary marks;
+  - lines and buildings from the codes;
+  - the road from its edges;
+  - the stated survey date and the surveyor.
+
+  Every inference waits for the surveyor's check before approval, and the Plan step lists what's left.
+
 ## Next: subdivision with roads (planned)
 
 Still to come: a whole land laid out at once, with its access road and its lots and a feasibility report, never presenting a layout that breaks a hard rule as feasible.

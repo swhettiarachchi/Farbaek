@@ -92,6 +92,7 @@ Each per-lot boundary check above runs for every lot, its message starting "Lot 
 | `STATED_EXTENT_UNREAD` | information | none | The stated extent isn't written in a way Farbaek reads for sure ([`extent.ts`](../../src/core/survey/extent.ts): every number must pair with a unit; anything ambiguous is unread), or the lots don't fit together yet |
 | `SHEET_PARENT_LOTS`, `SHEET_EXTRACT_LOT` | warning | none | A sub division or amalgamation names no parent lot; an extract names a lot the plan doesn't have |
 | `AI_ITEMS_UNREVIEWED` | professional_review | approval | Items the drafting assistant filled, still on the plan, not yet marked right or changed ([AI_DRAFTING.md](AI_DRAFTING.md)) |
+| `AUTO_ITEMS_UNREVIEWED` | professional_review | approval | Stage 194 (ADR 0209): items drawn from the field data on import (which marks make the lot, which edges make the road, the date the file states), not yet marked right or changed |
 | `LOT_UNDER_MINIMUM_AREA`, `LOT_UNDER_MINIMUM_FRONTAGE`, `LOT_UNDER_MINIMUM_DEPTH` | warning | none | Stage 193, only when the plan names planning rules (ADR 0207). A building lot under the set's minimum area, frontage, or mean depth (its area over its frontage). The detail cites the set, or the surveyor's own source |
 | `LOT_NO_ROAD_FRONTAGE` | warning | none | A building lot with no leg along a road or a reserved access lot, when the set asks for a frontage |
 | `RULES_LOTS_MEET` | information | none | Every building lot checked meets the set's minimums; the detail says how many reserved lots were left out |

@@ -127,6 +127,19 @@ All from the UDA regulations, verified_official, for UDA-declared areas, and due
 
 The often-quoted "20 ft" access figure appeared in no official source (not_verified). Rules outside UDA areas, such as Pradeshiya Sabha by-laws, were not researched.
 
+## The Survey Department's digital data rules (stage 194)
+
+Departmental Survey Regulations, Chapter XXII, "Digital Data Management" (survey.gov.lk, read 2026-11-15). Research notes: `research_notes/Survey instrument export formats/chinese_instruments_sri_lanka.md`. It is written for departmental surveys; whether licensed surveyors are bound by it isn't settled.
+
+| Id | Rule | Section | Status | In Survey Studio |
+| --- | --- | --- | --- | --- |
+| D1 | Digital plans compulsory from 1 January 2008 | §22.1 | verified_official, departmental surveys | Context only |
+| D2 | The coordinate file is PNEZC: point, northing, easting, height, code | §22.3 | verified_official | The import reads PNEZC; when the grid can't settle easting from northing, the pair is read northing first, as here, and said |
+| D3 | Point numbers: detail 1 to 6,999, set-out 7,000 to 8,999, control stations from 9,000; unique within a plan | §22.2.2 | verified_official | Repeated numbers with different values are refused. Number ranges aren't enforced |
+| D4 | Boundary point codes (CoP, WoP, IN, CN, BN, IRa, IR, L, MC, MR, MW mark on wall, OL, St, OTB, EP, TP, RL, LR) and station codes (stncp and others) | Annex 3 | verified_official (station code meanings paired from a misaligned copy) | The Department's code list, offered on import and on the Plan step. Stations are never lot corners |
+| D5 | Line codes (LF, WF, WLF, WNF, BW, DF, IF, SF, Hg, TE, U, Dh, Dn) and DXF layers ("version 2012") | Annex 10 | verified_official | In the Department's list. Its DXF layer names aren't used yet |
+| D6 | A fictitious height may be recorded where height doesn't matter | §22.2.3.2 | verified_official | Heights are stored as given and never used for the plan |
+
 ## Units and rounding
 
 | # | Fact | Source and section | Status | In Survey Studio |

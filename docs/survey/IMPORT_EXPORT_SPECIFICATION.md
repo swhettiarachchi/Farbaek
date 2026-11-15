@@ -10,10 +10,59 @@ Files are untrusted input (skill rule 11). Nothing is guessed: not the column or
 
 | Format | `ImportFormat` | Extensions offered | Reader |
 | --- | --- | --- | --- |
-| Point file (CSV or TXT) | `delimited` | `.csv`, `.txt`, `.pnezd`, `.penzd`, `.xyz`, `.asc` | [`delimited.ts`](../../src/core/survey/import/delimited.ts) |
+| Point file (CSV, TXT or DAT) | `delimited` | `.csv`, `.txt`, `.dat`, `.pnezd`, `.penzd`, `.xyz`, `.asc` | [`delimited.ts`](../../src/core/survey/import/delimited.ts) |
 | GeoJSON points | `geojson` | `.geojson`, `.json` | [`geojson.ts`](../../src/core/survey/import/geojson.ts) |
+| Leica GSI-8 and GSI-16 (stage 194) | `gsi` | `.gsi` | [`gsi.ts`](../../src/core/survey/import/gsi.ts) |
+| Sokkia SDR2x and SDR33 (stage 194) | `sdr` | `.sdr` | [`sdr.ts`](../../src/core/survey/import/sdr.ts) |
+| LandXML CgPoints (stage 194) | `landxml` | `.xml`, `.landxml` | [`landxml.ts`](../../src/core/survey/import/landxml.ts) |
+| Trimble JobXML (stage 194) | `jobxml` | `.jxl`, `.jobxml` | [`jobxml.ts`](../../src/core/survey/import/jobxml.ts) |
 
-`detectFormat(fileName, text)` in [`detect.ts`](../../src/core/survey/import/detect.ts) chooses GeoJSON for a `.geojson` or `.json` name, or for text that starts with `{` and names `"type": "FeatureCollection"` or `"Feature"` in its first 4,000 characters; anything else is delimited. People can also paste points into the panel.
+**Choosing the reader.** `detectFormat(fileName, text)` in [`detect.ts`](../../src/core/survey/import/detect.ts) reads the content first, then the name.
+- **JobXML:** a `JOBFile` element, or `.jxl`.
+- **LandXML:** a `LandXML` element.
+- **SDR:** an `00NMSDR2x` or `00NMSDR33` header, or `.sdr`.
+- **GSI:** blocks made only of GSI words, or `.gsi`.
+- **GeoJSON:** a `.geojson` or `.json` name, or a `FeatureCollection`.
+- **Anything else** is delimited.
+
+**Files Farbaek can't read.** `unreadableFile` names them with what to export instead: instrument job databases (binary), Trimble DC, and Topcon GTS-7.
+
+**One entry point.** `readPoints` in [`read.ts`](../../src/core/survey/import/read.ts) is used by both the panel and the server, so the preview is what is imported. People can also paste rows into the panel.
+
+**Reading the columns** ([`columns.ts`](../../src/core/survey/import/columns.ts), stage 194):
+- **Column names decide first.** X and Y are settled by the grid, since some instruments write X as the northing.
+- **Without names, the values decide.** Distinct numbers or names make the point number, words make the code, the first two coordinate columns are the horizontal pair, and a third is the elevation.
+- **Easting or northing.** The project's grid settles which is which only when exactly one order puts every point inside it. Otherwise the pair is read northing first, as the Survey Department's PNEZC file has it (DSR Chapter XXII §22.3), and the panel says so.
+- **Reasons shown.** Every choice is shown with its reason and can be changed.
+- **Latitude and longitude** are recognised and refused.
+
+**Each instrument reader's rules:**
+- **GSI.** Point (WI 11) with target (81 to 83) or station (84 to 86) coordinates, and a remark (71) or code (41) on the same line.
+  - **Units:** only metre units (unit digits 0, 6 and 8) are read.
+  - **Refused, with the reason:** feet; raw observations (21, 22, 31); GSI-8 coordinates outside the grid, which likely lost their leading digits; and all-zero points.
+  - **Code lines standing alone** aren't tied to a point.
+- **SDR.** 08 coordinate and 02 station records, by Sokkia's byte layout (SDR2x narrow fields, SDR33 16-byte fields), with zero-filled numbers unfilled.
+  - **Repeated points:** a later record of the same point replaces the earlier one, as in the SDR, with a warning.
+  - **Refused:** feet (header byte 42, or a `13DU` note) and observation-only files.
+  - **Not imported:** RTK (18) and latitude and longitude (24) records.
+  - **Display order:** an easting-first display setting gets a warning.
+- **LandXML.** CgPoint text as northing, easting and an optional elevation; `name` is the point; `code`, or else `desc`, is the code.
+  - **Units:** metric units are scaled exactly; imperial is refused.
+  - **References:** `pntRef`-only points are left out.
+  - **Observations without points** are refused.
+- **JobXML.** `Reductions/Point/Grid` (North, East, Elevation; JobXML stores metres).
+  - **Left out:** points whose field-book record is `Deleted`; points with only WGS84 or local values, with a warning.
+  - **Survey date:** the last day a point was observed is offered as the survey date.
+
+**Drawing the plan on import (ADR 0209).** The import can draw the plan in the same step.
+- **Condition:** the plan has no lots, and the "Draw the plan" box (on by default) is ticked.
+- **What it draws** ([`autodraft.ts`](../../src/core/survey/autodraft.ts)):
+  - the lot through the boundary marks;
+  - the lines from the codes;
+  - the road from RD1 and RD2 edges;
+  - the stated survey date and the importing surveyor.
+- **Code list:** when the file uses the Survey Department's codes, the panel offers to draw with that list.
+- **Result:** a new drawing version noted "Drawn from <file>".
 
 ### Limits
 
