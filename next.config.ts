@@ -40,6 +40,9 @@ const nextConfig: NextConfig = {
   // AVIF first, WebP for browsers without it: the same images in fewer bytes on phones (ADR 0052).
   images: { formats: ["image/avif", "image/webp"] },
   reactStrictMode: true,
+  // Survey Studio's PDF writer (ADR 0200) reads its font metric files from its own package folder at run time, so it
+  // isn't bundled.
+  serverExternalPackages: ["pdfkit"],
   experimental: {
     // Project imports send up to 4 MB of text (src/config/workspace.ts); JSON escaping and form encoding add overhead.
     serverActions: { bodySizeLimit: "6mb" },

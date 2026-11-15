@@ -10,6 +10,7 @@ import { ModulesBento } from "@/components/marketing/modules-bento";
 import { PricingTeaser } from "@/components/marketing/pricing-teaser";
 import { StatementSection } from "@/components/marketing/statement-section";
 import { StatusSection } from "@/components/marketing/status-section";
+import { SurveySection } from "@/components/marketing/survey-section";
 import { ShowcaseSection } from "@/components/showcase/showcase-section";
 import { HOME_DESCRIPTION, HOME_TITLE, homeStructuredData, jsonLdText } from "@/core/seo/structured-data";
 import { siteUrl } from "@/server/supabase/config";
@@ -50,6 +51,9 @@ export default function HomePage() {
       </Later>
       <Later>
         <ShowcaseSection />
+      </Later>
+      <Later>
+        <SurveySection />
       </Later>
       <Later>
         <ProofFilmSection />
