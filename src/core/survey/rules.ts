@@ -85,6 +85,24 @@ export const RESERVED_NOTE = /^\(?\s*res(?:\.|erved\b|ervation\b)/i;
 /** A reserved lot that gives access: its legs count as road frontage for the lots beside it. */
 export const ACCESS_NOTE = /\b(?:access|road|lane|path|way)\b/i;
 
+/** A figure under a minimum, with enough decimals that rounding never shows it equal to the minimum ("149.996", not "150.00"). */
+export function shortOf(value: number, min: number): string {
+  let dp = 2;
+  while (dp < 6 && Number(value.toFixed(dp)) >= min) dp++;
+  return value.toFixed(dp);
+}
+
+/** A minimum as the rule or the surveyor gives it: 150, 6.0, 6.25, 12.04. */
+export function minimumText(x: number, oneDecimal: boolean): string {
+  const t = Number(x.toFixed(3));
+  return oneDecimal && Number.isInteger(t) ? t.toFixed(1) : String(t);
+}
+
+/** A typed figure as a plain decimal ("12", "12.5", ".5"), or NaN: no hexadecimal, exponents or signs slip through as Number() would let them. */
+export function readDecimal(text: string): number {
+  return /^\s*(?:\d+(?:\.\d*)?|\.\d+)\s*$/.test(text) ? Number(text) : Number.NaN;
+}
+
 /** The reminders that apply to dividing land of this area into this many lots. */
 export function remindersFor(rules: RuleSet, landM2: number, lots: number): string[] {
   const large = rules.large !== null && (landM2 >= rules.large.areaM2 || lots >= rules.large.lots);

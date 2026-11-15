@@ -3,13 +3,13 @@
 import { DownloadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { formatDms, toDms } from "@/core/survey/angles";
-import { area, selfIntersections } from "@/core/survey/geometry";
+import { area, selfIntersections, zeroLengthLegs } from "@/core/survey/geometry";
 import { lotName, type Lot, type SurveyDocument } from "@/core/survey/document";
 import { cell } from "@/core/survey/export/schedule";
 import { arpClassic, hectares } from "@/core/survey/formats";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { partitionLot, widthRoom } from "@/core/survey/partition";
-import { UDA_2020, ownRules, reviewNote } from "@/core/survey/rules";
+import { UDA_2020, ownRules, readDecimal, reviewNote } from "@/core/survey/rules";
 import { PERCH_M2, fmt, toArp } from "@/core/survey/units";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
@@ -27,8 +27,12 @@ const FACTOR: Record<Unit, number> = { perch: PERCH_M2, m2: 1, m: 1, ft: 0.3048 
  */
 export function PartitionPanel({ lots, points, perchDecimals, planRules = null }: { lots: Lot[]; points: SurveyPoint[]; perchDecimals: number; planRules?: SurveyDocument["rules"] }) {
   const byId = useMemo(() => new Map(points.map((p) => [p.id, p])), [points]);
-  // Lots that can be divided: three or more known corners, and a boundary that doesn't cross itself.
-  const usable = lots.filter((l) => l.points.length >= 3 && l.points.every((id) => byId.has(id)) && selfIntersections(l.points.map((id) => byId.get(id)!)).length === 0);
+  // Lots that can be divided: three or more known corners, no leg without length, and a boundary that doesn't cross itself.
+  const usable = lots.filter((l) => {
+    if (l.points.length < 3 || !l.points.every((id) => byId.has(id))) return false;
+    const r = l.points.map((id) => byId.get(id)!);
+    return zeroLengthLegs(r).length === 0 && selfIntersections(r).length === 0;
+  });
   const [lotId, setLotId] = useState(usable[0]?.id ?? "");
   const [leg, setLeg] = useState(0);
   const [lines, setLines] = useState<"square" | "parallel" | "through">("square");
@@ -45,11 +49,11 @@ export function PartitionPanel({ lots, points, perchDecimals, planRules = null }
   const ring = lot ? lot.points.map((id) => byId.get(id)!) : [];
   const legAt = Math.min(leg, Math.max(ring.length - 1, 0));
   const cornerAt = Math.min(corner, Math.max(ring.length - 1, 0));
-  const parsed = shares.map((v) => (v.trim() === "" ? null : Number(v) * FACTOR[unit]));
+  const parsed = shares.map((v) => (v.trim() === "" ? null : readDecimal(v) * FACTOR[unit]));
   const invalid = parsed.some((x) => x !== null && !Number.isFinite(x));
   // The surveyor's own minimums count once all three are numbers and they've said where they come from.
-  const ownMin = { areaM2: Number(own.areaM2), frontageM: Number(own.frontageM), depthM: Number(own.depthM) };
-  const ownReady = [own.areaM2, own.frontageM, own.depthM].every((v) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0) && own.source.trim() !== "";
+  const ownMin = { areaM2: readDecimal(own.areaM2), frontageM: readDecimal(own.frontageM), depthM: readDecimal(own.depthM) };
+  const ownReady = Object.values(ownMin).every((v) => Number.isFinite(v)) && own.source.trim() !== "";
   const rules = ruleChoice === "uda" ? UDA_2020 : ruleChoice === "own" && ownReady ? ownRules(ownMin, own.source) : null;
   const result = lot && !invalid ? partitionLot({ ring, leg: legAt, lines, corner: cornerAt, from, by, shares: parsed, rules }) : null;
   // What the shares divide: the lot's area, or for widths the leg's length (square lines) or the lot's depth from the leg (parallel lines).
@@ -248,7 +252,7 @@ export function PartitionPanel({ lots, points, perchDecimals, planRules = null }
               <span className={LABEL_CLASSES}>Where they come from</span>
               <input value={own.source} maxLength={200} placeholder="The Development Plan and zone, for example" onChange={(e) => setOwn((o) => ({ ...o, source: e.target.value }))} className={inputClasses()} />
             </label>
-            {!ownReady ? <p className="text-sm text-ink-2 sm:col-span-3">Give all three minimums, using 0 for one that doesn&apos;t apply, and say where they come from.</p> : null}
+            {!ownReady ? <p className="text-sm text-ink-2 sm:col-span-3">Nothing is checked until you give all three minimums as numbers, using 0 for one that doesn&apos;t apply, and say where they come from.</p> : null}
           </div>
         ) : null}
         {ruleChoice === "uda" ? (

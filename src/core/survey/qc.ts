@@ -10,7 +10,7 @@ import { implausiblePoints, looksSwapped } from "./crs";
 import { legIndex, lotName, unreviewed, type SurveyDocument } from "./document";
 import { TOUCH_TOLERANCE_M, distance, orient, pointSegmentDistance, type Point } from "./geometry";
 import { NEAR_LEG_M, nearKey, type PlanLots } from "./lots";
-import { ACCESS_NOTE, RESERVED_NOTE, remindersFor, ruleSetFrom, type RuleSet } from "./rules";
+import { ACCESS_NOTE, RESERVED_NOTE, minimumText, remindersFor, ruleSetFrom, shortOf, type RuleSet } from "./rules";
 import { readStatedExtent } from "./extent";
 import type { SurveyPoint } from "./parcel";
 import { fmt, PERCH_M2 } from "./units";
@@ -103,7 +103,7 @@ function checkRules(set: RuleSet, input: QcInput, add: (f: Finding) => void): vo
     let ok = true;
     if (p.areaM2 < min.areaM2) {
       ok = false;
-      add({ code: "LOT_UNDER_MINIMUM_AREA", severity: "warning", message: `${name} is ${fmt(p.areaM2, 2)} m², under ${set.label} of ${fmt(min.areaM2, 2)} m².`, target, detail: cite, action: weigh, blocks: [] });
+      add({ code: "LOT_UNDER_MINIMUM_AREA", severity: "warning", message: `${name} is ${shortOf(p.areaM2, min.areaM2)} m², under ${set.label} of ${minimumText(min.areaM2, false)} m².`, target, detail: cite, action: weigh, blocks: [] });
     }
     if (edges.length > 0 && (min.frontageM > 0 || min.depthM > 0)) {
       const frontage = Math.max(0, ...accesses.map((segs) => p.legs.filter((l) => along(segs, l.from) && along(segs, l.to) && along(segs, { e: (l.from.e + l.to.e) / 2, n: (l.from.n + l.to.n) / 2 })).reduce((s, l) => s + l.distance, 0)));
@@ -115,18 +115,18 @@ function checkRules(set: RuleSet, input: QcInput, add: (f: Finding) => void): vo
       } else {
         if (frontage < min.frontageM) {
           ok = false;
-          add({ code: "LOT_UNDER_MINIMUM_FRONTAGE", severity: "warning", message: `${name}'s frontage is ${fmt(frontage, 2)} m, under ${set.label} of ${fmt(min.frontageM, 1)} m.`, target, detail: cite, action: weigh, blocks: [] });
+          add({ code: "LOT_UNDER_MINIMUM_FRONTAGE", severity: "warning", message: `${name}'s frontage is ${shortOf(frontage, min.frontageM)} m, under ${set.label} of ${minimumText(min.frontageM, true)} m.`, target, detail: cite, action: weigh, blocks: [] });
         }
         const depth = p.areaM2 / frontage;
         if (depth < min.depthM) {
           ok = false;
-          add({ code: "LOT_UNDER_MINIMUM_DEPTH", severity: "warning", message: `${name}'s mean depth (its area over its frontage) is ${fmt(depth, 2)} m, under ${set.label} of ${fmt(min.depthM, 1)} m.`, target, detail: cite, action: weigh, blocks: [] });
+          add({ code: "LOT_UNDER_MINIMUM_DEPTH", severity: "warning", message: `${name}'s mean depth (its area over its frontage) is ${shortOf(depth, min.depthM)} m, under ${set.label} of ${minimumText(min.depthM, true)} m.`, target, detail: cite, action: weigh, blocks: [] });
         }
       }
     }
     if (!ok) short++;
   }
-  const minimums = `${fmt(min.areaM2, 2)} m², ${fmt(min.frontageM, 1)} m frontage and ${fmt(min.depthM, 1)} m depth`;
+  const minimums = `${minimumText(min.areaM2, false)} m², ${minimumText(min.frontageM, true)} m frontage and ${minimumText(min.depthM, true)} m depth`;
   const leftOut = skipped > 0 ? ` ${skipped} reserved ${skipped === 1 ? "lot wasn't" : "lots weren't"} checked.` : "";
   if (checked > 0 && short === 0) add({ code: "RULES_LOTS_MEET", severity: "information", message: `${checked === 1 ? "The lot meets" : `All ${checked} lots meet`} ${set.id === "own" ? "your minimums" : "the UDA minimums"} (${minimums}).`, target: { kind: "lot" }, detail: `${cite}${leftOut}`, action: "Nothing to do.", blocks: [] });
   if (checked > 0 && edges.length === 0 && (min.frontageM > 0 || min.depthM > 0)) add({ code: "RULES_FRONTAGE_UNCHECKED", severity: "information", message: "Frontages and depths weren't checked: the plan has no roads or reserved access lots.", target: { kind: "lot" }, action: "Add the road on the Lots step, or a reserved access lot, to check them.", blocks: [] });

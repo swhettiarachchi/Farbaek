@@ -40,7 +40,7 @@ describe("a plan's lots against planning rules", () => {
   it("warns of each lot under the UDA minimums, citing the regulations, and blocks nothing", () => {
     const f = ruleFindings(plan({ id: "uda-2020" }));
     expect(f.map((x) => [x.code, x.message])).toEqual([
-      ["LOT_UNDER_MINIMUM_AREA", "Lot B is 125.00 m², under the UDA minimum of 150.00 m²."],
+      ["LOT_UNDER_MINIMUM_AREA", "Lot B is 125.00 m², under the UDA minimum of 150 m²."],
       ["LOT_UNDER_MINIMUM_FRONTAGE", "Lot B's frontage is 5.00 m, under the UDA minimum of 6.0 m."],
       ["LOT_NO_ROAD_FRONTAGE", "Lot D has no leg along a road or an access strip on this plan."],
       ["RULES_REMINDER", "Dividing land in a UDA-declared area needs prior written consent from the UDA and the local authority. (reg. 4(1))"],
@@ -63,7 +63,7 @@ describe("a plan's lots against planning rules", () => {
     d.rules = { id: "uda-2020" };
     const f = ruleFindings(d, pts);
     expect(f.map((x) => x.code)).toEqual(["RULES_LOTS_MEET", "RULES_REMINDER"]);
-    expect(f[0]!.message).toBe("All 2 lots meet the UDA minimums (150.00 m², 6.0 m frontage and 12.0 m depth).");
+    expect(f[0]!.message).toBe("All 2 lots meet the UDA minimums (150 m², 6.0 m frontage and 12.0 m depth).");
     expect(f[0]!.detail).toMatch(/ 1 reserved lot wasn't checked\.$/);
     // Without the strip, lot F has no frontage.
     d.lots = d.lots.slice(1);
@@ -75,7 +75,7 @@ describe("a plan's lots against planning rules", () => {
     expect(ruleFindings(own("  ")).map((x) => x.code)).toEqual(["RULES_SOURCE_MISSING"]);
     const f = ruleFindings(own("Development Plan, zone R2"));
     // Lot B is 125 m² (under 200); lot D 180 m² (under 200). Frontage isn't asked for, so lot D's missing frontage isn't reported; depths are 25 m.
-    expect(f.map((x) => x.message)).toEqual(["Lot B is 125.00 m², under the minimum you entered of 200.00 m².", "Lot D is 180.00 m², under the minimum you entered of 200.00 m²."]);
+    expect(f.map((x) => x.message)).toEqual(["Lot B is 125.00 m², under the minimum you entered of 200 m².", "Lot D is 180.00 m², under the minimum you entered of 200 m²."]);
     expect(f[0]!.detail).toBe("From the minimums you entered: Development Plan, zone R2.");
   });
 

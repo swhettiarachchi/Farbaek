@@ -22,7 +22,7 @@
 import { bearingFromDeltas } from "./angles";
 import { area, distance, orient, pointSegmentDistance, segmentsIntersect, selfIntersections, signedArea, type Point } from "./geometry";
 import type { SurveyPoint } from "./parcel";
-import { remindersFor, type RuleSet } from "./rules";
+import { minimumText, remindersFor, shortOf, type RuleSet } from "./rules";
 
 export const PARTITION_ENGINE = "partition/1.1.0";
 
@@ -188,7 +188,7 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
   if (!width) {
     if (stated > lotM2 + 0.005) return fail(`The stated shares come to ${stated.toFixed(2)} m², more than the lot's ${lotM2.toFixed(2)} m².`);
     if (!rest && Math.abs(stated - lotM2) > 0.01) return fail(`The shares come to ${stated.toFixed(2)} m², not the lot's ${lotM2.toFixed(2)} m². Let one share take what's left.`);
-    if (rest && lotM2 - stated < 0.01) return fail("The stated shares take the whole lot, so nothing is left for the last share.");
+    if (rest && lotM2 - stated < 0.01) return fail("The stated shares take the whole lot, so nothing is left for the share left empty.");
     targets = req.shares.map((x) => x ?? lotM2 - stated);
   }
   if (req.lines === "through") return fan(req, f, targets);
@@ -201,7 +201,7 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     const what = square ? `the leg's ${room.toFixed(3)} m` : `the lot's depth of ${room.toFixed(3)} m from that leg`;
     if (stated > room + 0.0005) return fail(`The stated widths come to ${stated.toFixed(3)} m, more than ${what}.`);
     if (!rest && Math.abs(stated - room) > 0.005) return fail(`The widths come to ${stated.toFixed(3)} m, not ${what}. Let one share take what's left.`);
-    if (rest && room - stated < 0.001) return fail(`The stated widths take all of ${what}, so nothing is left for the last share.`);
+    if (rest && room - stated < 0.001) return fail(`The stated widths take all of ${what}, so nothing is left for the share left empty.`);
     const widths = req.shares.map((x) => x ?? room - stated);
     let at = base;
     for (let i = 0; i < widths.length - 1; i++) cuts.push((at += widths[i]!));
@@ -229,25 +229,38 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
   const corners: ProposedCorner[] = [];
   const cutCorners: ProposedCorner[][] = [];
   const cutProblem: (string | null)[] = [];
+  const segments: { cut: number; a: Point; b: Point }[] = [];
+  // A computed end moved onto a surveyed corner: the shares' outlines use the corner too.
+  const snaps: { at: Point; to: Local }[] = [];
   for (const [ci, s] of cuts.entries()) {
+    const met = meet(ring, n, s, lineDir);
     const here: ProposedCorner[] = [];
-    for (let i = 0; i < ring.length; i++) {
-      const p = ring[i]!;
-      const q = ring[(i + 1) % ring.length]!;
-      const dp = dot(p, n) - s;
-      const dq = dot(q, n) - s;
-      if (dp < 0 !== dq < 0 && dp !== dq) {
-        const t = dp / (dp - dq);
-        let e = p.e + t * (q.e - p.e);
-        let nn = p.n + t * (q.n - p.n);
-        const fromP = Math.hypot(e - p.e, nn - p.n);
+    const add = (x: Meeting, segLen: number) => {
+      const found = here.find((h) => Math.hypot(h.e - o.e - x.e, h.n - o.n - x.n) <= 1e-9 || (x.vertex && h.existing === x.vertex.src));
+      if (found) return found;
+      let c: ProposedCorner;
+      if (x.vertex) {
+        const v = x.vertex;
+        c = { name: "", e: v.e + o.e, n: v.n + o.n, cut: ci, along: x.along, existing: v.src!, from: v.src!, to: v.src!, distanceM: 0 };
+      } else {
+        const p = ring[x.edge]!;
+        const q = ring[(x.edge + 1) % ring.length]!;
+        const fromP = Math.hypot(x.e - p.e, x.n - p.n);
         const legLen = distance(p, q);
-        // Within a millimetre of a surveyed corner, the line ends at that corner: nothing new to set out there.
-        const at = fromP <= 0.001 ? p : legLen - fromP <= 0.001 ? q : null;
-        if (at) [e, nn] = [at.e, at.n];
-        if (at && here.some((h) => h.existing === at.src)) continue;
-        here.push({ name: "", e: e + o.e, n: nn + o.n, cut: ci, along: e * lineDir.e + nn * lineDir.n, ...(at ? { existing: at.src! } : {}), from: p.src!, to: q.src!, distanceM: at === p ? 0 : at === q ? legLen : fromP });
+        // Within a millimetre of a surveyed corner the line ends at that corner, when that moves less than 0.005 m² between the shares.
+        const near = fromP <= 0.001 ? p : legLen - fromP <= 0.001 ? q : null;
+        const at = near && 0.5 * segLen * distance(near, x) <= SNAP_AREA_M2 ? near : null;
+        if (at) snaps.push({ at: { e: x.e, n: x.n }, to: at });
+        c = { name: "", e: (at ?? x).e + o.e, n: (at ?? x).n + o.n, cut: ci, along: x.along, ...(at ? { existing: at.src! } : {}), from: p.src!, to: q.src!, distanceM: at === p ? 0 : at === q ? legLen : fromP };
       }
+      here.push(c);
+      return c;
+    };
+    for (const [a0, b0] of met.inside) {
+      const len0 = Math.abs(b0.along - a0.along);
+      const ca = add(a0, len0);
+      const cb = add(b0, len0);
+      segments.push({ cut: ci, a: { e: ca.e, n: ca.n }, b: { e: cb.e, n: cb.n } });
     }
     // Named along the line, so P1 and P2 are the two ends of the first line; an end on a surveyed corner keeps its number.
     here.sort((x, y) => x.along - y.along);
@@ -257,14 +270,24 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     }
     corners.push(...here);
     cutCorners.push(here);
-    cutProblem.push(here.length === 2 ? null : `A dividing line crosses the lot's boundary ${here.length} times, so a share would fall in pieces. Try lines the other way, or another leg.`);
+    // One stretch inside the lot is a clean line. Two stretches meeting at a corner: the line runs through a corner pointing into the lot.
+    const touching = met.inside.some(([, b0], k) => met.inside[k + 1] && Math.abs(met.inside[k + 1]![0].along - b0.along) <= 1e-9);
+    const vertex = met.inside.find(([, b0], k) => met.inside[k + 1] && Math.abs(met.inside[k + 1]![0].along - b0.along) <= 1e-9)?.[1].vertex;
+    cutProblem.push(
+      met.inside.length === 1
+        ? null
+        : touching
+          ? `A dividing line runs through corner ${vertex?.src?.pointId ?? "?"}, which points into the lot, so a share would fall in two pieces joined there. Try lines the other way, other shares, or another leg.`
+          : `A dividing line crosses the lot's boundary ${met.inside.length * 2} times, so a share would fall in pieces. Try lines the other way, or another leg.`,
+    );
   }
+  const snapped = (piece: Local[]) => piece.map((p) => (p.src ? p : (snaps.find((x) => Math.hypot(x.at.e - p.e, x.at.n - p.n) <= 1e-6)?.to ?? p)));
 
   const legLo = Math.min(dot(a, n), dot(b, n));
   const legHi = Math.max(dot(a, n), dot(b, n));
   const bounds = [lo, ...cuts, hi];
   const shares: Share[] = targets.map((target, i) => {
-    const piece = dedupe(clip(clip(ring, n, bounds[i + 1]!, false), n, bounds[i]!, true));
+    const piece = dedupe(snapped(clip(clip(ring, n, bounds[i + 1]!, false), n, bounds[i]!, true)));
     const areaM2 = area(piece);
     const s0 = bounds[i]!;
     const s1 = bounds[i + 1]!;
@@ -274,28 +297,71 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     const sides = [i > 0 ? chord(ring, n, s0) : Infinity, i < targets.length - 1 ? chord(ring, n, s1) : Infinity];
     const mean = alongLegM > 0 ? areaM2 / alongLegM : Infinity;
     const depthM = req.lines === "square" ? Math.min(...sides, mean) : s1 - s0;
-    const problems = judge(areaM2, target, alongLegM, depthM, [cutProblem[i - 1], cutProblem[i]], req.rules);
+    const problems = judge(areaM2, target, alongLegM, depthM, [cutProblem[i - 1], cutProblem[i]], req.rules, width);
     return { targetM2: target, areaM2, corners: piece.map((p) => nameCorner(p, [...(cutCorners[i - 1] ?? []), ...(cutCorners[i] ?? [])], o)), alongLegM, depthM, problems };
   });
   const sumM2 = shares.reduce((s, x) => s + x.areaM2, 0);
   const bearing = bearingFromDeltas(lineDir.e, lineDir.n)!;
-  // Each line's corners in order along it: the line runs inside the lot between the first and second, the third and fourth.
-  const segments = cutCorners.flatMap((here) => here.flatMap((c, k) => (k % 2 === 0 && here[k + 1] ? [{ cut: c.cut, a: { e: c.e, n: c.n }, b: { e: here[k + 1]!.e, n: here[k + 1]!.n } }] : [])));
   return { ok: true, feasible: shares.every((s) => s.problems.length === 0), lotM2, shares, corners, segments, bearing: bearing >= 180 ? bearing - 180 : bearing, sumM2, residualM2: lotM2 - sumM2, reminders: req.rules ? remindersFor(req.rules, lotM2, shares.length) : [], engine: PARTITION_ENGINE };
 }
 
+/** The most a snap onto a surveyed corner may move between two shares, in m²: half the area check, so a snapped share still passes it. */
+const SNAP_AREA_M2 = 0.005;
+
 /** What stops a share being made as asked: its dividing lines' problems, an area it can't be given, and the rules' minimums when checked. */
-function judge(areaM2: number, targetM2: number, alongLegM: number, depthM: number, lineProblems: (string | null | undefined)[], rules: RuleSet | null): string[] {
+function judge(areaM2: number, targetM2: number, alongLegM: number, depthM: number, lineProblems: (string | null | undefined)[], rules: RuleSet | null, byWidth = false): string[] {
   const problems = [...new Set(lineProblems.filter((x): x is string => Boolean(x)))];
-  if (Math.abs(areaM2 - targetM2) > 0.01) problems.push(`Its lines give it ${areaM2.toFixed(2)} m², not the ${targetM2.toFixed(2)} m² asked for.`);
+  if (Math.abs(areaM2 - targetM2) > 0.01) problems.push(byWidth ? `Its outline comes to ${areaM2.toFixed(2)} m², not the ${targetM2.toFixed(2)} m² between its lines.` : `Its lines give it ${areaM2.toFixed(2)} m², not the ${targetM2.toFixed(2)} m² asked for.`);
   if (rules) {
     const min = rules.minimums;
-    if (areaM2 < min.areaM2) problems.push(`It's ${areaM2.toFixed(2)} m², under ${rules.label} of ${Number(min.areaM2.toFixed(2))} m².`);
+    if (areaM2 < min.areaM2) problems.push(`It's ${shortOf(areaM2, min.areaM2)} m², under ${rules.label} of ${minimumText(min.areaM2, false)} m².`);
     if (min.frontageM > 0 && alongLegM === 0) problems.push("It doesn't touch the chosen leg, so it has no frontage on it.");
-    else if (alongLegM < min.frontageM) problems.push(`Its frontage is ${alongLegM.toFixed(2)} m, under ${rules.label} of ${min.frontageM.toFixed(1)} m.`);
-    if (depthM < min.depthM) problems.push(`Its depth is ${depthM.toFixed(2)} m, under ${rules.label} of ${min.depthM.toFixed(1)} m.`);
+    else if (alongLegM < min.frontageM) problems.push(`Its frontage is ${shortOf(alongLegM, min.frontageM)} m, under ${rules.label} of ${minimumText(min.frontageM, true)} m.`);
+    if (depthM < min.depthM) problems.push(`Its depth is ${shortOf(depthM, min.depthM)} m, under ${rules.label} of ${minimumText(min.depthM, true)} m.`);
   }
   return problems;
+}
+
+interface Meeting extends Point {
+  along: number;
+  /** The ring edge it lies inside (edge i runs from corner i to corner i + 1), or the corner it is. */
+  edge: number;
+  vertex: Local | null;
+}
+
+/**
+ * Where the line p·n = s meets a ring: every crossing inside a leg and every corner lying on the line (within a nanometre), in order
+ * along the line, then the stretches between them whose middle is inside the ring. A corner pointing into the ring that the line runs
+ * through ends one stretch and starts the next; a leg lying along the line is boundary, not inside.
+ */
+function meet(ring: readonly Local[], n: Point, s: number, dir: Point): { inside: [Meeting, Meeting][] } {
+  const EPS = 1e-9;
+  const d = ring.map((p) => dot(p, n) - s);
+  const side = d.map((x) => (Math.abs(x) <= EPS ? 0 : x > 0 ? 1 : -1));
+  const events: Meeting[] = [];
+  for (let i = 0; i < ring.length; i++) {
+    const p = ring[i]!;
+    const q = ring[(i + 1) % ring.length]!;
+    if (side[i] === 0) events.push({ e: p.e, n: p.n, along: dot(p, dir), edge: i, vertex: p });
+    const j = (i + 1) % ring.length;
+    if (side[i] !== 0 && side[j] !== 0 && side[i] !== side[j]) {
+      const t = d[i]! / (d[i]! - d[j]!);
+      const x = { e: p.e + t * (q.e - p.e), n: p.n + t * (q.n - p.n) };
+      events.push({ ...x, along: dot(x, dir), edge: i, vertex: null });
+    }
+  }
+  events.sort((x, y) => x.along - y.along);
+  const inside: [Meeting, Meeting][] = [];
+  for (let k = 0; k + 1 < events.length; k++) {
+    const a = events[k]!;
+    const b = events[k + 1]!;
+    if (b.along - a.along <= EPS) continue;
+    const mid = { e: (a.e + b.e) / 2, n: (a.n + b.n) / 2 };
+    let clear = Infinity;
+    for (let i = 0; i < ring.length; i++) clear = Math.min(clear, pointSegmentDistance(mid, ring[i]!, ring[(i + 1) % ring.length]!));
+    if (clear > 1e-7 && inside_(mid, ring)) inside.push([a, b]);
+  }
+  return { inside };
 }
 
 /** A share's corner by name: a surveyed corner keeps its number; a computed one takes the name of the nearest new corner on its lines. */
@@ -306,7 +372,7 @@ function nameCorner(p: Local, near: readonly ProposedCorner[], o: Point): ShareC
 }
 
 /** Whether a point lies inside a ring (crossing count). */
-function inside(p: Point, ring: readonly Point[]): boolean {
+function inside_(p: Point, ring: readonly Point[]): boolean {
   let c = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const a = ring[i]!;
@@ -340,9 +406,10 @@ function fan(req: PartitionRequest, f: Frame, targets: number[]): PartitionResul
       const e1 = ring[(i + 1) % m]!;
       if (e0 === P || e1 === P) continue;
       if (snap ? e0 === snap || e1 === snap : (e0 === path[j] && e1 === path[j + 1]) || (e1 === path[j] && e0 === path[j + 1])) continue;
-      if (segmentsIntersect(P, q, e0, e1)) return false;
+      const besideEnd = snap ? false : e0 === path[j] || e1 === path[j] || e0 === path[j + 1] || e1 === path[j + 1];
+      if (segmentsIntersect(P, q, e0, e1, besideEnd ? 0 : undefined)) return false;
     }
-    return inside({ e: (P.e + q.e) / 2, n: (P.n + q.n) / 2 }, ring);
+    return inside_({ e: (P.e + q.e) / 2, n: (P.n + q.n) / 2 }, ring);
   };
   type End = { t: number; j: number; q: Local; snap: Local | null; good: boolean };
   const ends: End[] = [];
@@ -358,8 +425,9 @@ function fan(req: PartitionRequest, f: Frame, targets: number[]): PartitionResul
       const p0 = path[j]!;
       const p1 = path[j + 1]!;
       const q = { e: p0.e + r * (p1.e - p0.e), n: p0.n + r * (p1.n - p0.n) };
-      // Within a millimetre of a surveyed corner, the line ends at that corner.
-      const snap = distance(q, p0) <= 0.001 ? p0 : distance(q, p1) <= 0.001 ? p1 : null;
+      // Within a millimetre of a surveyed corner the line ends at that corner, when that moves less than 0.005 m² between the shares.
+      const nearer = distance(q, p0) <= 0.001 ? p0 : distance(q, p1) <= 0.001 ? p1 : null;
+      const snap = nearer && 0.5 * distance(P, q) * distance(q, nearer) <= SNAP_AREA_M2 ? nearer : null;
       const end = snap ?? { ...q, src: null };
       found.push({ t: j + r, j, q: end, snap, good: ok(end, j, snap) });
     }
@@ -416,18 +484,20 @@ function fan(req: PartitionRequest, f: Frame, targets: number[]): PartitionResul
   };
 }
 
-/** Consecutive points within a millimetre of each other as one (keeping a surveyed corner over a computed point). */
+/** Consecutive points at the same place (within a micrometre: clipping's rounding) as one, keeping a surveyed corner over a computed point. Snaps onto corners are made before this, and only when they move little enough. */
+const SAME_M = 1e-6;
+
 function dedupe(piece: Local[]): Local[] {
   const out: Local[] = [];
   for (const p of piece) {
     const last = out[out.length - 1];
-    if (last && Math.hypot(last.e - p.e, last.n - p.n) <= 0.001) {
+    if (last && Math.hypot(last.e - p.e, last.n - p.n) <= SAME_M) {
       if (!last.src && p.src) out[out.length - 1] = p;
       continue;
     }
     out.push(p);
   }
-  if (out.length > 1 && Math.hypot(out[0]!.e - out[out.length - 1]!.e, out[0]!.n - out[out.length - 1]!.n) <= 0.001) {
+  if (out.length > 1 && Math.hypot(out[0]!.e - out[out.length - 1]!.e, out[0]!.n - out[out.length - 1]!.n) <= SAME_M) {
     const end = out.pop()!;
     if (!out[0]!.src && end.src) out[0] = end;
   }

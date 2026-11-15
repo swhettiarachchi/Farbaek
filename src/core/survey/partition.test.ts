@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { partitionLot, widthRoom, type PartitionRequest } from "./partition";
 import type { SurveyPoint } from "./parcel";
-import { UDA_2020, ownRules, remindersFor, reviewNote } from "./rules";
+import { UDA_2020, ownRules, readDecimal, remindersFor, reviewNote, shortOf } from "./rules";
 
 const E0 = 500_000;
 const N0 = 600_000;
@@ -171,7 +171,7 @@ describe("shares by width", () => {
   it("refuses widths that don't fit, with the room in the message", () => {
     expect(run({ by: "width", shares: [25, 20] })).toEqual({ ok: false, error: "The stated widths come to 45.000 m, more than the leg's 40.000 m." });
     expect(run({ by: "width", shares: [10, 10] })).toEqual({ ok: false, error: "The widths come to 20.000 m, not the leg's 40.000 m. Let one share take what's left." });
-    expect(run({ by: "width", shares: [40, null] })).toEqual({ ok: false, error: "The stated widths take all of the leg's 40.000 m, so nothing is left for the last share." });
+    expect(run({ by: "width", shares: [40, null] })).toEqual({ ok: false, error: "The stated widths take all of the leg's 40.000 m, so nothing is left for the share left empty." });
     expect(run({ by: "width", lines: "parallel", shares: [25, null] })).toEqual({ ok: false, error: "The stated widths come to 25.000 m, more than the lot's depth of 20.000 m from that leg." });
     expect(run({ by: "width", shares: [0, null] })).toEqual({ ok: false, error: "Every stated share needs a width above zero." });
   });
@@ -298,5 +298,72 @@ describe("planning rules as versioned data", () => {
     const back = ok(run({ lines: "parallel", shares: [200, null], rules: mine }));
     expect(back.shares[1]!.problems).not.toContain("It doesn't touch the chosen leg, so it has no frontage on it.");
     expect(run({ shares: [200, null], rules: ownRules({ areaM2: Number.NaN, frontageM: 0, depthM: 0 }, "x") })).toEqual({ ok: false, error: "Give each minimum as a number of zero or more." });
+  });
+});
+
+describe("the stage 193 review's cases", () => {
+  it("snaps a line onto a corner in both shares, leaving no sliver", () => {
+    // Corner 4 at (20.00002, 100): a line 100 m long moved 0.02 mm moves 0.001 m², under the 0.005 m² a snap may move.
+    const lot = ring([[0, 0], [40, 0], [40, 100], [20.00002, 100], [0, 100]]);
+    const r = ok(partitionLot({ ring: lot, leg: 0, lines: "square", from: "start", shares: [2000, null], rules: null }));
+    expect(r.corners.map((c) => [c.name, Boolean(c.existing)])).toEqual([["P1", false], ["4", true]]);
+    expect(r.shares.map((x) => x.corners.filter((c) => c.name === "4").map((c) => c.e - E0))).toEqual([[20.00002], [20.00002]].map((v) => v.map((x) => expect.closeTo(x, 9))));
+    expect(Math.abs(r.residualM2)).toBeLessThan(1e-9);
+    expect(r.feasible).toBe(true);
+  });
+
+  it("doesn't snap when it would move more than the area check allows", () => {
+    // Corner 4 at (20.0009, 100): snapping would move 0.045 m², so P2 is set out 0.9 mm from it instead.
+    const lot = ring([[0, 0], [40, 0], [40, 100], [20.0009, 100], [0, 100]]);
+    const r = ok(partitionLot({ ring: lot, leg: 0, lines: "square", from: "start", shares: [2000, null], rules: null }));
+    expect(r.corners.map((c) => c.name)).toEqual(["P1", "P2"]);
+    expect(r.shares.map((x) => x.areaM2)).toEqual([2000, 2000].map((x) => expect.closeTo(x, 6)));
+    expect(r.feasible).toBe(true);
+    const w = ok(partitionLot({ ring: lot, leg: 0, lines: "square", from: "start", by: "width", shares: [20, null], rules: null }));
+    expect(w.feasible).toBe(true);
+  });
+
+  it("keeps a fan's line off a corner when snapping would move too much", () => {
+    // 2000.08 m² through corner 1 of a 20 by 200 lot: the line ends 0.8 mm from corner 3, on the top leg; a snap would move 0.08 m².
+    const lot = ring([[0, 0], [20, 0], [20, 200], [0, 200]]);
+    const r = ok(partitionLot({ ring: lot, leg: 0, lines: "through", corner: 0, from: "start", shares: [2000.08, null], rules: null }));
+    expect(r.corners[0]!.existing).toBeUndefined();
+    expect([r.corners[0]!.from.pointId, r.corners[0]!.distanceM]).toEqual(["3", expect.closeTo(0.0008, 9)]);
+    expect(r.feasible).toBe(true);
+  });
+
+  it("doesn't call a fan line bad because it ends 1 to 2 mm from a sharp corner", () => {
+    // Corner 3 at (100, 10) is about 17 degrees; lines through corner 1, ending on the leg 3 to 4 at 1.1 and 1.5 mm from corner 3.
+    const lot = ring([[0, 0], [50, 0], [100, 10], [0, 20]]);
+    const leg = Math.hypot(100, 10);
+    for (const dmm of [1.1, 1.5, 3]) {
+      const r = ok(partitionLot({ ring: lot, leg: 0, lines: "through", corner: 0, from: "start", shares: [250 + ((dmm / 1000) / leg) * 1000, null], rules: null }));
+      expect(r.feasible, String(dmm)).toBe(true);
+    }
+  });
+
+  it("finds a line through a corner pointing into the lot in pieces, from either end", () => {
+    // A notch from the east with its tip, corner 4, at (20, 10). The line x = 20 touches it: the east share falls in two pieces.
+    const notch = ring([[0, 0], [40, 0], [40, 8], [20, 10], [40, 12], [40, 20], [0, 20]]);
+    for (const from of ["start", "end"] as const) {
+      const r = ok(partitionLot({ ring: notch, leg: 0, lines: "square", from, by: "width", shares: [20, null], rules: null }));
+      expect(r.feasible, from).toBe(false);
+      expect(r.shares.flatMap((x) => x.problems)[0]).toBe("A dividing line runs through corner 4, which points into the lot, so a share would fall in two pieces joined there. Try lines the other way, other shares, or another leg.");
+      // Both stretches of the line are drawn.
+      expect(r.segments.map((g) => [g.a.n - N0, g.b.n - N0].sort((x, y) => x - y))).toEqual([[0, 10], [10, 20]].map((v) => v.map((x) => expect.closeTo(x, 9))));
+    }
+  });
+
+  it("shows a minimum as entered and never rounds a shortfall up to it", () => {
+    const mine = ownRules({ areaM2: 0, frontageM: 6.25, depthM: 12.04 }, "a brief");
+    const deep = ok(run({ lines: "parallel", by: "width", shares: [12.03, null], rules: mine }));
+    expect(deep.shares[0]!.problems).toContain("Its depth is 12.03 m, under the minimum you entered of 12.04 m.");
+    const front = ok(run({ by: "width", shares: [6.21, null], rules: mine }));
+    expect(front.shares[0]!.problems).toContain("Its frontage is 6.21 m, under the minimum you entered of 6.25 m.");
+    expect(shortOf(149.996, 150)).toBe("149.996");
+    expect(shortOf(149.5, 150)).toBe("149.50");
+    expect([readDecimal("12.5"), readDecimal(" .5 "), readDecimal("7")]).toEqual([12.5, 0.5, 7]);
+    for (const bad of ["0x10", "0b101", "1e3", "-2", "", "1.2.3", "Infinity"]) expect(readDecimal(bad), bad).toBeNaN();
+    expect(run({ shares: [null, 800] })).toEqual({ ok: false, error: "The stated shares take the whole lot, so nothing is left for the share left empty." });
   });
 });

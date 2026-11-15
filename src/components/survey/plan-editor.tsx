@@ -23,7 +23,7 @@ import { CODE_KINDS, LINE_STYLES, commonCodes, type CodeKind, type LineStyle } f
 import { runsText, titleSentence } from "@/core/survey/description";
 import { LAYER_IDS, STANDARD_SCALES, lotName, type LayerId, type SurveyDocument } from "@/core/survey/document";
 import { roadWidth } from "@/core/survey/roads";
-import { UDA_2020, reviewNote } from "@/core/survey/rules";
+import { UDA_2020, readDecimal, reviewNote } from "@/core/survey/rules";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
 import type { SceneItem } from "@/core/survey/sheet/scene";
@@ -867,8 +867,8 @@ function MinimumField({ label, value, disabled, onCommit }: { label: string; val
         onChange={(e) => {
           const t = e.target.value.slice(0, 12);
           setText(t);
-          const v = Number(t);
-          if (t.trim() !== "" && Number.isFinite(v) && v >= 0) onCommit(v);
+          const v = readDecimal(t);
+          if (Number.isFinite(v)) onCommit(v);
         }}
         className={inputClasses()}
       />
