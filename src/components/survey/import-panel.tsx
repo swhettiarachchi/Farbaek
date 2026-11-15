@@ -2,7 +2,7 @@
 
 import { CheckCircleIcon, FileArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState, useTransition } from "react";
-import { isBoundaryMark, outlineFrom } from "@/core/survey/autodraft";
+import { isBoundaryMark, isRoadEdgeCode, outlineFrom, roadEdges } from "@/core/survey/autodraft";
 import { codeOf, lookupCode, type CodeEntry } from "@/core/survey/codes";
 import { crsById } from "@/core/survey/crs";
 import { suggestFeatures } from "@/core/survey/fieldToFinish";
@@ -92,7 +92,8 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
   const drawing = useMemo(() => {
     if (points.length === 0) return null;
     const marks = points.filter((p) => isBoundaryMark(lookupCode(codes, codeOf(p.code))));
-    return { marks, outline: outlineFrom(marks), lines: suggestFeatures(points, codes) };
+    const road = roadEdges(points);
+    return { marks, outline: outlineFrom(marks), lines: suggestFeatures(points, codes), road };
   }, [points, codes]);
   const codeCounts = useMemo(() => {
     const m = new Map<string, number>();
@@ -237,24 +238,25 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
                 </tbody>
               </table>
             </div>
-            {points.length > 0 && !latLong ? <PointsMap points={points} outline={drawing?.outline?.ring ?? null} lines={drawing?.lines.map((l) => ({ closed: l.closed, ids: l.points })) ?? []} marks={new Set(drawing?.marks.map((m) => m.id))} /> : null}
+            {points.length > 0 && !latLong ? <PointsMap points={points} outline={drawing?.outline?.ring ?? null} lines={[...(drawing?.lines.map((l) => ({ closed: l.closed, ids: l.points })) ?? []), ...(drawing?.road ?? []).map((edge) => ({ closed: false, ids: edge.map((p) => p.id) }))]} marks={new Set(drawing?.marks.map((m) => m.id))} /> : null}
           </div>
 
           <div className="grid gap-1 text-sm text-ink-2">
             <p>
               {count} {count === 1 ? "point" : "points"} read{errors.length ? `, ${errors.length} ${errors.length === 1 ? "row" : "rows"} can't be read` : ""}
               {warnings.length ? `, ${warnings.length} exact ${warnings.length === 1 ? "repeat" : "repeats"} kept once` : ""}.
-              {drawing ? ` ${drawing.marks.length} boundary ${drawing.marks.length === 1 ? "mark" : "marks"}, ${drawing.lines.length} ${drawing.lines.length === 1 ? "line" : "lines"} from the codes.` : ""}
+              {drawing ? ` ${drawing.marks.length} boundary ${drawing.marks.length === 1 ? "mark" : "marks"}, ${drawing.lines.length} ${drawing.lines.length === 1 ? "line" : "lines"} from the codes${drawing.road ? ", and a road from its two edges" : ""}.` : ""}
             </p>
             {codeCounts.length > 0 ? (
               <p>
                 Codes:{" "}
                 {codeCounts.slice(0, 12).map(([c, n], i) => {
                   const entry = lookupCode(codes, c);
+                  const road = !entry && isRoadEdgeCode(c);
                   return (
                     <span key={c}>
                       {i > 0 ? ", " : ""}
-                      <span className={entry ? "text-ink" : "text-caution"}>{c}</span> {entry ? entry.meaning.toLowerCase() : "not in your code list"} ({n})
+                      <span className={entry || road ? "text-ink" : "text-caution"}>{c}</span> {entry ? entry.meaning.toLowerCase() : road ? "road edge" : "not in your code list"} ({n})
                     </span>
                   );
                 })}

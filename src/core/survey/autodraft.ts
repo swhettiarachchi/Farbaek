@@ -102,8 +102,13 @@ export function outlineFrom(marks: readonly SurveyPoint[]): { ring: SurveyPoint[
   return area(local(around)) >= 0.85 * hullArea(local(unique)) ? { ring: around, how: "around" } : null;
 }
 
+/** Whether a field code marks a road edge (RD1, RD2, RDL, RDR, ROAD…). */
+export function isRoadEdgeCode(code: string): boolean {
+  return ROAD_EDGE.test(code);
+}
+
 /** Road edges from RD-coded points: one string per side, in the order observed. */
-function roadEdges(points: readonly SurveyPoint[]): [SurveyPoint[], SurveyPoint[]] | null {
+export function roadEdges(points: readonly SurveyPoint[]): [SurveyPoint[], SurveyPoint[]] | null {
   const strings = new Map<string, SurveyPoint[]>();
   for (const p of points) {
     const m = ROAD_EDGE.exec(codeOf(p.code));
