@@ -39,7 +39,7 @@ const SYNONYMS: Record<Exclude<ColumnRole, "ignore">, readonly string[]> = {
   easting: ["e", "east", "easting", "eastings", "e coord", "e coordinate", "easting coordinate"],
   northing: ["n", "north", "northing", "northings", "n coord", "n coordinate", "northing coordinate"],
   elevation: ["z", "h", "ht", "hgt", "elev", "elevation", "height", "rl", "r.l.", "reduced level", "level", "alt", "altitude", "msl", "orthometric height"],
-  code: ["code", "codes", "desc", "desc1", "description", "descriptor", "remark", "remarks", "feature", "feature code", "field code", "pt code", "point code", "attr", "attribute", "note", "notes", "label", "layer"],
+  code: ["c", "d", "code", "codes", "desc", "desc1", "description", "descriptor", "remark", "remarks", "feature", "feature code", "field code", "pt code", "point code", "attr", "attribute", "note", "notes", "label", "layer"],
 };
 
 /** A header cell as a plain name: quotes, underscores, hyphens and a unit of metres removed ("Easting (m)", "EASTING_M"). */
@@ -58,7 +58,9 @@ const roleOfHeader = (h: string): ColumnRole | "x" | "y" | null => {
   const t = plainHeader(h);
   if (t === "x") return "x";
   if (t === "y") return "y";
-  for (const [role, names] of Object.entries(SYNONYMS) as [ColumnRole, readonly string[]][]) if (names.includes(t)) return role;
+  // "Point No." and "Point No" are the same name.
+  const bare = t.replace(/\.$/, "");
+  for (const [role, names] of Object.entries(SYNONYMS) as [ColumnRole, readonly string[]][]) if (names.includes(t) || names.includes(bare)) return role;
   return null;
 };
 
@@ -118,6 +120,8 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
     }
   };
 
+  const distinct = (j: number) => new Set(cols[j]).size === cols[j]!.length && cols[j]!.every((v) => v !== "");
+
   // Column names, when the file has them.
   if (preview.header) {
     const roles = preview.header.map(roleOfHeader);
@@ -128,9 +132,18 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
     });
     // A header wider than the rows names columns that aren't there: only names over real columns count.
     if (xs >= 0 && ys >= 0 && xs < width && ys < width && !columns.includes("easting") && !columns.includes("northing")) settlePair(Math.min(xs, ys), Math.max(xs, ys), "the columns are named X and Y, which instruments use either way round; ");
-    if (columns.includes("point") && columns.includes("easting") && columns.includes("northing")) {
+    // Named eastings and northings are kept even when the point column has a name Farbaek doesn't know: its values find it.
+    if (columns.includes("easting") && columns.includes("northing")) {
+      if (!columns.includes("point")) {
+        const p = Array.from({ length: width }, (_, j) => j).find((j) => columns[j] === "ignore" && distinct(j));
+        if (p !== undefined) {
+          columns[p] = "point";
+          reasons.push(`${ordinal(p)} is the point number: its name isn't one Farbaek knows, but each row has a different one.`);
+        } else unsure.push("No column is named as the point number, and none has a different value on every row. Choose its column.");
+      }
       reasons.unshift(`Read from the column names: ${preview.header.slice(0, width).map((h) => h.trim() || "(blank)").join(", ")}.`);
-      return { columns, reasons, unsure, latLong: latLongOf(columns) };
+      const sentence = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+      return { columns, reasons: reasons.map(sentence), unsure: unsure.map(sentence), latLong: latLongOf(columns) };
     }
     columns.fill("ignore");
     reasons.length = 0;
@@ -139,7 +152,6 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
 
   // From the values.
   const used = new Set<number>();
-  const distinct = (j: number) => new Set(cols[j]).size === cols[j]!.length && cols[j]!.every((v) => v !== "");
   const point = Array.from({ length: width }, (_, j) => j).find((j) => distinct(j) && (numeric[j]! < 0.5 || nums[j]!.every((v) => v !== null && Number.isInteger(v) && Math.abs(v) < 1e7)));
   if (point !== undefined) {
     columns[point] = "point";
@@ -154,16 +166,19 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
     reasons.push(`${ordinal(code)} is the code: it holds words such as ${[...new Set(cols[code]!.filter(Boolean).map((v) => v.split(/\s+/)[0]))].slice(0, 3).join(", ")}.`);
   }
   let coords = Array.from({ length: width }, (_, j) => j).filter((j) => !used.has(j) && numeric[j]! >= 0.9);
-  // A column of small whole numbers that repeat is a numeric field code, not a coordinate, when two coordinate columns remain beside it.
-  const numericCode = (j: number) => nums[j]!.every((v) => v !== null && Number.isInteger(v) && Math.abs(v) < 1000) && new Set(cols[j]).size < cols[j]!.length;
-  const codeLike = coords.filter(numericCode);
-  if (codeLike.length > 0 && coords.length - codeLike.length >= 2) {
+  // A column of small whole numbers that repeat, not all zero, and followed by a coordinate pair, is a numeric field code (as in the CASS
+  // layout: name, code, easting, northing, height). Heights come after the pair, so whole-metre or zero heights stay heights.
+  const smallWhole = (j: number) => nums[j]!.every((v) => v !== null && Number.isInteger(v) && Math.abs(v) < 1000) && nums[j]!.some((v) => v !== 0) && new Set(cols[j]).size < cols[j]!.length;
+  const codeLike = coords.filter((j) => smallWhole(j) && coords.filter((k) => k > j && !smallWhole(k)).length >= 2);
+  if (codeLike.length > 0) {
     coords = coords.filter((j) => !codeLike.includes(j));
-    if (code === undefined) {
-      columns[codeLike[0]!] = "code";
-      used.add(codeLike[0]!);
-      reasons.push(`${ordinal(codeLike[0]!)} is read as the code: it holds small whole numbers that repeat, as numeric field codes do. Check it.`);
-    }
+    codeLike.forEach((j, i) => {
+      if (code === undefined && i === 0) {
+        columns[j] = "code";
+        used.add(j);
+        reasons.push(`${ordinal(j)} is read as the code: it holds small whole numbers that repeat, as numeric field codes do. Check it.`);
+      } else unsure.push(`${ordinal(j)} holds small whole numbers that repeat, so it's left out. Choose its role if it's needed.`);
+    });
   }
   if (coords.length >= 2) {
     // Grid coordinates are the large numbers; a third, much smaller column beside them is the elevation.

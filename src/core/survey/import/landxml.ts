@@ -14,7 +14,7 @@
  */
 import { codeProblem, finishPoints, guardFile, pointIdProblem } from "./common";
 import { readNumber, type ImportedPoint, type ImportIssue } from "./delimited";
-import { XmlProblem, elements, lineFinder, stripXml, textOf } from "./xml";
+import { XmlProblem, elements, lineFinder, stripXml, textOf, xmlRefusal } from "./xml";
 
 export function looksLikeLandXml(text: string): boolean {
   return /<(?:[\w.-]+:)?LandXML[\s>]/.test(text.slice(0, 4000));
@@ -34,17 +34,19 @@ function toMetres(cell: string, scale: number): number | null {
 export function parseLandXml(text: string): { points: ImportedPoint[]; issues: ImportIssue[] } {
   const guard = guardFile(text, "This is a binary file, not LandXML. Export the points as LandXML or CSV.");
   if (guard) return { points: [], issues: [guard] };
+  let clean: string | null = null;
   try {
-    return readLandXml(text);
+    clean = stripXml(text);
+    return readLandXml(clean);
   } catch (e) {
-    // A file cut short or not well formed is refused whole, with the line, never half-read.
-    if (e instanceof XmlProblem) return { points: [], issues: [{ code: "FILE_CUT_SHORT", severity: "error", line: e.line, message: e.message }] };
+    // A file cut short or not well formed is refused whole, with the line, never half-read. Stripping keeps every line break, so a
+    // problem found while stripping has its line in the file as given.
+    if (e instanceof XmlProblem) return { points: [], issues: [{ code: "FILE_CUT_SHORT", severity: "error", ...xmlRefusal(e, clean ?? text) }] };
     throw e;
   }
 }
 
-function readLandXml(text: string): { points: ImportedPoint[]; issues: ImportIssue[] } {
-  const clean = stripXml(text);
+function readLandXml(clean: string): { points: ImportedPoint[]; issues: ImportIssue[] } {
   if (!looksLikeLandXml(clean)) return { points: [], issues: [{ code: "NO_ROWS", severity: "error", line: null, message: "This isn't a LandXML file: it has no LandXML element." }] };
   // The root must close: a file cut off after its last point would otherwise read as complete.
   elements(clean, "LandXML");
@@ -61,7 +63,7 @@ function readLandXml(text: string): { points: ImportedPoint[]; issues: ImportIss
   for (const el of elements(clean, "CgPoint")) {
     const line = lineAt(el.index);
     const name = (el.attrs.name ?? "").trim();
-    const values = textOf(el.inner, " ").trim();
+    const values = textOf(el.inner, " ", el.innerStart).trim();
     if (!values && el.attrs.pntRef) {
       references++;
       continue;

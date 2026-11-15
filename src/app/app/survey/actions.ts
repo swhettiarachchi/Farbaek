@@ -147,7 +147,7 @@ async function drawFromPoints(w: Writer, projectId: string, note: string, codeLi
   // The Survey Department's code list, when the surveyor chose it for a file written in its codes; only on a plan not yet drawn, and
   // waiting for the surveyor's check like any list.
   const swap = codeList === "dsr" && data.drawing.document.lots.length === 0;
-  const base = swap ? { ...data.drawing.document, codes: dsrCodes(), provenance: Object.fromEntries(Object.entries(data.drawing.document.provenance).filter(([k]) => k !== "codes")) } : data.drawing.document;
+  const base = swap ? { ...data.drawing.document, codes: dsrCodes(), provenance: { ...data.drawing.document.provenance, codes: { source: "engine" as const, reviewed: false } } } : data.drawing.document;
   const r = autoDraft({ points: data.points, document: base, surveyorUserId: mine, surveyDate });
   // A lot, lines or a road make a drawn plan worth a version; a date or the surveyor block alone doesn't.
   if (r.shapes === 0) return { ok: true, version: null, drawn: [], notDrawn: r.notDrawn.length > 0 ? r.notDrawn : ["Nothing to draw: the points carry no boundary-mark, line or road codes."] };

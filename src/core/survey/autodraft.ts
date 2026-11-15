@@ -41,7 +41,8 @@ const LIMITS = { lotPoints: 500, featurePoints: 500, roadPoints: 200, features: 
  * instrument stations and control points (DSR Chapter XXII's "stn" codes). Whole words, so "Street" isn't a tree. A post that is a
  * corner is added on the Lots step.
  */
-const NOT_BOUNDARY = /\b(?:electric|telephone|power|lamp|light|culvert|tree|well|hydrant|valve|manhole|station|control|geodetic|benchmark|bench mark|monument|kilometre)\b/i;
+// Whole words, with their plurals and endings ("Electricity post", "Coconut trees"), so "Street marker" still counts as a mark.
+const NOT_BOUNDARY = /\b(?:electric\w*|telephone\w*|telecom\w*|power|lamps?|lights?|culverts?|trees?|wells?|hydrants?|valves?|manholes?|stations?|control|geodetic|bench ?marks?|monuments?|kilomet(?:re|er)s?)\b/i;
 
 /** Whether a library code is a boundary mark (a post, stake, peg or mark set on a boundary). */
 export function isBoundaryMark(entry: CodeEntry | null): boolean {
@@ -118,6 +119,8 @@ function usable(local: readonly Point[]): boolean {
  * once, at its first observation. `inward` lists the marks where the observed outline turns inward, for the surveyor to check.
  */
 export function outlineFrom(marks: readonly SurveyPoint[]): { ring: SurveyPoint[]; how: "observed" | "around"; inward: string[] } | null {
+  // Above a lot's limit nothing is worked out, so the preview and the server agree and a large file stays quick.
+  if (marks.length > LIMITS.lotPoints) return null;
   const unique: SurveyPoint[] = [];
   for (const p of marks) {
     if (unique.some((q) => q.pointId === p.pointId || Math.hypot(q.e - p.e, q.n - p.n) <= 0.0005)) continue;
@@ -222,6 +225,8 @@ export function autoDraft(input: AutoDraftInput): AutoDraftResult {
   const kept = fresh.slice(0, room);
   if (kept.length > 0) {
     next.features = [...doc.features, ...kept];
+    // Each line waits for the surveyor's check like the lot: the codes are the crew's, but which points join is inferred.
+    for (const f of kept) next.provenance[`feature:${f.id}`] = { source: "auto", reviewed: false };
     shapes++;
     const counts = new Map<string, number>();
     for (const f of kept) {

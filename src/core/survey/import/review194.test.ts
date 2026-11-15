@@ -169,3 +169,34 @@ describe("detection and columns", () => {
     expect(g.columns.slice(2)).toEqual(["northing", "easting", "elevation"]);
   });
 });
+
+describe("the stage 194 re-check's cases", () => {
+  it("keeps zero and whole-metre heights as heights, not codes", () => {
+    const zero = suggestColumns(previewDelimited("1,700004.210,450012.345,0.000\n2,700007.884,450043.912,0.000\n3,700009.000,450050.000,0.000", 300) as never, SLD99);
+    expect(zero.columns).toEqual(["point", "northing", "easting", "elevation"]);
+    const whole = suggestColumns(previewDelimited("1,700004.210,450012.345,21\n2,700007.884,450043.912,21\n3,700009.000,450050.000,22", 300) as never, SLD99);
+    expect(whole.columns[3]).toBe("elevation");
+  });
+
+  it("reads Point No. as a name, and keeps named eastings and northings when the point column's name is unknown", () => {
+    const named = suggestColumns(previewDelimited("Point No.,Easting,Northing,RL,Code\n1,450012.345,700004.210,21.43,CP\n2,450043.912,700007.884,21.88,MW", 300) as never, SLD99);
+    expect(named.columns).toEqual(["point", "easting", "northing", "elevation", "code"]);
+    const odd = suggestColumns(previewDelimited("Stn Ref,Easting,Northing\nA1,450012.345,700004.210\nA2,450043.912,700007.884", 300) as never, SLD99);
+    expect(odd.columns).toEqual(["point", "easting", "northing"]);
+  });
+
+  it("gives the true line of a problem inside a nested element", () => {
+    const job = ['<JOBFile version="5.2">', "<Reductions>", "<Point><ID>a1</ID><Name>1</Name>", "<Grid><North>700000</North><East>450000</East>", "</Point>", "</Reductions>", "</JOBFile>"].join("\n");
+    expect(parseJobXml(job).issues[0]).toMatchObject({ code: "FILE_CUT_SHORT", line: 4 });
+    expect(parseLandXml(landxml(`<CgPoint name="1">700011 <x 450011</CgPoint>`)).issues[0]).toMatchObject({ code: "FILE_CUT_SHORT", line: 5 });
+    const bad = parseLandXml(landxml(`<CgPoint name="&#1;">700000 450000</CgPoint>`)).issues[0]!;
+    expect(bad).toMatchObject({ code: "FILE_CUT_SHORT", line: 5 });
+    expect(bad.message).toMatch(/on line 5/);
+  });
+
+  it("allows the joiners Sinhala writing needs, and refuses them anywhere else", () => {
+    const opts = { delimiter: "," as const, hasHeader: false, columns: [...COLUMN_ORDERS.PNEZD] };
+    expect(parseDelimited("1,700004.21,450012.345,21.43,MW \u0db4\u0dca\u200d\u0dbb\u0db0\u0dcf\u0db1", opts).issues).toEqual([]);
+    expect(parseDelimited("1,700004.21,450012.345,21.43,\u200dCP", opts).issues[0]!.code).toBe("CODE_NOT_READABLE");
+  });
+});

@@ -5,7 +5,7 @@
  * warning; a number repeated with different values is refused outright and
  * Farbaek picks neither.
  */
-import { IMPORT_LIMITS, INVISIBLE, type ImportedPoint, type ImportIssue } from "./delimited";
+import { IMPORT_LIMITS, hasInvisible, type ImportedPoint, type ImportIssue } from "./delimited";
 
 /** A file's text checked before reading: not too large, not binary. Null when fine. */
 export function guardFile(text: string, binaryHint: string): ImportIssue | null {
@@ -28,7 +28,7 @@ export function numberedLines(text: string): { line: number; text: string }[] {
 export function pointIdProblem(id: string): string | null {
   if (!id) return "has no point number";
   if (id.length > IMPORT_LIMITS.maxPointIdLength) return `has a point number longer than ${IMPORT_LIMITS.maxPointIdLength} characters`;
-  if (INVISIBLE.test(id)) return "has a point number with control or invisible characters";
+  if (hasInvisible(id)) return "has a point number with control or invisible characters";
   return null;
 }
 
@@ -36,7 +36,7 @@ export function pointIdProblem(id: string): string | null {
 export function codeProblem(code: string | null): string | null {
   if (!code) return null;
   if (code.length > IMPORT_LIMITS.maxCodeLength) return `has a code longer than ${IMPORT_LIMITS.maxCodeLength} characters`;
-  if (INVISIBLE.test(code)) return "has a code with control or invisible characters";
+  if (hasInvisible(code)) return "has a code with control or invisible characters";
   return null;
 }
 

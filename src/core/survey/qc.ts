@@ -382,10 +382,20 @@ export function checkSurvey(input: QcInput): Finding[] {
   }
 
   // The code library and the codes the plan uses.
-  if (codesAreCommonList(doc.codes) && !doc.provenance["codes"]?.reviewed) {
-    add({ code: "LEGEND_UNREVIEWED", severity: "professional_review", message: "The code library is still the common list, which isn't an official one.", target: { kind: "field", id: "codes" }, action: "Check the codes and meanings this plan uses, then mark the list as checked.", blocks: ["approval"] });
-  } else if (codesAreDsrList(doc.codes) && !doc.provenance["codes"]?.reviewed) {
-    add({ code: "LEGEND_UNREVIEWED", severity: "professional_review", message: "The code library is the Survey Department's list, not yet checked for this plan.", target: { kind: "field", id: "codes" }, action: "Check the codes and meanings this plan uses (the station codes' meanings come from an unclear copy of the annex), then mark the list as checked.", blocks: ["approval"] });
+  // A list put in place for the surveyor (the common list, or the Survey Department's on a swap) waits for their check. A swap records
+  // the list as unchecked, so adding a code to it afterwards doesn't lift the check.
+  const codesMark = doc.provenance["codes"];
+  const listUnchecked = codesMark ? !codesMark.reviewed : codesAreCommonList(doc.codes) || codesAreDsrList(doc.codes);
+  if (listUnchecked) {
+    const dsr = codesAreDsrList(doc.codes) || doc.codes.some((c) => c.code === "MW" && /wall/i.test(c.meaning) && /mark/i.test(c.meaning));
+    add({
+      code: "LEGEND_UNREVIEWED",
+      severity: "professional_review",
+      message: dsr ? "The code library is the Survey Department's list, not yet checked for this plan." : codesAreCommonList(doc.codes) ? "The code library is still the common list, which isn't an official one." : "The code library hasn't been checked for this plan since its list was put in place.",
+      target: { kind: "field", id: "codes" },
+      action: dsr ? "Check the codes and meanings this plan uses (the station codes' meanings come from an unclear copy of the annex), then mark the list as checked." : "Check the codes and meanings this plan uses, then mark the list as checked.",
+      blocks: ["approval"],
+    });
   }
   const usedCodes = new Set<string>();
   for (const r of input.lots.lots) for (const v of r.parcel?.vertices ?? []) if (codeOf(v.code)) usedCodes.add(codeOf(v.code));

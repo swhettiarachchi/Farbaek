@@ -12,7 +12,7 @@
  */
 import { codeProblem, finishPoints, guardFile, pointIdProblem } from "./common";
 import { readNumber, type ImportedPoint, type ImportIssue } from "./delimited";
-import { XmlProblem, childText, elements, lineFinder, stripXml } from "./xml";
+import { XmlProblem, childText, elements, lineFinder, stripXml, xmlRefusal } from "./xml";
 
 export function looksLikeJobXml(text: string): boolean {
   return /<(?:[\w.-]+:)?JOBFile[\s>]/i.test(text.slice(0, 4000));
@@ -21,17 +21,18 @@ export function looksLikeJobXml(text: string): boolean {
 export function parseJobXml(text: string): { points: ImportedPoint[]; issues: ImportIssue[]; surveyDate: string | null } {
   const guard = guardFile(text, "This is a binary file, not JobXML. Export the job from Trimble Access as JobXML or CSV.");
   if (guard) return { points: [], issues: [guard], surveyDate: null };
+  let clean: string | null = null;
   try {
-    return readJobXml(text);
+    clean = stripXml(text);
+    return readJobXml(clean);
   } catch (e) {
     // A file cut short or not well formed is refused whole, with the line, never half-read.
-    if (e instanceof XmlProblem) return { points: [], issues: [{ code: "FILE_CUT_SHORT", severity: "error", line: e.line, message: e.message }], surveyDate: null };
+    if (e instanceof XmlProblem) return { points: [], issues: [{ code: "FILE_CUT_SHORT", severity: "error", ...xmlRefusal(e, clean ?? text) }], surveyDate: null };
     throw e;
   }
 }
 
-function readJobXml(text: string): { points: ImportedPoint[]; issues: ImportIssue[]; surveyDate: string | null } {
-  const clean = stripXml(text);
+function readJobXml(clean: string): { points: ImportedPoint[]; issues: ImportIssue[]; surveyDate: string | null } {
   if (!looksLikeJobXml(clean)) return { points: [], issues: [{ code: "NO_ROWS", severity: "error", line: null, message: "This isn't a Trimble JobXML file: it has no JOBFile element." }], surveyDate: null };
   // The root must close: a file cut off after its last point would otherwise read as complete.
   elements(clean, "JOBFile");
@@ -41,7 +42,7 @@ function readJobXml(text: string): { points: ImportedPoint[]; issues: ImportIssu
   const dates: string[] = [];
   for (const rec of elements(clean, "PointRecord")) {
     // xs:boolean: "true" or "1".
-    const del = (childText(rec.inner, "Deleted") ?? "").toLowerCase();
+    const del = (childText(rec.inner, "Deleted", rec.innerStart) ?? "").toLowerCase();
     const isDeleted = del === "true" || del === "1";
     if (isDeleted && rec.attrs.ID) deleted.add(rec.attrs.ID);
     const ts = rec.attrs.TimeStamp;
@@ -53,12 +54,14 @@ function readJobXml(text: string): { points: ImportedPoint[]; issues: ImportIssu
   const issues: ImportIssue[] = [];
   const read: ImportedPoint[] = [];
   let noGrid = 0;
-  for (const p of elements(reductions.inner, "Point")) {
+  for (const p of elements(reductions.inner, "Point", offset)) {
     const line = lineAt(offset + p.index);
-    const id = childText(p.inner, "ID");
+    // Where this point's inside starts in the file, for the line of a problem inside it.
+    const at = offset + p.innerStart;
+    const id = childText(p.inner, "ID", at);
     if (id && deleted.has(id)) continue;
-    const name = childText(p.inner, "Name") ?? "";
-    const grid = elements(p.inner, "Grid")[0];
+    const name = childText(p.inner, "Name", at) ?? "";
+    const grid = elements(p.inner, "Grid", at)[0];
     if (!grid) {
       noGrid++;
       continue;
@@ -69,12 +72,12 @@ function readJobXml(text: string): { points: ImportedPoint[]; issues: ImportIssu
       continue;
     }
     const value = (tag: string) => {
-      const t = childText(grid.inner, tag);
+      const t = childText(grid.inner, tag, at + grid.innerStart);
       return t === null || t === "" ? null : readNumber(t);
     };
     const n = value("North");
     const e = value("East");
-    const zText = childText(grid.inner, "Elevation");
+    const zText = childText(grid.inner, "Elevation", at + grid.innerStart);
     const z = zText ? readNumber(zText) : null;
     if (n === null || e === null || (zText && z === null)) {
       if (n === null && e === null) {
@@ -84,7 +87,7 @@ function readJobXml(text: string): { points: ImportedPoint[]; issues: ImportIssu
       issues.push({ code: "NOT_A_NUMBER", severity: "error", line, message: `Line ${line}, point ${name}: a grid coordinate is missing or isn't a plain number.` });
       continue;
     }
-    const code = childText(p.inner, "Code") || null;
+    const code = childText(p.inner, "Code", at) || null;
     const cp = codeProblem(code);
     if (cp) {
       issues.push({ code: "CODE_NOT_READABLE", severity: "error", line, message: `Line ${line}, point ${name} ${cp}.` });

@@ -29,7 +29,13 @@ function itemOf(doc: SurveyDocument, key: string): { label: string; step: "bound
  */
 export function ReviewChecklist({ doc, findings, base, approved }: { doc: SurveyDocument; findings: readonly Finding[]; base: string; approved: boolean }) {
   if (approved) return null;
-  const waiting = unreviewed(doc).map((k) => ({ key: k, source: doc.provenance[k]!.source, ...itemOf(doc, k) }));
+  // Lines drawn from the codes are checked together on the Lots step, so they're one item here.
+  const keys = unreviewed(doc);
+  const lines = keys.filter((k) => k.startsWith("feature:"));
+  const waiting = [
+    ...keys.filter((k) => !k.startsWith("feature:")).map((k) => ({ key: k, source: doc.provenance[k]!.source, ...itemOf(doc, k) })),
+    ...(lines.length > 0 ? [{ key: "features", source: doc.provenance[lines[0]!]!.source, label: `${lines.length} ${lines.length === 1 ? "line" : "lines"} joined from the field codes`, step: "boundary" as const }] : []),
+  ];
   // Everything that holds approval or the export back, beyond the items above.
   const needed = findings.filter((f) => (f.blocks.includes("approval") || f.blocks.includes("export")) && f.code !== "AI_ITEMS_UNREVIEWED" && f.code !== "AUTO_ITEMS_UNREVIEWED");
   const shown = needed.slice(0, 6);

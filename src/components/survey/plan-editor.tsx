@@ -830,10 +830,10 @@ function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; update: Up
           <PlusIcon size={16} weight="bold" aria-hidden />
           Add a code
         </button>
-        <button type="button" disabled={readOnly} onClick={() => update((d) => ((d.codes = commonCodes()), void delete d.provenance["codes"]))} className={buttonClasses("ghost", "sm")}>
+        <button type="button" disabled={readOnly} onClick={() => update((d) => ((d.codes = commonCodes()), void (d.provenance["codes"] = { source: "engine", reviewed: false })))} className={buttonClasses("ghost", "sm")}>
           Reset to the common list
         </button>
-        <button type="button" disabled={readOnly} onClick={() => update((d) => ((d.codes = dsrCodes()), void delete d.provenance["codes"]))} className={buttonClasses("ghost", "sm")}>
+        <button type="button" disabled={readOnly} onClick={() => update((d) => ((d.codes = dsrCodes()), void (d.provenance["codes"] = { source: "engine", reviewed: false })))} className={buttonClasses("ghost", "sm")}>
           Use the Survey Department&apos;s codes
         </button>
       </div>

@@ -75,7 +75,7 @@ describe("the automatic draft from field data", () => {
     const d = autoDraft({ points, document: emptyDocument() }).document;
     const qc = (doc: typeof d) => checkSurvey({ points, crs: crsById("EPSG:5235"), crsConfirmed: true, document: doc, lots: computeLots(points, doc.lots), surveyorProfile: true });
     const f = qc(d).find((x) => x.code === "AUTO_ITEMS_UNREVIEWED")!;
-    expect(f.message).toBe("2 items drawn from the field data haven't been checked yet.");
+    expect(f.message).toBe("4 items drawn from the field data haven't been checked yet.");
     expect(blocked([f], "approval")).toHaveLength(1);
     const checked = structuredClone(d);
     for (const k of Object.keys(checked.provenance)) checked.provenance[k]!.reviewed = true;
@@ -238,5 +238,33 @@ describe("the stage 194 draft-flow review's cases", () => {
     expect(itemLabel("sheet.surveyDate")).toBeTruthy();
     expect(itemLabel("sheet.previousPlan.number")).toBeTruthy();
     expect(itemLabel("sheet.nothing")).toBeNull();
+  });
+});
+
+describe("the stage 194 re-check's draft cases", () => {
+  it("marks every line it joins for the surveyor's check", () => {
+    const points = field();
+    const d = autoDraft({ points, document: emptyDocument() }).document;
+    expect(d.features.length).toBeGreaterThan(0);
+    for (const f of d.features) expect(d.provenance[`feature:${f.id}`]).toEqual({ source: "auto", reviewed: false });
+    const lotChecked = { ...d, provenance: { ...d.provenance, "lot:lot-1": { source: "auto" as const, reviewed: true }, "road:road-1": { source: "auto" as const, reviewed: true } } };
+    const qc = checkSurvey({ points, crs: crsById("EPSG:5235"), crsConfirmed: true, document: lotChecked, lots: computeLots(points, lotChecked.lots), surveyorProfile: true });
+    expect(qc.map((x) => x.code)).toContain("AUTO_ITEMS_UNREVIEWED");
+  });
+
+  it("keeps the code list's check after codes are added to a swapped list", () => {
+    const points = field();
+    const base = autoDraft({ points, document: emptyDocument() }).document;
+    const d = { ...base, codes: [...dsrCodes(), { code: "RD1", meaning: "Road edge", kind: "line" as const, line: "solid" as const, legend: true }], provenance: { ...base.provenance, codes: { source: "engine" as const, reviewed: false } } };
+    const qc = checkSurvey({ points, crs: crsById("EPSG:5235"), crsConfirmed: true, document: d, lots: computeLots(points, d.lots), surveyorProfile: true });
+    expect(qc.find((x) => x.code === "LEGEND_UNREVIEWED")?.message).toMatch(/Survey Department's list/);
+  });
+
+  it("leaves electricity posts and coconut trees out of the lot, and works nothing out above the mark limit", () => {
+    expect(isBoundaryMark({ code: "EP", meaning: "Electricity Post", kind: "mark", line: "solid", legend: true })).toBe(false);
+    expect(isBoundaryMark({ code: "CT", meaning: "Coconut Trees", kind: "mark", line: "solid", legend: true })).toBe(false);
+    seq = 0;
+    const many = Array.from({ length: 520 }, (_, i) => pt(String(i), [0, 40, 40, 0][i % 4]!, [0, 0, 25, 25][i % 4]!, "CP"));
+    expect(outlineFrom(many)).toBeNull();
   });
 });

@@ -354,6 +354,18 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
             </ul>
           )
         ) : null}
+        {features.some((f) => provenance[`feature:${f.id}`]?.reviewed === false) ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-sm bg-canvas-2 p-3 ring-1 ring-line">
+            <StatusBadge status="approval" label="Drawn from the field data, check" />
+            <span className="min-w-0 flex-1 text-sm text-ink-2">
+              {features.filter((f) => provenance[`feature:${f.id}`]?.reviewed === false).length} of these lines were joined from the field codes. Check them on the sheet, remove any that are wrong, then mark them checked.
+            </span>
+            <button type="button" disabled={ro} onClick={() => setProvenance((p) => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, k.startsWith("feature:") ? { ...v, reviewed: true } : v])))} className={buttonClasses("ghost", "sm")}>
+              <CheckCircleIcon size={16} weight="bold" aria-hidden />
+              They look right
+            </button>
+          </div>
+        ) : null}
         {features.length > 0 ? (
           <ul className="grid gap-2">
             {features.map((f, i) => (

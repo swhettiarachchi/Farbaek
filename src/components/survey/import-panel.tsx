@@ -29,6 +29,9 @@ const DELIMITERS: { id: Delimiter; label: string }[] = [
 /** A coordinate as read, to the millimetre at least: 450000 shows as 450000.000, 450012.3456 keeps its tenth of a millimetre. */
 const metres = (v: number) => v.toFixed(Math.min(4, Math.max(3, String(v).split(".")[1]?.length ?? 0)));
 
+/** The first line with anything on it: when it changes, the pasted text is another file, not an edit of this one. */
+const firstLine = (t: string) => t.split(/\r\n|\r|\n/, 50).find((l) => l.trim() !== "")?.trim() ?? "";
+
 /** The imported rows as survey points for the preview: ids by their place in the file (an XML file can hold every point on one line), never saved. */
 const asPoints = (pts: readonly ImportedPoint[]): SurveyPoint[] => pts.map((p, i) => ({ id: `row-${i}`, pointId: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code }));
 
@@ -193,12 +196,18 @@ export function ImportPanel({
       }
     });
 
+  // Another way in starts over: nothing chosen or confirmed for one carries to the next.
   const chooseEntry = (next: typeof entry) => {
     setEntry(next);
     setText("");
     setFileName("");
     setGuess(null);
     setResult({ status: "idle" });
+    setFormat("delimited");
+    setFormatChosen(false);
+    setConfirmUnits(false);
+    setEncoding(null);
+    setUseDsr(null);
   };
 
   return (
@@ -229,7 +238,7 @@ export function ImportPanel({
         </label>
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Or paste rows from a spreadsheet or file</span>
-          <textarea value={text} rows={5} disabled={Boolean(readOnly)} spellCheck={false} placeholder={"1,700004.210,450012.345,21.43,CP\n2,700007.884,450043.912,21.88,CP"} onChange={(e) => load("", e.target.value, false)} className={textareaClasses("font-mono text-sm")} />
+          <textarea value={text} rows={5} disabled={Boolean(readOnly)} spellCheck={false} placeholder={"1,700004.210,450012.345,21.43,CP\n2,700007.884,450043.912,21.88,CP"} onChange={(e) => load("", e.target.value, firstLine(e.target.value) !== firstLine(text))} className={textareaClasses("font-mono text-sm")} />
         </label>
       </div>
 

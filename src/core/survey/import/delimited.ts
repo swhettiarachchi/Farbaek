@@ -52,9 +52,28 @@ export interface ImportedPoint {
 /**
  * Control and invisible formatting characters: C0 and C1 controls, the soft hyphen, zero-width characters, direction marks and
  * overrides, line and paragraph separators, the byte-order mark. A point number or code holding one reads the same as another that
- * doesn't, so two different points could look alike. Every reader refuses them.
+ * doesn't, so two different points could look alike. Every reader refuses them, through `hasInvisible`.
  */
 export const INVISIBLE = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff\ufff9-\ufffb]/;
+
+/** Letters of the Indic scripts, Sinhala and Tamil among them (U+0900 to U+0DFF). */
+const INDIC = /[\u0900-\u0dff]/;
+
+/**
+ * Whether text holds a control or invisible character. The zero-width joiner and non-joiner are part of writing Sinhala (the yansaya
+ * and rakaransaya: "ප්‍ර") and Tamil, so they're allowed between two letters of those scripts and refused anywhere else.
+ */
+export function hasInvisible(text: string): boolean {
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    if (c === "\u200c" || c === "\u200d") {
+      if (INDIC.test(text[i - 1] ?? "") && INDIC.test(text[i + 1] ?? "")) continue;
+      return true;
+    }
+    if (INVISIBLE.test(c)) return true;
+  }
+  return false;
+}
 
 export type ImportIssueCode =
   | "FILE_TOO_LARGE"
@@ -222,7 +241,7 @@ export function parseDelimited(text: string, options: { delimiter: Delimiter; ha
       issues.push({ code: "MISSING_POINT_ID", severity: "error", line, message: `Line ${line} has no point number.` });
       continue;
     }
-    if (pointId.length > IMPORT_LIMITS.maxPointIdLength || INVISIBLE.test(pointId)) {
+    if (pointId.length > IMPORT_LIMITS.maxPointIdLength || hasInvisible(pointId)) {
       issues.push({ code: "POINT_ID_TOO_LONG", severity: "error", line, message: `Line ${line}: the point number is longer than ${IMPORT_LIMITS.maxPointIdLength} characters or has control or invisible characters.` });
       continue;
     }
@@ -252,7 +271,7 @@ export function parseDelimited(text: string, options: { delimiter: Delimiter; ha
     }
     const codeCells = ci < 0 ? [] : codeLast ? cells.slice(ci) : [cells[ci] ?? ""];
     const code = codeCells.join(" ").trim() || null;
-    if (code && (code.length > IMPORT_LIMITS.maxCodeLength || INVISIBLE.test(code))) {
+    if (code && (code.length > IMPORT_LIMITS.maxCodeLength || hasInvisible(code))) {
       issues.push({ code: "CODE_NOT_READABLE", severity: "error", line, message: `Line ${line}, point ${pointId}: the code is longer than ${IMPORT_LIMITS.maxCodeLength} characters or has control or invisible characters. Nothing is cut short for you.` });
       continue;
     }

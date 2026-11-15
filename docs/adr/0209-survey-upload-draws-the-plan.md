@@ -70,8 +70,8 @@ Both go through the same reader, preview and confirmation as a file.
   - The surveyor block is filled from the importing surveyor's profile.
 - **What waits for a check:**
   - Inferences carry the provenance `auto`: the lot (which marks make it), the road (which edges pair) and the date. Each waits for the surveyor's "Looks right" and holds approval until then (`AUTO_ITEMS_UNREVIEWED`).
-  - Lines drawn from codes are recorded like accepted field-to-finish suggestions. They are deterministic consequences of the crew's own codes.
-  - The Survey Department's code list, when chosen, waits for a check like the common list (`LEGEND_UNREVIEWED`); swapping lists clears the check.
+  - Lines drawn from codes wait for a check too. The codes are the crew's, but which points join into a line is inferred, so a wrong code in the field draws a wrong wall. They are checked together on the Lots step ("They look right"), and the checklist counts them as one item.
+  - A code list put in place for the surveyor (the common list, or the Survey Department's on a swap) waits for a check (`LEGEND_UNREVIEWED`). A swap records the list as unchecked, so adding codes to it afterwards doesn't lift the check.
 - **Limits on drawing:** nothing is drawn over a plan that has lots, or over a version whose settings can't be read. No point is moved or changed. A version is saved only when a lot, a line or a road was drawn.
 
 **One list of what's left.** The Plan step opens with a checklist, once anything is drawn:
