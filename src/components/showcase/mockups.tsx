@@ -39,7 +39,8 @@ function Layer({ depth, order, className = "", style, children }: { depth: numbe
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={ctx.reduce ? { duration: 0.2 } : { type: "spring", stiffness: 100, damping: 20, delay: order * 0.08 }}
     >
-      <motion.div className="h-full w-full" style={ctx.reduce ? undefined : { x: xs, y: ys }}>
+      {/* Always the same style, so the server and the client match; under reduced motion the pointer is ignored, so it rests at 0. */}
+      <motion.div className="h-full w-full" style={{ x: xs, y: ys }}>
         {children}
       </motion.div>
     </motion.div>
@@ -321,7 +322,8 @@ function Product({ finish }: { finish: string }) {
           <div className="absolute inset-[6%] rounded-full border-[0.18cqw] border-dashed border-[var(--s-ink)]/25 [transform:rotateX(72deg)] motion-safe:animate-[showcase-orbit_18s_linear_infinite]" />
           {/* A contact shadow drawn as a gradient: a drop-shadow filter trips WebKit bug 314999 on iOS (ADR 0055). */}
           <div aria-hidden className="absolute inset-x-[16%] bottom-[3%] h-[10%] rounded-[50%] bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--s-ink)_26%,transparent),transparent)]" />
-          <motion.div className="relative h-full w-full" style={ctx.reduce ? undefined : { rotateY, rotateX, transformStyle: "preserve-3d" }}>
+          {/* At rest under reduced motion, as the pointer is ignored; one style for the server and the client. */}
+          <motion.div className="relative h-full w-full" style={{ rotateY, rotateX, transformStyle: "preserve-3d" }}>
             <Headphones finish={finish} className="h-full w-full" />
           </motion.div>
         </div>

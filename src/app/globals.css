@@ -375,6 +375,37 @@
   }
 }
 
+/*
+ * The stages arc above the statement (StageArc): each mark sits at its lift.
+ * Motion-safe, a list that starts below the screen waits out of sight, and
+ * once it's on screen its marks rise into the arc, the middle one first, on
+ * the spring Motion used (stiffness 120, damping 18, sampled into linear()).
+ * The markup is the same on the server and the client (Motion's reduced
+ * motion branch broke hydration); the still arc is complete.
+ */
+.stage-mark {
+  transform: translateY(var(--lift, 0px));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-rise="waiting"] > .stage-mark {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+
+  [data-rise="rising"] > .stage-mark {
+    animation: stage-rise 800ms cubic-bezier(0.22, 1, 0.36, 1) var(--rise-delay, 0ms) both;
+    animation-timing-function: linear(0, 0.075, 0.237, 0.418, 0.585, 0.722, 0.826, 0.9, 0.95, 0.981, 0.998, 1.007, 1.01, 1.011, 1.009, 1.007, 1.005, 1.004, 1.002, 1.002, 1);
+  }
+}
+
+@keyframes stage-rise {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
 @keyframes aurora-breathe {
   from {
     transform: scale(1) translateY(0);
