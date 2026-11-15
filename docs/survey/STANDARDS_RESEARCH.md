@@ -111,7 +111,7 @@ UDA regulation 9 covers "the Survey Plan for the proposed sub-division, amalgama
 
 ## Subdivision rules (for stage 191)
 
-All from the UDA regulations, verified_official, for UDA-declared areas, and due for replacement: the UDA review page schedules "Minister's approval and gazetting" of new regulations for **31 December 2026**. They must be loaded as versioned data citing this document, with a Development Plan override. None is built yet.
+All from the UDA regulations, verified_official, for UDA-declared areas, and due for replacement: the UDA review page schedules "Minister's approval and gazetting" of new regulations for **31 December 2026**. They must be loaded as versioned data citing this document, with a Development Plan override. Stage 193 built the minimums (regs. 9(a), 14(1)) and the reminders for regs. 4(1), 7 and 23 as the set `uda-2020`, with the surveyor's own minimums as the override (`src/core/survey/rules.ts`, ADR 0207). The others are not built yet.
 
 | Rule | Section |
 | --- | --- |

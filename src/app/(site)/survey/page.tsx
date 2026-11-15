@@ -38,7 +38,7 @@ const STEPS: { icon: Icon; title: string; body: string }[] = [
   {
     icon: PenNibIcon,
     title: "Describe the job, or draw it yourself",
-    body: "Write each lot's corner points, the roads, what adjoins between which points and the title in your own words, or photograph the earlier plan. The AI reads only what you wrote, asks about what's missing and marks every item for you to check. Or type each lot's corners yourself: areas and widths appear as you go. For a sub division, Farbaek works out where the dividing lines fall for the shares you give, and how far along the boundary to peg each new corner.",
+    body: "Write each lot's corner points, the roads, what adjoins between which points and the title in your own words, or photograph the earlier plan. The AI reads only what you wrote, asks about what's missing and marks every item for you to check. Or type each lot's corners yourself: areas and widths appear as you go. For a sub division, Farbaek works out where the dividing lines fall for the areas or widths you give, or for lines through one corner, and how far along the boundary to peg each new corner. Check the shares against the UDA minimums or your own Development Plan figures.",
   },
   {
     icon: LayoutIcon,

@@ -25,8 +25,23 @@ Many Sri Lankan plans are sub divisions: a lot partitioned among owners by share
 
 **A proposal, not a plan change.** Nothing is saved to the drawing. The proposed corners aren't survey points: the surveyor pegs them, observes them, imports them, and draws the shares as lots from the observed points. The setting-out table downloads as CSV.
 
+## Stage 193 additions
+
+- **Shares by width.**
+  - **Square lines:** widths run along the leg from the starting corner (frontages), and together they share the leg's length. A lot that reaches past either end of the leg adds that part to the end share.
+  - **Parallel lines:** widths run back from the leg (a 10 ft access strip, then the rest), and share the lot's depth.
+  - **Placement:** each line sits at its stated distance, so no search is needed, and the areas follow from the clip.
+  - **Units:** metres or feet (the international foot, 0.3048 m).
+- **Lines through one corner.** The shares fan out from a corner the surveyor chooses, going round the boundary one way or the other.
+  - **Exact solution:** with the corner fixed, the area cut off changes linearly as the line's far end moves along one leg. Each end is solved exactly on every leg that can give the area, with no bisection.
+  - **Concave lots:** the first candidate whose line stays inside the lot is used. On an L-shaped lot, a signed-area answer can lie outside the lot. When no line stays inside, the result says so, and the share isn't feasible.
+  - **Setting out:** each line's bearing and length from the corner, besides the distance along the far leg.
+- **Every mode checks each share's area** against what was asked (to 0.01 m²), so a share whose lines can't give its area is never shown as feasible.
+- **Minimums:** they come from a versioned rule set or the surveyor's own figures (ADR 0207), not constants.
+- **Engine:** `partition/1.1.0`.
+
 ## Consequences
 
-- **Typical cases covered:** equal or stated shares across a lot, side by side along a road, or one behind another.
-- **Not covered yet:** lines through a fixed point, access strips and roads cut out first, and frontage on a leg other than the chosen one (roadmap).
+- **Typical cases covered:** equal or stated shares across a lot, side by side along a road, one behind another, strips by width, and fans from a corner.
+- **Not covered yet:** a whole land laid out with an access road and its lots at once, lines through a point that isn't a corner, and frontage on a leg other than the chosen one (roadmap).
 - **No record of proposals:** proposals aren't stored. Saving them as versions, and showing them on a block-out sheet (UDA regulation 8), is later work.
