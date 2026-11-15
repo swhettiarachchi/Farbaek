@@ -7,6 +7,7 @@
 import type { CrsRecord } from "../crs";
 import { parseDelimited, type ColumnRole, type Delimiter, type ImportedPoint, type ImportIssue } from "./delimited";
 import type { ImportFormat } from "./detect";
+import { parseFieldBook } from "./fieldbook";
 import { parseGeoJsonPoints } from "./geojson";
 import { parseGsi } from "./gsi";
 import { parseJobXml } from "./jobxml";
@@ -18,6 +19,8 @@ export interface ReadOptions {
   hasHeader: boolean;
   columns: readonly ColumnRole[];
   crs: CrsRecord | null;
+  /** The project's points, which a field book's legs may start from or close on. */
+  known?: readonly { pointId: string; e: number; n: number }[];
 }
 
 export interface PointsRead {
@@ -34,5 +37,6 @@ export function readPoints(format: ImportFormat, text: string, o: ReadOptions): 
   if (format === "sdr") return plain(parseSdr(text));
   if (format === "landxml") return plain(parseLandXml(text));
   if (format === "jobxml") return parseJobXml(text);
+  if (format === "fieldbook") return plain(parseFieldBook(text, o.known ?? []));
   return plain(parseDelimited(text, { delimiter: o.delimiter, hasHeader: o.hasHeader, columns: o.columns }));
 }

@@ -4,12 +4,13 @@
  * Files Farbaek can't read (raw job databases, formats whose layout couldn't
  * be confirmed) are named, with what to export instead.
  */
+import { looksLikeFieldBook } from "./fieldbook";
 import { looksLikeGsi } from "./gsi";
 import { looksLikeJobXml } from "./jobxml";
 import { looksLikeLandXml } from "./landxml";
 import { looksLikeSdr } from "./sdr";
 
-export type ImportFormat = "delimited" | "geojson" | "gsi" | "sdr" | "landxml" | "jobxml";
+export type ImportFormat = "delimited" | "geojson" | "gsi" | "sdr" | "landxml" | "jobxml" | "fieldbook";
 
 export const IMPORT_FORMATS: { id: ImportFormat; label: string; extensions: readonly string[]; detail: string }[] = [
   { id: "delimited", label: "Point file (CSV, TXT or DAT)", extensions: [".csv", ".txt", ".dat", ".pnezd", ".penzd", ".xyz", ".asc"], detail: "Point number, coordinates, elevation and code, separated by commas, tabs, semicolons or spaces. PNEZC, as the Survey Department asks, and CASS .dat files included." },
@@ -18,6 +19,7 @@ export const IMPORT_FORMATS: { id: ImportFormat; label: string; extensions: read
   { id: "sdr", label: "Sokkia SDR (SDR2x or SDR33)", extensions: [".sdr"], detail: "Coordinate records (08) and stations (02), in metres." },
   { id: "landxml", label: "LandXML", extensions: [".xml", ".landxml"], detail: "CgPoints: northing, easting and elevation, with their names and codes." },
   { id: "jobxml", label: "Trimble JobXML", extensions: [".jxl", ".jobxml"], detail: "The job's final grid coordinates, from its reductions." },
+  { id: "fieldbook", label: "Bearings and distances (field book)", extensions: [], detail: "Points worked out from a starting point by whole-circle bearings and horizontal distances, unadjusted; a leg onto a known point is a check." },
 ];
 
 export function detectFormat(fileName: string, text: string): ImportFormat {
@@ -25,6 +27,7 @@ export function detectFormat(fileName: string, text: string): ImportFormat {
   const start = text.replace(/^\uFEFF/, "").trimStart();
   if (lower.endsWith(".geojson") || (lower.endsWith(".json") && !looksLikeJobXml(start))) return "geojson";
   if (start.startsWith("{") && /"type"\s*:\s*"(?:FeatureCollection|Feature)"/.test(start.slice(0, 4000))) return "geojson";
+  if (looksLikeFieldBook(text)) return "fieldbook";
   if (looksLikeJobXml(start) || lower.endsWith(".jxl")) return "jobxml";
   if (looksLikeLandXml(start)) return "landxml";
   if (looksLikeSdr(text) || lower.endsWith(".sdr")) return "sdr";

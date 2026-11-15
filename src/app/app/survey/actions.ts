@@ -78,7 +78,7 @@ const importInput = z.object({
   projectId: uuid,
   fileName: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/),
   content: z.string().max(IMPORT_LIMITS.maxBytes),
-  format: z.enum(["delimited", "geojson", "gsi", "sdr", "landxml", "jobxml"]),
+  format: z.enum(["delimited", "geojson", "gsi", "sdr", "landxml", "jobxml", "fieldbook"]),
   delimiter: z.enum([",", "\t", ";", "whitespace"]),
   hasHeader: z.boolean(),
   columns: z.array(z.enum(["point", "easting", "northing", "elevation", "code", "ignore"])).min(3).max(40),
@@ -108,7 +108,9 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
   const crsId = typeof project?.crs_id === "string" ? project.crs_id : null;
   if (!crsId) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
   if (crsId !== i.crsId) return { status: "error", message: SURVEY_MESSAGES.CRS_CHANGED };
-  const result = readPoints(i.format, i.content, { delimiter: i.delimiter as Delimiter, hasHeader: i.hasHeader, columns: i.columns as ColumnRole[], crs: crsById(crsId) ?? null });
+  // A field book's legs may start from or close on points already in the project: read them first.
+  const known = i.format === "fieldbook" ? ((await loadSurveyProject(g.w.user, g.w.actor.orgId, i.projectId))?.points ?? []) : [];
+  const result = readPoints(i.format, i.content, { delimiter: i.delimiter as Delimiter, hasHeader: i.hasHeader, columns: i.columns as ColumnRole[], crs: crsById(crsId) ?? null, known });
   const errors = result.issues.filter((x) => x.severity === "error");
   if (errors.length > 0) return { status: "error", message: `${errors.length} ${errors.length === 1 ? "row" : "rows"} can't be read, so nothing was imported. Fix the file and try again.`, issues: result.issues.slice(0, 50) };
   if (result.points.length === 0) return { status: "error", message: "The file has no points to import.", issues: result.issues.slice(0, 50) };

@@ -13,6 +13,8 @@ import { readPoints } from "@/core/survey/import/read";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { importSurveyPointsAction, type SurveyFormState } from "@/app/app/survey/actions";
 import { DrawnSummary } from "@/components/survey/draw-from-points";
+import { ManualEntry } from "@/components/survey/manual-entry";
+import { PointsTable } from "@/components/survey/points-table";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses, textareaClasses } from "@/components/ui/field";
 
@@ -25,7 +27,7 @@ const DELIMITERS: { id: Delimiter; label: string }[] = [
 ];
 
 /** A coordinate as read, to the millimetre at least: 450000 shows as 450000.000, 450012.3456 keeps its tenth of a millimetre. */
-const metres = (v: number) => v.toFixed(Math.max(3, String(v).split(".")[1]?.length ?? 0));
+const metres = (v: number) => v.toFixed(Math.min(4, Math.max(3, String(v).split(".")[1]?.length ?? 0)));
 
 /** The imported rows as survey points for the preview: ids from their line numbers, never saved. */
 const asPoints = (pts: readonly ImportedPoint[]): SurveyPoint[] => pts.map((p) => ({ id: `line-${p.line}`, pointId: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code }));
@@ -35,8 +37,26 @@ const asPoints = (pts: readonly ImportedPoint[]): SurveyPoint[] => pts.map((p) =
  * itself and says why, shows the points on a small map with the lot it would draw, and, once the surveyor confirms the units and the
  * grid, imports the points and draws the plan from them in one go.
  */
-export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, readOnly }: { projectId: string; crsId: string; crsName: string; codes: CodeEntry[]; planHasLots: boolean; readOnly: string | null }) {
+export function ImportPanel({
+  projectId,
+  crsId,
+  crsName,
+  codes,
+  planHasLots,
+  known,
+  readOnly,
+}: {
+  projectId: string;
+  crsId: string;
+  crsName: string;
+  codes: CodeEntry[];
+  planHasLots: boolean;
+  /** The project's points, which typed legs may start from or close on. */
+  known: { pointId: string; e: number; n: number }[];
+  readOnly: string | null;
+}) {
   const crs = crsById(crsId) ?? null;
+  const [entry, setEntry] = useState<"file" | "coordinates" | "bearings">("file");
   const [fileName, setFileName] = useState("");
   const [text, setText] = useState("");
   const [format, setFormat] = useState<ImportFormat>("delimited");
@@ -98,14 +118,14 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
     if (!text || unreadable) return null;
     if (format !== "delimited") {
       // Formats that say what each value is (GeoJSON, GSI): no columns to map, the points as read.
-      const r = readPoints(format, text, { delimiter, hasHeader, columns, crs });
+      const r = readPoints(format, text, { delimiter, hasHeader, columns, crs, known });
       return { rows: r.points.slice(0, 8).map((p) => [p.pointId, metres(p.e), metres(p.n), p.z === null ? "" : metres(p.z), p.code ?? ""]), header: ["Point", "Easting", "Northing", "Elevation", "Code"], parsed: r };
     }
     const p = previewDelimited(text);
     if ("error" in p) return { rows: [], header: [], parsed: { points: [] as ImportedPoint[], issues: [p.error] } };
     const parsed = parseDelimited(text, { delimiter, hasHeader, columns });
     return { rows: p.rows.slice(0, 8), header: p.header, parsed };
-  }, [text, unreadable, format, delimiter, hasHeader, columns, crs]);
+  }, [text, unreadable, format, delimiter, hasHeader, columns, crs, known]);
 
   const points = useMemo(() => asPoints(preview?.parsed.points ?? []), [preview]);
   // A file written in the Survey Department's codes (DSR Chapter XXII): offer its list for drawing this plan.
@@ -131,6 +151,9 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
 
   const errors = preview?.parsed.issues.filter((i) => i.severity === "error") ?? [];
   const warnings = preview?.parsed.issues.filter((i) => i.severity === "warning") ?? [];
+  const repeats = warnings.filter((w) => w.code === "DUPLICATE_POINT_SAME" && w.line !== null).length;
+  // Everything else a reader wants the surveyor to know: a field book's closure, records left out, a display setting.
+  const notes = warnings.filter((w) => !(w.code === "DUPLICATE_POINT_SAME" && w.line !== null));
   const count = preview?.parsed.points.length ?? 0;
   const columnCount = Math.max(columns.length, ...(preview?.rows.map((r) => r.length) ?? [0]));
   const latLong = guess?.latLong ?? false;
@@ -148,9 +171,31 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
       }
     });
 
+  const chooseEntry = (next: typeof entry) => {
+    setEntry(next);
+    setText("");
+    setFileName("");
+    setGuess(null);
+    setResult({ status: "idle" });
+  };
+
   return (
     <div className="grid gap-5">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div role="group" aria-label="How the points come in" className="flex w-fit flex-wrap gap-1 rounded-full bg-canvas-2 p-1 ring-1 ring-line">
+        {(
+          [
+            ["file", "Upload or paste"],
+            ["coordinates", "Type coordinates"],
+            ["bearings", "Bearings and distances"],
+          ] as const
+        ).map(([id, label]) => (
+          <button key={id} type="button" aria-pressed={entry === id} onClick={() => chooseEntry(id)} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 ${entry === id ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {entry !== "file" ? <ManualEntry key={entry} mode={entry} onText={load} knownIds={known.map((p) => p.pointId)} disabled={Boolean(readOnly)} /> : null}
+      <div className={entry === "file" ? "grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "hidden"}>
         <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-canvas-2 p-5 text-center text-sm text-ink-2 has-focus-visible:outline-2 has-focus-visible:outline-accent">
           <FileArrowUpIcon size={24} aria-hidden className="text-ink-3" />
           <span>
@@ -279,10 +324,12 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
             {points.length > 0 && !latLong ? <PointsMap points={points} outline={drawing?.outline?.ring ?? null} lines={[...(drawing?.lines.map((l) => ({ closed: l.closed, ids: l.points })) ?? []), ...(drawing?.road ?? []).map((edge) => ({ closed: false, ids: edge.map((p) => p.id) }))]} marks={new Set(drawing?.marks.map((m) => m.id))} /> : null}
           </div>
 
+          {count > 0 && !latLong ? <PointsTable points={preview.parsed.points} issues={preview.parsed.issues} codes={library} /> : null}
+
           <div className="grid gap-1 text-sm text-ink-2">
             <p>
               {count} {count === 1 ? "point" : "points"} read{errors.length ? `, ${errors.length} ${errors.length === 1 ? "row" : "rows"} can't be read` : ""}
-              {warnings.length ? `, ${warnings.length} exact ${warnings.length === 1 ? "repeat" : "repeats"} kept once` : ""}.
+              {repeats ? `, ${repeats} exact ${repeats === 1 ? "repeat" : "repeats"} kept once` : ""}.
               {drawing ? ` ${drawing.marks.length} boundary ${drawing.marks.length === 1 ? "mark" : "marks"}, ${drawing.lines.length} ${drawing.lines.length === 1 ? "line" : "lines"} from the codes${drawing.road ? ", and a road from its two edges" : ""}.` : ""}
             </p>
             {codeCounts.length > 0 ? (
@@ -302,6 +349,16 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
               </p>
             ) : null}
           </div>
+          {notes.length > 0 ? (
+            <ul className="grid gap-1 text-sm">
+              {notes.slice(0, 20).map((x, i) => (
+                <li key={i} className="flex gap-2 text-ink">
+                  <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+                  {x.message}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {errors.length > 0 ? (
             <ul className="grid max-h-48 gap-1 overflow-y-auto rounded-md bg-surface p-3 text-sm ring-1 ring-line">
               {errors.slice(0, 50).map((x, i) => (
