@@ -17,7 +17,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { archiveSurveyProjectAction } from "../actions";
 import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
-import { BoundaryEditor } from "@/components/survey/boundary-editor";
+import { LotsEditor } from "@/components/survey/boundary-editor";
 import { FindingsList } from "@/components/survey/findings";
 import { ApproveForm, SurveyProjectSettingsForm } from "@/components/survey/forms";
 import { ImportPanel } from "@/components/survey/import-panel";
@@ -40,7 +40,7 @@ export const metadata: Metadata = { title: "Survey project" };
 const STEPS = [
   { id: "import", label: "Import", icon: FileArrowUpIcon },
   { id: "points", label: "Points", icon: MapPinSimpleIcon },
-  { id: "boundary", label: "Boundary", icon: PolygonIcon },
+  { id: "boundary", label: "Lots", icon: PolygonIcon },
   { id: "plan", label: "Plan", icon: RulerIcon },
   { id: "check", label: "Check", icon: ListChecksIcon },
   { id: "export", label: "Export", icon: DownloadSimpleIcon },
@@ -78,7 +78,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
     if (rows.some((a) => a.withdrawn_at === null)) return <StatusBadge status="done" label="Approved" />;
     return rows.length > 0 ? <StatusBadge status="off" label="Approval withdrawn" /> : null;
   };
-  const fallback: StepId = data.points.length === 0 ? "import" : doc.boundary.length === 0 ? "boundary" : "plan";
+  const fallback: StepId = data.points.length === 0 ? "import" : doc.lots.length === 0 ? "boundary" : "plan";
   const step: StepId = STEPS.some((s) => s.id === sp.step) ? (sp.step as StepId) : fallback;
   const base = `/app/survey/${projectId}`;
   const surveyors = data.profiles.map((p) => ({ userId: p.user_id, name: p.full_name, designation: p.designation, registration: p.registration, address: p.address, contact: p.contact }));
@@ -182,10 +182,10 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
 
       {step === "boundary" ? (
         <Card>
-          <CardTitle icon={PolygonIcon}>Boundary</CardTitle>
-          <p className="mt-1 text-sm text-ink-2">Type the boundary&apos;s point numbers in order. Bearings, distances and the area are computed from the coordinates as you type.</p>
+          <CardTitle icon={PolygonIcon}>Lots, roads and adjoining lands</CardTitle>
+          <p className="mt-1 text-sm text-ink-2">Type each lot&apos;s corner numbers in order. Areas, extents and road widths are computed from the coordinates as you type.</p>
           <div className="mt-5">
-            {data.points.length === 0 ? <p className="text-sm text-ink-2">Import points first.</p> : <BoundaryEditor projectId={projectId} baseVersion={data.drawing.version} document={doc} points={data.points} readOnly={readOnly} />}
+            {data.points.length === 0 ? <p className="text-sm text-ink-2">Import points first.</p> : <LotsEditor projectId={projectId} baseVersion={data.drawing.version} document={doc} points={data.points} readOnly={readOnly} />}
           </div>
         </Card>
       ) : null}

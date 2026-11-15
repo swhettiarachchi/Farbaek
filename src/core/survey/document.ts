@@ -2,10 +2,17 @@
  * The drawing document: what a surveyor decides about a plan, saved as an
  * append-only version (ADR 0198). It references imported points by id and
  * never holds a coordinate of its own, so editing the drawing can't change a
- * measurement (survey skill, rule 6). Every text field is typed by a person:
- * nothing here is filled in by Farbaek from a guess (rule 2).
+ * measurement (survey skill, rule 6).
+ *
+ * Schema 2 (stage 191, ADR 0203) holds several lots, roads, adjoining-land
+ * labels, the code library and the structured title of a Sri Lankan plan.
+ * Text comes from the surveyor or, marked in `provenance`, from the AI
+ * reading the surveyor's own words or an old plan's photo (ADR 0202); a
+ * marked item counts only once the surveyor has reviewed it. Schema 1
+ * documents are upgraded when read (`parseSurveyDocument`).
  */
 import { z } from "zod";
+import { codeEntrySchema, commonCodes, type CodeEntry } from "./codes";
 
 export const LAYER_IDS = [
   "BOUNDARY",
@@ -20,6 +27,7 @@ export const LAYER_IDS = [
   "DRAINS",
   "ROADS",
   "UTILITIES",
+  "ADJOINING",
   "TEXT",
   "TITLE",
 ] as const;
@@ -30,6 +38,7 @@ export const FEATURE_LAYERS = ["BUILDINGS", "WALLS", "FENCES", "DRAINS", "ROADS"
 
 const text = (max: number) => z.string().max(max).transform((s) => s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ""));
 const pointRef = z.string().uuid();
+const entityId = z.string().min(1).max(40).regex(/^[A-Za-z0-9_-]+$/);
 
 export const PAPER_SIZES = { A4: [210, 297], A3: [297, 420], A2: [420, 594] } as const;
 export type PaperSize = keyof typeof PAPER_SIZES;
@@ -38,9 +47,9 @@ export type PaperSize = keyof typeof PAPER_SIZES;
 export const STANDARD_SCALES = [100, 200, 250, 500, 1000, 1250, 2000, 2500, 4000, 5000, 10000] as const;
 
 export const featureSchema = z.object({
-  id: z.string().min(1).max(40),
+  id: entityId,
   layer: z.enum(FEATURE_LAYERS),
-  /** The legend code it carries, such as "MW", or empty. */
+  /** The code it carries, such as "MW", or empty. */
   code: text(12),
   /** Closed outline (a building) or open line (a wall, a drain). */
   closed: z.boolean(),
@@ -48,85 +57,162 @@ export const featureSchema = z.object({
 });
 export type DrawingFeature = z.infer<typeof featureSchema>;
 
-export const legendEntrySchema = z.object({ code: text(12).pipe(z.string().min(1)), meaning: text(60).pipe(z.string().min(1)) });
+/** A lot: its label as written on the plan ("B" with a raised "1"), its corners in order, and a note such as "Res. for Access, 10ft. wide". */
+export const lotSchema = z.object({
+  id: entityId,
+  label: text(12).pipe(z.string().min(1)),
+  /** The raised part of the label (B¹, 4ᴬ), or empty. */
+  sup: text(6),
+  points: z.array(pointRef).max(500),
+  note: text(80),
+});
+export type Lot = z.infer<typeof lotSchema>;
+
+/** A road drawn from its two surveyed edges. The width written beside the name is computed from the edges, never typed. */
+export const roadSchema = z.object({
+  id: entityId,
+  name: text(80),
+  edgeA: z.array(pointRef).min(2).max(200),
+  edgeB: z.array(pointRef).max(200),
+  /** How the computed width is written: in feet as on most Sri Lankan plans, in metres, or not at all. */
+  width: z.enum(["feet", "metres", "none"]),
+  /** Direction texts at the road's ends, such as "To Houses". */
+  start: text(60),
+  end: text(60),
+});
+export type Road = z.infer<typeof roadSchema>;
+
+/** A label for adjoining land, outside one leg of a lot, with an arrow to it. */
+export const adjoiningSchema = z.object({
+  id: entityId,
+  text: text(200).pipe(z.string().min(1)),
+  lot: entityId,
+  /** The leg's index in the lot's ring: leg i runs from corner i to corner i + 1. */
+  leg: z.number().int().min(0).max(499),
+});
+export type Adjoining = z.infer<typeof adjoiningSchema>;
+
+export const OPERATIONS = ["resurvey", "subdivision", "amalgamation", "custom"] as const;
+export type Operation = (typeof OPERATIONS)[number];
+
+export const previousPlanSchema = z.object({
+  number: text(40),
+  date: text(20),
+  by: text(80),
+  byDesignation: text(60),
+  /** The same surveyor's own earlier plan: written "my Plan No. …", without "made by". */
+  mine: z.boolean(),
+  /** Where it was filed of record, such as a court and case number. */
+  filing: text(160),
+});
+export type PreviousPlan = z.infer<typeof previousPlanSchema>;
 
 export const sheetFieldsSchema = z.object({
   planNumber: text(40),
+  /** The date the surveyor signs under, as typed or yyyy-mm-dd. */
   planDate: text(20),
-  lot: text(40),
-  /** "Plan of the land called …" */
+  /** "called …" */
   landName: text(120),
+  /** "alias …", several separated by " and " as the surveyor writes them. */
+  alias: text(160),
+  /** "(Now called & known as …)" */
+  nowKnownAs: text(120),
+  operation: z.enum(OPERATIONS),
+  /** The lot or lots the operation acts on: "B" for a sub division of lot B, "3 & 5" for an amalgamation. */
+  parentLots: text(60),
+  previousPlan: previousPlanSchema,
+  /** For plans the standard sentence can't express: the surveyor's own wording after "being". */
+  customClause: text(800),
   village: text(60),
+  pattu: text(60),
+  korale: text(60),
   gnDivision: text(60),
   dsDivision: text(60),
   district: text(60),
   province: text(60),
-  /** Earlier plans of this land, as the surveyor cites them; or how the boundaries were found when there are none. */
+  /** Earlier plans in the surveyor's own words, for the panel layout. */
   previousPlans: text(400),
-  boundaries: z.object({ north: text(160), east: text(160), south: text(160), west: text(160) }),
+  boundaries: z.object({ north: text(200), east: text(200), south: text(200), west: text(200) }),
   /** The extent stated on a deed or earlier plan, kept apart from the computed area (rule 5). */
   statedExtent: text(80),
   surveyDate: text(20),
+  partitionDate: text(20),
+  /** How the boundaries were found, printed bottom left. */
+  statement: text(200),
   remarks: text(600),
-  legend: z.array(legendEntrySchema).max(30),
+  /** A lot id to draw this sheet as an extract of that one lot, or empty. */
+  extractOf: text(40),
 });
 export type SheetFields = z.infer<typeof sheetFieldsSchema>;
 
+export const TEMPLATES = ["classic", "panel"] as const;
+export type TemplateId = (typeof TEMPLATES)[number];
+
 export const settingsSchema = z.object({
-  paper: z.enum(["A4", "A3", "A2"]),
+  /** classic: the Sri Lankan layout seen on practising surveyors' plans; panel: the stage 190 layout with a side panel. */
+  template: z.enum(TEMPLATES),
+  /** "auto" picks the smallest A-size the drawing fits at the scale. */
+  paper: z.enum(["auto", "A4", "A3", "A2"]),
   orientation: z.enum(["landscape", "portrait"]),
   /** The chosen scale denominator, or null to use the suggested one. */
   scale: z.number().int().min(50).max(100_000).nullable(),
   perchDecimals: z.number().int().min(0).max(4),
   secondDecimals: z.number().int().min(0).max(2),
   distanceDecimals: z.number().int().min(2).max(4),
-  /** Overleaf schedule of coordinates, legs and the area computation. */
+  /** Overleaf boundaries schedule: legs, coordinates and areas. */
   overleaf: z.boolean(),
   /** UDA regulation 9's 75 mm × 50 mm development permit box on the front page (docs/survey/STANDARDS_RESEARCH.md). */
   permitBox: z.boolean(),
+  /** Slanted CAD lettering, as on hand-drafted and CAD plans alike. */
+  slant: z.boolean(),
+  /** Bearings and distances beside each leg on the face. The classic layout keeps them overleaf. */
+  faceDimensions: z.boolean(),
 });
 export type DrawingSettings = z.infer<typeof settingsSchema>;
 
+export const PROVENANCE_SOURCES = ["ai_brief", "ai_photo", "engine"] as const;
+export type ProvenanceSource = (typeof PROVENANCE_SOURCES)[number];
+
+/** Who filled an item, when it wasn't the surveyor, and whether they've reviewed it. Keys name the item: "lot:<id>", "road:<id>", "adjoining:<id>", "feature:<id>", "sheet.<field>". */
+export const provenanceSchema = z.record(z.string().min(1).max(80), z.object({ source: z.enum(PROVENANCE_SOURCES), reviewed: z.boolean() }));
+export type Provenance = z.infer<typeof provenanceSchema>;
+
 export const surveyDocumentSchema = z.object({
-  schema: z.literal(1),
-  /** The boundary's point ids, in the order the surveyor gave. Closes back to the first. */
-  boundary: z.array(pointRef).max(500),
-  features: z.array(featureSchema).max(200),
+  schema: z.literal(2),
+  lots: z.array(lotSchema).max(60),
+  roads: z.array(roadSchema).max(20),
+  adjoining: z.array(adjoiningSchema).max(80),
+  features: z.array(featureSchema).max(300),
+  /** Notes printed as "Note:- …" under the legend. */
+  notes: z.array(text(300).pipe(z.string().min(1))).max(10),
+  codes: z.array(codeEntrySchema).max(80),
   /** Presentation only: label nudges on paper, millimetres, by entity id. */
   labelOffsets: z.record(z.string().max(80), z.object({ dx: z.number().min(-200).max(200), dy: z.number().min(-200).max(200) })),
   layers: z.record(z.enum(LAYER_IDS), z.object({ visible: z.boolean(), locked: z.boolean() })),
   sheet: sheetFieldsSchema,
   settings: settingsSchema,
+  provenance: provenanceSchema,
   /** Which member's surveyor profile fills the surveyor block. */
   surveyorUserId: z.string().uuid().nullable(),
 });
 export type SurveyDocument = z.infer<typeof surveyDocumentSchema>;
 
-/**
- * Legend codes a surveyor can start from: the examples in the owner's brief.
- * They are not an official list (docs/survey/STANDARDS_RESEARCH.md), and
- * the sheet says so until the surveyor edits them.
- */
-export const BRIEF_LEGEND_EXAMPLES: SheetFields["legend"] = [
-  { code: "MW", meaning: "Masonry wall" },
-  { code: "MDn", meaning: "Masonry drain" },
-  { code: "CP", meaning: "Concrete post" },
-  { code: "EP", meaning: "Electric post" },
-  { code: "TP", meaning: "Telephone post" },
-  { code: "St", meaning: "Stake" },
-  { code: "M", meaning: "Mark" },
-  { code: "P", meaning: "Permanent building" },
-  { code: "NF", meaning: "Net fence" },
-  { code: "RW", meaning: "Retaining wall" },
-];
+export const DEFAULT_STATEMENT = "The boundaries were surveyed as pointed out by the land owner";
 
 export function emptySheetFields(): SheetFields {
   return {
     planNumber: "",
     planDate: "",
-    lot: "",
     landName: "",
+    alias: "",
+    nowKnownAs: "",
+    operation: "resurvey",
+    parentLots: "",
+    previousPlan: { number: "", date: "", by: "", byDesignation: "Licensed Surveyor", mine: false, filing: "" },
+    customClause: "",
     village: "",
+    pattu: "",
+    korale: "",
     gnDivision: "",
     dsDivision: "",
     district: "",
@@ -135,8 +221,10 @@ export function emptySheetFields(): SheetFields {
     boundaries: { north: "", east: "", south: "", west: "" },
     statedExtent: "",
     surveyDate: "",
+    partitionDate: "",
+    statement: DEFAULT_STATEMENT,
     remarks: "",
-    legend: BRIEF_LEGEND_EXAMPLES.map((e) => ({ ...e })),
+    extractOf: "",
   };
 }
 
@@ -144,21 +232,120 @@ export function defaultLayers(): SurveyDocument["layers"] {
   return Object.fromEntries(LAYER_IDS.map((id) => [id, { visible: true, locked: false }])) as SurveyDocument["layers"];
 }
 
-/** A new project's first document: no boundary, the brief's legend examples, A3 landscape. */
+export function defaultSettings(): DrawingSettings {
+  return { template: "classic", paper: "auto", orientation: "portrait", scale: null, perchDecimals: 2, secondDecimals: 0, distanceDecimals: 2, overleaf: true, permitBox: false, slant: true, faceDimensions: false };
+}
+
+/** A new project's first document: no lots yet, the common codes, the classic layout. */
 export function emptyDocument(): SurveyDocument {
   return {
-    schema: 1,
-    boundary: [],
+    schema: 2,
+    lots: [],
+    roads: [],
+    adjoining: [],
     features: [],
+    notes: [],
+    codes: commonCodes(),
     labelOffsets: {},
     layers: defaultLayers(),
     sheet: emptySheetFields(),
-    settings: { paper: "A3", orientation: "landscape", scale: null, perchDecimals: 2, secondDecimals: 0, distanceDecimals: 2, overleaf: true, permitBox: false },
+    settings: defaultSettings(),
+    provenance: {},
     surveyorUserId: null,
   };
 }
 
-/** True when the legend is still exactly the brief's examples, so the sheet can say they aren't an official list. */
-export function legendIsBriefExamples(legend: SheetFields["legend"]): boolean {
-  return legend.length === BRIEF_LEGEND_EXAMPLES.length && legend.every((e, i) => e.code === BRIEF_LEGEND_EXAMPLES[i]!.code && e.meaning === BRIEF_LEGEND_EXAMPLES[i]!.meaning);
+/** Every point a document uses, by id. */
+export function usedPointIds(doc: SurveyDocument): Set<string> {
+  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.features.flatMap((f) => f.points)]);
+}
+
+/** A lot's label as plain text, "B1" for B with a raised 1. */
+export const lotName = (lot: Pick<Lot, "label" | "sup">) => `${lot.label}${lot.sup}`;
+
+/** Items the AI filled that the surveyor hasn't reviewed yet. */
+export function unreviewed(doc: SurveyDocument): string[] {
+  return Object.entries(doc.provenance)
+    .filter(([, p]) => p.source !== "engine" && !p.reviewed)
+    .map(([k]) => k);
+}
+
+// ---------------------------------------------------------------------------
+// Schema 1 (stage 190), read and upgraded.
+
+const legacyLegendSchema = z.object({ code: text(12).pipe(z.string().min(1)), meaning: text(60).pipe(z.string().min(1)) });
+const legacySchema = z.object({
+  schema: z.literal(1),
+  boundary: z.array(pointRef).max(500),
+  features: z.array(featureSchema).max(200),
+  labelOffsets: z.record(z.string().max(80), z.object({ dx: z.number().min(-200).max(200), dy: z.number().min(-200).max(200) })),
+  layers: z.record(z.enum(LAYER_IDS.filter((l) => l !== "ADJOINING") as [LayerId, ...LayerId[]]), z.object({ visible: z.boolean(), locked: z.boolean() })),
+  sheet: z.object({
+    planNumber: text(40),
+    planDate: text(20),
+    lot: text(40),
+    landName: text(120),
+    village: text(60),
+    gnDivision: text(60),
+    dsDivision: text(60),
+    district: text(60),
+    province: text(60),
+    previousPlans: text(400),
+    boundaries: z.object({ north: text(160), east: text(160), south: text(160), west: text(160) }),
+    statedExtent: text(80),
+    surveyDate: text(20),
+    remarks: text(600),
+    legend: z.array(legacyLegendSchema).max(30),
+  }),
+  settings: z.object({
+    paper: z.enum(["A4", "A3", "A2"]),
+    orientation: z.enum(["landscape", "portrait"]),
+    scale: z.number().int().min(50).max(100_000).nullable(),
+    perchDecimals: z.number().int().min(0).max(4),
+    secondDecimals: z.number().int().min(0).max(2),
+    distanceDecimals: z.number().int().min(2).max(4),
+    overleaf: z.boolean(),
+    permitBox: z.boolean(),
+  }),
+  surveyorUserId: z.string().uuid().nullable(),
+});
+
+/** Codes from a schema 1 legend: the common entry's drawing kind where the code matches, its own meaning kept. */
+function codesFromLegend(legend: { code: string; meaning: string }[]): CodeEntry[] {
+  const common = commonCodes();
+  const out = legend.map((e) => {
+    const known = common.find((c) => c.code === e.code);
+    return known ? { ...known, meaning: e.meaning } : { code: e.code, meaning: e.meaning, kind: "mark" as const, line: "solid" as const, legend: true };
+  });
+  for (const c of common) if (!out.some((o) => o.code === c.code)) out.push(c);
+  return out;
+}
+
+/**
+ * Reads a stored document of either schema: schema 2 as it is, schema 1
+ * upgraded (its boundary becomes the first lot, its legend the code library,
+ * in the panel layout it was drawn with). Null when it matches neither.
+ */
+export function parseSurveyDocument(raw: unknown): SurveyDocument | null {
+  const v2 = surveyDocumentSchema.safeParse(raw);
+  if (v2.success) return v2.data;
+  const v1 = legacySchema.safeParse(raw);
+  if (!v1.success) return null;
+  const d = v1.data;
+  const { lot, legend, ...sheet } = d.sheet;
+  return {
+    schema: 2,
+    lots: d.boundary.length > 0 ? [{ id: "lot-1", label: lot.trim() || "1", sup: "", points: d.boundary, note: "" }] : [],
+    roads: [],
+    adjoining: [],
+    features: d.features,
+    notes: [],
+    codes: codesFromLegend(legend),
+    labelOffsets: Object.fromEntries(Object.entries(d.labelOffsets).map(([k, v]) => [k === "lot" ? "lot:lot-1" : k, v])),
+    layers: { ...defaultLayers(), ...d.layers },
+    sheet: { ...emptySheetFields(), ...sheet, statement: "" },
+    settings: { ...defaultSettings(), ...d.settings, template: "panel", slant: false, faceDimensions: true },
+    provenance: {},
+    surveyorUserId: d.surveyorUserId,
+  };
 }

@@ -85,3 +85,15 @@ export function roundTo(value: number, decimals: number): number {
   const scale = 10 ** decimals;
   return roundHalfAway(value * scale) / scale;
 }
+
+/**
+ * Numbers with thousands separators and fixed decimals, written the same
+ * everywhere, rounded half away from zero like areas and angles:
+ * 1.005 m is "1.01", where toFixed alone gives "1.00".
+ */
+export function fmt(n: number, decimals: number): string {
+  const r = roundTo(Math.abs(n), decimals);
+  const [whole, frac] = r.toFixed(decimals).split(".");
+  const grouped = whole!.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${n < 0 && r !== 0 ? "-" : ""}${grouped}${frac ? `.${frac}` : ""}`;
+}

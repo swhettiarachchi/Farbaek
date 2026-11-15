@@ -99,6 +99,11 @@ function draw(doc: PDFKit.PDFDocument, item: SceneItem): void {
   doc.save();
   doc.font(item.font === "mono" ? "mono" : "sans").fontSize(size).fillColor(COLORS[item.color]);
   if (item.rotate) doc.rotate(item.rotate, { origin: [item.x * k, item.y * k] });
+  // Slanted lettering: shear x by y about the baseline point, the same lean as the preview's skewX.
+  if (item.slant) {
+    const tan = Math.tan((item.slant * Math.PI) / 180);
+    doc.transform(1, 0, -tan, 1, tan * item.y * k, 0);
+  }
   const width = doc.widthOfString(item.text);
   const x = item.anchor === "middle" ? item.x * k - width / 2 : item.anchor === "end" ? item.x * k - width : item.x * k;
   const bold = item.weight === "bold";

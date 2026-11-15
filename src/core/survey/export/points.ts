@@ -11,7 +11,8 @@
  * in its properties; a tool that insists on RFC 7946 must reproject it.
  */
 import type { CrsRecord } from "../crs";
-import type { ParcelResult, SurveyPoint } from "../parcel";
+import type { PlanLots } from "../lots";
+import type { SurveyPoint } from "../parcel";
 import { SURVEY_ENGINE_VERSION } from "../version";
 
 function csvCell(s: string): string {
@@ -34,21 +35,23 @@ export function pointsCsv(points: readonly SurveyPoint[]): string {
   return `${rows.join("\r\n")}\r\n`;
 }
 
-export function surveyGeoJson(input: { points: readonly SurveyPoint[]; parcel: ParcelResult | null; crs: CrsRecord | null; crsConfirmed: boolean; status: string; projectName: string; lot: string }): string {
-  const { crs, parcel } = input;
+export function surveyGeoJson(input: { points: readonly SurveyPoint[]; lots: PlanLots; crs: CrsRecord | null; crsConfirmed: boolean; status: string; projectName: string }): string {
+  const { crs } = input;
   const features: unknown[] = input.points.map((p) => ({
     type: "Feature",
     geometry: { type: "Point", coordinates: p.z === null ? [p.e, p.n] : [p.e, p.n, p.z] },
     properties: { point: p.pointId, code: p.code, kind: "survey_point" },
   }));
-  if (parcel && parcel.vertices.length >= 3 && parcel.crossings.length === 0) {
+  for (const r of input.lots.lots) {
+    const parcel = r.parcel;
+    if (!parcel || parcel.vertices.length < 3 || parcel.crossings.length > 0) continue;
     const ring = parcel.vertices.map((v) => [v.e, v.n]);
     // GeoJSON polygons repeat the first position at the end, and run anticlockwise for exterior rings (RFC 7946 §3.1.6).
     const ccw = parcel.clockwise ? [...ring].reverse() : ring;
     features.push({
       type: "Feature",
       geometry: { type: "Polygon", coordinates: [[...ccw, ccw[0]]] },
-      properties: { kind: "parcel", lot: input.lot || null, area_m2: parcel.areaM2, perimeter_m: parcel.perimeterM, area_method: parcel.method, engine: parcel.engine },
+      properties: { kind: "parcel", lot: `${r.lot.label}${r.lot.sup}`, note: r.lot.note || null, area_m2: parcel.areaM2, perimeter_m: parcel.perimeterM, area_method: parcel.method, engine: parcel.engine },
     });
   }
   const doc = {

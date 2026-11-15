@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { crsById } from "@/core/survey/crs";
-import { emptyDocument, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
+import { emptyDocument, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
 import { IMPORT_LIMITS, parseDelimited, type ColumnRole, type Delimiter, type ImportIssue } from "@/core/survey/import/delimited";
 import { parseGeoJsonPoints } from "@/core/survey/import/geojson";
 import { approvalHash, buildPlan } from "@/core/survey/view";
@@ -119,7 +119,7 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
 
 /** Checks that every point a document names is in the project. */
 function unknownPoints(doc: SurveyDocument, known: Set<string>): string[] {
-  return [...new Set([...doc.boundary, ...doc.features.flatMap((f) => f.points)])].filter((id) => !known.has(id));
+  return [...usedPointIds(doc)].filter((id) => !known.has(id));
 }
 
 export async function saveSurveyDrawingAction(input: { projectId: string; baseVersion: number; document: unknown; note?: string }): Promise<SurveyFormState> {

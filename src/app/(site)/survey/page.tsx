@@ -211,39 +211,48 @@ export default function SurveyStudioPage() {
             <div className="self-start rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
               <div className="rounded-md bg-surface p-5 shadow-e1 ring-1 ring-line sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-title-4 font-medium tracking-[-0.01em] text-ink">The sample lot, worked out</h3>
+                  <h3 className="text-title-4 font-medium tracking-[-0.01em] text-ink">The sample plan, worked out</h3>
                   <StatusBadge status="simulated" label="Sample" />
                 </div>
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full min-w-[18rem] text-left text-sm">
-                    <caption className="sr-only">Boundary legs of the sample lot with their bearings and distances</caption>
+                    <caption className="sr-only">Each lot of the sample plan with its extent</caption>
                     <thead>
                       <tr className="border-b border-line text-ink-3">
-                        <th scope="col" className="py-2 pr-3 font-medium">Leg</th>
-                        <th scope="col" className="py-2 pr-3 font-medium">Bearing</th>
-                        <th scope="col" className="py-2 text-right font-medium">Distance (m)</th>
+                        <th scope="col" className="py-2 pr-3 font-medium">Lot</th>
+                        <th scope="col" className="py-2 pr-3 text-right font-medium">Hectares</th>
+                        <th scope="col" className="py-2 text-right font-medium">Acres, roods, perches</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {plan.legs.map((l) => (
-                        <tr key={`${l.from}-${l.to}`} className="border-b border-line last:border-b-0">
-                          <td className="py-2 pr-3 tabular text-ink-2">
-                            {l.from} to {l.to}
+                      {plan.lots.map((l) => (
+                        <tr key={l.name} className="border-b border-line">
+                          <td className="py-2 pr-3 text-ink">
+                            {l.label}
+                            <sup>{l.sup}</sup>
                           </td>
-                          <td className="py-2 pr-3 tabular text-ink">{l.bearing}</td>
-                          <td className="py-2 text-right tabular text-ink">{l.distance}</td>
+                          <td className="py-2 pr-3 text-right tabular text-ink">{l.ha}</td>
+                          <td className="py-2 text-right tabular text-ink">{l.arp}</td>
                         </tr>
                       ))}
+                      {plan.total ? (
+                        <tr>
+                          <td className="py-2 pr-3 font-medium text-ink">Entire land</td>
+                          <td className="py-2 pr-3 text-right tabular font-medium text-ink">{plan.total.ha}</td>
+                          <td className="py-2 text-right tabular font-medium text-ink">{plan.total.arp}</td>
+                        </tr>
+                      ) : null}
                     </tbody>
                   </table>
                 </div>
-                {plan.area ? (
+                {plan.lots[0] ? (
                   <p className="mt-4 text-body leading-relaxed text-ink-2">
-                    Area <span className="tabular font-medium text-ink">{plan.area.m2} m²</span>, which is <span className="tabular font-medium text-ink">{plan.area.ha} ha</span> or{" "}
-                    <span className="tabular font-medium text-ink">{plan.area.arp}</span>. Perimeter <span className="tabular font-medium text-ink">{plan.area.perimeter} m</span>.
+                    Lot {plan.lots[0].label}
+                    <sup>{plan.lots[0].sup}</sup>&apos;s first leg runs from point {plan.lots[0].legs[0]!.from} to {plan.lots[0].legs[0]!.to} on a bearing of{" "}
+                    <span className="tabular font-medium text-ink">{plan.lots[0].legs[0]!.bearing}</span> for <span className="tabular font-medium text-ink">{plan.lots[0].legs[0]!.distance} m</span>. The schedule overleaf lists every leg.
                   </p>
                 ) : null}
-                <p className="mt-3 text-sm text-ink-3">Computed by the coordinate method on the SLD99 grid, from synthetic points.</p>
+                <p className="mt-3 text-sm text-ink-3">Computed by the coordinate method on the SLD99 grid, from synthetic points. The lots add up to the entire land exactly.</p>
               </div>
             </div>
           </div>

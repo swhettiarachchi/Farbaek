@@ -79,11 +79,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
       createdAt: new Date(data.drawing.createdAt),
     });
   } else if (kind === "dxf") {
-    body = Buffer.from(writeDxf({ document: data.drawing.document, points: data.points, parcel: view.parcel, crs: view.crs, scale: view.sheet.scale ?? 500, projectName: data.project.name, status: `${status} ${crsStatus}` }), "ascii");
+    body = Buffer.from(writeDxf({ document: data.drawing.document, points: data.points, lots: view.lots, crs: view.crs, scale: view.sheet.scale ?? 500, projectName: data.project.name, status: `${status} ${crsStatus}` }), "ascii");
   } else if (kind === "csv") {
     body = Buffer.from(pointsCsv(data.points), "utf8");
   } else {
-    body = Buffer.from(surveyGeoJson({ points: data.points, parcel: view.parcel, crs: view.crs, crsConfirmed: input.crsConfirmation !== null, status, projectName: data.project.name, lot: data.drawing.document.sheet.lot }), "utf8");
+    body = Buffer.from(surveyGeoJson({ points: data.points, lots: view.lots, crs: view.crs, crsConfirmed: input.crsConfirmation !== null, status, projectName: data.project.name }), "utf8");
   }
   const sha256 = createHash("sha256").update(body).digest("hex");
 

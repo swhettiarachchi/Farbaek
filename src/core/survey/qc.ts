@@ -4,12 +4,13 @@
  * and what it blocks. Passing every check is not certification or legal
  * compliance: a plan is final only when its surveyor approves a version.
  */
+import { codeOf, codesAreCommonList, lookupCode } from "./codes";
 import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
-import type { SurveyDocument } from "./document";
-import { legendIsBriefExamples } from "./document";
+import { lotName, unreviewed, type SurveyDocument } from "./document";
 import { TOUCH_TOLERANCE_M, distance, orient, type Point } from "./geometry";
-import type { ParcelResult, SurveyPoint } from "./parcel";
+import type { PlanLots } from "./lots";
+import type { SurveyPoint } from "./parcel";
 
 export type Severity = "error" | "warning" | "information" | "professional_review";
 
@@ -18,7 +19,7 @@ export interface Finding {
   severity: Severity;
   message: string;
   /** What the finding is about, so the screen can take the person there. */
-  target: { kind: "project" | "point" | "boundary" | "leg" | "feature" | "field" | "sheet"; id?: string };
+  target: { kind: "project" | "point" | "boundary" | "lot" | "leg" | "feature" | "road" | "field" | "sheet"; id?: string };
   /** What was found, in figures where there are any. */
   detail?: string;
   /** What to do about it. */
@@ -32,7 +33,7 @@ export interface QcInput {
   crs: CrsRecord | null;
   crsConfirmed: boolean;
   document: SurveyDocument;
-  parcel: { ok: true; parcel: ParcelResult } | { ok: false; missing: string[] } | null;
+  lots: PlanLots;
   /** Whether the chosen surveyor has a profile in this workspace. */
   surveyorProfile: boolean;
 }
@@ -52,6 +53,7 @@ export function checkSurvey(input: QcInput): Finding[] {
   const out: Finding[] = [];
   const add = (f: Finding) => out.push(f);
   const { points, crs, document: doc } = input;
+  const known = new Set(points.map((p) => p.id));
 
   if (!crs) {
     add({ code: "CRS_MISSING", severity: "error", message: "No coordinate system is set for this project.", target: { kind: "project" }, action: "Choose and confirm the coordinate system in the project settings.", blocks: ["export", "approval"] });
@@ -72,75 +74,126 @@ export function checkSurvey(input: QcInput): Finding[] {
     }
   }
 
-  const boundary = doc.boundary;
-  if (boundary.length === 0) {
-    add({ code: "BOUNDARY_NOT_SET", severity: "error", message: "The boundary hasn't been chosen.", target: { kind: "boundary" }, action: "Choose the boundary points in order on the Boundary step.", blocks: ["plan", "export", "approval"] });
-  } else if (input.parcel && !input.parcel.ok) {
-    add({ code: "BOUNDARY_MISSING_POINTS", severity: "error", message: "The boundary uses points that no longer exist in this project.", target: { kind: "boundary" }, detail: `${input.parcel.missing.length} point references can't be found.`, action: "Choose the boundary again from the current points.", blocks: ["plan", "export", "approval"] });
-  } else if (input.parcel && input.parcel.ok) {
-    const p = input.parcel.parcel;
+  // Each lot on its own.
+  if (doc.lots.length === 0) {
+    add({ code: "BOUNDARY_NOT_SET", severity: "error", message: "No lot has been set yet.", target: { kind: "boundary" }, action: "Set each lot's corners in order on the Lots step, or draft them from your description on the Draft step.", blocks: ["plan", "export", "approval"] });
+  }
+  const many = doc.lots.length > 1;
+  for (const r of input.lots.lots) {
+    const name = `Lot ${lotName(r.lot)}`;
+    const said = many ? `${name}: ` : "";
+    const target = { kind: "lot" as const, id: r.lot.id };
+    if (r.lot.points.length === 0) {
+      add({ code: "BOUNDARY_NOT_SET", severity: "error", message: `${name} has no corners yet.`, target, action: "Give the lot's corners in order.", blocks: ["plan", "export", "approval"] });
+      continue;
+    }
+    if (!r.parcel) {
+      add({ code: "BOUNDARY_MISSING_POINTS", severity: "error", message: `${said}The boundary uses points that no longer exist in this project.`, target, detail: `${r.missing.length} point references can't be found.`, action: "Choose the corners again from the current points.", blocks: ["plan", "export", "approval"] });
+      continue;
+    }
+    const p = r.parcel;
     if (p.vertices.length < 3) {
-      add({ code: "BOUNDARY_TOO_FEW", severity: "error", message: "A boundary needs at least three points.", target: { kind: "boundary" }, action: "Add the remaining boundary points in order.", blocks: ["plan", "export", "approval"] });
+      add({ code: "BOUNDARY_TOO_FEW", severity: "error", message: `${said}A boundary needs at least three points.`, target, action: "Add the remaining corners in order.", blocks: ["plan", "export", "approval"] });
     }
     if (p.repeatedPoints.length > 0) {
-      add({ code: "BOUNDARY_REPEATS_POINT", severity: "error", message: `The boundary uses point ${p.repeatedPoints.join(", ")} more than once.`, target: { kind: "boundary" }, action: "A boundary closes back to its first point by itself; remove the repeat.", blocks: ["export", "approval"] });
+      add({ code: "BOUNDARY_REPEATS_POINT", severity: "error", message: `${said}The boundary uses point ${p.repeatedPoints.join(", ")} more than once.`, target, action: "A boundary closes back to its first point by itself; remove the repeat.", blocks: ["export", "approval"] });
     }
     for (const i of p.zeroLegs) {
       const leg = p.legs[i];
-      if (leg) add({ code: "BOUNDARY_ZERO_LEG", severity: "error", message: `The leg from ${leg.from.pointId} to ${leg.to.pointId} has no length.`, target: { kind: "leg", id: String(i) }, detail: `${(leg.distance * 1000).toFixed(1)} mm`, action: "Two boundary points sit on the same spot. Remove one, or check the field data.", blocks: ["export", "approval"] });
+      if (leg) add({ code: "BOUNDARY_ZERO_LEG", severity: "error", message: `${said}The leg from ${leg.from.pointId} to ${leg.to.pointId} has no length.`, target: { kind: "leg", id: `${r.lot.id}:${i}` }, detail: `${(leg.distance * 1000).toFixed(1)} mm`, action: "Two boundary points sit on the same spot. Remove one, or check the field data.", blocks: ["export", "approval"] });
     }
     // Points on one line (which also fold back over themselves) are diagnosed as that; a crossing ring as crossing;
     // a ring thinner than about a millimetre on average as having no area. "0A 0R 0.00P" is never a lot.
     const onOneLine = p.vertices.length >= 3 && collinear(p.vertices);
     const sliver = !onOneLine && p.crossings.length === 0 && p.vertices.length >= 3 && p.areaM2 <= p.perimeterM * TOUCH_TOLERANCE_M;
     if (onOneLine || sliver) {
-      add({ code: "BOUNDARY_NO_AREA", severity: "error", message: "The boundary encloses no real area: its points lie on a line.", target: { kind: "boundary" }, detail: `${p.areaM2.toFixed(6)} m² inside a perimeter of ${p.perimeterM.toFixed(3)} m.`, action: "Check the order and the coordinates of the boundary points.", blocks: ["export", "approval"] });
+      add({ code: "BOUNDARY_NO_AREA", severity: "error", message: `${said}The boundary encloses no real area: its points lie on a line.`, target, detail: `${p.areaM2.toFixed(6)} m² inside a perimeter of ${p.perimeterM.toFixed(3)} m.`, action: "Check the order and the coordinates of the corners.", blocks: ["export", "approval"] });
     } else if (p.crossings.length > 0) {
       const [a, b] = p.crossings[0]!;
-      const la = p.legs[a]!, lb = p.legs[b]!;
-      add({ code: "BOUNDARY_SELF_INTERSECTS", severity: "error", message: "The boundary crosses itself, so its area can't be computed.", target: { kind: "boundary" }, detail: `The leg ${la.from.pointId}–${la.to.pointId} meets the leg ${lb.from.pointId}–${lb.to.pointId}${p.crossings.length > 1 ? `, and ${p.crossings.length - 1} more pairs cross` : ""}.`, action: "Check the order of the boundary points.", blocks: ["export", "approval"] });
+      const la = p.legs[a]!;
+      const lb = p.legs[b]!;
+      add({ code: "BOUNDARY_SELF_INTERSECTS", severity: "error", message: `${said}The boundary crosses itself, so its area can't be computed.`, target, detail: `The leg ${la.from.pointId}–${la.to.pointId} meets the leg ${lb.from.pointId}–${lb.to.pointId}${p.crossings.length > 1 ? `, and ${p.crossings.length - 1} more pairs cross` : ""}.`, action: "Check the order of the corners.", blocks: ["export", "approval"] });
     }
   }
 
+  // How the lots fit together.
+  const labels = doc.lots.map(lotName);
+  const dup = labels.filter((l, i) => labels.indexOf(l) !== i);
+  if (dup.length > 0) {
+    add({ code: "LOT_LABEL_DUPLICATE", severity: "error", message: `Two lots have the same label: ${[...new Set(dup)].join(", ")}.`, target: { kind: "lot" }, action: "Give each lot its own label.", blocks: ["export", "approval"] });
+  }
+  for (const [a, b] of input.lots.overlaps) {
+    add({ code: "LOTS_OVERLAP", severity: "error", message: `Lots ${lotName(doc.lots[a]!)} and ${lotName(doc.lots[b]!)} overlap.`, target: { kind: "lot", id: doc.lots[a]!.id }, action: "Check the corners of both lots: lots of one plan share their legs, never their insides.", blocks: ["export", "approval"] });
+  }
+  if (input.lots.holes > 0) {
+    add({ code: "LOTS_GAP", severity: "error", message: `There ${input.lots.holes === 1 ? "is a gap" : `are ${input.lots.holes} gaps`} between the lots that no lot covers.`, target: { kind: "lot" }, action: "Check the shared legs: neighbouring lots must use the same corners along the leg they share.", blocks: ["export", "approval"] });
+  }
+  if (input.lots.pieces > 1) {
+    add({ code: "LOTS_APART", severity: "warning", message: `The lots form ${input.lots.pieces} separate pieces of land.`, target: { kind: "lot" }, action: "If this plan really shows separate lands, describe each in the title; otherwise check the shared corners.", blocks: [] });
+  }
+  if (input.lots.outlineAreaM2 !== null && input.lots.overlaps.length === 0 && input.lots.holes === 0 && Math.abs(input.lots.outlineAreaM2 - input.lots.sumAreaM2) > 0.01) {
+    add({ code: "ENTIRE_AREA_MISMATCH", severity: "error", message: "The lots' areas don't add up to the entire land's area.", target: { kind: "lot" }, detail: `Sum of lots ${input.lots.sumAreaM2.toFixed(3)} m², entire land ${input.lots.outlineAreaM2.toFixed(3)} m².`, action: "Check for a corner that lies on a neighbour's leg without being one of its corners.", blocks: ["export", "approval"] });
+  }
+
   for (const f of doc.features) {
-    const missing = f.points.filter((id) => !points.some((p) => p.id === id));
+    const missing = f.points.filter((id) => !known.has(id));
     if (missing.length > 0) {
       add({ code: "FEATURE_MISSING_POINTS", severity: "error", message: `A ${f.layer.toLowerCase()} feature uses points that no longer exist.`, target: { kind: "feature", id: f.id }, action: "Remove the feature or choose its points again.", blocks: ["export", "approval"] });
     }
   }
+  for (const r of doc.roads) {
+    if ([...r.edgeA, ...r.edgeB].some((id) => !known.has(id))) {
+      add({ code: "ROAD_MISSING_POINTS", severity: "error", message: `The road ${r.name || "without a name"} uses points that no longer exist.`, target: { kind: "road", id: r.id }, action: "Choose its edge points again.", blocks: ["export", "approval"] });
+    }
+  }
+  for (const a of doc.adjoining) {
+    const lot = doc.lots.find((l) => l.id === a.lot);
+    if (!lot || a.leg >= lot.points.length) {
+      add({ code: "ADJOINING_NO_LEG", severity: "warning", message: `The label "${a.text.slice(0, 40)}" points at a leg the lot no longer has.`, target: { kind: "field", id: "adjoining" }, action: "Choose its lot and leg again.", blocks: [] });
+    }
+  }
 
   const s = doc.sheet;
-  const required: [keyof typeof s, string][] = [
-    ["planNumber", "plan number"],
-    ["surveyDate", "survey date"],
-  ];
-  for (const [key, label] of required) {
-    if (!String(s[key]).trim()) add({ code: `SHEET_MISSING_${String(key).replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}`, severity: "warning", message: `The ${label} is empty.`, target: { kind: "field", id: key }, action: `Fill in the ${label} on the Plan step before approval.`, blocks: ["approval"] });
-  }
+  if (!s.planNumber.trim()) add({ code: "SHEET_MISSING_PLAN_NUMBER", severity: "warning", message: "The plan number is empty.", target: { kind: "field", id: "planNumber" }, action: "Fill in the plan number before approval.", blocks: ["approval"] });
+  if (!s.surveyDate.trim()) add({ code: "SHEET_MISSING_SURVEY_DATE", severity: "warning", message: "The survey date is empty.", target: { kind: "field", id: "surveyDate" }, action: "Fill in the survey date before approval.", blocks: ["approval"] });
   const conventional: [keyof typeof s, string][] = [
-    ["lot", "lot"],
     ["landName", "land name"],
+    ["village", "village"],
     ["district", "district"],
+    ["province", "province"],
   ];
   for (const [key, label] of conventional) {
-    if (!String(s[key]).trim()) add({ code: `SHEET_EMPTY_${String(key).replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}`, severity: "information", message: `The ${label} is empty.`, target: { kind: "field", id: key }, action: `Fill it in if this plan should show it.`, blocks: [] });
+    if (!String(s[key]).trim()) add({ code: `SHEET_EMPTY_${String(key).replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}`, severity: "information", message: `The ${label} is empty.`, target: { kind: "field", id: key }, action: "Fill it in if this plan should show it. The sheet leaves a dotted blank.", blocks: [] });
   }
   const b = s.boundaries;
   if (!b.north.trim() || !b.east.trim() || !b.south.trim() || !b.west.trim()) {
-    add({ code: "SHEET_BOUNDARY_DESCRIPTION", severity: "warning", message: "Some of the boundary descriptions (North, East, South, West) are empty.", target: { kind: "field", id: "boundaries" }, action: "Type what adjoins each side, as you found it. Farbaek never fills these in.", blocks: [] });
+    add({ code: "SHEET_BOUNDARY_DESCRIPTION", severity: "warning", message: "Some of the boundary descriptions (North, East, South, West) are empty.", target: { kind: "field", id: "boundaries" }, action: "Type what adjoins each side, as you found it, or let the draft read it from your description. Farbaek never makes these up.", blocks: [] });
   }
-  if (!s.previousPlans.trim()) {
-    add({ code: "SHEET_PREVIOUS_PLANS", severity: "information", message: "No previous plans are cited.", target: { kind: "field", id: "previousPlans" }, action: "Cite earlier plans, or note that there are none and how the boundaries were found (UDA regulation 9 asks for this in UDA areas).", blocks: [] });
+  if (!s.previousPlan.number.trim() && !s.previousPlans.trim() && s.operation !== "custom") {
+    add({ code: "SHEET_PREVIOUS_PLANS", severity: "information", message: "No previous plan is cited.", target: { kind: "field", id: "previousPlan" }, action: "Cite the earlier plan, or note that there is none and how the boundaries were found (UDA regulation 9 asks for this in UDA areas).", blocks: [] });
   }
-  if (legendIsBriefExamples(s.legend)) {
-    add({ code: "LEGEND_UNREVIEWED", severity: "professional_review", message: "The legend is still the starting examples, which aren't an official list.", target: { kind: "field", id: "legend" }, action: "Review the legend: keep, edit or remove each code so it matches this plan.", blocks: ["approval"] });
+  if ((s.operation === "subdivision" || s.operation === "amalgamation") && !s.parentLots.trim()) {
+    add({ code: "SHEET_PARENT_LOTS", severity: "warning", message: s.operation === "subdivision" ? "The lot being subdivided isn't named." : "The lots being amalgamated aren't named.", target: { kind: "field", id: "parentLots" }, action: "Name them as the earlier plan does, for the title sentence.", blocks: [] });
   }
-  const legendCodes = new Set(s.legend.map((e) => e.code.toUpperCase()));
-  if (input.parcel && input.parcel.ok) {
-    const unknown = [...new Set(input.parcel.parcel.vertices.map((v) => v.code).filter((c): c is string => Boolean(c && c.trim())).filter((c) => !legendCodes.has(c.trim().toUpperCase())))];
-    if (unknown.length > 0) {
-      add({ code: "MARK_CODE_NOT_IN_LEGEND", severity: "information", message: `Boundary point codes not in the legend: ${unknown.slice(0, 6).join(", ")}${unknown.length > 6 ? "…" : ""}.`, target: { kind: "field", id: "legend" }, action: "Add them to the legend if they should be explained on the plan.", blocks: [] });
-    }
+  if (s.extractOf && !doc.lots.some((l) => l.id === s.extractOf)) {
+    add({ code: "SHEET_EXTRACT_LOT", severity: "error", message: "The lot this extract shows no longer exists.", target: { kind: "field", id: "extractOf" }, action: "Choose the lot again, or turn the extract off.", blocks: ["export"] });
+  }
+
+  // The code library and the codes the plan uses.
+  if (codesAreCommonList(doc.codes) && !doc.provenance["codes"]?.reviewed) {
+    add({ code: "LEGEND_UNREVIEWED", severity: "professional_review", message: "The code library is still the common list, which isn't an official one.", target: { kind: "field", id: "codes" }, action: "Check the codes and meanings this plan uses, then mark the list as checked.", blocks: ["approval"] });
+  }
+  const usedCodes = new Set<string>();
+  for (const r of input.lots.lots) for (const v of r.parcel?.vertices ?? []) if (codeOf(v.code)) usedCodes.add(codeOf(v.code));
+  const unknown = [...usedCodes].filter((c) => !lookupCode(doc.codes, c));
+  if (unknown.length > 0) {
+    add({ code: "MARK_CODE_NOT_IN_LEGEND", severity: "information", message: `Corner codes not in the code library: ${unknown.slice(0, 6).join(", ")}${unknown.length > 6 ? "…" : ""}.`, target: { kind: "field", id: "codes" }, action: "Add them to the code library so the Reference explains them.", blocks: [] });
+  }
+
+  // What the AI filled in, until the surveyor has looked at each item.
+  const open = unreviewed(doc);
+  if (open.length > 0) {
+    add({ code: "AI_ITEMS_UNREVIEWED", severity: "professional_review", message: `${open.length} ${open.length === 1 ? "item" : "items"} filled in from your description or a photo ${open.length === 1 ? "hasn't" : "haven't"} been checked yet.`, target: { kind: "field", id: "review" }, detail: open.slice(0, 6).join(", ") + (open.length > 6 ? ", and more" : ""), action: "Open Review the draft, and accept, change or remove each item.", blocks: ["approval"] });
   }
 
   if (!doc.surveyorUserId) {

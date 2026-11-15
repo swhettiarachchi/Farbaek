@@ -7,28 +7,29 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { crsById } from "@/core/survey/crs";
 import { SAMPLE_POINTS, sampleDocument } from "@/core/survey/fixtures";
-import { computeParcel } from "@/core/survey/parcel";
+import { computeLots } from "@/core/survey/lots";
 import { composeSheet } from "@/core/survey/sheet/compose";
 import { toPage } from "@/core/survey/sheet/scene";
 import { SRI_LANKA_CADASTRAL_V1 } from "@/core/survey/sheet/template";
 import { MM_TO_PT, renderPdf } from "./pdf";
 
 const doc = sampleDocument();
-const parcelResult = computeParcel(SAMPLE_POINTS, doc.boundary);
-if (!parcelResult.ok) throw new Error("sample parcel");
-const parcel = parcelResult.parcel;
-const sheet = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points: SAMPLE_POINTS, parcel, crs: crsById("EPSG:5235"), crsConfirmation: "Confirmed by Test Person on 2026-11-15", surveyor: null, approval: null });
+const lots = computeLots(SAMPLE_POINTS, doc.lots);
+const parcel = lots.lots[0]!.parcel!;
+const sheet = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points: SAMPLE_POINTS, lots, crs: crsById("EPSG:5235"), crsConfirmation: "Confirmed by Test Person on 2026-11-15", surveyor: null, approval: null });
 const meta = { title: "Sample plan", subject: "Synthetic test", createdAt: new Date("2026-11-15T00:00:00Z") };
 
 /** PDFKit writes numbers rounded to six decimals, without trailing zeros. */
 const n = (v: number) => String(Math.round(v * 1e6) / 1e6);
 
 describe("the plan PDF", () => {
-  it("is a PDF 1.7 at A3 landscape that asks not to be scaled, with embedded fonts and an overleaf", async () => {
+  it("is a PDF 1.7 on A4 portrait (the classic layout) that asks not to be scaled, with embedded fonts, slanted lettering and an overleaf", async () => {
     const pdf = (await renderPdf(sheet.pages, meta, { compress: false })).toString("latin1");
     expect(pdf.startsWith("%PDF-1.7")).toBe(true);
     expect(pdf).toContain("/PrintScaling /None");
-    expect(pdf).toContain(`/MediaBox [0 0 ${n(420 * MM_TO_PT)} ${n(297 * MM_TO_PT)}]`);
+    expect(pdf).toContain(`/MediaBox [0 0 ${n(210 * MM_TO_PT)} ${n(297 * MM_TO_PT)}]`);
+    // Slanted lettering: a shear of tan 15° in the text transforms.
+    expect(pdf).toContain(`1 0 ${n(-Math.tan((15 * Math.PI) / 180))} 1`);
     expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(2);
     expect(pdf.match(/\/FontFile2/g)!.length).toBeGreaterThanOrEqual(2);
     expect(pdf).not.toContain("/BaseFont /Helvetica");

@@ -14,7 +14,9 @@
 import { formatDms, toDms } from "../angles";
 import type { CrsRecord } from "../crs";
 import type { LayerId, SurveyDocument } from "../document";
-import type { ParcelResult, SurveyPoint } from "../parcel";
+import type { PlanLots } from "../lots";
+import type { SurveyPoint } from "../parcel";
+import { roadCentreline } from "../roads";
 import { formatArp, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 
@@ -32,6 +34,7 @@ const LAYER_STYLE: Record<LayerId, { color: number; ltype: "CONTINUOUS" | "DASHE
   DRAINS: { color: 4, ltype: "DASHED" },
   ROADS: { color: 7, ltype: "CONTINUOUS" },
   UTILITIES: { color: 6, ltype: "CONTINUOUS" },
+  ADJOINING: { color: 8, ltype: "CONTINUOUS" },
   TEXT: { color: 7, ltype: "CONTINUOUS" },
   TITLE: { color: 7, ltype: "CONTINUOUS" },
 };
@@ -39,7 +42,7 @@ const LAYER_STYLE: Record<LayerId, { color: number; ltype: "CONTINUOUS" | "DASHE
 export interface DxfInput {
   document: SurveyDocument;
   points: readonly SurveyPoint[];
-  parcel: ParcelResult | null;
+  lots: PlanLots;
   crs: CrsRecord | null;
   /** The plan's scale denominator, for text heights. */
   scale: number;
@@ -71,7 +74,7 @@ class Writer {
 }
 
 export function writeDxf(input: DxfInput): string {
-  const { document: doc, parcel } = input;
+  const { document: doc } = input;
   const byId = new Map(input.points.map((p) => [p.id, p]));
   const h = (paperMm: number) => (paperMm * input.scale) / 1000;
   const entities: ((w: Writer) => void)[] = [];
@@ -123,9 +126,15 @@ export function writeDxf(input: DxfInput): string {
     if (pts.length >= 2 && f.code.trim()) text(f.layer, (pts[0]!.e + pts[1]!.e) / 2, (pts[0]!.n + pts[1]!.n) / 2, f.code.trim(), h(2.2));
   }
 
-  if (parcel && parcel.vertices.length >= 2) {
+  // Every lot's boundary, its corners (once each), leg labels and its label with the raised part as its own text.
+  const cornerSeen = new Set<string>();
+  for (const r of input.lots.lots) {
+    const parcel = r.parcel;
+    if (!parcel || parcel.vertices.length < 2) continue;
     polyline("BOUNDARY", parcel.vertices, parcel.vertices.length >= 3);
     for (const p of parcel.vertices) {
+      if (cornerSeen.has(p.id)) continue;
+      cornerSeen.add(p.id);
       entities.push((w) => {
         w.pair(0, "POINT");
         w.pair(8, "POINTS");
@@ -145,10 +154,40 @@ export function writeDxf(input: DxfInput): string {
       text("DIMENSIONS", (leg.from.e + leg.to.e) / 2, (leg.from.n + leg.to.n) / 2, label, h(2.2), angle);
     });
     if (parcel.vertices.length >= 3 && parcel.crossings.length === 0) {
-      const lot = doc.sheet.lot.trim();
-      if (lot) text("LOT_TEXT", parcel.labelAt.e, parcel.labelAt.n + h(2), `Lot ${lot}`, h(3.2));
+      const { label, sup } = r.lot;
+      text("LOT_TEXT", parcel.labelAt.e, parcel.labelAt.n + h(2), `Lot ${label}`, h(3.2));
+      if (sup) text("LOT_TEXT", parcel.labelAt.e + h(3.2) * 0.62 * (`Lot ${label}`.length / 2 + 0.6), parcel.labelAt.n + h(2) + h(3.2) * 0.42, sup, h(2), 0, false);
       text("LOT_TEXT", parcel.labelAt.e, parcel.labelAt.n - h(2), formatArp(toArp(parcel.areaM2, doc.settings.perchDecimals)), h(2.4));
     }
+  }
+
+  // Roads: both edges, the name on the middle line.
+  for (const road of doc.roads) {
+    const a = road.edgeA.map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
+    const b = road.edgeB.map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
+    if (a.length >= 2) polyline("ROADS", a, false);
+    if (b.length >= 2) polyline("ROADS", b, false);
+    const c = roadCentreline(a, b);
+    if (road.name.trim() && c.length >= 2) {
+      const mid = c[Math.floor((c.length - 1) / 2)]!;
+      const next = c[Math.floor((c.length - 1) / 2) + 1] ?? c[0]!;
+      let angle = (Math.atan2(next.n - mid.n, next.e - mid.e) * 180) / Math.PI;
+      if (angle > 90) angle -= 180;
+      if (angle < -90) angle += 180;
+      text("ROADS", (mid.e + next.e) / 2, (mid.n + next.n) / 2, road.name.trim(), h(2.2), angle);
+    }
+  }
+
+  // Adjoining-land labels, beside the middle of their leg.
+  for (const adj of doc.adjoining) {
+    const parcel = input.lots.lots.find((r) => r.lot.id === adj.lot)?.parcel;
+    if (!parcel || parcel.vertices.length < 3) continue;
+    const a = parcel.vertices[adj.leg % parcel.vertices.length]!;
+    const b = parcel.vertices[(adj.leg + 1) % parcel.vertices.length]!;
+    const len = Math.hypot(b.e - a.e, b.n - a.n) || 1;
+    // Outside the lot: to the left of each leg on a clockwise ring, to the right on an anticlockwise one.
+    const sign = parcel.clockwise ? -1 : 1;
+    text("ADJOINING", (a.e + b.e) / 2 + ((b.n - a.n) / len) * h(8) * sign, (a.n + b.n) / 2 - ((b.e - a.e) / len) * h(8) * sign, adj.text, h(1.9));
   }
 
   // Extents, and a note under the drawing saying what the numbers are.
