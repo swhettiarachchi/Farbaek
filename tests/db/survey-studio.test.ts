@@ -7,6 +7,7 @@
  */
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { USAGE_OPERATIONS } from "@/config/usage";
 import { USERS, as, createOrg, createTestDb } from "./harness";
 
 let db: PGlite;
@@ -139,6 +140,32 @@ describe("approval", () => {
     // A later edit is a new, unapproved version.
     const next = await save(USERS.alice, v, doc({ surveyorUserId: USERS.alice }));
     expect(await su("select count(*)::int as c from public.survey_approvals a join public.survey_drawings d on d.id = a.drawing_id where d.version = $1 and d.project_id = $2", [next, project])).toEqual([{ c: 0 }]);
+  });
+});
+
+describe("AI drafting (v94)", () => {
+  it("meters drafting and reading as their own operations, exactly as the app lists them", async () => {
+    const from = new Date(Date.now() - 86_400_000).toISOString();
+    const to = new Date(Date.now() + 86_400_000).toISOString();
+    const grant = JSON.stringify({ kind: "plan", units: 1_000, starts_at: from, expires_at: to, source_key: "plan:survey-ai" });
+    await expect(q("select public.app_reserve_usage($1, $2, 'k-survey-draft', 'survey_draft', null, 30, $3)", [org, USERS.alice, grant])).resolves.toHaveLength(1);
+    await expect(q("select public.app_reserve_usage($1, $2, 'k-survey-read', 'survey_read', null, 30, $3)", [org, USERS.alice, grant])).resolves.toHaveLength(1);
+    const [check] = await su<{ def: string }>("select pg_get_constraintdef(oid) as def from pg_constraint where conname = 'ai_credit_ledger_operation_check'");
+    const listed = [...check!.def.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+    expect(listed).toEqual([...USAGE_OPERATIONS].sort());
+  });
+
+  it("records each run with counts only, for contributors of an open project", async () => {
+    await q("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_draft', 'claude-sonnet-5-5', 12, 2, 1)", [org, USERS.alice, project]);
+    const [e] = await su<{ metadata: Record<string, unknown> }>("select metadata from public.audit_events where org_id = $1 and action = 'survey.ai_drafted'", [org]);
+    expect(e!.metadata).toEqual({ operation: "survey_draft", model: "claude-sonnet-5-5", accepted: 12, dropped: 2, questions: 1 });
+    await expect(q("select public.app_survey_record_ai_draft($1, $2, $3, 'agent_step', 'claude-sonnet-5-5', 1, 0, 0)", [org, USERS.alice, project])).rejects.toThrow(/INVALID_OPERATION/);
+    await expect(q("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_read', 'Robert''); drop', 1, 0, 0)", [org, USERS.alice, project])).rejects.toThrow(/INVALID_MODEL/);
+    await expect(q("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_read', 'claude-sonnet-5-5', -1, 0, 0)", [org, USERS.alice, project])).rejects.toThrow(/INVALID_COUNTS/);
+    await expect(q("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_read', 'claude-sonnet-5-5', 1, 0, 0)", [org, USERS.bob, project])).rejects.toThrow(/FORBIDDEN/);
+    await as(db, "authenticated", USERS.alice, async () => {
+      await expect(db.query("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_draft', 'claude-sonnet-5-5', 1, 0, 0)", [org, USERS.alice, project])).rejects.toThrow(/permission denied/);
+    });
   });
 });
 
