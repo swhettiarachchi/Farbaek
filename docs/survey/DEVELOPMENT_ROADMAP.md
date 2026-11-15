@@ -1,0 +1,65 @@
+# Survey Studio development roadmap
+
+Stage 190 built the foundation and one complete workflow. Everything after it is **planned**: the stage numbers come from the stage plan, and nothing below exists until its stage is done and documented. Each stage starts in plan mode, writes an ADR for each significant decision, and asks the owner before any dependency, migration or production change (CLAUDE.md).
+
+## Stage 190: the cadastral foundation (done)
+
+- The engine in `src/core/survey/`: units and A-R-P, bearings and DMS, planar geometry, parcels, traverse misclosure (no adjustment), the CRS registry and plausibility checks, quality-control findings.
+- Importers for delimited point files and GeoJSON with a named grid; WGS 84 GeoJSON refused.
+- The Sri Lankan cadastral sheet template as data, the sheet scene in millimetres, the overleaf schedule, label-overlap and overflow findings.
+- Vector PDF (PDFKit), DXF R12, CSV and GeoJSON exports, each recorded with its SHA-256.
+- Schema v93: seven tables and eight `app_survey_*` functions; immutable points, append-only drawing versions, approvals by the named surveyor, exports and audit.
+- The screens: the dashboard, a new project, surveyor details, the eight-step project workspace with the plan editor, the Sample project, the public page, the public sample PDF, and the home page section.
+- ADRs 0198 to 0201 and this documentation.
+
+## Stage 191: subdivision (planned)
+
+Splitting a parent parcel into lots and access roads, with a feasibility report, never presenting a layout that breaks a hard rule as feasible.
+- **Rules as versioned data.** The UDA figures in [STANDARDS_RESEARCH.md](STANDARDS_RESEARCH.md) (minimum lot 150 m², 6.0 m frontage, 12.0 m depth, access rules, turning circles, open space), each citing the regulation, with a Development Plan override, and flagged as due for replacement on 31 December 2026. Schedule 4's width-to-lots pairing must not be encoded until a clean copy is found.
+- **Area conservation**: parent area, roads and reservations, the sum of the lots, the residual, and the tolerance.
+- **Block-out plans** at not less than 1:1000 (UDA reg. 8).
+- **Libraries.** Polygon clipping is the riskiest choice and the research couldn't settle it (clipper2-ts and martinez were both days old on 15 November 2026). Every clip needs a JSTS validity check, an area-sum check and vertex snapping to the parcel's own vertices, with a fuzz suite.
+- Reproducible seeds for any optimiser; never assume a road width or reservation.
+
+## Stage 192: topographic plans and contours (planned)
+
+- A TIN with breaklines, then contours (the research's candidates: delaunator 5.1.0, @kninnug/constrainautor 4.1.0, d3-tricontour 1.1.0).
+- **Heights:** a vertical datum recorded separately from the horizontal CRS, and height types kept apart (GNSS ellipsoidal heights never stored as SLVD heights).
+- Uncertainty and data density reported; raw and smoothed contours kept apart; no extrapolation without a clear warning.
+
+## Stage 193: engineering and road plans (planned)
+
+Alignments, chainage, long sections and cross-sections, with curve elements from tested formulas. Never assume design speeds, gradients, radii or widths.
+
+## Stage 194: the assistant (planned)
+
+An assistant that turns a surveyor's instructions into a structured request and **only fills forms**. It never calculates a coordinate, bearing, distance, area or layout: the tested engines do (skill rule 1). Its output is untrusted, as with Farbaek's other AI features, and the person reviews every filled field before anything is saved.
+
+## Stage 195: full CAD tools (planned)
+
+The editing that [CAD_ENGINE.md](CAD_ENGINE.md) lists as not built:
+- drawing and editing on the canvas, choosing boundary points by tapping, snapping and measuring;
+- free text, symbols and dimension entities placed by hand, multi-select, rotation and keyboard nudges;
+- a custom scale, and controls for the precision settings;
+- opening and comparing older versions;
+- a faster renderer for large drawings (the research suggests Canvas or WebGL, with Konva 10.9.1 as a candidate), and DXF or scanned-plan backdrops.
+
+## Stage 196: mobile field entry (planned)
+
+Entering and checking points in the field on a phone. The screens are already built mobile first; this stage adds field capture, which needs its own provenance (instrument, operator, time) and must keep observations immutable.
+
+## Not yet scheduled
+
+These are needed but have no stage number yet.
+
+| Work | What it needs |
+| --- | --- |
+| **Coordinate transformations** | proj4js, pinned at 2.22.0 (2.23.0 was three days old during the research). Use the corrected EPSG:5235 rotation signs, and check them against PROJ (`projinfo` or pyproj, EPSG:5235 to EPSG:4326) as saved test vectors before shipping. Every transformation carries its EPSG code and accuracy (EPSG:5236 is 14 m, EPSG:1157 35 m); warn or refuse when one would be used for boundary work. There is no official Kandawala to SLD99 transformation. Then WGS 84 GeoJSON and GNSS CSV can be imported |
+| **Sinhala and Tamil text on sheets** | Fonts with those scripts (the embedded Geist has none). A release gate that compares PDFKit's glyph ids with HarfBuzz's (harfbuzzjs 1.6.4) for a fixed word list such as ශ්‍රී. Check fontkit's Indic output in the PDFKit version in use. DXF text keeps the `\U+` escapes, including the zero-width joiner; whether CAD programs draw it needs a hands-on test |
+| **A UDA submission profile** | A switchable set of sheet items from UDA regulation 9, named after the document it was built from: adjoining assessment numbers, access width, drainage flow, previous boundaries in red, street and building lines, and the existing permit box |
+| **Template choice and captions** | Store the template id and version on each drawing; let a surveyor edit captions |
+| **The surveyor's record** | A licence year and accreditation status on the surveyor profile, and plan numbering that exports cleanly to the Plan Issuing Register (format still unverified) |
+| **Traverse adjustment** | Bowditch or transit, only with the surveyor's authorisation and an explicit method choice, keeping the unadjusted observations and reporting residuals before and after |
+| **More import formats** | In the research's order: GNSS CSV in WGS 84 (after transformations), Leica GSI coordinate words, Trimble JobXML reductions, SDR33 coordinate records |
+| **Export checks** | ezdxf's strict read and audit in CI; sample files opened in AutoCAD, LibreCAD and QCAD; PDFs in two viewers and printed at actual size; DXF R2000 only after the writer builds the full object graph and matches a known-good file |
+| **PostGIS** | Revisit under the conditions in ADR 0199 |

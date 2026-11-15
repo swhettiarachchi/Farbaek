@@ -2,7 +2,8 @@
  * Point and parcel exports that keep the coordinate system with the data.
  *
  * CSV: point, easting, northing, elevation, code (a PENZD order), full stored
- * precision, with the CRS in the file name the server gives it.
+ * precision. A CSV can't name its coordinate system: the project's PDF, DXF and
+ * GeoJSON do.
  *
  * GeoJSON: RFC 7946 allows only WGS 84 longitude and latitude, which these
  * grid coordinates are not. So the file keeps the grid coordinates and names
@@ -17,9 +18,12 @@ function csvCell(s: string): string {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-/** A spreadsheet opening a cell that starts with = + - @ would run it as a formula: such text gets a leading apostrophe. */
+/**
+ * A spreadsheet opening a cell that starts with = + - @ would run it as a formula: such text gets a leading
+ * apostrophe. A plain number such as -1 can't run, and stays exactly as it is, so point numbers survive a round trip.
+ */
 function safeText(s: string): string {
-  return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return /^[=+\-@\t\r]/.test(s) && !/^[+-]?\d+(\.\d+)?$/.test(s) ? `'${s}` : s;
 }
 
 export function pointsCsv(points: readonly SurveyPoint[]): string {
@@ -30,7 +34,7 @@ export function pointsCsv(points: readonly SurveyPoint[]): string {
   return `${rows.join("\r\n")}\r\n`;
 }
 
-export function surveyGeoJson(input: { points: readonly SurveyPoint[]; parcel: ParcelResult | null; crs: CrsRecord | null; projectName: string; lot: string }): string {
+export function surveyGeoJson(input: { points: readonly SurveyPoint[]; parcel: ParcelResult | null; crs: CrsRecord | null; crsConfirmed: boolean; status: string; projectName: string; lot: string }): string {
   const { crs, parcel } = input;
   const features: unknown[] = input.points.map((p) => ({
     type: "Feature",
@@ -53,6 +57,8 @@ export function surveyGeoJson(input: { points: readonly SurveyPoint[]; parcel: P
     ...(crs?.epsg ? { crs: { type: "name", properties: { name: `urn:ogc:def:crs:EPSG::${crs.epsg}` } } } : {}),
     farbaek: {
       coordinate_system: crs ? crs.name : "not set",
+      coordinate_system_confirmed: input.crsConfirmed,
+      status: input.status,
       note: crs?.epsg ? "Grid coordinates in metres, named by the crs member (not RFC 7946 longitude and latitude)." : "Local or unset coordinates in metres; no coordinate system is named.",
       engine: SURVEY_ENGINE_VERSION,
     },

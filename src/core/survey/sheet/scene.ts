@@ -88,9 +88,28 @@ export function toModel(v: Viewport, x: number, y: number): { e: number; n: numb
   return { e: v.centreE + (x - v.x - v.w / 2) / k, n: v.centreN - (y - v.y - v.h / 2) / k };
 }
 
-/** Approximate text width in mm. Conservative, so wrapping and overflow checks err toward "too long". */
+/**
+ * Geist's advance widths for printable ASCII (U+0020 to U+007E), in
+ * thousandths of the font size, measured from the embedded font
+ * (android/app/src/main/assets/fonts/geist.ttf) with fontkit.
+ */
+const GEIST_ASCII = "250,213,346,478,629,802,620,178,274,274,430,558,201,419,201,480,663,384,619,613,615,626,624,524,604,624,297,297,544,540,544,559,906,668,680,703,698,603,590,700,713,270,597,640,580,877,743,739,650,733,672,640,552,689,667,945,606,576,544,347,455,347,426,557,248,551,595,546,595,561,395,594,581,244,260,590,267,877,581,573,595,595,379,524,392,575,536,819,585,537,549,389,264,389,523".split(",").map(Number);
+/** The same for the survey symbols the sheet writes, measured likewise. */
+const GEIST_EXTRA: Record<string, number> = { "°": 404, "′": 211, "″": 333, "²": 348, "×": 502, "–": 591, "’": 203 };
+
+/**
+ * Text width in mm, from the font's measured advances (Geist Mono is 0.6 em
+ * for every character), with a 4% margin on all text (which also covers the
+ * stroke that draws bold), so wrapping and the overflow checks err toward
+ * "too long". Characters not in the table count as 0.7 em.
+ */
 export function textWidth(text: string, size: number, font: "sans" | "mono" = "sans"): number {
-  return [...text].length * size * (font === "mono" ? 0.62 : 0.56);
+  let em = 0;
+  for (const ch of text) {
+    const c = ch.codePointAt(0)!;
+    em += font === "mono" ? 600 : c >= 32 && c <= 126 ? GEIST_ASCII[c - 32]! : (GEIST_EXTRA[ch] ?? 700);
+  }
+  return (em / 1000) * size * 1.04;
 }
 
 /** Wraps text into lines no wider than `width` mm, breaking at spaces; a single over-long word is kept whole. */

@@ -61,7 +61,9 @@ export type ImportIssueCode =
   | "NOT_A_NUMBER"
   | "MISSING_COORDINATE"
   | "DUPLICATE_POINT_SAME"
-  | "DUPLICATE_POINT_CONFLICT";
+  | "DUPLICATE_POINT_CONFLICT"
+  | "CODE_NOT_READABLE"
+  | "EXTRA_COLUMNS";
 
 export interface ImportIssue {
   code: ImportIssueCode;
@@ -129,6 +131,16 @@ function detectDelimiter(sample: string[]): Delimiter {
 }
 
 /** Reads the start of the file to suggest a delimiter and whether there is a header row. The person confirms both. */
+/** The most common row length (the longer one on a tie), so one wide row doesn't widen the mapping. */
+function usualLength(rows: string[][]): number {
+  const counts = new Map<number, number>();
+  for (const r of rows) counts.set(r.length, (counts.get(r.length) ?? 0) + 1);
+  let best = 0;
+  let seen = 0;
+  for (const [len, n] of counts) if (n > seen || (n === seen && len > best)) [best, seen] = [len, n];
+  return best;
+}
+
 export function previewDelimited(text: string, maxRows = 12): DelimitedPreview | { error: ImportIssue } {
   const guard = guardText(text);
   if (guard) return { error: guard };
@@ -145,7 +157,8 @@ export function previewDelimited(text: string, maxRows = 12): DelimitedPreview |
     header: hasHeader ? first : null,
     rows: body.slice(0, maxRows),
     totalRows: body.length,
-    columnCount: Math.max(first.length, ...body.slice(0, 50).map((r) => r.length)),
+    // The usual row length, not the widest: a description with spaces in one row mustn't add columns to the mapping.
+    columnCount: usualLength(hasHeader ? [first, ...body.slice(0, 50)] : body.slice(0, 50)),
   };
 }
 
@@ -211,16 +224,28 @@ export function parseDelimited(text: string, options: { delimiter: Delimiter; ha
         continue;
       }
     }
-    const rawCode = ci >= 0 ? (cells.slice(ci).join(options.delimiter === "whitespace" ? " " : ", ").trim() || null) : null;
-    const code = rawCode ? rawCode.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, IMPORT_LIMITS.maxCodeLength) : null;
+    // The code is its own cell. A row with more cells than the mapping is read only where the extra cells
+    // can only be the rest of a description: a space-separated file whose last column is the code. Anything
+    // else is refused with its line, so no text is ever dropped without the person knowing.
+    const codeLast = ci >= 0 && ci === options.columns.length - 1;
+    if (cells.length > options.columns.length && !(options.delimiter === "whitespace" && codeLast)) {
+      issues.push({ code: "EXTRA_COLUMNS", severity: "error", line, message: `Line ${line}, point ${pointId}: the row has ${cells.length} columns and the mapping has ${options.columns.length}. ${options.delimiter === "whitespace" ? "Make the code the last column, or" : "Put quotes around text that contains the separator, or"} map the extra columns.` });
+      continue;
+    }
+    const codeCells = ci < 0 ? [] : codeLast ? cells.slice(ci) : [cells[ci] ?? ""];
+    const code = codeCells.join(" ").trim() || null;
+    if (code && (code.length > IMPORT_LIMITS.maxCodeLength || /[\u0000-\u001f\u007f]/.test(code))) {
+      issues.push({ code: "CODE_NOT_READABLE", severity: "error", line, message: `Line ${line}, point ${pointId}: the code is longer than ${IMPORT_LIMITS.maxCodeLength} characters or has control characters. Nothing is cut short for you.` });
+      continue;
+    }
     const point: ImportedPoint = { line, pointId, e, n, z, code };
     const prior = seen.get(pointId);
     if (prior) {
-      if (prior.e === e && prior.n === n && prior.z === z) {
+      if (prior.e === e && prior.n === n && prior.z === z && prior.code === code) {
         issues.push({ code: "DUPLICATE_POINT_SAME", severity: "warning", line, message: `Line ${line}: point ${pointId} repeats line ${prior.line} exactly. The first is kept.` });
       } else {
         conflicted.add(pointId);
-        issues.push({ code: "DUPLICATE_POINT_CONFLICT", severity: "error", line, message: `Line ${line}: point ${pointId} has different coordinates from line ${prior.line}. Rename one of them in the file.` });
+        issues.push({ code: "DUPLICATE_POINT_CONFLICT", severity: "error", line, message: `Line ${line}: point ${pointId} differs from line ${prior.line} in its coordinates, elevation or code. Rename one of them in the file.` });
       }
       continue;
     }

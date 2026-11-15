@@ -3,8 +3,8 @@
  * degrees: those can't be used for a planar plan until a verified transform
  * exists (a later stage), so such a file is refused with that reason rather
  * than drawn wrongly. A file written with the older named "crs" member (as
- * QGIS and GDAL can) that names an EPSG code is read as that code's
- * coordinates; the person still confirms the CRS when they import.
+ * QGIS and GDAL can) that names an EPSG code is read only when that code is
+ * the project's own grid; the person still confirms the units when they import.
  */
 import type { ImportIssue, ImportedPoint } from "./delimited";
 import { IMPORT_LIMITS } from "./delimited";
@@ -22,7 +22,13 @@ function fail(message: string): GeoJsonResult {
   return { points: [], issues: [{ code: "NOT_TEXT", severity: "error", line: null, message }], namedEpsg: null };
 }
 
-export function parseGeoJsonPoints(text: string): GeoJsonResult {
+/**
+ * `projectEpsg` is the EPSG code of the project's confirmed grid, or null for
+ * local coordinates. A file that names any other code is refused: its
+ * numbers would be drawn in the wrong grid, often with no visible sign
+ * (UTM 44N and SLD99 coordinates overlap in western Sri Lanka).
+ */
+export function parseGeoJsonPoints(text: string, projectEpsg: number | null): GeoJsonResult {
   if (new TextEncoder().encode(text).length > IMPORT_LIMITS.maxBytes) return fail(`The file is over ${IMPORT_LIMITS.maxBytes / 1024 / 1024} MB.`);
   let doc: unknown;
   try {
@@ -37,6 +43,9 @@ export function parseGeoJsonPoints(text: string): GeoJsonResult {
   const namedEpsg = m ? Number(m[1]) : null;
   if (namedEpsg === null || namedEpsg === 4326) {
     return fail("This GeoJSON is in WGS 84 longitude and latitude (the GeoJSON standard). Plans need projected grid coordinates in metres, and Farbaek doesn't transform coordinates yet. Export the points from your GIS in your survey grid as CSV, and import that.");
+  }
+  if (namedEpsg !== projectEpsg) {
+    return fail(`This file says its points are in EPSG:${namedEpsg}, but this project is ${projectEpsg === null ? "in local coordinates" : `in EPSG:${projectEpsg}`}. Farbaek doesn't transform coordinates. Export the points in the project's grid, or change the project's grid in its settings if the file is right.`);
   }
   const features = root.type === "FeatureCollection" && Array.isArray(root.features) ? root.features : root.type === "Feature" ? [root] : null;
   if (!features) return fail("This GeoJSON has no features to import.");
@@ -59,14 +68,23 @@ export function parseGeoJsonPoints(text: string): GeoJsonResult {
     }
     const props = feature.properties ?? {};
     const rawId = props.point ?? props.Point ?? props.name ?? props.id ?? props.PNT ?? null;
-    const pointId = rawId === null || rawId === undefined ? String(line) : String(rawId).trim().slice(0, IMPORT_LIMITS.maxPointIdLength);
+    const pointId = rawId === null || rawId === undefined ? String(line) : String(rawId).trim();
+    if (!pointId || pointId.length > IMPORT_LIMITS.maxPointIdLength || /[\u0000-\u001f\u007f]/.test(pointId)) {
+      issues.push({ code: "POINT_ID_TOO_LONG", severity: "error", line, message: `Feature ${line}: the point number is empty, longer than ${IMPORT_LIMITS.maxPointIdLength} characters, or has control characters.` });
+      return;
+    }
+    const rawCode = props.code ?? props.description ?? props.desc ?? null;
+    const code = rawCode === null || rawCode === undefined ? null : String(rawCode).trim() || null;
+    if (code && (code.length > IMPORT_LIMITS.maxCodeLength || /[\u0000-\u001f\u007f]/.test(code))) {
+      issues.push({ code: "CODE_NOT_READABLE", severity: "error", line, message: `Feature ${line}, point ${pointId}: the code is longer than ${IMPORT_LIMITS.maxCodeLength} characters or has control characters. Nothing is cut short for you.` });
+      return;
+    }
     if (seen.has(pointId)) {
       issues.push({ code: "DUPLICATE_POINT_CONFLICT", severity: "error", line, message: `Feature ${line}: point ${pointId} is named twice. Rename one in the file.` });
       return;
     }
     seen.add(pointId);
-    const rawCode = props.code ?? props.description ?? props.desc ?? null;
-    points.push({ line, pointId, e, n, z: typeof z === "number" && Number.isFinite(z) ? z : null, code: rawCode === null ? null : String(rawCode).slice(0, IMPORT_LIMITS.maxCodeLength) });
+    points.push({ line, pointId, e, n, z: typeof z === "number" && Number.isFinite(z) ? z : null, code });
   });
   return { points, issues, namedEpsg };
 }

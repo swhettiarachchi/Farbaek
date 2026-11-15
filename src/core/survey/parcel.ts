@@ -35,7 +35,7 @@ export interface ParcelResult {
   clockwise: boolean;
   /** Index pairs of legs that cross or touch. */
   crossings: [number, number][];
-  /** Indexes of legs shorter than a millimetre. */
+  /** Indexes of legs shorter than half a millimetre (TOUCH_TOLERANCE_M). */
   zeroLegs: number[];
   /** Point numbers named more than once in the ring. */
   repeatedPoints: string[];

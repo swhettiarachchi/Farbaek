@@ -21,7 +21,7 @@ export type ActivityCategory = (typeof ACTIVITY_CATEGORIES)[number]["id"];
 /** The action prefixes each category covers; the database filters on them. */
 export const CATEGORY_PREFIXES: Record<ActivityCategory, string[]> = {
   people: ["organization.", "member.", "invitation.", "workspace."],
-  projects: ["project.", "capsule.", "skill.", "preview.", "sandbox."],
+  projects: ["project.", "capsule.", "skill.", "preview.", "sandbox.", "survey."],
   changes: ["task.", "contract.", "proposal.", "workflow.", "change.", "verification.", "proofpack.", "arena.", "watch."],
   agents: ["agent.", "agents.", "mesh."],
   sites: ["site.", "launch.", "provider."],
@@ -47,6 +47,15 @@ export function categoryOf(action: string): ActivityCategory | null {
 
 /** What happened, as the end of "<who> ...". */
 const VERBS: Record<string, string> = {
+  "survey.project_created": "started a survey project",
+  "survey.project_updated": "changed a survey project's settings",
+  "survey.crs_confirmed": "confirmed a survey project's coordinate system",
+  "survey.points_imported": "imported survey points",
+  "survey.drawing_saved": "saved a survey plan version",
+  "survey.profile_saved": "saved their surveyor details",
+  "survey.approved": "approved a survey plan version",
+  "survey.exported": "exported a survey plan",
+  "survey.project_archived": "archived a survey project",
   "organization.created": "created the workspace",
   "member.role_changed": "changed a member's role",
   "member.permissions_changed": "changed a member's permissions",

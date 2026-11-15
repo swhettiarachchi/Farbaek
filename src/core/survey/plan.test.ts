@@ -12,9 +12,9 @@ import { SAMPLE_AREA_M2, SAMPLE_POINTS, sampleDocument } from "./fixtures";
 import { parseDelimited, previewDelimited, COLUMN_ORDERS } from "./import/delimited";
 import { detectFormat } from "./import/detect";
 import { parseGeoJsonPoints } from "./import/geojson";
-import { computeParcel } from "./parcel";
+import { computeParcel, type SurveyPoint } from "./parcel";
 import { blocked, checkSurvey } from "./qc";
-import { composeSheet, fmt, suggestScale } from "./sheet/compose";
+import { composeSheet, fmt, overlappingLabels, suggestScale } from "./sheet/compose";
 import { toModel, toPage } from "./sheet/scene";
 import { SRI_LANKA_CADASTRAL_V1 } from "./sheet/template";
 import { computeTraverse } from "./traverse";
@@ -46,9 +46,10 @@ describe("delimited point files (synthetic)", () => {
   it("reports bad rows by line and never repairs them", () => {
     const bad = "1,600004.210,500012.345\n2,6,000,07.884,500043.912\n3,,500048.105\n4,600036.470,abc\n";
     const r = parseDelimited(bad, { delimiter: ",", hasHeader: false, columns: COLUMN_ORDERS.PNE });
-    expect(r.points.map((p) => p.pointId)).toEqual(["1", "2"]);
-    // Row 2 reads "6" and "000" as northing and easting: the mapping takes what's there; QC catches the range.
+    expect(r.points.map((p) => p.pointId)).toEqual(["1"]);
+    // Row 2's thousands separators split it into more columns than the mapping: refused, never read as 6 and 000.
     const codes = r.issues.map((i) => [i.code, i.line]);
+    expect(codes).toContainEqual(["EXTRA_COLUMNS", 2]);
     expect(codes).toContainEqual(["MISSING_COORDINATE", 3]);
     expect(codes).toContainEqual(["NOT_A_NUMBER", 4]);
   });
@@ -58,6 +59,31 @@ describe("delimited point files (synthetic)", () => {
     const r = parseDelimited(dup, { delimiter: ",", hasHeader: false, columns: COLUMN_ORDERS.PNE });
     expect(r.points.map((p) => p.pointId)).toEqual(["1"]);
     expect(r.issues.map((i) => i.code)).toEqual(["DUPLICATE_POINT_SAME", "DUPLICATE_POINT_CONFLICT"]);
+    // The same coordinates with another code is a conflict, not a repeat.
+    const recoded = parseDelimited("1,600004.210,500012.345,CP\n1,600004.210,500012.345,MW\n", { delimiter: ",", hasHeader: false, columns: ["point", "northing", "easting", "code"] });
+    expect(recoded.points).toEqual([]);
+    expect(recoded.issues.map((i) => i.code)).toEqual(["DUPLICATE_POINT_CONFLICT"]);
+  });
+
+  it("keeps the code to its own column, unless it's the last one", () => {
+    const middle = parseDelimited("1,CP,500000.000,400000.000\n", { delimiter: ",", hasHeader: false, columns: ["point", "code", "easting", "northing"] });
+    expect(middle.points[0]).toMatchObject({ code: "CP", e: 500000, n: 400000 });
+    const leftOut = parseDelimited("1,500000.000,400000.000,CP,station 4\n", { delimiter: ",", hasHeader: false, columns: ["point", "easting", "northing", "code", "ignore"] });
+    expect(leftOut.points[0]!.code).toBe("CP");
+    const last = parseDelimited("1 500000.000 400000.000 St wall corner\n", { delimiter: "whitespace", hasHeader: false, columns: ["point", "easting", "northing", "code"] });
+    expect(last.points[0]!.code).toBe("St wall corner");
+    // A wide row never loses words: the preview maps the usual row length, a space-separated description
+    // runs on in a last code column, and anything else extra is refused with its line.
+    const spaced = "1 600004.210 500012.345 21.43 CP\n2 600007.884 500043.912 21.88 Concrete post\n3 600036.470 500048.105 22.61 St\n";
+    const pv = previewDelimited(spaced);
+    if ("error" in pv) throw new Error(pv.error.message);
+    expect(pv.columnCount).toBe(5);
+    expect(parseDelimited(spaced, { delimiter: "whitespace", hasHeader: false, columns: COLUMN_ORDERS.PNEZD }).points.map((p) => p.code)).toEqual(["CP", "Concrete post", "St"]);
+    const unquoted = parseDelimited("1,600004.210,500012.345,Wall, masonry\n", { delimiter: ",", hasHeader: false, columns: ["point", "northing", "easting", "code"] });
+    expect(unquoted.issues.map((i) => i.code)).toEqual(["EXTRA_COLUMNS"]);
+    // Nothing is cut short or cleaned quietly: an over-long code is refused with its line.
+    const long = parseDelimited(`1,500000.000,400000.000,${"x".repeat(65)}\n`, { delimiter: ",", hasHeader: false, columns: ["point", "easting", "northing", "code"] });
+    expect(long.issues.map((i) => [i.code, i.line])).toEqual([["CODE_NOT_READABLE", 1]]);
   });
 
   it("refuses thousands separators, exponents and binary files", () => {
@@ -76,15 +102,24 @@ describe("delimited point files (synthetic)", () => {
 
 describe("GeoJSON points (synthetic)", () => {
   it("refuses RFC 7946 longitude and latitude instead of drawing them wrongly", () => {
-    const r = parseGeoJsonPoints(JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Point", coordinates: [80.1, 7.2] }, properties: {} }] }));
+    const r = parseGeoJsonPoints(JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Point", coordinates: [80.1, 7.2] }, properties: {} }] }), 5235);
     expect(r.points).toEqual([]);
     expect(r.issues[0]!.message).toMatch(/longitude and latitude/);
   });
 
   it("reads grid points when the file names an EPSG code", () => {
-    const r = parseGeoJsonPoints(JSON.stringify({ type: "FeatureCollection", crs: { type: "name", properties: { name: "urn:ogc:def:crs:EPSG::5235" } }, features: [{ type: "Feature", geometry: { type: "Point", coordinates: [500012.345, 600004.21, 21.4] }, properties: { point: "1", code: "CP" } }] }));
+    const r = parseGeoJsonPoints(JSON.stringify({ type: "FeatureCollection", crs: { type: "name", properties: { name: "urn:ogc:def:crs:EPSG::5235" } }, features: [{ type: "Feature", geometry: { type: "Point", coordinates: [500012.345, 600004.21, 21.4] }, properties: { point: "1", code: "CP" } }] }), 5235);
     expect(r.namedEpsg).toBe(5235);
     expect(r.points[0]).toMatchObject({ pointId: "1", e: 500012.345, n: 600004.21, z: 21.4, code: "CP" });
+  });
+
+  it("refuses a file in another grid than the project's, and never cuts an id short", () => {
+    const file = (epsg: number, props: Record<string, unknown> = { point: "1" }) => JSON.stringify({ type: "FeatureCollection", crs: { type: "name", properties: { name: `EPSG:${epsg}` } }, features: [{ type: "Feature", geometry: { type: "Point", coordinates: [374_500.0, 766_000.0] }, properties: props }] });
+    // UTM 44N numbers for western Sri Lanka fall inside SLD99's range, so only the file's own code can tell.
+    expect(parseGeoJsonPoints(file(32644), 5235).issues[0]!.message).toMatch(/EPSG:32644.*EPSG:5235/);
+    expect(parseGeoJsonPoints(file(4258), 5235).points).toEqual([]);
+    expect(parseGeoJsonPoints(file(5235), null).issues[0]!.message).toMatch(/local coordinates/);
+    expect(parseGeoJsonPoints(file(5235, { point: "P".repeat(40) }), 5235).issues[0]!.code).toBe("POINT_ID_TOO_LONG");
   });
 });
 
@@ -211,7 +246,79 @@ describe("the plan sheet (synthetic)", () => {
     expect(approved.pages[0]!.items.some((i) => i.kind === "text" && i.text.startsWith("DRAFT."))).toBe(false);
   });
 
+  it("keeps the sample's labels apart, and reports labels that cover each other without moving them", () => {
+    const sheet = composeSheet(input);
+    expect(sheet.findings.map((f) => f.code)).not.toContain("LABELS_OVERLAP");
+    expect(overlappingLabels(sheet.pages[0]!.items)).toEqual([]);
+    // The wall along leg 3 to 4 is labelled inside the lot, the leg's bearing outside it.
+    const items = sheet.pages[0]!.items;
+    const wall = items.find((i) => i.kind === "text" && i.layer === "WALLS");
+    const leg = items.find((i) => i.kind === "text" && i.layer === "DIMENSIONS" && i.text.startsWith("303°"));
+    expect(wall && leg && wall.kind === "text" && leg.kind === "text" ? Math.hypot(wall.x - leg.x, wall.y - leg.y) : 0).toBeGreaterThan(2.2);
+
+    const at = (x: number, y: number, text: string, rotate = 0) => ({ kind: "text" as const, x, y, text, size: 2.2, weight: "regular" as const, font: "sans" as const, anchor: "middle" as const, rotate, color: "ink" as const, layer: "DIMENSIONS" as const });
+    expect(overlappingLabels([at(100, 100, "045°00′00″  20.00"), at(102, 100.5, "MW")])).toEqual([["045°00′00″  20.00", "MW"]]);
+    // Side by side, or one turned clear of the other, is not an overlap.
+    expect(overlappingLabels([at(100, 100, "045°00′00″  20.00"), at(100, 104, "MW")])).toEqual([]);
+    expect(overlappingLabels([at(100, 100, "045°00′00″  20.00", 90), at(110, 100, "MW")])).toEqual([]);
+    expect(overlappingLabels([at(100, 100, "7"), { kind: "circle", cx: 100, cy: 99.4, r: 0.7, width: 0.18, color: "ink", layer: "POINTS" }])).toEqual([["7", "a point"]]);
+
+    const crowded = composeSheet({ ...input, document: { ...doc, labelOffsets: { [`mark:${SAMPLE_POINTS[3]!.id}`]: { dx: 0, dy: 5.5 } } } });
+    const finding = crowded.findings.find((f) => f.code === "LABELS_OVERLAP");
+    expect(finding?.severity).toBe("warning");
+    expect(finding?.blocks).toEqual([]);
+  });
+
+  it("labels the scale bar's middle tick exactly at 1:100", () => {
+    const sheet = composeSheet({ ...input, document: { ...doc, settings: { ...doc.settings, scale: 100 } } });
+    const ticks = sheet.pages[0]!.items.filter((i) => i.kind === "text" && i.entity === "scalebar").map((i) => (i.kind === "text" ? i.text : ""));
+    expect(ticks.slice(0, 3)).toEqual(["0", "2.5", "5 m"]);
+  });
+
+  it("refuses a boundary with no real area, and a sheet it can't print", () => {
+    const line: SurveyPoint[] = [0, 50, 100].map((d, i) => ({ id: `00000000-0000-4000-8000-00000000010${i}`, pointId: String(i + 1), e: 500_000 + d, n: 600_000, z: null, code: null }));
+    const flatDoc = { ...emptyDocument(), boundary: line.map((p) => p.id) };
+    const flat = computeParcel(line, flatDoc.boundary);
+    const findings = checkSurvey({ points: line, crs: SLD99, crsConfirmed: true, document: flatDoc, parcel: flat, surveyorProfile: false });
+    expect(findings.find((f) => f.code === "BOUNDARY_NO_AREA")?.blocks).toEqual(["export", "approval"]);
+    // A bow-tie's two halves cancel to no area, but it's diagnosed as crossing, which it is.
+    const tie: SurveyPoint[] = [[0, 0], [10, 10], [10, 0], [0, 10]].map(([de, dn], i) => ({ id: `00000000-0000-4000-8000-00000000030${i}`, pointId: String(i + 1), e: 500_000 + de!, n: 600_000 + dn!, z: null, code: null }));
+    const tieDoc = { ...emptyDocument(), boundary: tie.map((p) => p.id) };
+    const tieCodes = checkSurvey({ points: tie, crs: SLD99, crsConfirmed: true, document: tieDoc, parcel: computeParcel(tie, tieDoc.boundary), surveyorProfile: false }).map((f) => f.code);
+    expect(tieCodes).toContain("BOUNDARY_SELF_INTERSECTS");
+    expect(tieCodes).not.toContain("BOUNDARY_NO_AREA");
+
+    // Capitals are wide in Geist: 31 of them run past an A4 landscape panel, and that's caught.
+    const caps = composeSheet({ ...input, document: { ...doc, sheet: { ...doc.sheet, planNumber: "WMWMWMWMWMWMWMWMWMWMWMWMWMWMWMW" }, settings: { ...doc.settings, paper: "A4" as const, scale: null } } });
+    expect(caps.findings.map((f) => f.code)).toContain("TEXT_OVERFLOW");
+
+    const long = composeSheet({ ...input, document: { ...doc, sheet: { ...doc.sheet, planNumber: "P".repeat(40) }, settings: { ...doc.settings, paper: "A4" as const, scale: null } } });
+    expect(long.findings.map((f) => f.code)).toContain("TEXT_OVERFLOW");
+
+    const sinhala = composeSheet({ ...input, document: { ...doc, sheet: { ...doc.sheet, landName: "සාම්පල වත්ත" } } });
+    expect(sinhala.findings.find((f) => f.code === "TEXT_SCRIPT_NOT_SUPPORTED")?.blocks).toEqual(["export"]);
+  });
+
+  it("puts every leg's bearing outside a concave lot", () => {
+    const u = [[0, 0], [30, 0], [30, 30], [20, 30], [20, 10], [10, 10], [10, 30], [0, 30]].map(([de, dn], i) => ({ id: `00000000-0000-4000-8000-0000000002${String(i).padStart(2, "0")}`, pointId: String(i + 1), e: 500_000 + de!, n: 600_000 + dn!, z: null, code: null }));
+    const uDoc = { ...emptyDocument(), boundary: u.map((p) => p.id) };
+    const pr = computeParcel(u, uDoc.boundary);
+    if (!pr.ok) throw new Error("u parcel");
+    const sheet = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: uDoc, points: u, parcel: pr.parcel, crs: SLD99, crsConfirmation: "Confirmed", surveyor: null, approval: null });
+    const ring = u.map((p) => toPage(sheet.viewport!, p.e, p.n));
+    const inside = (x: number, y: number) => ring.reduce((acc, [x1, y1], i) => {
+      const [x2, y2] = ring[(i + 1) % ring.length]!;
+      return (y1 > y) !== (y2 > y) && x < ((x2 - x1) * (y - y1)) / (y2 - y1) + x1 ? !acc : acc;
+    }, false);
+    const labels = sheet.pages[0]!.items.filter((i) => i.kind === "text" && i.layer === "DIMENSIONS");
+    expect(labels).toHaveLength(8);
+    for (const l of labels) if (l.kind === "text") expect(inside(l.x, l.y)).toBe(false);
+  });
+
   it("formats numbers the same everywhere", () => {
+    // Half away from zero, like areas and angles: toFixed alone would give "1.00".
+    expect(fmt(1.005, 2)).toBe("1.01");
+    expect(fmt(-0.001, 2)).toBe("0.00");
     expect(fmt(1311.118096, 2)).toBe("1,311.12");
     expect(fmt(500012.345, 3)).toBe("500,012.345");
     expect(fmt(-0.5, 1)).toBe("-0.5");
@@ -224,7 +331,7 @@ describe("exports (synthetic)", () => {
   if (!r.ok) throw new Error("sample parcel");
 
   it("writes an R12 DXF that an independent reader opens with every layer and coordinate", () => {
-    const dxf = writeDxf({ document: doc, points: SAMPLE_POINTS, parcel: r.parcel, crs: SLD99, scale: 250, projectName: "Sample" });
+    const dxf = writeDxf({ document: doc, points: SAMPLE_POINTS, parcel: r.parcel, crs: SLD99, scale: 250, projectName: "Sample", status: "DRAFT, version 1. Not certified." });
     expect(dxf.startsWith("0\r\nSECTION\r\n2\r\nHEADER\r\n9\r\n$ACADVER\r\n1\r\nAC1009")).toBe(true);
     expect(dxf.trimEnd().endsWith("EOF")).toBe(true);
     expect(/[^\x09\x0a\x0d\x20-\x7e]/.test(dxf)).toBe(false);
@@ -242,13 +349,18 @@ describe("exports (synthetic)", () => {
     expect(texts.filter((t) => t.layer === "POINT_NUMBERS").map((t) => t.text)).toEqual(["1", "2", "3", "4", "5"]);
     expect(texts.some((t) => t.layer === "DIMENSIONS" && t.text.includes("%%d"))).toBe(true);
     expect(parsed.entities.filter((e) => e.type === "POINT")).toHaveLength(5);
+    // The draft status is in the drawing itself, so a renamed file still says it.
+    expect(texts.some((t) => t.layer === "TEXT" && t.text === "DRAFT, version 1. Not certified.")).toBe(true);
   });
 
   it("writes CSV that spreadsheets can't run, and GeoJSON that names its grid", () => {
     const csv = pointsCsv([...SAMPLE_POINTS, { id: "x", pointId: "=CMD()", e: 1, n: 2, z: null, code: "+x" }]);
     expect(csv.split("\r\n")[0]).toBe("point,easting,northing,elevation,code");
     expect(csv).toContain("'=CMD(),1,2,,'+x");
-    const gj = JSON.parse(surveyGeoJson({ points: SAMPLE_POINTS, parcel: r.parcel, crs: SLD99, projectName: "Sample", lot: "1" }));
+    // A plain negative number can't run as a formula, so it comes back as it went in.
+    expect(pointsCsv([{ id: "y", pointId: "-1", e: 1, n: 2, z: null, code: null }]).split("\r\n")[1]).toBe("-1,1,2,,");
+    const gj = JSON.parse(surveyGeoJson({ points: SAMPLE_POINTS, parcel: r.parcel, crs: SLD99, crsConfirmed: false, status: "DRAFT", projectName: "Sample", lot: "1" }));
+    expect(gj.farbaek).toMatchObject({ coordinate_system_confirmed: false, status: "DRAFT" });
     expect(gj.crs.properties.name).toBe("urn:ogc:def:crs:EPSG::5235");
     const parcelFeature = gj.features.find((f: { properties: { kind: string } }) => f.properties.kind === "parcel");
     const ring = parcelFeature.geometry.coordinates[0];

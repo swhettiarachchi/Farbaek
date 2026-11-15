@@ -82,7 +82,7 @@ export const settingsSchema = z.object({
   distanceDecimals: z.number().int().min(2).max(4),
   /** Overleaf schedule of coordinates, legs and the area computation. */
   overleaf: z.boolean(),
-  /** UDA regulation 9's 75 mm × 50 mm development permit box on the front page (docs/survey/SURVEY_STANDARDS_RESEARCH.md). */
+  /** UDA regulation 9's 75 mm × 50 mm development permit box on the front page (docs/survey/STANDARDS_RESEARCH.md). */
   permitBox: z.boolean(),
 });
 export type DrawingSettings = z.infer<typeof settingsSchema>;
@@ -104,7 +104,7 @@ export type SurveyDocument = z.infer<typeof surveyDocumentSchema>;
 
 /**
  * Legend codes a surveyor can start from: the examples in the owner's brief.
- * They are not an official list (docs/survey/SURVEY_STANDARDS_RESEARCH.md), and
+ * They are not an official list (docs/survey/STANDARDS_RESEARCH.md), and
  * the sheet says so until the surveyor edits them.
  */
 export const BRIEF_LEGEND_EXAMPLES: SheetFields["legend"] = [

@@ -8,6 +8,7 @@ import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
 import type { SurveyDocument } from "./document";
 import { legendIsBriefExamples } from "./document";
+import { TOUCH_TOLERANCE_M, distance, orient, type Point } from "./geometry";
 import type { ParcelResult, SurveyPoint } from "./parcel";
 
 export type Severity = "error" | "warning" | "information" | "professional_review";
@@ -37,6 +38,15 @@ export interface QcInput {
 }
 
 export const SEVERITY_ORDER: Severity[] = ["error", "professional_review", "warning", "information"];
+
+/** Whether every point lies within half a millimetre of the line through the two farthest apart. */
+function collinear(points: readonly Point[]): boolean {
+  const a = points[0]!;
+  const b = points.reduce((far, p) => (distance(a, p) > distance(a, far) ? p : far), a);
+  const len = distance(a, b);
+  if (len <= TOUCH_TOLERANCE_M) return true;
+  return points.every((p) => Math.abs(orient(a, b, p)) / len <= TOUCH_TOLERANCE_M);
+}
 
 export function checkSurvey(input: QcInput): Finding[] {
   const out: Finding[] = [];
@@ -79,7 +89,13 @@ export function checkSurvey(input: QcInput): Finding[] {
       const leg = p.legs[i];
       if (leg) add({ code: "BOUNDARY_ZERO_LEG", severity: "error", message: `The leg from ${leg.from.pointId} to ${leg.to.pointId} has no length.`, target: { kind: "leg", id: String(i) }, detail: `${(leg.distance * 1000).toFixed(1)} mm`, action: "Two boundary points sit on the same spot. Remove one, or check the field data.", blocks: ["export", "approval"] });
     }
-    if (p.crossings.length > 0) {
+    // Points on one line (which also fold back over themselves) are diagnosed as that; a crossing ring as crossing;
+    // a ring thinner than about a millimetre on average as having no area. "0A 0R 0.00P" is never a lot.
+    const onOneLine = p.vertices.length >= 3 && collinear(p.vertices);
+    const sliver = !onOneLine && p.crossings.length === 0 && p.vertices.length >= 3 && p.areaM2 <= p.perimeterM * TOUCH_TOLERANCE_M;
+    if (onOneLine || sliver) {
+      add({ code: "BOUNDARY_NO_AREA", severity: "error", message: "The boundary encloses no real area: its points lie on a line.", target: { kind: "boundary" }, detail: `${p.areaM2.toFixed(6)} m² inside a perimeter of ${p.perimeterM.toFixed(3)} m.`, action: "Check the order and the coordinates of the boundary points.", blocks: ["export", "approval"] });
+    } else if (p.crossings.length > 0) {
       const [a, b] = p.crossings[0]!;
       const la = p.legs[a]!, lb = p.legs[b]!;
       add({ code: "BOUNDARY_SELF_INTERSECTS", severity: "error", message: "The boundary crosses itself, so its area can't be computed.", target: { kind: "boundary" }, detail: `The leg ${la.from.pointId}–${la.to.pointId} meets the leg ${lb.from.pointId}–${lb.to.pointId}${p.crossings.length > 1 ? `, and ${p.crossings.length - 1} more pairs cross` : ""}.`, action: "Check the order of the boundary points.", blocks: ["export", "approval"] });

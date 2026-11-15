@@ -9,7 +9,7 @@
  *   1 acre        = 4 roods = 160 perches = 4,046.8564224 m²
  *   1 hectare     = 10,000 m²
  * Areas are stored and computed in square metres; these conversions run only
- * when presenting or exporting. Sources and status: docs/survey/SURVEY_STANDARDS_RESEARCH.md.
+ * when presenting or exporting. Sources and status: docs/survey/STANDARDS_RESEARCH.md.
  */
 
 export const YARD_M = 0.9144;

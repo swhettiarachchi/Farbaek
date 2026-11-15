@@ -51,7 +51,7 @@ describe("the plan PDF", () => {
     expect(((10 * 1000) / v.scale) * MM_TO_PT).toBeCloseTo((10_000 / v.scale) * (72 / 25.4), 9);
   }, 30_000);
 
-  it("gives the same bytes for the same version", async () => {
+  it("is the same size for the same version", async () => {
     const a = await renderPdf(sheet.pages, meta);
     const b = await renderPdf(sheet.pages, meta);
     expect(a.length).toBe(b.length);

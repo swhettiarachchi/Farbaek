@@ -157,6 +157,22 @@ describe("planar geometry", () => {
     expect(selfIntersections(bowtie).length).toBeGreaterThan(0);
   });
 
+  it("finds a corner resting on a far leg at grid-sized coordinates, and a leg folding back on its neighbour", () => {
+    // Whole-millimetre SLD99-range coordinates. A notch E-D-F comes in from one side and rests its corner D
+    // exactly on the 1 km leg A-B (A + 0.4 (B - A)); every other corner is on that same side.
+    const A = { e: 512_345.678, n: 623_456.789 };
+    const B = { e: 512_945.678, n: 624_256.789 };
+    const C = { e: 513_185.678, n: 624_076.789 };
+    const E = { e: 512_745.678, n: 623_656.789 };
+    const D = { e: 512_585.678, n: 623_776.789 };
+    const F = { e: 512_525.678, n: 623_446.789 };
+    expect(selfIntersections([A, B, C, E, D, F]).length).toBeGreaterThan(0);
+    // A centimetre clear of the leg (along its normal, 0.8 and -0.6) is a simple ring.
+    expect(selfIntersections([A, B, C, E, { e: D.e + 0.008, n: D.n - 0.006 }, F])).toEqual([]);
+    // A spike: the third point runs back along the second leg.
+    expect(selfIntersections([{ e: 0, n: 0 }, { e: 10, n: 0 }, { e: 10, n: 10 }, { e: 10, n: 4 }, { e: 0, n: 10 }]).length).toBeGreaterThan(0);
+  });
+
   it("finds zero-length legs within a millimetre", () => {
     expect(zeroLengthLegs([{ e: 0, n: 0 }, { e: 0.0002, n: 0 }, { e: 10, n: 0 }, { e: 0, n: 10 }])).toEqual([0]);
     expect(zeroLengthLegs(RECT)).toEqual([]);

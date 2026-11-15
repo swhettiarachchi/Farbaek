@@ -6,6 +6,7 @@ import {
   CaretRightIcon,
   GraphIcon,
   ClockCounterClockwiseIcon,
+  CompassToolIcon,
   CheckSquareOffsetIcon,
   CreditCardIcon,
   DesktopIcon,
@@ -55,6 +56,7 @@ const CORE: NavItem[] = [
 
 /** Useful, not needed every day: one labelled group, opened when wanted. */
 const TOOLS: NavItem[] = [
+  { href: "/app/survey", label: "Survey Studio", short: "Survey", icon: CompassToolIcon, about: "Land survey plans from field data, drawn to scale as PDF and DXF.", also: ["Survey", "Land survey", "Cadastral", "Survey plan", "DXF"] },
   { href: "/app/sandbox", label: "Test space", short: "Test space", icon: TerminalWindowIcon, about: "Run an app and try it, safely apart from everything else.", also: ["Sandbox", "Terminal"] },
   { href: "/app/skills", label: "Skills", short: "Skills", icon: BookOpenTextIcon, about: "Teach the agent how to design and build, from a library or your own.", also: ["SKILL.md", "Claude Skills", "Design skills"] },
   { href: "/app/agents", label: "Desktop app", short: "Desktop app", icon: DesktopIcon, about: "Let the agent work on your own computer.", also: ["Agents", "Farbaek Agent"] },

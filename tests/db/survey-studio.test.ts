@@ -20,8 +20,8 @@ const doc = (extra: Record<string, unknown> = {}) => JSON.stringify({ schema: 1,
 const points = (rows: [string, number, number, number | null][]) => JSON.stringify(rows.map(([point_id, e, n, z], i) => ({ point_id, e, n, z, code: "CP", line: i + 1 })));
 const create = (actor: string, orgId = org, type = "cadastral", confirm = true) =>
   q<{ id: string }>("select public.app_survey_create_project($1, $2, 'Sample site', $3, 'EPSG:5235', $4, $5::jsonb) as id", [orgId, actor, type, confirm, doc()]).then((r) => r[0]!.id);
-const importPoints = (actor: string, json: string, content = "synthetic") =>
-  q<{ r: { source_id: string; added: number; skipped: number } }>("select public.app_survey_import($1, $2, $3, 'pts.csv', 'delimited', $4, '{}'::jsonb, $5::jsonb) as r", [org, actor, project, content, json]).then((r) => r[0]!.r);
+const importPoints = (actor: string, json: string, content = "synthetic", crs = "EPSG:5235") =>
+  q<{ r: { source_id: string; added: number; skipped: number } }>("select public.app_survey_import($1, $2, $3, 'pts.csv', 'delimited', $4, $6::jsonb, $5::jsonb) as r", [org, actor, project, content, json, JSON.stringify({ crs })]).then((r) => r[0]!.r);
 const save = (actor: string, base: number, document = doc(), orgId = org, projectId = project) =>
   q<{ v: number }>("select public.app_survey_save_drawing($1, $2, $3, $4, $5::jsonb, 'edit') as v", [orgId, actor, projectId, base, document]).then((r) => r[0]!.v);
 
@@ -77,6 +77,14 @@ describe("imported points", () => {
   it("refuses an import that would change an existing point, as a whole", async () => {
     await expect(importPoints(USERS.alice, points([["4", 500027.66, 600049.902, 22.95], ["1", 500012.346, 600004.21, 21.43]]))).rejects.toThrow(/POINT_CONFLICT: 1/);
     expect(await su("select count(*)::int as c from public.survey_points where project_id = $1 and point_id = '4'", [project])).toEqual([{ c: 0 }]);
+    // The same coordinates with a different code is a different point too: a corrected code never hides as "unchanged".
+    const recoded = JSON.stringify([{ point_id: "1", e: 500012.345, n: 600004.21, z: 21.43, code: "MW", line: 1 }]);
+    await expect(importPoints(USERS.alice, recoded)).rejects.toThrow(/POINT_CONFLICT: 1/);
+  });
+
+  it("refuses an import confirmed in a grid the project no longer has", async () => {
+    await expect(importPoints(USERS.alice, points([["4", 500027.66, 600049.902, 22.95]]), "synthetic", "EPSG:5234")).rejects.toThrow(/CRS_CHANGED/);
+    await expect(q("select public.app_survey_import($1, $2, $3, 'pts.csv', 'delimited', 'x', '{}'::jsonb, $4::jsonb)", [org, USERS.alice, project, points([["4", 1, 2, null]])])).rejects.toThrow(/CRS_CHANGED/);
   });
 
   it("never lets anyone change or delete a point from the browser", async () => {
@@ -105,15 +113,29 @@ describe("approval", () => {
   const sha = "a".repeat(64);
 
   it("lets only the surveyor the drawing names, with a profile, approve the latest version", async () => {
-    await expect(q("select public.app_survey_approve($1, $2, $3, 3, $4)", [org, USERS.alice, project, sha])).rejects.toThrow(/NOT_THE_SURVEYOR/);
+    await expect(q("select public.app_survey_approve($1, $2, $3, 3, 'EPSG:5235', $4)", [org, USERS.alice, project, sha])).rejects.toThrow(/NOT_THE_SURVEYOR/);
     const v = await save(USERS.alice, 3, doc({ surveyorUserId: USERS.alice }));
-    await expect(q("select public.app_survey_approve($1, $2, $3, $4, $5)", [org, USERS.alice, project, v, sha])).rejects.toThrow(/NO_SURVEYOR_PROFILE/);
+    await expect(q("select public.app_survey_approve($1, $2, $3, $4, 'EPSG:5235', $5)", [org, USERS.alice, project, v, sha])).rejects.toThrow(/NO_SURVEYOR_PROFILE/);
     await q("select public.app_survey_set_profile($1, $2, 'A. Sample', 'Licensed surveyor (sample)', 'SAMPLE-0', 'Sample address', '')", [org, USERS.alice]);
-    await expect(q("select public.app_survey_approve($1, $2, $3, $4, $5)", [org, USERS.alice, project, v - 1, sha])).rejects.toThrow(/VERSION_CONFLICT/);
-    await q("select public.app_survey_approve($1, $2, $3, $4, $5)", [org, USERS.alice, project, v, sha]);
-    await expect(q("select public.app_survey_approve($1, $2, $3, $4, $5)", [org, USERS.alice, project, v, sha])).rejects.toThrow(/ALREADY_APPROVED/);
+    await expect(q("select public.app_survey_approve($1, $2, $3, $4, 'EPSG:5235', $5)", [org, USERS.alice, project, v - 1, sha])).rejects.toThrow(/VERSION_CONFLICT/);
+    await q("select public.app_survey_approve($1, $2, $3, $4, 'EPSG:5235', $5)", [org, USERS.alice, project, v, sha]);
+    await expect(q("select public.app_survey_approve($1, $2, $3, $4, 'EPSG:5235', $5)", [org, USERS.alice, project, v, sha])).rejects.toThrow(/ALREADY_APPROVED/);
     const [a] = await su<{ drawing_version: number; surveyor: { name: string } }>("select drawing_version, surveyor from public.survey_approvals where project_id = $1", [project]);
     expect(a).toMatchObject({ drawing_version: v, surveyor: { name: "A. Sample" } });
+    // Approving against a grid that has changed since the server read it is refused.
+    await expect(q("select public.app_survey_approve($1, $2, $3, $4, 'EPSG:5234', $5)", [org, USERS.alice, project, v, sha])).rejects.toThrow(/CRS_CHANGED/);
+
+    // Changing the grid withdraws the approval (kept as a record), and the version can be approved again.
+    await q("select public.app_survey_update_project($1, $2, $3, 'Sample site', 'EPSG:5234', true)", [org, USERS.alice, project]);
+    expect(await su("select withdrawn_reason from public.survey_approvals where project_id = $1", [project])).toEqual([{ withdrawn_reason: "crs_changed" }]);
+    const [ev] = await su<{ metadata: { approvals_withdrawn: number } }>("select metadata from public.audit_events where org_id = $1 and action = 'survey.crs_confirmed' order by id desc limit 1", [org]);
+    expect(ev!.metadata.approvals_withdrawn).toBe(1);
+    await q("select public.app_survey_approve($1, $2, $3, $4, 'EPSG:5234', $5)", [org, USERS.alice, project, v, "c".repeat(64)]);
+    expect(await su("select count(*)::int as c from public.survey_approvals where project_id = $1 and withdrawn_at is null", [project])).toEqual([{ c: 1 }]);
+    // Re-confirming the same grid withdraws nothing.
+    await q("select public.app_survey_update_project($1, $2, $3, 'Sample site', 'EPSG:5234', true)", [org, USERS.alice, project]);
+    expect(await su("select count(*)::int as c from public.survey_approvals where project_id = $1 and withdrawn_at is null", [project])).toEqual([{ c: 1 }]);
+
     // A later edit is a new, unapproved version.
     const next = await save(USERS.alice, v, doc({ surveyorUserId: USERS.alice }));
     expect(await su("select count(*)::int as c from public.survey_approvals a join public.survey_drawings d on d.id = a.drawing_id where d.version = $1 and d.project_id = $2", [next, project])).toEqual([{ c: 0 }]);
@@ -126,6 +148,10 @@ describe("exports and reading", () => {
     await expect(q("select public.app_survey_record_export($1, $2, $3, 1, 'pdf', $4, 1234, '{}'::jsonb)", [org, USERS.bob, project, "b".repeat(64)])).rejects.toThrow(/FORBIDDEN/);
     await expect(q("select public.app_survey_record_export($1, $2, $3, 999, 'pdf', $4, 1234, '{}'::jsonb)", [org, USERS.alice, project, "b".repeat(64)])).rejects.toThrow(/NOT_FOUND/);
     expect(await su("select count(*)::int as c from public.audit_events where org_id = $1 and action = 'survey.exported'", [org])).toEqual([{ c: 1 }]);
+    // A paused workspace makes no new files.
+    await su("update public.organizations set suspended_at = now() where id = $1", [org]);
+    await expect(q("select public.app_survey_record_export($1, $2, $3, 1, 'pdf', $4, 1234, '{}'::jsonb)", [org, USERS.alice, project, "b".repeat(64)])).rejects.toThrow(/WORKSPACE_SUSPENDED/);
+    await su("update public.organizations set suspended_at = null where id = $1", [org]);
   });
 
   it("shows members their own workspace's survey data and nothing of others'", async () => {
@@ -141,5 +167,6 @@ describe("exports and reading", () => {
   it("archives a project, which then takes no more edits", async () => {
     await q("select public.app_survey_archive_project($1, $2, $3)", [org, USERS.alice, project]);
     await expect(importPoints(USERS.alice, points([["9", 1, 2, null]]))).rejects.toThrow(/NOT_FOUND/);
+    await expect(q("select public.app_survey_record_export($1, $2, $3, 1, 'pdf', $4, 1234, '{}'::jsonb)", [org, USERS.alice, project, "b".repeat(64)])).rejects.toThrow(/NOT_FOUND/);
   });
 });

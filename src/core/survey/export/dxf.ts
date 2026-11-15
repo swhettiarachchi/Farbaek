@@ -1,7 +1,7 @@
 /**
  * DXF export as AutoCAD R12 (AC1009) ASCII, the most widely readable DXF
  * (ADR 0200; research notes: R12 needs no handles or object dictionaries,
- * and re-saving to R12 is the usual fix when a reader refuses newer files).
+ * so the widest range of readers open it).
  *
  * Model space holds the real grid coordinates in metres: easting as X,
  * northing as Y. R12 has no units header variable, so the units and the
@@ -44,6 +44,8 @@ export interface DxfInput {
   /** The plan's scale denominator, for text heights. */
   scale: number;
   projectName: string;
+  /** One line saying whether the plan is a draft or approved, and whether the grid was confirmed. Written into the drawing, so it survives a renamed file. */
+  status: string;
 }
 
 /** ASCII-only DXF text: degree signs as %%d, primes as ' and ", anything else non-ASCII as \U+XXXX. */
@@ -157,6 +159,7 @@ export function writeDxf(input: DxfInput): string {
   const notes = [
     `${input.projectName}. Units: metres. X = easting, Y = northing, ${crsNote}.`,
     `Bearings: whole-circle from grid north. Text sized for 1:${input.scale}. ${SURVEY_ENGINE_VERSION}.`,
+    input.status,
   ];
   notes.forEach((n, i) => text("TEXT", ext.minE, ext.minN - h(8) - i * h(3.5), n, h(2), 0, false));
 

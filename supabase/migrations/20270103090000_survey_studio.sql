@@ -104,8 +104,13 @@ create table public.survey_approvals (
   -- SHA-256 of what was approved: the document and every coordinate it uses (computed by the server).
   content_sha256   text not null check (content_sha256 ~ '^[0-9a-f]{64}$'),
   approved_at      timestamptz not null default now(),
-  constraint survey_approvals_once unique (drawing_id)
+  -- Set when the approval stops applying (the project's grid changed after it). The row stays as a record.
+  withdrawn_at     timestamptz,
+  withdrawn_reason text check (withdrawn_reason is null or withdrawn_reason in ('crs_changed')),
+  constraint survey_approvals_withdrawn check ((withdrawn_at is null) = (withdrawn_reason is null))
 );
+-- One standing approval per version; a withdrawn one can be followed by a new approval.
+create unique index survey_approvals_once on public.survey_approvals (drawing_id) where withdrawn_at is null;
 
 create table public.survey_exports (
   id               uuid primary key default gen_random_uuid(),
@@ -199,6 +204,7 @@ set search_path = ''
 as $$
 declare
   v_old public.survey_projects%rowtype;
+  v_withdrawn integer := 0;
 begin
   perform private.require_contributor(p_org, p_actor);
   perform private.survey_project_open(p_org, p_project);
@@ -210,9 +216,15 @@ begin
     crs_confirmed_at = case when p_confirm then now() when p_crs = v_old.crs_id then v_old.crs_confirmed_at end,
     updated_at = now()
   where p.id = p_project;
+  -- A surveyor approved the plan in its old grid, not this one: their approvals stop applying.
+  if p_crs is distinct from v_old.crs_id then
+    update public.survey_approvals a set withdrawn_at = now(), withdrawn_reason = 'crs_changed'
+    where a.project_id = p_project and a.withdrawn_at is null;
+    get diagnostics v_withdrawn = row_count;
+  end if;
   insert into public.audit_events (org_id, actor_id, action, target, metadata)
   values (p_org, p_actor, case when p_confirm then 'survey.crs_confirmed' else 'survey.project_updated' end, p_project::text,
-    jsonb_build_object('name', btrim(p_name), 'crs', p_crs, 'crs_before', v_old.crs_id));
+    jsonb_build_object('name', btrim(p_name), 'crs', p_crs, 'crs_before', v_old.crs_id, 'approvals_withdrawn', v_withdrawn));
 end;
 $$;
 
@@ -238,10 +250,14 @@ begin
     raise exception 'INVALID_REQUEST' using errcode = '22023';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('survey_points:' || p_project::text, 0));
+  -- The person confirmed the file's units in the grid the page showed; if the grid changed since, nothing imports.
+  if (p_settings ->> 'crs') is distinct from (select p.crs_id from public.survey_projects p where p.id = p_project for share) then
+    raise exception 'CRS_CHANGED' using errcode = 'P0001';
+  end if;
   select coalesce(array_agg(x.point_id order by x.point_id), '{}') into v_conflicts
-  from jsonb_to_recordset(p_points) as x(point_id text, e numeric, n numeric, z numeric)
+  from jsonb_to_recordset(p_points) as x(point_id text, e numeric, n numeric, z numeric, code text)
   join public.survey_points sp on sp.project_id = p_project and sp.point_id = x.point_id
-  where sp.e <> x.e or sp.n <> x.n or sp.z is distinct from x.z;
+  where sp.e <> x.e or sp.n <> x.n or sp.z is distinct from x.z or sp.code is distinct from nullif(x.code, '');
   if array_length(v_conflicts, 1) > 0 then
     raise exception 'POINT_CONFLICT: %', array_to_string(v_conflicts[1:10], ', ') using errcode = '23505';
   end if;
@@ -326,7 +342,7 @@ $$;
 
 -- The responsible surveyor approves the latest version, exactly as it is. Only the surveyor the document names, with
 -- their own profile, can approve; the approval records their details at that moment and the hash of what they saw.
-create function public.app_survey_approve(p_org uuid, p_actor uuid, p_project uuid, p_version integer, p_content_sha256 text)
+create function public.app_survey_approve(p_org uuid, p_actor uuid, p_project uuid, p_version integer, p_crs text, p_content_sha256 text)
 returns uuid
 language plpgsql
 security definer
@@ -339,6 +355,10 @@ declare
 begin
   perform private.require_contributor(p_org, p_actor);
   perform private.survey_project_open(p_org, p_project);
+  -- The hash covers the grid the server read; holding the project row keeps the grid from changing until this commits.
+  if p_crs is distinct from (select p.crs_id from public.survey_projects p where p.id = p_project for update) then
+    raise exception 'CRS_CHANGED' using errcode = 'P0001';
+  end if;
   perform pg_advisory_xact_lock(hashtextextended('survey_drawings:' || p_project::text, 0));
   select * into v_drawing from public.survey_drawings d where d.project_id = p_project order by d.version desc limit 1;
   if v_drawing.version is distinct from p_version then
@@ -351,7 +371,7 @@ begin
   if not found then
     raise exception 'NO_SURVEYOR_PROFILE' using errcode = '42501';
   end if;
-  if exists (select 1 from public.survey_approvals a where a.drawing_id = v_drawing.id) then
+  if exists (select 1 from public.survey_approvals a where a.drawing_id = v_drawing.id and a.withdrawn_at is null) then
     raise exception 'ALREADY_APPROVED' using errcode = '23505';
   end if;
   insert into public.survey_approvals (project_id, org_id, drawing_id, drawing_version, approved_by, surveyor, content_sha256)
@@ -378,6 +398,11 @@ begin
   if not exists (select 1 from public.organization_members m where m.org_id = p_org and m.user_id = p_actor) then
     raise exception 'FORBIDDEN' using errcode = '42501';
   end if;
+  -- Like every other write here: a paused workspace and an archived project make no new files.
+  if private.org_suspended(p_org) then
+    raise exception 'WORKSPACE_SUSPENDED' using errcode = 'P0001';
+  end if;
+  perform private.survey_project_open(p_org, p_project);
   if not exists (select 1 from public.survey_drawings d join public.survey_projects p on p.id = d.project_id where d.project_id = p_project and p.org_id = p_org and d.version = p_version) then
     raise exception 'NOT_FOUND' using errcode = 'P0002';
   end if;
@@ -411,7 +436,7 @@ revoke all on function public.app_survey_update_project(uuid, uuid, uuid, text, 
 revoke all on function public.app_survey_import(uuid, uuid, uuid, text, text, text, jsonb, jsonb) from public, anon, authenticated;
 revoke all on function public.app_survey_save_drawing(uuid, uuid, uuid, integer, jsonb, text) from public, anon, authenticated;
 revoke all on function public.app_survey_set_profile(uuid, uuid, text, text, text, text, text) from public, anon, authenticated;
-revoke all on function public.app_survey_approve(uuid, uuid, uuid, integer, text) from public, anon, authenticated;
+revoke all on function public.app_survey_approve(uuid, uuid, uuid, integer, text, text) from public, anon, authenticated;
 revoke all on function public.app_survey_record_export(uuid, uuid, uuid, integer, text, text, integer, jsonb) from public, anon, authenticated;
 revoke all on function public.app_survey_archive_project(uuid, uuid, uuid) from public, anon, authenticated;
 grant execute on function public.app_survey_create_project(uuid, uuid, text, text, text, boolean, jsonb) to service_role;
@@ -419,6 +444,6 @@ grant execute on function public.app_survey_update_project(uuid, uuid, uuid, tex
 grant execute on function public.app_survey_import(uuid, uuid, uuid, text, text, text, jsonb, jsonb) to service_role;
 grant execute on function public.app_survey_save_drawing(uuid, uuid, uuid, integer, jsonb, text) to service_role;
 grant execute on function public.app_survey_set_profile(uuid, uuid, text, text, text, text, text) to service_role;
-grant execute on function public.app_survey_approve(uuid, uuid, uuid, integer, text) to service_role;
+grant execute on function public.app_survey_approve(uuid, uuid, uuid, integer, text, text) to service_role;
 grant execute on function public.app_survey_record_export(uuid, uuid, uuid, integer, text, text, integer, jsonb) to service_role;
 grant execute on function public.app_survey_archive_project(uuid, uuid, uuid) to service_role;

@@ -111,29 +111,54 @@ export function orient(a: Point, b: Point, c: Point): number {
   return (b.e - a.e) * (c.n - a.n) - (b.n - a.n) * (c.e - a.e);
 }
 
-/**
- * Whether segments ab and cd share any point. The orientation tolerance is
- * area-like (m²): products below it count as collinear. One millimetre over a
- * kilometre-long leg is about 1e-3 m², so 1e-9 m² only absorbs float residue.
- */
-export function segmentsIntersect(a: Point, b: Point, c: Point, d: Point, tolerance = 1e-9): boolean {
-  const sgn = (v: number) => (Math.abs(v) <= tolerance ? 0 : v > 0 ? 1 : -1);
-  const o1 = sgn(orient(a, b, c)), o2 = sgn(orient(a, b, d)), o3 = sgn(orient(c, d, a)), o4 = sgn(orient(c, d, b));
-  if (o1 !== o2 && o3 !== o4) return true;
-  const on = (p: Point, q: Point, r: Point) => Math.min(p.e, q.e) - 1e-9 <= r.e && r.e <= Math.max(p.e, q.e) + 1e-9 && Math.min(p.n, q.n) - 1e-9 <= r.n && r.n <= Math.max(p.n, q.n) + 1e-9;
-  return (o1 === 0 && on(a, b, c)) || (o2 === 0 && on(a, b, d)) || (o3 === 0 && on(c, d, a)) || (o4 === 0 && on(c, d, b));
+/** The shortest distance from point p to segment ab, in metres. */
+export function pointSegmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b.e - a.e;
+  const dy = b.n - a.n;
+  const l2 = dx * dx + dy * dy;
+  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.e - a.e) * dx + (p.n - a.n) * dy) / l2));
+  return Math.hypot(p.e - a.e - t * dx, p.n - a.n - t * dy);
 }
 
-/** Pairs of legs (by index of their first vertex) that cross or touch, other than neighbours sharing their joint. */
+/**
+ * The shortest distance between segments ab and cd, in metres: zero when
+ * they cross. Working in distances rather than orientation products keeps
+ * the tolerance meaningful at grid-sized coordinates (eastings near 500 km),
+ * where a product's rounding noise grows with the legs' lengths.
+ */
+export function segmentDistance(a: Point, b: Point, c: Point, d: Point): number {
+  const o1 = orient(a, b, c), o2 = orient(a, b, d), o3 = orient(c, d, a), o4 = orient(c, d, b);
+  if (((o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0)) && ((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0))) return 0;
+  return Math.min(pointSegmentDistance(c, a, b), pointSegmentDistance(d, a, b), pointSegmentDistance(a, c, d), pointSegmentDistance(b, c, d));
+}
+
+/** The distance under which two legs count as touching: half a millimetre, as for zero-length legs. */
+export const TOUCH_TOLERANCE_M = 0.0005;
+
+/** Whether segments ab and cd cross or come within `tolerance` metres of each other. */
+export function segmentsIntersect(a: Point, b: Point, c: Point, d: Point, tolerance = TOUCH_TOLERANCE_M): boolean {
+  return segmentDistance(a, b, c, d) <= tolerance;
+}
+
+/**
+ * Pairs of legs (by index of their first vertex) that cross or touch. Legs
+ * that aren't neighbours must stay apart everywhere; neighbours share their
+ * joint, so they only count when one folds back along the other.
+ */
 export function selfIntersections(ring: Ring): [number, number][] {
   const r = openRing(ring);
   const n = r.length;
   const found: [number, number][] = [];
-  if (n < 4) return found;
+  if (n < 3) return found;
+  const tol = TOUCH_TOLERANCE_M;
   for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      // Neighbouring legs share a vertex by construction; the first and last legs are neighbours too.
-      if (j === i + 1 || (i === 0 && j === n - 1)) continue;
+    const a = r[i]!, b = r[(i + 1) % n]!, c = r[(i + 2) % n]!;
+    // A spike: the next leg runs back over this one (zero-length legs are reported on their own).
+    if (distance(a, b) > tol && distance(b, c) > tol && (pointSegmentDistance(c, a, b) <= tol || pointSegmentDistance(a, b, c) <= tol)) found.push(i + 1 < n ? [i, (i + 1) % n] : [(i + 1) % n, i]);
+    if (n < 4) continue;
+    for (let j = i + 2; j < n; j++) {
+      // The first and last legs are neighbours too.
+      if (i === 0 && j === n - 1) continue;
       if (segmentsIntersect(r[i]!, r[(i + 1) % n]!, r[j]!, r[(j + 1) % n]!)) found.push([i, j]);
     }
   }

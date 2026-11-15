@@ -5,7 +5,7 @@
  * a claimed CRS is plausible; several Sri Lankan and UTM ranges overlap, so a
  * plausible range proves nothing on its own.
  *
- * Definitions and their sources: docs/survey/SURVEY_STANDARDS_RESEARCH.md.
+ * Definitions and their sources: docs/survey/STANDARDS_RESEARCH.md.
  * No transformation between systems runs in this stage.
  */
 import type { Bounds } from "./geometry";
@@ -27,7 +27,7 @@ export interface CrsRecord {
   plausibleRange: Bounds | null;
   /** Where the definition comes from, and how well it is established. */
   source: string;
-  status: "verified_official" | "verified_secondary" | "not_verified";
+  status: "verified_official" | "verified_secondary" | "professional_configuration_required" | "not_verified";
 }
 
 export const LOCAL_CRS: CrsRecord = {
@@ -41,7 +41,7 @@ export const LOCAL_CRS: CrsRecord = {
   axisOrder: "E,N",
   plausibleRange: null,
   source: "Chosen by the surveyor. Bearings are then relative to the site grid's own north.",
-  status: "verified_official",
+  status: "professional_configuration_required",
 };
 
 export const CRS_REGISTRY: readonly CrsRecord[] = [
@@ -83,7 +83,7 @@ export const CRS_REGISTRY: readonly CrsRecord[] = [
     units: "metre",
     axisOrder: "E,N",
     plausibleRange: { minE: 160_000, minN: 0, maxE: 840_000, maxN: 9_400_000 },
-    source: "EPSG Geodetic Parameter Dataset, EPSG:32644",
+    source: "EPSG Geodetic Parameter Dataset, EPSG:32644 (standard UTM zone 44N). The plausible range is Farbaek's own broad box for the zone, only for questioning a choice.",
     status: "verified_secondary",
   },
 ];
