@@ -181,7 +181,8 @@ describe("the local reader", () => {
     expect(readCommand("Add the north arrow")).toMatchObject({ output: { ops: [{ op: "answer", topic: "always_printed" }] } });
     expect(readCommand("විශාල කරන්න")).toMatchObject({ output: { ops: [{ op: "view", action: "zoom_in" }] } });
     expect(readCommand("හරි")).toEqual({ kind: "control", control: "apply" });
-    expect(readCommand("Create the boundary using these survey points")).toBeNull();
+    expect(readCommand("Create the boundary using these survey points")).toMatchObject({ output: { ops: [{ op: "ask" }] } });
+    expect(readCommand("Draw a circle around the house")).toBeNull();
   });
 
   it("feeds the same checks as the model", () => {
@@ -249,5 +250,34 @@ describe("sides, measurements, languages and the conversation", () => {
     const unclear = sessionReducer(sessionReducer(initialSession(), { type: "listen", live: false }), { type: "final", text: "points 2 to 4", review: false });
     expect(unclear.phase).toBe("heard");
     expect(ambiguousNumbers("zoom in")).toBe(false);
+  });
+});
+
+describe("the owner's example instructions, read without AI", () => {
+  const check = (words: string, selection: string[] = [], doc = sampleDocument()) => {
+    const r = readCommand(words);
+    if (r?.kind !== "output") throw new Error(`not read: ${words}`);
+    const ctx = assistContext({ doc, points: SAMPLE_POINTS, selection, recent: [], step: "plan" });
+    return checkTurn({ instruction: words, output: r.output, doc, points: SAMPLE_POINTS, selection, refs: ctx.refs, inputMethod: "voice" });
+  };
+
+  it("creates the boundary from the picked points, asking for a name it wasn't given", () => {
+    const asked = check("Create the boundary using these survey points", [`pt:${id(1)}`, `pt:${id(2)}`, `pt:${id(3)}`]);
+    expect(asked.ops).toEqual([]);
+    expect(asked.question?.text).toMatch(/What should the new lot be called/);
+    const answered = check("Create the boundary using these survey points. Lot C", [`pt:${id(1)}`, `pt:${id(2)}`, `pt:${id(3)}`]);
+    expect(answered.ops[0]).toMatchObject({ kind: "lot_add", lot: { label: "C" } });
+    const named = check("Create lot C using these survey points", [`pt:${id(1)}`, `pt:${id(2)}`, `pt:${id(3)}`]);
+    expect(named.ops[0]).toMatchObject({ kind: "lot_add", lot: { label: "C", sup: "", points: [id(1), id(2), id(3)] } });
+    const said = check("Add lot B4 from points 1, 2, 3 and 8");
+    expect(said.ops[0]).toMatchObject({ kind: "lot_add", lot: { label: "B", sup: "4", points: [id(1), id(2), id(3), id(8)] } });
+  });
+
+  it("divides a lot into equal lots, and asks for an access strip's width", () => {
+    expect(check("Divide lot B1 into four lots").ops[0]).toMatchObject({ kind: "divide", lotId: "lot-b1", count: 4 });
+    const one = sampleDocument();
+    one.lots = [one.lots[0]!];
+    expect(check("Add an access road along the eastern boundary", [], one).question?.text).toMatch(/How wide/);
+    expect(check("Add an access road ten feet wide along the eastern boundary", [], one).ops[0]).toMatchObject({ kind: "divide", by: "width", values: [10], unit: "ft", lines: "parallel", leg: 1 });
   });
 });

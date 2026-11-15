@@ -245,16 +245,21 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
 
   /** Sends an instruction. */
   const run = useCallback(
-    async (words: string, method: "voice" | "typed") => {
-      const instruction = words.trim();
-      if (!instruction) return;
+    async (words: string, method: "voice" | "typed", answering = false) => {
+      const said = words.trim();
+      if (!said) return;
+      // An answer to an open question carries on the instruction that raised it, unless it's an instruction of its own.
+      const asked = active?.open && active.outcome === "asked" ? active : null;
+      const alone = readCommand(said);
+      const combined = asked && (answering || !alone) ? `${asked.words.replace(/[.\s]+$/, "")}. ${said}` : said;
+      const instruction = combined.length <= 2_000 ? combined : said;
       voice.cancel();
       bridge.setMarks([]);
       setNotice(null);
       if (active?.open && active.outcome !== "suggested") updateTurn(active.id, { open: false });
       dispatch({ type: "edit", text: instruction });
       dispatch({ type: "send" });
-      const read = readCommand(instruction);
+      const read = instruction === said ? alone : readCommand(instruction);
       if (read?.kind === "control") {
         control(read, instruction, method);
         setText("");
@@ -612,10 +617,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       {!pending && !handoff && active?.outcome === "asked" && active.question ? (
         <QuestionCard
           question={active.question}
-          onChoose={(c) => {
-            updateTurn(active.id, { open: false });
-            void run(`${active.words}. ${c}`, "typed");
-          }}
+          onChoose={(c) => void run(c, "typed", true)}
           onDismiss={() => {
             updateTurn(active.id, { open: false });
             dispatch({ type: "decided" });

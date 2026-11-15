@@ -137,6 +137,25 @@ export function readCommand(original: string): ReadResult {
   }
   if (/^(?:put (?:the|this|that) (?:label|text) back|reset (?:the |this )?(?:label|text)|move (?:the|this) label back)$/.test(t)) return out([{ op: "move_label", target: "selection", direction: "back", amount: "some", quote: original }]);
 
+  // Lots from points: said, or picked on the sheet. A lot's name is never made up: without one, the reader asks.
+  const picked = /^(?:create|make|add|draw|form) (?:(lot [a-z0-9]+(?: [a-z0-9]+)?)|(?:the |a |an )?(?:new )?(?:boundary|lot|outline|land|parcel)(?: (?:of |for )?(lot [a-z0-9]+(?: [a-z0-9]+)?))?) (?:using|from|through|with|by|joining) (?:these|those|the selected|the picked|the chosen|selected|picked) (?:survey |boundary )?(?:points|marks|corners)(?: (?:as |called |named |call it |name it )?(lot [a-z0-9]+(?: [a-z0-9]+)?))?$/.exec(t);
+  if (picked) {
+    const name = picked[1] ?? picked[2] ?? picked[3];
+    if (!name) return out([{ op: "ask", question: "What should the new lot be called? Say its name, such as lot B.", choices: [] }]);
+    return out([{ op: "add_lot", label: name, corners: { from: "selection", quote: "" }, note: "", quote: original }]);
+  }
+  const named = /^(?:create|make|add|draw|form) (lot [a-z0-9]+(?: [a-z0-9]+)?) (?:using|from|through|with|by|joining) ((?:survey |boundary )?(?:points?|marks|corners) .+)$/.exec(t);
+  if (named) return out([{ op: "add_lot", label: named[1]!, corners: { from: "words", quote: named[2]! }, note: "", quote: original }]);
+
+  // Dividing: equal lots, or an access strip along one side. The divide panel shows the lines before anything is kept.
+  const divide = /^divide (lot [a-z0-9]+(?: [a-z0-9]+)?|the land|this land|it|the lot|this lot) into (\S+(?: \S+)?) (?:equal )?(?:lots|parts|shares|plots|blocks)$/.exec(t);
+  if (divide) return out([{ op: "divide", lot: /^lot /.test(divide[1]!) ? divide[1]! : "", by: "area", count: divide[2]!, values: "", unit: "", lines: "", side: "", quote: original }]);
+  const access = /^(?:add|make|leave|reserve) (?:an? )?(?:access )?(?:road|strip|reservation|lane|path)(?: (.+?) wide)? (?:along|on|by) the (north|east|south|west)(?:ern)? (?:boundary|side|edge)(?: of (lot [a-z0-9]+(?: [a-z0-9]+)?))?(?:,? (.+?) wide)?$/.exec(t);
+  if (access) {
+    const width = access[1] ?? access[4] ?? "";
+    return out([{ op: "divide", lot: access[3] ?? "", by: "width", count: "", values: width, unit: /\b(feet|foot|ft)\b/.test(width) ? "ft" : width ? "m" : "", lines: "parallel", side: access[2] as "east", quote: original }]);
+  }
+
   // Questions the engine answers.
   if (/^(?:what(?:'s| is) (?:the )?(?:total )?(?:land )?area|calculate (?:the )?(?:total )?(?:land )?area|how big is (?:the|this) land|(?:the )?total area|area)$/.test(t)) return out([{ op: "answer", topic: "total_area", target: "" }]);
   const lotArea = /^(?:what(?:'s| is) )?(?:the )?area of (lot .+)$/.exec(t);
