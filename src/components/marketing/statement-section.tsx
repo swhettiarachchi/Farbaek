@@ -2,8 +2,8 @@
 
 import { BracketsCurlyIcon, ChatTextIcon, CheckSquareOffsetIcon, ClipboardTextIcon, CloudArrowUpIcon, ListChecksIcon, SealCheckIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from "motion/react";
-import { useRef } from "react";
+import { motion, useScroll, useTransform, type MotionValue } from "motion/react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Container } from "@/components/ui/container";
 
 // The stages a change goes through, in order, each named under its mark.
@@ -29,38 +29,71 @@ function Word({ children, progress, range }: { children: string; progress: Motio
   );
 }
 
+type Rise = "still" | "waiting" | "rising";
+
+/**
+ * The stages, as an arc. Each mark carries its name, so a phone reads it too.
+ * The rise is CSS (stage-rise in globals.css), so the server and the client
+ * render the same markup: both start "still", the finished arc. After
+ * hydration a list that's below the screen waits out of sight and rises once
+ * it's on screen; one that's already on screen stays as it was painted.
+ * Under reduced motion it's always still.
+ */
+function StageArc() {
+  const list = useRef<HTMLUListElement>(null);
+  const [rise, setRise] = useState<Rise>("still");
+  const mid = (TOOLS.length - 1) / 2;
+
+  useEffect(() => {
+    const el = list.current;
+    if (!el || typeof IntersectionObserver === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let first = true;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        if (first) {
+          first = false;
+          if (entry.isIntersecting) io.disconnect();
+          else setRise("waiting");
+        } else if (entry.intersectionRatio >= 0.6) {
+          io.disconnect();
+          setRise("rising");
+        }
+      },
+      { threshold: [0, 0.6] },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <ul ref={list} data-rise={rise} className="mx-auto flex max-w-[860px] items-end justify-center gap-2 sm:gap-4" aria-label="The stages along the way">
+      {TOOLS.map(({ icon: ToolIcon, label }, i) => {
+        const lift = Math.round((1 - ((i - mid) / mid) ** 2) * 34);
+        // The middle mark rises first, then outwards.
+        const arc = { "--lift": `${-lift}px`, "--rise-delay": `${Math.abs(i - mid) * 60}ms` } as CSSProperties;
+        return (
+          <li key={label} className={`stage-mark grid justify-items-center gap-2 ${i === 0 || i === TOOLS.length - 1 ? "hidden sm:grid" : ""}`} style={arc}>
+            <span className="flex size-11 items-center justify-center rounded-full border border-line bg-surface text-ink-2 shadow-e1 sm:size-14">
+              <ToolIcon size={20} aria-hidden />
+            </span>
+            <span className="text-xs text-ink-3">{label}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function StatementSection() {
-  const reduce = useReducedMotion();
   const ref = useRef<HTMLParagraphElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 85%", "end 45%"] });
   const words = STATEMENT.split(" ");
-  const mid = (TOOLS.length - 1) / 2;
 
   return (
     <section aria-labelledby="statement" className="overflow-hidden py-16 lg:py-24">
       <Container>
-        {/* The stages, as an arc. Each mark carries its name, so a phone reads it too. */}
-        <ul className="mx-auto flex max-w-[860px] items-end justify-center gap-2 sm:gap-4" aria-label="The stages along the way">
-          {TOOLS.map(({ icon: ToolIcon, label }, i) => {
-            const lift = Math.round((1 - ((i - mid) / mid) ** 2) * 34);
-            return (
-              <motion.li
-                key={label}
-                className={`grid justify-items-center gap-2 ${i === 0 || i === TOOLS.length - 1 ? "hidden sm:grid" : ""}`}
-                initial={reduce ? false : { opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: -lift }}
-                viewport={{ once: true, amount: 0.6 }}
-                transition={{ type: "spring", stiffness: 120, damping: 18, delay: reduce ? 0 : Math.abs(i - mid) * 0.06 }}
-                style={reduce ? { transform: `translateY(${-lift}px)` } : undefined}
-              >
-                <span className="flex size-11 items-center justify-center rounded-full border border-line bg-surface text-ink-2 shadow-e1 sm:size-14">
-                  <ToolIcon size={20} aria-hidden />
-                </span>
-                <span className="text-xs text-ink-3">{label}</span>
-              </motion.li>
-            );
-          })}
-        </ul>
+        <StageArc />
 
         <p
           id="statement"
