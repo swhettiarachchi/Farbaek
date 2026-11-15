@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { autoDraft } from "@/core/survey/autodraft";
+import { dsrCodes } from "@/core/survey/codes";
 import { crsById } from "@/core/survey/crs";
 import { emptyDocument, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
-import { IMPORT_LIMITS, parseDelimited, type ColumnRole, type Delimiter, type ImportIssue } from "@/core/survey/import/delimited";
-import { parseGeoJsonPoints } from "@/core/survey/import/geojson";
+import { IMPORT_LIMITS, type ColumnRole, type Delimiter, type ImportIssue } from "@/core/survey/import/delimited";
+import { readPoints } from "@/core/survey/import/read";
 import { approvalHash, buildPlan } from "@/core/survey/view";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -77,7 +78,7 @@ const importInput = z.object({
   projectId: uuid,
   fileName: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/),
   content: z.string().max(IMPORT_LIMITS.maxBytes),
-  format: z.enum(["delimited", "geojson"]),
+  format: z.enum(["delimited", "geojson", "gsi", "sdr", "landxml", "jobxml"]),
   delimiter: z.enum([",", "\t", ";", "whitespace"]),
   hasHeader: z.boolean(),
   columns: z.array(z.enum(["point", "easting", "northing", "elevation", "code", "ignore"])).min(3).max(40),
@@ -86,6 +87,8 @@ const importInput = z.object({
   crsId: z.string().max(40),
   /** Draw the plan from the points straight after the import, when the plan has no lots yet (stage 194). */
   drawPlan: z.boolean().default(true),
+  /** The code list to draw with: the project's, or the Survey Department's (DSR Chapter XXII) when the file uses its codes. */
+  codeList: z.enum(["project", "dsr"]).default("project"),
 });
 
 /**
@@ -105,7 +108,7 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
   const crsId = typeof project?.crs_id === "string" ? project.crs_id : null;
   if (!crsId) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
   if (crsId !== i.crsId) return { status: "error", message: SURVEY_MESSAGES.CRS_CHANGED };
-  const result = i.format === "geojson" ? parseGeoJsonPoints(i.content, crsById(crsId)?.epsg ?? null) : parseDelimited(i.content, { delimiter: i.delimiter as Delimiter, hasHeader: i.hasHeader, columns: i.columns as ColumnRole[] });
+  const result = readPoints(i.format, i.content, { delimiter: i.delimiter as Delimiter, hasHeader: i.hasHeader, columns: i.columns as ColumnRole[], crs: crsById(crsId) ?? null });
   const errors = result.issues.filter((x) => x.severity === "error");
   if (errors.length > 0) return { status: "error", message: `${errors.length} ${errors.length === 1 ? "row" : "rows"} can't be read, so nothing was imported. Fix the file and try again.`, issues: result.issues.slice(0, 50) };
   if (result.points.length === 0) return { status: "error", message: "The file has no points to import.", issues: result.issues.slice(0, 50) };
@@ -121,7 +124,7 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
   const warnings = result.issues.filter((x) => x.severity === "warning").length;
   const imported = `Imported ${r.value.added} ${r.value.added === 1 ? "point" : "points"}${r.value.skipped ? `; ${r.value.skipped} already here, unchanged` : ""}${warnings ? `; ${warnings} repeated ${warnings === 1 ? "row" : "rows"} kept once` : ""}.`;
   // The plan draws itself from the points, when it has no lots yet. The import stands either way.
-  const drawing = i.drawPlan ? await drawFromPoints(g.w, i.projectId, `Drawn from ${i.fileName}`) : null;
+  const drawing = i.drawPlan ? await drawFromPoints(g.w, i.projectId, `Drawn from ${i.fileName}`, i.codeList, result.surveyDate) : null;
   revalidatePath(`/app/survey/${i.projectId}`);
   if (!drawing) return { status: "done", message: imported };
   if (!drawing.ok) return { status: "done", message: `${imported} The plan wasn't drawn: ${drawing.message}` };
@@ -133,11 +136,13 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
  * codes, the road, the stated survey date and the importing surveyor, each inference marked for checking. Only onto a plan with no
  * lots; nothing is saved when there's nothing to draw.
  */
-async function drawFromPoints(w: Writer, projectId: string, note: string): Promise<{ ok: true; version: number | null; drawn: string[]; notDrawn: string[] } | { ok: false; message: string }> {
+async function drawFromPoints(w: Writer, projectId: string, note: string, codeList: "project" | "dsr" = "project", surveyDate: string | null = null): Promise<{ ok: true; version: number | null; drawn: string[]; notDrawn: string[] } | { ok: false; message: string }> {
   const data = await loadSurveyProject(w.user, w.actor.orgId, projectId);
   if (!data) return { ok: false, message: SURVEY_MESSAGES.NOT_FOUND };
   const mine = data.profiles.some((p) => p.user_id === w.actor.userId) ? w.actor.userId : null;
-  const r = autoDraft({ points: data.points, document: data.drawing.document, surveyorUserId: mine });
+  // The Survey Department's code list, when the surveyor chose it for a file written in its codes; only on a plan not yet drawn.
+  const base = codeList === "dsr" && data.drawing.document.lots.length === 0 ? { ...data.drawing.document, codes: dsrCodes() } : data.drawing.document;
+  const r = autoDraft({ points: data.points, document: base, surveyorUserId: mine, surveyDate });
   if (r.drawn.length === 0 || r.document === data.drawing.document) return { ok: true, version: null, drawn: [], notDrawn: r.notDrawn };
   const parsed = surveyDocumentSchema.safeParse(r.document);
   if (!parsed.success) return { ok: false, message: "the drawn plan didn't pass its own checks, so nothing was saved." };

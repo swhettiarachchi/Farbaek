@@ -54,6 +54,69 @@ export const COMMON_CODES: readonly CodeEntry[] = [
   entry("Well", "Well", "symbol", "solid", false),
 ];
 
+/**
+ * The Survey Department's codes: Departmental Survey Regulations, Chapter XXII ("Digital Data Management"), annex 3 (boundary point
+ * and instrument station codes) and annex 10 (line and point symbols), survey.gov.lk, read 2026-11-15. Official for departmental
+ * surveys; whether licensed surveyors are bound by it isn't settled. The station codes' meanings were paired from a misaligned copy of
+ * the annex, so the surveyor checks them like any list. Note that here MW is a mark on a wall, a point, where common usage has MW for a
+ * masonry wall, a line.
+ */
+export const DSR_CODES: readonly CodeEntry[] = [
+  entry("CoP", "Concrete Fence Post", "mark"),
+  entry("WoP", "Wooden Fence Post", "mark"),
+  entry("IN", "Iron Nail", "mark"),
+  entry("CN", "Concrete Nail", "mark"),
+  entry("BN", "Brass Nail", "mark"),
+  entry("IRa", "Iron Rail", "mark"),
+  entry("IR", "Iron Rod", "mark"),
+  entry("L", "Landmark", "mark"),
+  entry("MC", "Mark on Cement", "mark"),
+  entry("MR", "Mark on Rock", "mark"),
+  entry("MW", "Mark on Wall", "mark"),
+  entry("OL", "Old Landmark", "mark"),
+  entry("St", "Stake", "mark"),
+  entry("OTB", "Other Boundary Point", "mark"),
+  entry("EP", "Electric Post", "mark"),
+  entry("TP", "Telephone Post", "mark"),
+  entry("RL", "Rock Landmark", "mark"),
+  entry("LR", "Landmark (RDA)", "mark"),
+  entry("stncp", "Station: Cement Picket", "mark", "solid", false),
+  entry("stnrpb", "Station: Rock Picket Below Surface", "mark", "solid", false),
+  entry("stnrp", "Station: Rock Picket", "mark", "solid", false),
+  entry("stnss", "Station: Sunk Stone", "mark", "solid", false),
+  entry("stngps", "Station: GPS Observation Point", "mark", "solid", false),
+  entry("stnotp", "Station: Other Picket", "mark", "solid", false),
+  entry("stnlp", "Station: Landmark Picket", "mark", "solid", false),
+  entry("stntcp", "Station: Traverse Cement Picket", "mark", "solid", false),
+  entry("LF", "Live Fence", "line", "dashed"),
+  entry("WF", "Wire Fence", "line", "dashed"),
+  entry("WLF", "Wire Live Fence", "line", "dashed"),
+  entry("WNF", "Wire Net Fence", "line", "dashed"),
+  entry("BW", "Boundary Wall", "line"),
+  entry("DF", "Dry Fence", "line", "dashed"),
+  entry("IF", "Iron Fence", "line", "dashed"),
+  entry("SF", "Stone Fence", "line"),
+  entry("Hg", "Hedge", "line", "dashed"),
+  entry("TE", "Tar Edge", "line"),
+  entry("U", "Undefined", "line"),
+  entry("Dh", "Ditch", "line", "dashed"),
+  entry("Dn", "Earth Drain", "line", "dashed"),
+  entry("Mh", "Manhole", "symbol"),
+  entry("SM", "Surface Monument", "symbol"),
+  entry("GP", "Geodetic Control Point", "symbol"),
+  entry("Tr", "Tree", "symbol", "solid", false),
+  entry("kmP", "Kilometre Post", "symbol"),
+];
+
+export function dsrCodes(): CodeEntry[] {
+  return DSR_CODES.map((c) => ({ ...c }));
+}
+
+/** How many of a file's codes are the Survey Department's and not in the given library: a hint to offer its list. */
+export function dsrCodesIn(fileCodes: readonly string[], library: readonly CodeEntry[]): string[] {
+  return [...new Set(fileCodes)].filter((c) => !library.some((e) => e.code === c) && DSR_CODES.some((e) => e.code === c));
+}
+
 export function commonCodes(): CodeEntry[] {
   return COMMON_CODES.map((c) => ({ ...c }));
 }

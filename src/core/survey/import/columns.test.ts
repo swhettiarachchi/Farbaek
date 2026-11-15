@@ -44,10 +44,12 @@ describe("reading a point file's columns", () => {
 
   it("says when the grid can't tell the easting from the northing", () => {
     const g = guess("1,500004.210,500012.345,21.43\n2,500007.884,500043.912,21.88");
-    expect(g.columns.slice(1, 3)).toEqual(["easting", "northing"]);
-    expect(g.unsure).toEqual(["Both orders of column 2 and column 3 fit inside SLD99 / Sri Lanka Grid 1999, so Farbaek can't tell the easting from the northing. Check the two columns against your instrument's export setting."]);
+    // Northing first, as the Survey Department's PNEZC file has it, and said.
+    expect(g.columns.slice(1, 3)).toEqual(["northing", "easting"]);
+    expect(g.unsure).toEqual(["Both orders of column 2 and column 3 fit inside SLD99 / Sri Lanka Grid 1999, so the grid can't tell the easting from the northing. Farbaek reads them northing first, as the Survey Department's PNEZC coordinate file has them: check that against your instrument's export setting."]);
     const local = guess("1,1000.000,5000.000,10.0\n2,1012.5,5003.2,10.4", LOCAL_CRS);
-    expect(local.unsure[0]).toMatch(/A local grid can't confirm the order/);
+    expect(local.columns.slice(1, 3)).toEqual(["northing", "easting"]);
+    expect(local.unsure[0]).toMatch(/^A local grid can't tell the easting from the northing\./);
   });
 
   it("knows latitude and longitude, which aren't grid metres", () => {

@@ -19,7 +19,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { formatDms, formatQuadrant, toDms } from "@/core/survey/angles";
-import { CODE_KINDS, LINE_STYLES, commonCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
+import { CODE_KINDS, LINE_STYLES, commonCodes, dsrCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
 import { runsText, titleSentence } from "@/core/survey/description";
 import { LAYER_IDS, STANDARD_SCALES, lotName, type LayerId, type SurveyDocument } from "@/core/survey/document";
 import { roadWidth } from "@/core/survey/roads";
@@ -832,6 +832,9 @@ function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; update: Up
         </button>
         <button type="button" disabled={readOnly} onClick={() => update((d) => void (d.codes = commonCodes()))} className={buttonClasses("ghost", "sm")}>
           Reset to the common list
+        </button>
+        <button type="button" disabled={readOnly} onClick={() => update((d) => void (d.codes = dsrCodes()))} className={buttonClasses("ghost", "sm")}>
+          Use the Survey Department&apos;s codes
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">

@@ -3,13 +3,13 @@
 import { CheckCircleIcon, FileArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState, useTransition } from "react";
 import { isBoundaryMark, isRoadEdgeCode, outlineFrom, roadEdges } from "@/core/survey/autodraft";
-import { codeOf, lookupCode, type CodeEntry } from "@/core/survey/codes";
+import { codeOf, dsrCodes, dsrCodesIn, lookupCode, type CodeEntry } from "@/core/survey/codes";
 import { crsById } from "@/core/survey/crs";
 import { suggestFeatures } from "@/core/survey/fieldToFinish";
 import { suggestColumns, type ColumnGuess } from "@/core/survey/import/columns";
 import { COLUMN_ORDERS, IMPORT_LIMITS, parseDelimited, previewDelimited, type ColumnOrder, type ColumnRole, type Delimiter, type ImportedPoint, type ImportIssue } from "@/core/survey/import/delimited";
-import { detectFormat, type ImportFormat } from "@/core/survey/import/detect";
-import { parseGeoJsonPoints } from "@/core/survey/import/geojson";
+import { IMPORT_FORMATS, detectFormat, unreadableFile, type ImportFormat } from "@/core/survey/import/detect";
+import { readPoints } from "@/core/survey/import/read";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { importSurveyPointsAction, type SurveyFormState } from "@/app/app/survey/actions";
 import { DrawnSummary } from "@/components/survey/draw-from-points";
@@ -32,7 +32,7 @@ const asPoints = (pts: readonly ImportedPoint[]): SurveyPoint[] => pts.map((p) =
  * itself and says why, shows the points on a small map with the lot it would draw, and, once the surveyor confirms the units and the
  * grid, imports the points and draws the plan from them in one go.
  */
-export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHasLots, readOnly }: { projectId: string; crsId: string; crsEpsg: number | null; crsName: string; codes: CodeEntry[]; planHasLots: boolean; readOnly: string | null }) {
+export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, readOnly }: { projectId: string; crsId: string; crsName: string; codes: CodeEntry[]; planHasLots: boolean; readOnly: string | null }) {
   const crs = crsById(crsId) ?? null;
   const [fileName, setFileName] = useState("");
   const [text, setText] = useState("");
@@ -43,6 +43,7 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
   const [guess, setGuess] = useState<ColumnGuess | null>(null);
   const [confirmUnits, setConfirmUnits] = useState(false);
   const [drawPlan, setDrawPlan] = useState(true);
+  const [useDsr, setUseDsr] = useState<boolean | null>(null);
   const [result, setResult] = useState<SurveyFormState & { issues?: ImportIssue[] }>({ status: "idle" });
   const [pending, start] = useTransition();
 
@@ -51,6 +52,7 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
     setText(content);
     setResult({ status: "idle" });
     setConfirmUnits(false);
+    setUseDsr(null);
     const f = detectFormat(name, content);
     setFormat(f);
     if (f === "delimited") {
@@ -75,26 +77,33 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
     load(file.name, await file.text());
   };
 
+  const unreadable = text ? unreadableFile(fileName, text) : null;
   const preview = useMemo(() => {
-    if (!text) return null;
-    if (format === "geojson") {
-      const r = parseGeoJsonPoints(text, crsEpsg);
+    if (!text || unreadable) return null;
+    if (format !== "delimited") {
+      // Formats that say what each value is (GeoJSON, GSI): no columns to map, the points as read.
+      const r = readPoints(format, text, { delimiter, hasHeader, columns, crs });
       return { rows: r.points.slice(0, 8).map((p) => [p.pointId, String(p.e), String(p.n), p.z === null ? "" : String(p.z), p.code ?? ""]), header: ["Point", "Easting", "Northing", "Elevation", "Code"], parsed: r };
     }
     const p = previewDelimited(text);
     if ("error" in p) return { rows: [], header: [], parsed: { points: [] as ImportedPoint[], issues: [p.error] } };
     const parsed = parseDelimited(text, { delimiter, hasHeader, columns });
     return { rows: p.rows.slice(0, 8), header: p.header, parsed };
-  }, [text, format, delimiter, hasHeader, columns, crsEpsg]);
+  }, [text, unreadable, format, delimiter, hasHeader, columns, crs]);
 
   const points = useMemo(() => asPoints(preview?.parsed.points ?? []), [preview]);
+  // A file written in the Survey Department's codes (DSR Chapter XXII): offer its list for drawing this plan.
+  const dsrSeen = useMemo(() => dsrCodesIn(points.map((p) => codeOf(p.code)).filter(Boolean), codes), [points, codes]);
+  const dsrOffered = !planHasLots && dsrSeen.length >= 2;
+  const dsrOn = dsrOffered && (useDsr ?? true);
+  const library = useMemo(() => (dsrOn ? dsrCodes() : codes), [dsrOn, codes]);
   // What the plan would look like: the lot through the boundary marks, and the lines from the codes, by the same rules as the draft.
   const drawing = useMemo(() => {
     if (points.length === 0) return null;
-    const marks = points.filter((p) => isBoundaryMark(lookupCode(codes, codeOf(p.code))));
+    const marks = points.filter((p) => isBoundaryMark(lookupCode(library, codeOf(p.code))));
     const road = roadEdges(points);
-    return { marks, outline: outlineFrom(marks), lines: suggestFeatures(points, codes), road };
-  }, [points, codes]);
+    return { marks, outline: outlineFrom(marks), lines: suggestFeatures(points, library), road };
+  }, [points, library]);
   const codeCounts = useMemo(() => {
     const m = new Map<string, number>();
     for (const p of points) {
@@ -113,7 +122,7 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
 
   const submit = () =>
     start(async () => {
-      const r = await importSurveyPointsAction({ projectId, fileName: fileName || "pasted-points.txt", content: text, format, delimiter, hasHeader, columns, units: "metre", crsId, drawPlan: willDraw });
+      const r = await importSurveyPointsAction({ projectId, fileName: fileName || "pasted-points.txt", content: text, format, delimiter, hasHeader, columns, units: "metre", crsId, drawPlan: willDraw, codeList: dsrOn ? "dsr" : "project" });
       setResult(r);
       if (r.status === "done") {
         setText("");
@@ -131,9 +140,9 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
           <span>
             <span className="font-medium text-ink">Choose the file from your instrument</span>
             <br />
-            CSV, TXT, DAT or GeoJSON, up to {IMPORT_LIMITS.maxBytes / 1024 / 1024} MB
+            CSV, TXT, DAT, Leica GSI, Sokkia SDR, LandXML, Trimble JobXML or GeoJSON, up to {IMPORT_LIMITS.maxBytes / 1024 / 1024} MB
           </span>
-          <input type="file" accept=".csv,.txt,.dat,.pnezd,.penzd,.xyz,.asc,.geojson,.json,text/csv,text/plain,application/geo+json,application/json" className="sr-only" disabled={Boolean(readOnly)} onChange={(e) => void onFile(e.target.files?.[0])} />
+          <input type="file" accept=".csv,.txt,.dat,.gsi,.sdr,.xml,.landxml,.jxl,.jobxml,.dc,.pnezd,.penzd,.xyz,.asc,.geojson,.json,text/csv,text/plain,application/geo+json,application/json" className="sr-only" disabled={Boolean(readOnly)} onChange={(e) => void onFile(e.target.files?.[0])} />
         </label>
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Or paste rows from a spreadsheet or file</span>
@@ -141,8 +150,15 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
         </label>
       </div>
 
+      {unreadable ? (
+        <p role="alert" className="flex items-start gap-2 rounded-sm bg-canvas-2 p-3 text-sm text-ink ring-1 ring-line">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+          {unreadable}
+        </p>
+      ) : null}
       {preview ? (
         <div className="grid gap-5">
+          {format !== "delimited" ? <p className="text-sm text-ink-2">Read as {IMPORT_FORMATS.find((f) => f.id === format)?.label ?? format}: {IMPORT_FORMATS.find((f) => f.id === format)?.detail}</p> : null}
           {latLong ? (
             <p role="alert" className="flex items-start gap-2 rounded-sm bg-canvas-2 p-3 text-sm text-ink ring-1 ring-line">
               <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
@@ -205,9 +221,9 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
               <table className="w-full min-w-[36rem] text-left text-sm">
                 <thead className="bg-canvas-2">
                   <tr>
-                    {Array.from({ length: format === "geojson" ? 5 : columnCount }, (_, i) => (
+                    {Array.from({ length: format !== "delimited" ? 5 : columnCount }, (_, i) => (
                       <th key={i} scope="col" className="p-2 align-bottom font-medium text-ink-2">
-                        {format === "geojson" ? (
+                        {format !== "delimited" ? (
                           preview.header?.[i]
                         ) : (
                           <label className="grid gap-1">
@@ -228,7 +244,7 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
                 <tbody>
                   {preview.rows.map((row, i) => (
                     <tr key={i} className="border-t border-line">
-                      {Array.from({ length: format === "geojson" ? 5 : columnCount }, (_, j) => (
+                      {Array.from({ length: format !== "delimited" ? 5 : columnCount }, (_, j) => (
                         <td key={j} className="p-2 font-mono text-ink tabular">
                           {row[j] ?? ""}
                         </td>
@@ -251,7 +267,7 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
               <p>
                 Codes:{" "}
                 {codeCounts.slice(0, 12).map(([c, n], i) => {
-                  const entry = lookupCode(codes, c);
+                  const entry = lookupCode(library, c);
                   const road = !entry && isRoadEdgeCode(c);
                   return (
                     <span key={c}>
@@ -280,6 +296,14 @@ export function ImportPanel({ projectId, crsId, crsEpsg, crsName, codes, planHas
               <input type="checkbox" checked={confirmUnits} onChange={(e) => setConfirmUnits(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
               <span>These coordinates are in metres, in {crsName}, and the columns are read right. Farbaek stores them exactly as written and never converts, moves or rounds them.</span>
             </label>
+            {dsrOffered ? (
+              <label className="flex min-h-11 items-start gap-3 p-3 text-sm text-ink">
+                <input type="checkbox" checked={dsrOn} onChange={(e) => setUseDsr(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
+                <span>
+                  Draw with the Survey Department&apos;s code list: this file uses its codes ({dsrSeen.slice(0, 6).join(", ")}), as Chapter XXII of the Departmental Survey Regulations defines them. In that list MW is a mark on a wall, not a masonry wall.
+                </span>
+              </label>
+            ) : null}
             {planHasLots ? (
               <p className="text-sm text-ink-3">The plan already has lots, so these points are added to the point list for you to use on the Lots step.</p>
             ) : (

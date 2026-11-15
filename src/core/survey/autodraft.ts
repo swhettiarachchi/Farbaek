@@ -28,8 +28,11 @@ import type { SurveyPoint } from "./parcel";
 
 export const AUTODRAFT_ENGINE = "autodraft/1.0.0";
 
-/** Marks that are never on a boundary: utility posts, culverts, trees, wells, lamps. */
-const NOT_BOUNDARY = /electric|telephone|power|lamp|light|culvert|tree|well|hydrant|valve|manhole/i;
+/**
+ * Marks taken as off the boundary: utility posts, culverts, trees, wells and lamps (often beside a land rather than on its corner), and
+ * instrument stations and control points (DSR Chapter XXII's "stn" codes). A post that is a corner is added on the Lots step.
+ */
+const NOT_BOUNDARY = /electric|telephone|power|lamp|light|culvert|tree|well|hydrant|valve|manhole|station|control|geodetic|benchmark|bench mark|monument|kilometre/i;
 
 /** Whether a library code is a boundary mark (a post, stake, peg or mark set on a boundary). */
 export function isBoundaryMark(entry: CodeEntry | null): boolean {

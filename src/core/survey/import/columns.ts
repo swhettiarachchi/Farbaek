@@ -10,8 +10,11 @@
  * is the point number, words are the code, the first two coordinate columns
  * are the horizontal pair and a third is the elevation. Which of the pair is
  * the easting is settled by the project's grid only when exactly one order
- * puts every point inside the grid's area. X and Y headers are treated the
- * same way: in some instruments' convention X is the northing.
+ * puts every point inside the grid's area; otherwise it's read northing first,
+ * as the Survey Department's PNEZC coordinate file has it (Departmental Survey
+ * Regulations, Chapter XXII, section 22.3), and the surveyor is asked to check.
+ * X and Y headers are treated the same way: in some instruments' convention X
+ * is the northing.
  */
 import type { CrsRecord } from "../crs";
 import { readNumber, type ColumnRole, type DelimitedPreview } from "./delimited";
@@ -76,13 +79,18 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
       columns[a] = "northing";
       columns[b] = "easting";
       reasons.push(`${ordinal(a)} is the northing and ${ordinal(b)} the easting: ${why}in that order every point lies inside ${name}, and the other way round they don't.`);
-    } else {
+    } else if (order === "en") {
       columns[a] = "easting";
       columns[b] = "northing";
-      if (order === "en") reasons.push(`${ordinal(a)} is the easting and ${ordinal(b)} the northing: ${why}in that order every point lies inside ${name}, and the other way round they don't.`);
-      else if (order === "both") unsure.push(`Both orders of ${ordinal(a)} and ${ordinal(b)} fit inside ${name}, so Farbaek can't tell the easting from the northing. Check the two columns against your instrument's export setting.`);
+      reasons.push(`${ordinal(a)} is the easting and ${ordinal(b)} the northing: ${why}in that order every point lies inside ${name}, and the other way round they don't.`);
+    } else {
+      // Unsettled: northing first, as in the Survey Department's PNEZC file, and said.
+      columns[a] = "northing";
+      columns[b] = "easting";
+      const pnezc = "Farbaek reads them northing first, as the Survey Department's PNEZC coordinate file has them";
+      if (order === "both") unsure.push(`Both orders of ${ordinal(a)} and ${ordinal(b)} fit inside ${name}, so the grid can't tell the easting from the northing. ${pnezc}: check that against your instrument's export setting.`);
       else if (order === "neither") unsure.push(`${ordinal(a)} and ${ordinal(b)} don't fit inside ${name} in either order. Check the project's coordinate system, or that these are grid coordinates in metres.`);
-      else unsure.push(`${ordinal(a)} and ${ordinal(b)} are read as easting then northing. A local grid can't confirm the order: check it against your instrument's export setting.`);
+      else unsure.push(`A local grid can't tell the easting from the northing. ${pnezc}: check that against your instrument's export setting.`);
     }
   };
 

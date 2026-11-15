@@ -8,6 +8,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { USAGE_OPERATIONS } from "@/config/usage";
+import { IMPORT_FORMATS } from "@/core/survey/import/detect";
 import { USERS, as, createOrg, createTestDb } from "./harness";
 
 let db: PGlite;
@@ -170,6 +171,22 @@ describe("AI drafting (v94)", () => {
     await as(db, "authenticated", USERS.alice, async () => {
       await expect(db.query("select public.app_survey_record_ai_draft($1, $2, $3, 'survey_draft', 'claude-sonnet-5-5', 1, 0, 0)", [org, USERS.alice, project])).rejects.toThrow(/permission denied/);
     });
+  });
+});
+
+describe("instrument files (v95)", () => {
+  it("stores each instrument format the app reads under its own name, exactly the app's list, and nothing else", async () => {
+    // The grid the project has now (an earlier test changes it).
+    const [p] = await su<{ crs_id: string }>("select crs_id from public.survey_projects where id = $1", [project]);
+    const crs = JSON.stringify({ crs: p!.crs_id });
+    const r = await q<{ r: { added: number } }>("select public.app_survey_import($1, $2, $3, 'job.gsi', 'gsi', $4, $6::jsonb, $5::jsonb) as r", [org, USERS.alice, project, "*110001+0000000000000501 81..00+0000000450012345 82..00+0000000700004210", points([["501", 450012.345, 700004.21, null]]), crs]);
+    expect(r[0]!.r.added).toBe(1);
+    const [src] = await su<{ format: string }>("select format from public.survey_sources where project_id = $1 and file_name = 'job.gsi'", [project]);
+    expect(src!.format).toBe("gsi");
+    await expect(q("select public.app_survey_import($1, $2, $3, 'job.dbx', 'dbx', 'x', $5::jsonb, $4::jsonb)", [org, USERS.alice, project, points([["502", 1, 2, null]]), crs])).rejects.toThrow(/survey_sources_format_check/);
+    const [check] = await su<{ def: string }>("select pg_get_constraintdef(oid) as def from pg_constraint where conname = 'survey_sources_format_check'");
+    const listed = [...check!.def.matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
+    expect(listed).toEqual(IMPORT_FORMATS.map((f) => f.id).sort());
   });
 });
 
