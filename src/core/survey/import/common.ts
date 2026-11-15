@@ -5,7 +5,7 @@
  * warning; a number repeated with different values is refused outright and
  * Farbaek picks neither.
  */
-import { IMPORT_LIMITS, type ImportedPoint, type ImportIssue } from "./delimited";
+import { IMPORT_LIMITS, INVISIBLE, type ImportedPoint, type ImportIssue } from "./delimited";
 
 /** A file's text checked before reading: not too large, not binary. Null when fine. */
 export function guardFile(text: string, binaryHint: string): ImportIssue | null {
@@ -24,16 +24,19 @@ export function numberedLines(text: string): { line: number; text: string }[] {
     .map((t, i) => ({ line: i + 1, text: t }));
 }
 
-/** A point number as it may be stored: 1 to 32 characters, no control characters. */
+/** A point number as it may be stored: 1 to 32 characters, no control or invisible characters. */
 export function pointIdProblem(id: string): string | null {
   if (!id) return "has no point number";
-  if (id.length > IMPORT_LIMITS.maxPointIdLength || /[\u0000-\u001f\u007f]/.test(id)) return "has a point number that's too long or has control characters";
+  if (id.length > IMPORT_LIMITS.maxPointIdLength) return `has a point number longer than ${IMPORT_LIMITS.maxPointIdLength} characters`;
+  if (INVISIBLE.test(id)) return "has a point number with control or invisible characters";
   return null;
 }
 
 /** A code as it may be stored, or the problem with it. */
 export function codeProblem(code: string | null): string | null {
-  if (code && (code.length > IMPORT_LIMITS.maxCodeLength || /[\u0000-\u001f\u007f]/.test(code))) return `has a code longer than ${IMPORT_LIMITS.maxCodeLength} characters or with control characters`;
+  if (!code) return null;
+  if (code.length > IMPORT_LIMITS.maxCodeLength) return `has a code longer than ${IMPORT_LIMITS.maxCodeLength} characters`;
+  if (INVISIBLE.test(code)) return "has a code with control or invisible characters";
   return null;
 }
 

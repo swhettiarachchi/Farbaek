@@ -123,8 +123,9 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
     points: result.points.map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
   });
   if (!r.ok) return { status: "error", message: r.message };
-  const warnings = result.issues.filter((x) => x.severity === "warning").length;
-  const imported = `Imported ${r.value.added} ${r.value.added === 1 ? "point" : "points"}${r.value.skipped ? `; ${r.value.skipped} already here, unchanged` : ""}${warnings ? `; ${warnings} repeated ${warnings === 1 ? "row" : "rows"} kept once` : ""}.`;
+  // Only exact repeats are "kept once"; a closure, records left out or a later record replacing an earlier are notes, said in the preview.
+  const repeats = result.issues.filter((x) => x.code === "DUPLICATE_POINT_SAME" && x.line !== null).length;
+  const imported = `Imported ${r.value.added} ${r.value.added === 1 ? "point" : "points"}${r.value.skipped ? `; ${r.value.skipped} already here, unchanged` : ""}${repeats ? `; ${repeats} exact ${repeats === 1 ? "repeat" : "repeats"} kept once` : ""}.`;
   // The plan draws itself from the points, when it has no lots yet. The import stands either way.
   const drawing = i.drawPlan ? await drawFromPoints(g.w, i.projectId, `Drawn from ${i.fileName}`, i.codeList, result.surveyDate) : null;
   revalidatePath(`/app/survey/${i.projectId}`);

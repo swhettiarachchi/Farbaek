@@ -49,6 +49,13 @@ export interface ImportedPoint {
   code: string | null;
 }
 
+/**
+ * Control and invisible formatting characters: C0 and C1 controls, the soft hyphen, zero-width characters, direction marks and
+ * overrides, line and paragraph separators, the byte-order mark. A point number or code holding one reads the same as another that
+ * doesn't, so two different points could look alike. Every reader refuses them.
+ */
+export const INVISIBLE = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff\ufff9-\ufffb]/;
+
 export type ImportIssueCode =
   | "FILE_TOO_LARGE"
   | "TOO_MANY_ROWS"
@@ -63,7 +70,17 @@ export type ImportIssueCode =
   | "DUPLICATE_POINT_SAME"
   | "DUPLICATE_POINT_CONFLICT"
   | "CODE_NOT_READABLE"
-  | "EXTRA_COLUMNS";
+  | "EXTRA_COLUMNS"
+  /** An XML file cut short or not well formed where Farbaek reads it. */
+  | "FILE_CUT_SHORT"
+  /** Records the reader leaves out on purpose (observations, RTK values, references), counted for the surveyor. */
+  | "RECORDS_LEFT_OUT"
+  /** A point stored again with new values, where the format's own rule is that the later record replaces the earlier. */
+  | "DUPLICATE_POINT_REPLACED"
+  /** A field book's legs closing on a known point: the misclosure, never adjusted. */
+  | "CLOSURE"
+  /** Something in the file to check by eye: mixed GSI widths, an instrument display setting. */
+  | "CHECK_FILE";
 
 export interface ImportIssue {
   code: ImportIssueCode;
@@ -205,8 +222,8 @@ export function parseDelimited(text: string, options: { delimiter: Delimiter; ha
       issues.push({ code: "MISSING_POINT_ID", severity: "error", line, message: `Line ${line} has no point number.` });
       continue;
     }
-    if (pointId.length > IMPORT_LIMITS.maxPointIdLength || /[\u0000-\u001f\u007f]/.test(pointId)) {
-      issues.push({ code: "POINT_ID_TOO_LONG", severity: "error", line, message: `Line ${line}: the point number is too long or has control characters.` });
+    if (pointId.length > IMPORT_LIMITS.maxPointIdLength || INVISIBLE.test(pointId)) {
+      issues.push({ code: "POINT_ID_TOO_LONG", severity: "error", line, message: `Line ${line}: the point number is longer than ${IMPORT_LIMITS.maxPointIdLength} characters or has control or invisible characters.` });
       continue;
     }
     const e = readNumber(cells[ei]);
@@ -235,8 +252,8 @@ export function parseDelimited(text: string, options: { delimiter: Delimiter; ha
     }
     const codeCells = ci < 0 ? [] : codeLast ? cells.slice(ci) : [cells[ci] ?? ""];
     const code = codeCells.join(" ").trim() || null;
-    if (code && (code.length > IMPORT_LIMITS.maxCodeLength || /[\u0000-\u001f\u007f]/.test(code))) {
-      issues.push({ code: "CODE_NOT_READABLE", severity: "error", line, message: `Line ${line}, point ${pointId}: the code is longer than ${IMPORT_LIMITS.maxCodeLength} characters or has control characters. Nothing is cut short for you.` });
+    if (code && (code.length > IMPORT_LIMITS.maxCodeLength || INVISIBLE.test(code))) {
+      issues.push({ code: "CODE_NOT_READABLE", severity: "error", line, message: `Line ${line}, point ${pointId}: the code is longer than ${IMPORT_LIMITS.maxCodeLength} characters or has control or invisible characters. Nothing is cut short for you.` });
       continue;
     }
     const point: ImportedPoint = { line, pointId, e, n, z, code };

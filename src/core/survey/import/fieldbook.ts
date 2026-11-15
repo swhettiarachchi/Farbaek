@@ -145,7 +145,7 @@ export function parseFieldBook(text: string, known: readonly { pointId: string; 
   if (legs === 0 && issues.length === 0) return { points: [], issues: [{ code: "NO_ROWS", severity: "error", line: null, message: "The field book has no legs." }], checks };
   for (const k of checks) {
     issues.push({
-      code: "EXTRA_COLUMNS",
+      code: "CLOSURE",
       severity: "warning",
       line: k.line,
       message: k.ratio === null ? `Line ${k.line}: the legs close on point ${k.on} exactly.` : `Line ${k.line}: the legs close on point ${k.on} ${(k.linear * 1000).toFixed(k.linear < 0.0095 ? 1 : 0)} mm out (1 in ${Math.round(k.ratio).toLocaleString("en-GB")} over ${k.length.toFixed(2)} m). The coordinates are unadjusted.`,

@@ -17,7 +17,7 @@
  * Feet are refused (set the instrument to metres): nothing is converted.
  */
 import { codeProblem, guardFile, numberedLines, pointIdProblem } from "./common";
-import { readNumber, type ImportedPoint, type ImportIssue } from "./delimited";
+import { IMPORT_LIMITS, readNumber, type ImportedPoint, type ImportIssue } from "./delimited";
 
 export interface SdrRead {
   points: ImportedPoint[];
@@ -47,7 +47,7 @@ export function parseSdr(text: string): SdrRead {
   const guard = guardFile(text, "This is a binary file, not an SDR text file. Export the job from the instrument or Sokkia's software as an SDR33 or CSV file.");
   if (guard) return { points: [], issues: [guard], layout: null };
   const records = numberedLines(text)
-    .map((l) => ({ line: l.line, text: l.text.replace(/\u0002/g, "").replace(/\s+$/, "") }))
+    .map((l) => ({ line: l.line, text: l.text.replace(/\u0002/g, "").trimEnd() }))
     .filter((l) => l.text && !l.text.startsWith("\u0003") && !/^\d{5}$/.test(l.text));
   const header = records[0];
   const version = header?.text.slice(4, 20).trim() ?? "";
@@ -56,18 +56,23 @@ export function parseSdr(text: string): SdrRead {
     return { points: [], issues: [{ code: "NO_ROWS", severity: "error", line: header?.line ?? null, message: "This isn't an SDR file: its first record isn't an SDR2x or SDR33 header (00NM or 00ED)." }], layout: null };
   }
   const issues: ImportIssue[] = [];
+  // Header byte 42 is the distance unit: 1 metres, 2 feet. Anything but 1 is refused, as is a feet note (13DU2, 13DU3) anywhere.
   const unit = header.text.padEnd(46)[41];
   if (unit === "2" || records.some((r) => r.text.startsWith("13DU3") || r.text.startsWith("13DU2"))) {
     return { points: [], issues: [{ code: "NOT_A_NUMBER", severity: "error", line: header.line, message: "The SDR file is in feet. Set the instrument's distance unit to metres and export again: Farbaek stores metres and never converts." }], layout };
   }
+  if (unit !== "1") {
+    return { points: [], issues: [{ code: "NOT_A_NUMBER", severity: "error", line: header.line, message: `The SDR header doesn't say the distances are in metres (its distance unit, byte 42, is "${unit?.trim() || "blank"}"). Set the instrument's distance unit to metres and export again.` }], layout };
+  }
   if (header.text.padEnd(46)[44] === "2") {
-    issues.push({ code: "EXTRA_COLUMNS", severity: "warning", line: header.line, message: "The instrument was set to show coordinates easting first. Sokkia's layout stores northing first in the file, and Farbaek reads it that way: check one point against your field notes." });
+    issues.push({ code: "CHECK_FILE", severity: "warning", line: header.line, message: "The instrument was set to show coordinates easting first. Sokkia's layout stores northing first in the file, and Farbaek reads it that way: check one point against your field notes." });
   }
   const L = LAYOUTS[layout];
   const byName = new Map<string, ImportedPoint>();
   const order: string[] = [];
   let observations = 0;
   let skippedOther = 0;
+  let coordinateRecords = 0;
   for (const { line, text: rec } of records.slice(1)) {
     const type = rec.slice(0, 2);
     if (type === "09" || type === "11") {
@@ -79,6 +84,9 @@ export function parseSdr(text: string): SdrRead {
       continue;
     }
     if (type !== "08" && type !== "02") continue;
+    if (++coordinateRecords > IMPORT_LIMITS.maxRows) {
+      return { points: [], issues: [{ code: "TOO_MANY_ROWS", severity: "error", line: null, message: `The file has more than ${IMPORT_LIMITS.maxRows} coordinate records; the limit is ${IMPORT_LIMITS.maxRows}.` }], layout };
+    }
     const f = type === "08" ? L.pos : L.stn;
     const padded = rec.padEnd(f.code + f.codeLen);
     const id = pointName(padded.slice(f.id, f.id + L.id));
@@ -109,7 +117,7 @@ export function parseSdr(text: string): SdrRead {
     const prior = byName.get(id);
     if (prior) {
       if (prior.e !== e || prior.n !== n || prior.z !== z || prior.code !== code) {
-        issues.push({ code: "DUPLICATE_POINT_SAME", severity: "warning", line, message: `Line ${line}: point ${id} was stored again with different values. The SDR's rule is that the later record replaces the earlier one (line ${prior.line}), so line ${line} is used.` });
+        issues.push({ code: "DUPLICATE_POINT_REPLACED", severity: "warning", line, message: `Line ${line}: point ${id} was stored again with different values. The SDR's rule is that the later record replaces the earlier one (line ${prior.line}), so line ${line} is used.` });
         byName.set(id, point);
       }
       continue;
@@ -122,6 +130,7 @@ export function parseSdr(text: string): SdrRead {
     return { points: [], issues: [...issues, { code: "NO_ROWS", severity: "error", line: null, message: `This SDR file holds observations (${observations} ${observations === 1 ? "record" : "records"}), not coordinates. Farbaek doesn't reduce observations: compute the coordinates on the instrument or in your office software and export them.` }], layout };
   }
   if (points.length === 0) return { points: [], issues: [...issues, { code: "NO_ROWS", severity: "error", line: null, message: "The SDR file has no coordinate records (08 or 02)." }], layout };
-  if (skippedOther > 0) issues.push({ code: "EXTRA_COLUMNS", severity: "warning", line: null, message: `${skippedOther} RTK or latitude-longitude ${skippedOther === 1 ? "record was" : "records were"} left out: they aren't grid coordinates in the job's system.` });
+  if (observations > 0) issues.push({ code: "RECORDS_LEFT_OUT", severity: "warning", line: null, message: `${observations} observation ${observations === 1 ? "record (09 or 11) was" : "records (09 or 11) were"} left out: Farbaek doesn't reduce observations, so only the coordinate records are imported.` });
+  if (skippedOther > 0) issues.push({ code: "RECORDS_LEFT_OUT", severity: "warning", line: null, message: `${skippedOther} RTK or latitude-longitude ${skippedOther === 1 ? "record was" : "records were"} left out: they aren't grid coordinates in the job's system.` });
   return { points, issues, layout };
 }

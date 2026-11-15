@@ -7,7 +7,7 @@
  * the project's own grid; the person still confirms the units when they import.
  */
 import type { ImportIssue, ImportedPoint } from "./delimited";
-import { IMPORT_LIMITS } from "./delimited";
+import { IMPORT_LIMITS, INVISIBLE } from "./delimited";
 
 export interface GeoJsonResult {
   points: ImportedPoint[];
@@ -69,14 +69,14 @@ export function parseGeoJsonPoints(text: string, projectEpsg: number | null): Ge
     const props = feature.properties ?? {};
     const rawId = props.point ?? props.Point ?? props.name ?? props.id ?? props.PNT ?? null;
     const pointId = rawId === null || rawId === undefined ? String(line) : String(rawId).trim();
-    if (!pointId || pointId.length > IMPORT_LIMITS.maxPointIdLength || /[\u0000-\u001f\u007f]/.test(pointId)) {
-      issues.push({ code: "POINT_ID_TOO_LONG", severity: "error", line, message: `Feature ${line}: the point number is empty, longer than ${IMPORT_LIMITS.maxPointIdLength} characters, or has control characters.` });
+    if (!pointId || pointId.length > IMPORT_LIMITS.maxPointIdLength || INVISIBLE.test(pointId)) {
+      issues.push({ code: "POINT_ID_TOO_LONG", severity: "error", line, message: `Feature ${line}: the point number is empty, longer than ${IMPORT_LIMITS.maxPointIdLength} characters, or has control or invisible characters.` });
       return;
     }
     const rawCode = props.code ?? props.description ?? props.desc ?? null;
     const code = rawCode === null || rawCode === undefined ? null : String(rawCode).trim() || null;
-    if (code && (code.length > IMPORT_LIMITS.maxCodeLength || /[\u0000-\u001f\u007f]/.test(code))) {
-      issues.push({ code: "CODE_NOT_READABLE", severity: "error", line, message: `Feature ${line}, point ${pointId}: the code is longer than ${IMPORT_LIMITS.maxCodeLength} characters or has control characters. Nothing is cut short for you.` });
+    if (code && (code.length > IMPORT_LIMITS.maxCodeLength || INVISIBLE.test(code))) {
+      issues.push({ code: "CODE_NOT_READABLE", severity: "error", line, message: `Feature ${line}, point ${pointId}: the code is longer than ${IMPORT_LIMITS.maxCodeLength} characters or has control or invisible characters. Nothing is cut short for you.` });
       return;
     }
     if (seen.has(pointId)) {

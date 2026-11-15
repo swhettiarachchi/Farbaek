@@ -14,7 +14,7 @@
  */
 import { codeProblem, finishPoints, guardFile, pointIdProblem } from "./common";
 import { readNumber, type ImportedPoint, type ImportIssue } from "./delimited";
-import { elements, lineAt, stripXml } from "./xml";
+import { XmlProblem, elements, lineFinder, stripXml, textOf } from "./xml";
 
 export function looksLikeLandXml(text: string): boolean {
   return /<(?:[\w.-]+:)?LandXML[\s>]/.test(text.slice(0, 4000));
@@ -34,8 +34,21 @@ function toMetres(cell: string, scale: number): number | null {
 export function parseLandXml(text: string): { points: ImportedPoint[]; issues: ImportIssue[] } {
   const guard = guardFile(text, "This is a binary file, not LandXML. Export the points as LandXML or CSV.");
   if (guard) return { points: [], issues: [guard] };
+  try {
+    return readLandXml(text);
+  } catch (e) {
+    // A file cut short or not well formed is refused whole, with the line, never half-read.
+    if (e instanceof XmlProblem) return { points: [], issues: [{ code: "FILE_CUT_SHORT", severity: "error", line: e.line, message: e.message }] };
+    throw e;
+  }
+}
+
+function readLandXml(text: string): { points: ImportedPoint[]; issues: ImportIssue[] } {
   const clean = stripXml(text);
   if (!looksLikeLandXml(clean)) return { points: [], issues: [{ code: "NO_ROWS", severity: "error", line: null, message: "This isn't a LandXML file: it has no LandXML element." }] };
+  // The root must close: a file cut off after its last point would otherwise read as complete.
+  elements(clean, "LandXML");
+  const lineAt = lineFinder(clean);
   const metric = elements(clean, "Metric")[0];
   const imperial = elements(clean, "Imperial")[0];
   if (imperial && !metric) return { points: [], issues: [{ code: "NOT_A_NUMBER", severity: "error", line: null, message: "The LandXML file is in imperial units. Export it in metres: Farbaek stores metres and never guesses which foot." }] };
@@ -46,9 +59,9 @@ export function parseLandXml(text: string): { points: ImportedPoint[]; issues: I
   const read: ImportedPoint[] = [];
   let references = 0;
   for (const el of elements(clean, "CgPoint")) {
-    const line = lineAt(clean, el.index);
+    const line = lineAt(el.index);
     const name = (el.attrs.name ?? "").trim();
-    const values = el.inner.replace(/<[^>]*>/g, " ").trim();
+    const values = textOf(el.inner, " ").trim();
     if (!values && el.attrs.pntRef) {
       references++;
       continue;
@@ -76,10 +89,14 @@ export function parseLandXml(text: string): { points: ImportedPoint[]; issues: I
     }
     read.push({ line, pointId: name, n, e, z: z ?? null, code });
   }
+  const observations = elements(clean, "RawObservation").length;
+  const raw = observations + elements(clean, "InstrumentSetup").length;
   if (read.length === 0 && issues.length === 0) {
-    const raw = elements(clean, "RawObservation").length + elements(clean, "InstrumentSetup").length;
     return { points: [], issues: [{ code: "NO_ROWS", severity: "error", line: null, message: raw > 0 ? "This LandXML file holds instrument observations, not points with coordinates. Farbaek doesn't reduce observations: export the computed points (CgPoints)." : "The LandXML file has no CgPoint with coordinates." }] };
   }
-  if (references > 0) issues.push({ code: "DUPLICATE_POINT_SAME", severity: "warning", line: null, message: `${references} ${references === 1 ? "CgPoint only refers" : "CgPoints only refer"} to another point (pntRef) and ${references === 1 ? "was" : "were"} left out: ${references === 1 ? "it's" : "they're"} the same point under another name.` });
+  if (raw > 0) {
+    issues.push({ code: "RECORDS_LEFT_OUT", severity: "warning", line: null, message: `The file also holds instrument observations${observations > 0 ? ` (${observations})` : ""}, which Farbaek doesn't reduce: only the CgPoints are imported, as your software computed them.` });
+  }
+  if (references > 0) issues.push({ code: "RECORDS_LEFT_OUT", severity: "warning", line: null, message: `${references} ${references === 1 ? "CgPoint only refers" : "CgPoints only refer"} to another point (pntRef) and ${references === 1 ? "was" : "were"} left out: ${references === 1 ? "it's" : "they're"} the same point under another name.` });
   return finishPoints(read, issues);
 }

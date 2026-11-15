@@ -33,19 +33,33 @@ export interface ColumnGuess {
   latLong: boolean;
 }
 
-const SYNONYMS: { role: ColumnRole; re: RegExp }[] = [
-  { role: "point", re: /^(?:pt|pnt|point|points|point ?(?:no|num|number|id|name)\.?|name|pt ?(?:no|id)\.?|id|station|stn|no\.?|#|pid)$/i },
-  { role: "easting", re: /^(?:e|east|easting|eastings|e ?\(m\)|easting ?\(m\))$/i },
-  { role: "northing", re: /^(?:n|north|northing|northings|n ?\(m\)|northing ?\(m\))$/i },
-  { role: "elevation", re: /^(?:z|h|ht|elev|elevation|height|rl|level|r\.l\.|elevation ?\(m\)|height ?\(m\))$/i },
-  { role: "code", re: /^(?:code|codes|desc|description|descriptor|remark|remarks|feature|attr|attribute|note|notes|field code)$/i },
-];
+/** Column names, written lower case with single spaces and no unit: "Point_ID", "point-id" and "Point ID" are all "point id". */
+const SYNONYMS: Record<Exclude<ColumnRole, "ignore">, readonly string[]> = {
+  point: ["p", "pt", "pnt", "pn", "point", "points", "point no", "point num", "point number", "point id", "point name", "pointid", "pointno", "pointname", "pt no", "pt num", "pt id", "pt name", "ptno", "ptnum", "ptid", "pt#", "point#", "name", "id", "pid", "number", "no", "no.", "#", "station", "stn", "stn no", "station no", "mark", "mark no"],
+  easting: ["e", "east", "easting", "eastings", "e coord", "e coordinate", "easting coordinate"],
+  northing: ["n", "north", "northing", "northings", "n coord", "n coordinate", "northing coordinate"],
+  elevation: ["z", "h", "ht", "hgt", "elev", "elevation", "height", "rl", "r.l.", "reduced level", "level", "alt", "altitude", "msl", "orthometric height"],
+  code: ["code", "codes", "desc", "desc1", "description", "descriptor", "remark", "remarks", "feature", "feature code", "field code", "pt code", "point code", "attr", "attribute", "note", "notes", "label", "layer"],
+};
+
+/** A header cell as a plain name: quotes, underscores, hyphens and a unit of metres removed ("Easting (m)", "EASTING_M"). */
+const plainHeader = (h: string) =>
+  h
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/ ?[([] ?(?:m|metres?|meters?) ?[)\]]$/, "")
+    .replace(/ (?:m|metres?|meters?)$/, "")
+    .trim();
 
 const roleOfHeader = (h: string): ColumnRole | "x" | "y" | null => {
-  const t = h.trim().replace(/^["']|["']$/g, "");
-  if (/^x(?: ?\(m\))?$/i.test(t)) return "x";
-  if (/^y(?: ?\(m\))?$/i.test(t)) return "y";
-  return SYNONYMS.find((s) => s.re.test(t))?.role ?? null;
+  const t = plainHeader(h);
+  if (t === "x") return "x";
+  if (t === "y") return "y";
+  for (const [role, names] of Object.entries(SYNONYMS) as [ColumnRole, readonly string[]][]) if (names.includes(t)) return role;
+  return null;
 };
 
 /** Which order of a coordinate pair puts every point inside the grid's area: "en", "ne", "both" or "neither" (or "unknown" for a local grid). */
@@ -72,9 +86,13 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
   const unsure: string[] = [];
   const name = crs?.name ?? "the project's grid";
 
-  // Latitude and longitude: two columns of small numbers with many decimals, inside ±90 and ±180.
-  const degrees = (j: number, max: number) => numeric[j]! > 0.9 && nums[j]!.every((v) => v === null || Math.abs(v) <= max) && cols[j]!.some((v) => /\.\d{6,}$/.test(v));
-  const latLong = Array.from({ length: width }, (_, j) => j).some((j) => degrees(j, 90) && Array.from({ length: width }, (_, k) => k).some((k) => k !== j && degrees(k, 180) && cols[k]!.some((v) => Math.abs(Number(v)) > 1)));
+  // Latitude and longitude: the chosen horizontal pair holds small numbers with many decimals, inside ±90 and ±180. Only that pair is
+  // tested, so an elevation or another column with many decimals beside grid coordinates can't set it off.
+  const degrees = (j: number, max: number) => j >= 0 && numeric[j]! > 0.9 && nums[j]!.every((v) => v === null || Math.abs(v) <= max) && cols[j]!.some((v) => /\.\d{6,}$/.test(v));
+  const latLongOf = (cs: readonly ColumnRole[]) => {
+    const [e, n] = [cs.indexOf("easting"), cs.indexOf("northing")];
+    return (degrees(n, 90) && degrees(e, 180)) || (degrees(e, 90) && degrees(n, 180));
+  };
 
   // Resolves a horizontal pair (columns a then b) to easting and northing, or says it can't. cass: the code is the second column.
   const settlePair = (a: number, b: number, why: string, cass = false) => {
@@ -108,10 +126,11 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
     roles.forEach((r, j) => {
       if (r && r !== "x" && r !== "y" && j < width && !columns.includes(r)) columns[j] = r;
     });
-    if (xs >= 0 && ys >= 0 && !columns.includes("easting") && !columns.includes("northing")) settlePair(Math.min(xs, ys), Math.max(xs, ys), "the columns are named X and Y, which instruments use either way round; ");
+    // A header wider than the rows names columns that aren't there: only names over real columns count.
+    if (xs >= 0 && ys >= 0 && xs < width && ys < width && !columns.includes("easting") && !columns.includes("northing")) settlePair(Math.min(xs, ys), Math.max(xs, ys), "the columns are named X and Y, which instruments use either way round; ");
     if (columns.includes("point") && columns.includes("easting") && columns.includes("northing")) {
       reasons.unshift(`Read from the column names: ${preview.header.slice(0, width).map((h) => h.trim() || "(blank)").join(", ")}.`);
-      return { columns, reasons, unsure, latLong };
+      return { columns, reasons, unsure, latLong: latLongOf(columns) };
     }
     columns.fill("ignore");
     reasons.length = 0;
@@ -134,7 +153,18 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
     used.add(code);
     reasons.push(`${ordinal(code)} is the code: it holds words such as ${[...new Set(cols[code]!.filter(Boolean).map((v) => v.split(/\s+/)[0]))].slice(0, 3).join(", ")}.`);
   }
-  const coords = Array.from({ length: width }, (_, j) => j).filter((j) => !used.has(j) && numeric[j]! >= 0.9);
+  let coords = Array.from({ length: width }, (_, j) => j).filter((j) => !used.has(j) && numeric[j]! >= 0.9);
+  // A column of small whole numbers that repeat is a numeric field code, not a coordinate, when two coordinate columns remain beside it.
+  const numericCode = (j: number) => nums[j]!.every((v) => v !== null && Number.isInteger(v) && Math.abs(v) < 1000) && new Set(cols[j]).size < cols[j]!.length;
+  const codeLike = coords.filter(numericCode);
+  if (codeLike.length > 0 && coords.length - codeLike.length >= 2) {
+    coords = coords.filter((j) => !codeLike.includes(j));
+    if (code === undefined) {
+      columns[codeLike[0]!] = "code";
+      used.add(codeLike[0]!);
+      reasons.push(`${ordinal(codeLike[0]!)} is read as the code: it holds small whole numbers that repeat, as numeric field codes do. Check it.`);
+    }
+  }
   if (coords.length >= 2) {
     // Grid coordinates are the large numbers; a third, much smaller column beside them is the elevation.
     const big = (j: number) => {
@@ -144,7 +174,7 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
     const ordered = [...coords];
     const [a, b] = ordered.slice(0, 2) as [number, number];
     // The CASS shape: point first, then a text or empty column, then the coordinates.
-    const cass = point === 0 && a === 2 && b === 3 && (code === 1 || cols[1]!.every((v) => v === "" || readNumber(v) === null));
+    const cass = point === 0 && a === 2 && b === 3 && (columns[1] === "code" || cols[1]!.every((v) => v === "" || readNumber(v) === null));
     settlePair(a, b, "", cass);
     const z = ordered[2];
     if (z !== undefined) {
@@ -153,5 +183,5 @@ export function suggestColumns(preview: DelimitedPreview, crs: CrsRecord | null)
     }
   } else unsure.push("Fewer than two columns hold numbers on every row, so the coordinates aren't clear. Choose their columns.");
   const sentence = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
-  return { columns, reasons: reasons.map(sentence), unsure: unsure.map(sentence), latLong };
+  return { columns, reasons: reasons.map(sentence), unsure: unsure.map(sentence), latLong: latLongOf(columns) };
 }

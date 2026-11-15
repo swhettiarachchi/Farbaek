@@ -40,7 +40,9 @@ export function unreadableFile(fileName: string, text: string): string | null {
   const lower = fileName.toLowerCase();
   if (/\.(?:dbx|xcf|x\d\d|scd|smd|raw\.bin)$/.test(lower) || text.includes("\u0000")) return "This is an instrument's own job database, which isn't a text export. Export the points from the instrument or its software as CSV (point, northing, easting, height, code), GSI-16, SDR33, LandXML or JobXML.";
   if (lower.endsWith(".dc") && !looksLikeSdr(text)) return "This is a Trimble DC file, whose layout isn't published. Export the job from Trimble Access as JobXML, or as CSV with the point, northing, easting, elevation and code.";
-  const head = text.split(/\r\n|\r|\n/).slice(0, 15).join("\n");
-  if (/^(?:JOB|VER|INST|UNITS|STN|XYZ|BS|FS|SS|CTL|HV|SD|HD)\s*,/m.test(head) && !/^\s*[\w.-]+\s*,\s*-?\d/.test(head)) return "This looks like a Topcon GTS-7 job file, whose coordinate layout Farbaek couldn't confirm. Export the points from the instrument or Topcon software as CSV (point, northing, easting, height, code).";
+  // Topcon GTS-7: its "GTS-7" version record, or a GTS-7 keyword padded to 8 columns with the comma in column 9. A CSV whose rows start
+  // with STN or HD has its comma right after the word, so it isn't one.
+  const first = text.slice(0, 4000).replace(/^[\ufeff\u0002]+/, "").split(/\r\n|\r|\n/).find((l) => l.trim() !== "") ?? "";
+  if (/^\s*GTS-7/i.test(first) || (first[8] === "," && /^(?:JOB|VER|INST|UNITS|STN|XYZ|BS|FS|SS|CTL|HV|SD|HD|SCALE|ATMOS|NOTE) *$/.test(first.slice(0, 8)))) return "This looks like a Topcon GTS-7 job file, whose coordinate layout Farbaek couldn't confirm. Export the points from the instrument or Topcon software as CSV (point, northing, easting, height, code).";
   return null;
 }

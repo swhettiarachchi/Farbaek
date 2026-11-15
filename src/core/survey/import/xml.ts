@@ -2,74 +2,208 @@
  * Just enough XML for point files (stage 194): elements found by name with
  * their attributes and text, comments and processing instructions dropped,
  * the five named entities and numeric references decoded. Not a general
- * parser: it reads the elements LandXML and JobXML points live in, and a
- * file it can't read that way is refused by the caller, never half-read.
+ * parser: it reads the elements LandXML and JobXML points live in.
+ *
+ * Everything is scanned in one pass with indexOf, never with a backtracking
+ * regular expression, so a 5 MB file with a tag, quote or comment left open
+ * takes as long to read as a well-formed one (stage 194 review). A file that
+ * is cut short or isn't well formed where Farbaek reads it raises
+ * `XmlProblem`, and the reader refuses the whole file: nothing is half-read.
  */
+
+/** A file that isn't well-formed XML where Farbaek reads it; the reader turns it into one refusal with the line. */
+export class XmlProblem extends Error {
+  constructor(
+    message: string,
+    readonly line: number | null,
+  ) {
+    super(message);
+  }
+}
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 
+/** XML 1.0's Char production: what a numeric reference may name. */
+const allowed = (c: number) => c === 0x9 || c === 0xa || c === 0xd || (c >= 0x20 && c <= 0xd7ff) || (c >= 0xe000 && c <= 0xfffd) || (c >= 0x10000 && c <= 0x10ffff);
+
+/** Decodes the five named entities and numeric references. A reference to a character XML doesn't allow (&#1;) is refused. */
 export function decodeXml(s: string): string {
-  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
-    if (e[0] === "#") {
-      const code = e[1]?.toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m;
-    }
-    return ENTITIES[e] ?? m;
+  if (!s.includes("&")) return s;
+  return s.replace(/&(#x[0-9a-fA-F]{1,6}|#[0-9]{1,7}|[a-zA-Z]{2,4});/g, (m, e: string) => {
+    if (e[0] !== "#") return ENTITIES[e] ?? m;
+    const code = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+    if (!allowed(code)) throw new XmlProblem(`The file refers to a character XML doesn't allow (${m}). Export it again from the instrument's software.`, null);
+    return String.fromCodePoint(code);
   });
 }
 
-/** The text without comments, processing instructions and CDATA markers (CDATA text kept). */
-export function stripXml(text: string): string {
-  return text
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<\?[\s\S]*?\?>/g, "")
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_m, t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;"));
+/** The 1-based line of any character index, from one pass over the text (binary search per lookup). */
+export function lineFinder(text: string): (index: number) => number {
+  const starts = [0];
+  for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1)) starts.push(i + 1);
+  return (index) => {
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (starts[mid]! <= index) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo + 1;
+  };
 }
 
-/** Attributes of a start tag's inside ("name=\"1\" code='CP'"). */
-export function attributesOf(inside: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const m of inside.matchAll(/([A-Za-z_][\w.:-]*)\s*=\s*("([^"]*)"|'([^']*)')/g)) out[m[1]!] = decodeXml(m[3] ?? m[4] ?? "");
-  return out;
+const lineOf = (text: string, index: number) => lineFinder(text.slice(0, index + 1))(index);
+
+/** Spaces in place of every character but line breaks, so what's removed keeps the lines of what follows. */
+const blank = (s: string) => s.replace(/[^\n]/g, " ");
+
+const SPECIAL: [open: string, close: string, what: string][] = [
+  ["<!--", "-->", "a comment"],
+  ["<![CDATA[", "]]>", "a CDATA section"],
+  ["<?", "?>", "a processing instruction"],
+];
+
+/**
+ * The text without comments and processing instructions (blanked, so line numbers stay true) and with CDATA sections' text kept,
+ * escaped. One that never ends means the file was cut short.
+ */
+export function stripXml(text: string): string {
+  const out: string[] = [];
+  let i = 0;
+  for (;;) {
+    const lt = text.indexOf("<", i);
+    if (lt === -1) {
+      out.push(text.slice(i));
+      return out.join("");
+    }
+    const special = SPECIAL.find(([open]) => text.startsWith(open, lt));
+    if (!special) {
+      out.push(text.slice(i, lt + 1));
+      i = lt + 1;
+      continue;
+    }
+    const [open, close, what] = special;
+    const end = text.indexOf(close, lt + open.length);
+    if (end === -1) throw new XmlProblem(`The file is cut short: ${what} starting on line ${lineOf(text, lt)} never ends.`, lineOf(text, lt));
+    out.push(text.slice(i, lt));
+    out.push(open === "<![CDATA[" ? text.slice(lt + open.length, end).replace(/&/g, "&amp;").replace(/</g, "&lt;") : blank(text.slice(lt, end + close.length)));
+    i = end + close.length;
+  }
 }
+
+const isNameChar = (c: number) => (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 95 || c === 46 || c === 58 || c === 45;
+const isSpace = (c: number) => c === 32 || c === 9 || c === 10 || c === 13;
+
+/** Where the name starting at `from` ends. */
+function nameEnd(text: string, from: number): number {
+  let i = from;
+  while (i < text.length && isNameChar(text.charCodeAt(i))) i++;
+  return i;
+}
+
+/** "lx:CgPoint" is "CgPoint". */
+const localName = (qname: string) => qname.slice(qname.lastIndexOf(":") + 1);
 
 export interface XmlElement {
   attrs: Record<string, string>;
   /** Inner text and markup, undecoded; empty for a self-closing element. */
   inner: string;
-  /** Where it starts in the text, for line numbers. */
+  /** Where its start tag begins in the text, for line numbers. */
   index: number;
+  /** Where its inner text begins. */
+  innerStart: number;
 }
 
-/** Every element with this local name (any namespace prefix), in order. Elements of the same name nested inside each other aren't supported. */
+/** Reads the attributes of a start tag whose name ends at `from`, to its ">" or "/>" (a ">" inside a quoted value is part of it). */
+function startTag(text: string, lt: number, from: number, name: string): { attrs: Record<string, string>; selfClosing: boolean; end: number } {
+  const attrs: Record<string, string> = {};
+  const bad = (what: string) => new XmlProblem(`The file ${what} in the ${name} element on line ${lineOf(text, lt)}. Export it again from the instrument's software.`, lineOf(text, lt));
+  let i = from;
+  for (;;) {
+    while (i < text.length && isSpace(text.charCodeAt(i))) i++;
+    if (i >= text.length) throw bad("is cut short");
+    const c = text[i];
+    if (c === ">") return { attrs, selfClosing: false, end: i + 1 };
+    if (c === "/") {
+      if (text[i + 1] === ">") return { attrs, selfClosing: true, end: i + 2 };
+      throw bad("isn't well-formed XML");
+    }
+    const a = i;
+    i = nameEnd(text, i);
+    if (i === a) throw bad("isn't well-formed XML");
+    const attr = text.slice(a, i);
+    while (i < text.length && isSpace(text.charCodeAt(i))) i++;
+    if (text[i] !== "=") throw bad("isn't well-formed XML");
+    i++;
+    while (i < text.length && isSpace(text.charCodeAt(i))) i++;
+    const q = text[i];
+    if (q !== '"' && q !== "'") throw bad(i >= text.length ? "is cut short" : "isn't well-formed XML");
+    const close = text.indexOf(q, i + 1);
+    if (close === -1) throw bad("is cut short");
+    attrs[attr] = decodeXml(text.slice(i + 1, close));
+    i = close + 1;
+  }
+}
+
+/** The end tag closing an element of this local name, from `from`: where it starts and ends, or null. */
+function endTag(text: string, name: string, from: number): { at: number; end: number } | null {
+  for (let at = text.indexOf("</", from); at !== -1; at = text.indexOf("</", at + 2)) {
+    let k = nameEnd(text, at + 2);
+    if (localName(text.slice(at + 2, k)) !== name) continue;
+    while (k < text.length && isSpace(text.charCodeAt(k))) k++;
+    if (text[k] === ">") return { at, end: k + 1 };
+  }
+  return null;
+}
+
+/**
+ * Every element with this local name (any namespace prefix), in order. Elements of the same name nested inside each other aren't
+ * supported. One whose start tag or end tag never comes means the file was cut short.
+ */
 export function elements(text: string, name: string): XmlElement[] {
   const out: XmlElement[] = [];
-  const re = new RegExp(`<(?:[\\w.-]+:)?${name}(\\s[^>]*?)?(/?)>`, "g");
-  for (let m = re.exec(text); m; m = re.exec(text)) {
-    const attrs = attributesOf(m[1] ?? "");
-    if (m[2] === "/") {
-      out.push({ attrs, inner: "", index: m.index });
+  let i = 0;
+  for (;;) {
+    const lt = text.indexOf("<", i);
+    if (lt === -1) return out;
+    const end = nameEnd(text, lt + 1);
+    if (end === lt + 1 || localName(text.slice(lt + 1, end)) !== name) {
+      i = lt + 1;
       continue;
     }
-    const close = new RegExp(`</(?:[\\w.-]+:)?${name}\\s*>`, "g");
-    close.lastIndex = re.lastIndex;
-    const c = close.exec(text);
-    if (!c) break;
-    out.push({ attrs, inner: text.slice(re.lastIndex, c.index), index: m.index });
-    re.lastIndex = close.lastIndex;
+    const tag = startTag(text, lt, end, name);
+    if (tag.selfClosing) {
+      out.push({ attrs: tag.attrs, inner: "", index: lt, innerStart: tag.end });
+      i = tag.end;
+      continue;
+    }
+    const close = endTag(text, name, tag.end);
+    if (!close) throw new XmlProblem(`The file is cut short: the ${name} element on line ${lineOf(text, lt)} never closes.`, lineOf(text, lt));
+    out.push({ attrs: tag.attrs, inner: text.slice(tag.end, close.at), index: lt, innerStart: tag.end });
+    i = close.end;
   }
-  return out;
+}
+
+/** The text of some markup with its tags removed (each replaced by `gap`), undecoded. */
+export function textOf(inner: string, gap = ""): string {
+  const out: string[] = [];
+  let i = 0;
+  for (;;) {
+    const lt = inner.indexOf("<", i);
+    if (lt === -1) {
+      out.push(inner.slice(i));
+      return out.join("");
+    }
+    out.push(inner.slice(i, lt), gap);
+    const gt = inner.indexOf(">", lt);
+    if (gt === -1) throw new XmlProblem("The file is cut short inside an element.", null);
+    i = gt + 1;
+  }
 }
 
 /** The decoded text of the first child element of this name, or null. */
 export function childText(inner: string, name: string): string | null {
   const e = elements(inner, name)[0];
-  return e ? decodeXml(e.inner.replace(/<[^>]*>/g, "")).trim() : null;
-}
-
-/** The 1-based line of a character index. */
-export function lineAt(text: string, index: number): number {
-  let line = 1;
-  for (let i = 0; i < index && i < text.length; i++) if (text.charCodeAt(i) === 10) line++;
-  return line;
+  return e ? decodeXml(textOf(e.inner)).trim() : null;
 }
