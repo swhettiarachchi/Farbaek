@@ -86,7 +86,7 @@ export default function PricingPage() {
             <h1 id="pricing-title" className={PUBLIC_TITLE}>
               Build, preview and ship. One subscription.
             </h1>
-            <p className="mt-5 max-w-[58ch] text-lg leading-relaxed text-ink-2">
+            <p className="mt-4 max-w-[58ch] text-body leading-relaxed text-ink-2 sm:mt-5 sm:text-lg">
               Every plan includes Farbaek&apos;s AI, a test space and previews. You don&apos;t need your own AI account. Start with a {TRIAL.lengthDays}-day {trialBase} trial, no card
               required.
             </p>

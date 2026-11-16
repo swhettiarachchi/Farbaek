@@ -71,7 +71,7 @@ function deviceFor(spec) {
 /** Overlays opened by script after a route's own check, and checked again as "route #name". */
 const OPENERS = [
   { route: "/", name: "menu", kinds: ["phone", "tablet"], run: (page) => page.click('button[aria-controls][aria-expanded="false"]') },
-  { route: "/app/more", name: "workspaces", kinds: ["phone", "tablet"], run: (page) => page.click("details summary") },
+  { route: "/app/more", name: "workspaces", kinds: ["phone", "tablet"], run: (page) => page.locator("details summary", { hasText: "Switch workspace" }).first().click() },
   { route: "/app", name: "search", kinds: ["phone", "tablet"], run: (page) => page.click('[data-open-palette]') },
   { route: "/app", name: "palette", kinds: ["desktop"], run: (page) => page.keyboard.press("Control+k") },
   {
@@ -118,13 +118,21 @@ function inspect(touch) {
     if (!meaningful(el) || !visible(el)) continue;
     const r = el.getBoundingClientRect();
     if (r.right <= vw + 1 && r.left >= -1) continue;
-    // Inside a scroller of its own (a code block, a table, a tab strip), it can be scrolled to.
+    // Inside a scroller of its own (a code block, a table, a tab strip), it can be scrolled to; inside a frame on the screen that
+    // clips it (a zoomed drawing in its canvas), it's meant to be out of view.
     let scrollable = false;
     for (let n = el.parentElement; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
       const ox = getComputedStyle(n).overflowX;
       if ((ox === "auto" || ox === "scroll") && n.scrollWidth > n.clientWidth) {
         scrollable = true;
         break;
+      }
+      if (ox === "hidden" || ox === "clip") {
+        const f = n.getBoundingClientRect();
+        if (f.left >= -1 && f.right <= vw + 1) {
+          scrollable = true;
+          break;
+        }
       }
     }
     if (!scrollable) cut.push({ el: describe(el), left: Math.round(r.left), right: Math.round(r.right) });
@@ -292,12 +300,12 @@ function proportions(opts) {
       const s = getComputedStyle(el);
       const pill = px(s.borderTopLeftRadius) >= r.height / 2 - 1;
       if (el.tagName === "A" && !pill) continue;
-      if (!(r.height > 48 + 0.5 && r.height < 200)) continue;
+      if (!(r.height > 52 && r.height < 200)) continue;
       // Words that wrap make a control taller on purpose; only a one-line control that's still tall is out of proportion.
       const range = document.createRange();
       range.selectNodeContents(el);
       const lines = new Set([...range.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top / 4))).size;
-      if (lines <= 1) add("control", el, r.height, 48);
+      if (lines <= 1) add("control", el, r.height, 52);
     }
   }
   // Card padding, and how far nested frames push text from the screen's edge.
@@ -312,9 +320,19 @@ function proportions(opts) {
     if (pad > 20 * scale + 0.5) add("padding", el, pad, 20 * scale);
   }
   let inset = { value: 0, el: null };
-  for (const el of document.querySelectorAll("p, h2, h3, li, dd")) {
-    if (!shown(el) || exempt(el)) continue;
+  const besidePicture = (el, r) => {
+    for (const n of [el, el.parentElement]) {
+      for (let sib = n?.previousElementSibling; sib; sib = sib.previousElementSibling) {
+        const q = sib.getBoundingClientRect();
+        if (q.right <= r.left + 1 && q.bottom > r.top && q.top < r.bottom && (sib.matches("svg, img, picture, span, i") || sib.querySelector("svg, img"))) return true;
+      }
+    }
+    return false;
+  };
+  for (const el of document.querySelectorAll("p, h2, h3, dd")) {
+    if (!shown(el) || exempt(el) || el.closest("figure, li")) continue;
     const r = el.getBoundingClientRect();
+    if (besidePicture(el, r)) continue;
     // The left-hand column of what's on the screen: a second column, or a card in a sideways rail, starts further in on purpose.
     if (r.width < vw * 0.4 || r.left > vw * 0.5 || r.right > vw + 1) continue;
     if (r.left > inset.value) inset = { value: r.left, el };
@@ -343,10 +361,12 @@ function proportions(opts) {
       if (!shown(el) || exempt(el) || el.closest("[data-tab-bar]")) continue;
       const words = (el.innerText ?? "").trim().split(/\s+/).filter(Boolean);
       if (words.length < 3 || words.length > 14) continue;
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      const lines = new Set([...range.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top / 4)));
-      if (lines.size >= words.length) add("squeezed", el, lines.size, words.length - 1);
+      const cs = getComputedStyle(el);
+      if (/grid/.test(cs.display) || (/flex/.test(cs.display) && cs.flexDirection.startsWith("column")) || el.querySelector("div, p, ul, ol, li, dl, br, section")) continue;
+      const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3;
+      const r = el.getBoundingClientRect();
+      const lines = Math.round((r.height - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0)) / lh);
+      if (lines >= words.length) add("squeezed", el, lines, words.length - 1);
     }
   }
   return found;

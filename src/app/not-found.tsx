@@ -25,7 +25,7 @@ export default function NotFound() {
         <Container className="grid min-h-[calc(100dvh-4rem)] items-center gap-12 py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <div>
             <h1 className={`max-w-[14ch] ${PUBLIC_TITLE}`}>We can&apos;t find that page.</h1>
-            <p className="mt-4 max-w-[46ch] text-lg leading-relaxed text-ink-2">The link may be old, or the page may not exist yet. Here are three ways back in.</p>
+            <p className="mt-3 max-w-[46ch] text-body leading-relaxed text-ink-2 sm:mt-4 sm:text-lg">The link may be old, or the page may not exist yet. Here are three ways back in.</p>
             <ul className="mt-8 grid max-w-[30rem] gap-2">
               {WAYS_IN.map((w) => (
                 <li key={w.href}>

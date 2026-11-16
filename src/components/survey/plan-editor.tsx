@@ -488,7 +488,7 @@ export function PlanEditor(props: PlanEditorProps) {
     <div
       role="toolbar"
       aria-label="Plan tools"
-      className={`z-20 flex items-center gap-1.5 sm:gap-2 ${full ? "" : "sticky top-14 -mx-4 bg-canvas/90 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:top-0 lg:mx-0 lg:rounded-full lg:px-0"}`}
+      className={`z-20 flex items-center gap-2 ${full ? "" : "sticky top-14 -mx-4 bg-canvas/90 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:top-0 lg:mx-0 lg:rounded-full lg:px-0"}`}
     >
       <ToolButton label="Undo" onClick={undo} disabled={history.index === 0} icon={<ArrowArcLeftIcon size={16} weight="bold" aria-hidden />} />
       <ToolButton label="Redo" onClick={redo} disabled={history.index >= history.stack.length - 1} icon={<ArrowArcRightIcon size={16} weight="bold" aria-hidden />} />

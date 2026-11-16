@@ -208,9 +208,9 @@ function BrowserBar({
 }) {
   const round = "inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:text-ink-3/50 disabled:hover:bg-transparent";
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1 rounded-full border border-line bg-surface p-1 shadow-e1">
+    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-surface p-1 shadow-e1">
       <button type="button" onClick={onBack} disabled={!canGoBack} aria-label="Back to the page before" title="Back" className={round}>
-        <ArrowLeftIcon size={20} aria-hidden />
+        <ArrowLeftIcon size={16} weight="bold" aria-hidden />
       </button>
       <label className="relative flex min-w-0 flex-1 items-center">
         <span className="sr-only">Page</span>
@@ -219,7 +219,7 @@ function BrowserBar({
           value={page}
           onChange={(e) => onPick(e.target.value)}
           disabled={pages.length < 2}
-          className="h-11 w-full min-w-0 cursor-pointer appearance-none truncate rounded-full bg-surface-raised pl-4 pr-9 font-mono text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default"
+          className="h-10 w-full min-w-0 cursor-pointer appearance-none truncate rounded-full bg-surface-raised pl-4 pr-9 font-mono text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default"
         >
           {(pages.length > 0 ? pages : [page]).map((p) => (
             <option key={p} value={p}>
@@ -230,11 +230,11 @@ function BrowserBar({
         {pages.length > 1 ? <CaretUpDownIcon size={16} weight="bold" className="pointer-events-none absolute right-3 text-ink-3" aria-hidden /> : null}
       </label>
       <button type="button" onClick={onReload} aria-label="Reload the page" title="Reload" className={round}>
-        <ArrowClockwiseIcon size={20} aria-hidden />
+        <ArrowClockwiseIcon size={16} weight="bold" aria-hidden />
       </button>
       {onFull ? (
         <button type="button" onClick={onFull} aria-label="Show full screen" title="Full screen" className={round}>
-          <ArrowsOutIcon size={20} aria-hidden />
+          <ArrowsOutIcon size={16} weight="bold" aria-hidden />
         </button>
       ) : null}
     </div>

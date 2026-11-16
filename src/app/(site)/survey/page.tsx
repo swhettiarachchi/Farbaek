@@ -129,8 +129,8 @@ const NOT_YET = [
 ];
 
 const PRIMARY =
-  "group inline-flex min-h-12 items-center gap-3 rounded-full bg-primary py-2 pl-6 pr-2 text-body font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary-hover active:scale-[0.98]";
-const SECONDARY = "inline-flex min-h-12 items-center rounded-full px-5 text-body font-medium text-ink-2 ring-1 ring-line transition-colors duration-150 hover:bg-surface hover:text-ink";
+  "tap group inline-flex min-h-11 items-center gap-3 rounded-full bg-primary py-1.5 pl-5 pr-1.5 text-body font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary-hover active:scale-[0.98]";
+const SECONDARY = "tap inline-flex min-h-11 items-center rounded-full px-5 text-body font-medium text-ink-2 ring-1 ring-line transition-colors duration-150 hover:bg-surface hover:text-ink";
 
 function Actions() {
   return (
@@ -157,7 +157,7 @@ export default function SurveyStudioPage() {
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-end lg:gap-16">
             <h1 className={`max-w-[15ch] ${PUBLIC_TITLE}`}>Land survey plans, drawn to scale from field data.</h1>
             <div className="grid gap-6">
-              <p className="text-lg leading-relaxed text-ink-2">
+              <p className="text-body leading-relaxed text-ink-2 sm:text-lg">
                 Survey Studio is Farbaek&apos;s module for licensed surveyors and the people who draw their plans. Import the points, confirm the grid, describe the job in your own words or set the lots yourself, and get a plan sheet in the classic Sri Lankan layout with every extent and width worked out by tested code. Print it at the scale it says, or take it into CAD.
               </p>
               <Actions />
@@ -208,7 +208,7 @@ export default function SurveyStudioPage() {
             </div>
             <ol className="grid gap-3">
               {STEPS.map((s) => (
-                <li key={s.title} className="flex gap-4 rounded-md bg-canvas p-5 ring-1 ring-line sm:p-6">
+                <li key={s.title} className="flex gap-3 rounded-md bg-canvas p-4 ring-1 ring-line sm:gap-4 sm:p-6">
                   <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface ring-1 ring-line">
                     <s.icon size={20} className="text-ink-2" aria-hidden />
                   </span>
@@ -239,7 +239,7 @@ export default function SurveyStudioPage() {
             </dl>
 
             <div className={`self-start ${BEZEL}`}>
-              <div className="rounded-md bg-surface p-5 shadow-e1 ring-1 ring-line sm:p-6">
+              <div className="rounded-md bg-surface p-4 shadow-e1 ring-1 ring-line sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-title-4 font-medium tracking-[-0.01em] text-ink">The sample plan, worked out</h3>
                   <StatusBadge status="simulated" label="Sample" />
@@ -299,7 +299,7 @@ export default function SurveyStudioPage() {
           </p>
           <ul className="mt-10 grid gap-4 md:grid-cols-2">
             {SRI_LANKA.map((f) => (
-              <li key={f.title} className="grid content-between gap-5 rounded-md bg-surface p-5 shadow-e1 ring-1 ring-line sm:p-6">
+              <li key={f.title} className="grid content-between gap-5 rounded-md bg-surface p-4 shadow-e1 ring-1 ring-line sm:p-6">
                 <div className="grid gap-2">
                   <h3 className="text-title-4 font-medium tracking-[-0.01em] text-ink">{f.title}</h3>
                   <p className="text-body leading-relaxed text-ink-2">{f.body}</p>
