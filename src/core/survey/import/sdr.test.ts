@@ -42,7 +42,7 @@ describe("Sokkia SDR files", () => {
     expect(parseSdr([header33("221111"), pos33("1", "1", "2", "3", "CP")].join("\n")).issues[0]!.message).toMatch(/^The SDR file is in feet\./);
     expect(parseSdr([header33(), "13DU3:US Feet:", pos33("1", "1", "2", "3", "CP")].join("\n")).points).toEqual([]);
     const obs = parseSdr([header33(), `09F1${lpad("1", 16)}${lpad("2", 16)}${rpad("12.345", 16)}${rpad("90.0", 16)}${rpad("45.0", 16)}${rpad("CP", 16)}`].join("\n"));
-    expect(obs.issues[0]!.message).toMatch(/^This SDR file holds observations \(1 record\), not coordinates\./);
+    expect(obs.issues[0]!.message).toMatch(/^This job holds the instrument's measurements \(angles and distances, 1 record\), not coordinates\. Compute the coordinates in Sokkia Link/);
     const en = parseSdr([header33("211121"), pos33("1", "700004.21", "450012.345", "21.43", "CP")].join("\n"));
     expect(en.points).toHaveLength(1);
     expect(en.issues[0]!.severity).toBe("warning");

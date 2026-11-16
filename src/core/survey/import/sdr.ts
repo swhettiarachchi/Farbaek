@@ -127,7 +127,7 @@ export function parseSdr(text: string): SdrRead {
   }
   const points = order.map((id) => byName.get(id)!);
   if (points.length === 0 && observations > 0) {
-    return { points: [], issues: [...issues, { code: "NO_ROWS", severity: "error", line: null, message: `This SDR file holds observations (${observations} ${observations === 1 ? "record" : "records"}), not coordinates. Farbaek doesn't reduce observations: compute the coordinates on the instrument or in your office software and export them.` }], layout };
+    return { points: [], issues: [...issues, { code: "NO_ROWS", severity: "error", line: null, message: `This job holds the instrument's measurements (angles and distances, ${observations} ${observations === 1 ? "record" : "records"}), not coordinates. Compute the coordinates in Sokkia Link or on the instrument and export the job again, or export the coordinates as a CSV (point, northing, easting, height, code).` }], layout };
   }
   if (points.length === 0) return { points: [], issues: [...issues, { code: "NO_ROWS", severity: "error", line: null, message: "The SDR file has no coordinate records (08 or 02)." }], layout };
   if (observations > 0) issues.push({ code: "RECORDS_LEFT_OUT", severity: "warning", line: null, message: `${observations} observation ${observations === 1 ? "record (09 or 11) was" : "records (09 or 11) were"} left out: Farbaek doesn't reduce observations, so only the coordinate records are imported.` });
