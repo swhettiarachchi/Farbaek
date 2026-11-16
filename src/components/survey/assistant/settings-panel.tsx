@@ -9,7 +9,7 @@
  * the choice isn't shown.
  */
 import { useEffect, useId, useState, useSyncExternalStore, type KeyboardEvent, type RefObject } from "react";
-import { ON_DEVICE_ENGLISH, type AssistLanguage, type BrowserFamily } from "@/core/survey/assistant/languages";
+import { LANGUAGES, ON_DEVICE_ENGLISH, type AssistLanguage, type BrowserFamily } from "@/core/survey/assistant/languages";
 import { buttonClasses } from "@/components/ui/button";
 import type { AssistantSettings } from "./assistant-context";
 import { installOnDevice, onDeviceStatus, type OnDeviceStatus } from "./use-speech";
@@ -28,6 +28,7 @@ export function SettingsPanel({
   lang,
   family,
   speakUnavailable,
+  languageNote,
   panelRef,
   onClose,
 }: {
@@ -37,6 +38,8 @@ export function SettingsPanel({
   family: BrowserFamily;
   /** Why replies can't be spoken here, or null. */
   speakUnavailable: string | null;
+  /** How this browser hears a language: on the device, by which company, or not at all. */
+  languageNote(id: AssistLanguage): string;
   panelRef: RefObject<HTMLDivElement | null>;
   onClose(refocus: boolean): void;
 }) {
@@ -104,6 +107,7 @@ export function SettingsPanel({
           on={settings.review}
           onChange={(on) => setSettings({ review: on })}
         />
+        <LanguageRow value={lang} note={languageNote} onChange={(id) => setSettings({ lang: id })} />
         <PauseRow value={settings.pauseMs} onChange={(ms) => setSettings({ pauseMs: ms })} />
         {offered && (device.state === "available" || onDevice) ? (
           <SwitchRow
@@ -181,6 +185,44 @@ function SwitchRow({ label, help, on, onChange, disabled = false }: { label: str
           <span className={`size-5 rounded-full bg-surface shadow-e1 transition-transform duration-150 ${on ? "translate-x-5" : ""}`} />
         </span>
       </button>
+    </div>
+  );
+}
+
+/** The language heard and answered in, with how this browser hears the chosen one. Tamil waits for its own review. */
+function LanguageRow({ value, note, onChange }: { value: AssistLanguage; note(id: AssistLanguage): string; onChange(id: AssistLanguage): void }) {
+  const labelId = useId();
+  const offered = LANGUAGES.filter((l) => l.enabled);
+  const at = Math.max(0, offered.findIndex((l) => l.id === value));
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    onChange(offered[(at + step + offered.length) % offered.length]!.id);
+    const group = e.currentTarget;
+    window.setTimeout(() => group.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus(), 0);
+  };
+  return (
+    <div className="grid gap-2 py-3">
+      <p id={labelId} className="text-sm font-medium text-ink">
+        Language
+      </p>
+      <div role="radiogroup" aria-labelledby={labelId} onKeyDown={onKey} className="inline-flex w-fit rounded-full bg-canvas-2 p-0.5 ring-1 ring-line">
+        {offered.map((l, i) => (
+          <button
+            key={l.id}
+            type="button"
+            role="radio"
+            aria-checked={i === at}
+            tabIndex={i === at ? 0 : -1}
+            onClick={() => onChange(l.id)}
+            className={`min-h-11 rounded-full px-4 text-xs font-medium transition-colors duration-150 ${i === at ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
+          >
+            {l.native}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-ink-3">{note(value)} in this browser.</p>
     </div>
   );
 }

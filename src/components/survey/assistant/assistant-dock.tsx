@@ -11,7 +11,7 @@
  * Two voice modes: push to talk (hold the microphone, or Space on the sheet, and let go to send; or tap to start and tap to send) and
  * live talk (one tap, then talk: each pause ends an instruction, and "apply", "undo" or "stop listening" answer by voice).
  */
-import { ClockCounterClockwiseIcon, MicrophoneIcon, MicrophoneSlashIcon, PaperPlaneRightIcon, SlidersHorizontalIcon, StopIcon, TranslateIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, ClockCounterClockwiseIcon, MicrophoneIcon, MicrophoneSlashIcon, PaperPlaneRightIcon, SlidersHorizontalIcon, StopIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { answer as engineAnswer } from "@/core/survey/assistant/answer";
 import type { Applied, Patch } from "@/core/survey/assistant/apply";
@@ -128,7 +128,6 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   // The line starts with the conversation's words, so words held for checking survive a save (the editor starts afresh).
   const [text, setText] = useState(() => (session.phase === "heard" ? session.text : ""));
   const [drawer, setDrawer] = useState(false);
-  const [langMenu, setLangMenu] = useState(false);
   const [privacy, setPrivacy] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -276,9 +275,12 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         return;
       }
       if (views.length) {
-        addTurn({ ...base, outcome: "done", open: false, message: historyNote ?? "" });
+        // The bar says what moved, since on a phone the sheet may be out of sight.
+        const shown = views.filter((v) => v.kind === "view");
+        const note = historyNote ?? (shown.length ? `${shown.map((o) => describeOp(o, ctx).text).join(". ")}.` : null);
+        addTurn({ ...base, outcome: "done", open: false, message: note ?? "" });
         dispatch({ type: "result", phase: "applied" });
-        if (historyNote) setNotice(historyNote);
+        if (note) setNotice(note);
         resumeLive();
         return;
       }
@@ -680,46 +682,11 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     }
   };
 
-  // ---- The language menu: arrows, Home and End move, Esc or a tap outside closes it, and the focus goes back to its button ------------
-  const menuRef = useRef<HTMLDivElement>(null);
-  const menuOpener = useRef<HTMLButtonElement | null>(null);
-  const items = () => [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? [])];
-  const openMenu = (from: HTMLButtonElement) => {
-    menuOpener.current = from;
-    setSettingsOpen(false);
-    setLangMenu(true);
-    window.setTimeout(() => (items().find((b) => b.getAttribute("aria-checked") === "true") ?? items()[0])?.focus(), 0);
-  };
-  const closeMenu = (refocus = true) => {
-    setLangMenu(false);
-    if (refocus) menuOpener.current?.focus();
-  };
-  const onMenuKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    const list = items();
-    const at = list.indexOf(document.activeElement as HTMLButtonElement);
-    const go = (i: number) => {
-      e.preventDefault();
-      list[(i + list.length) % list.length]?.focus();
-    };
-    if (e.key === "ArrowDown") go(at + 1);
-    else if (e.key === "ArrowUp") go(at - 1);
-    else if (e.key === "Home") go(0);
-    else if (e.key === "End") go(list.length - 1);
-    else if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      closeMenu();
-    } else if (e.key === "Tab") closeMenu(false);
-  };
   useEffect(() => {
-    if (!langMenu) return;
-    const outside = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (!menuRef.current?.contains(t) && !menuOpener.current?.contains(t)) setLangMenu(false);
-    };
-    document.addEventListener("pointerdown", outside);
-    return () => document.removeEventListener("pointerdown", outside);
-  }, [langMenu]);
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice(null), 7_000);
+    return () => window.clearTimeout(t);
+  }, [notice]);
 
   // ---- The voice mode: a radio group, with arrows moving between the two (one tab stop) ----------------------------------------------
   const chooseMode = (m: "push" | "live") => {
@@ -743,7 +710,6 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   const settingsOpener = useRef<HTMLButtonElement | null>(null);
   const openSettings = (from: HTMLButtonElement) => {
     settingsOpener.current = from;
-    setLangMenu(false);
     setSettingsOpen(true);
     window.setTimeout(() => settingsRef.current?.querySelector<HTMLElement>("button, [href], input")?.focus(), 0);
   };
@@ -814,17 +780,11 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
                     : "Hold the microphone to talk, or type, such as “lot B4 from points 1 to 4”. Enter sends.";
   const describedChanges = useMemo(() => changeOps.map((o) => describeOp(o, ctx)), [changeOps, ctx]);
   const handoff = active && active.outcome === "suggested" && !pending ? (active.ops.find((o) => tierOf(o) === "handoff") as DivideOp | MeasureOp | undefined) : undefined;
+  const failCard = !pending && !handoff && !showDrawer && active?.outcome === "failed";
+  // What the bar shows in its quiet row: something happening (listening, working, a result, a reason), or nothing, and then the voice
+  // mode instead. A card already says what it's waiting for, or why it wasn't done, so then its line is for screen readers only.
+  const statusShown = listening || phase === "countdown" || phase === "working" || phase === "heard" || Boolean(notice) || (phase === "failed" && Boolean(session.message) && !failCard) || !availability.ok;
   const micLabel = listening ? (session.live ? "Stop live talk" : "Stop and send") : settings.mode === "live" ? "Start live talk" : "Hold to talk";
-  const langCode = settings.lang === "en" ? "EN" : languageOf(settings.lang).native;
-  // The visible code is part of the button's name, so speech control can say what's shown (WCAG 2.5.3).
-  const languageButton = (size: string, icon = true) => (
-    <button type="button" aria-haspopup="menu" aria-expanded={langMenu} onClick={(e) => (langMenu ? closeMenu() : openMenu(e.currentTarget))} className={buttonClasses("ghost", "sm", size)}>
-      {icon ? <TranslateIcon size={16} weight="bold" aria-hidden /> : null}
-      <span className="sr-only">Language: </span>
-      <span className="text-sm">{langCode}</span>
-    </button>
-  );
-
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-[var(--tab-bar)] z-30 flex max-h-[calc(100dvh-var(--tab-bar)-4.5rem)] flex-col items-center gap-2 px-3 pb-3 lg:absolute lg:bottom-0 lg:max-h-full lg:px-4 lg:pb-4">
       {/* Cards stack above the bar and scroll as one when the screen is short; they never reach the page's header. */}
@@ -933,7 +893,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         />
       ) : null}
 
-      {!pending && !handoff && !showDrawer && active?.outcome === "failed" ? (
+      {failCard && active ? (
         <NoteCard
           tone={session.failures >= 3 ? "attention" : "info"}
           title={session.failures >= 3 ? "Try another way" : "Not done"}
@@ -979,42 +939,6 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         />
       ) : null}
 
-      {langMenu ? (
-        <div
-          ref={menuRef}
-          role="menu"
-          aria-label="Language"
-          onKeyDown={onMenuKey}
-          className="pointer-events-auto w-full max-w-3xl rounded-md bg-surface p-2 shadow-e2 ring-1 ring-line"
-        >
-          {LANGUAGES.map((l) => {
-            const ok = voiceAvailability(l.id, family, speech.supported === true, l.id === "en" ? settings.onDeviceTag : null);
-            return (
-              <button
-                key={l.id}
-                type="button"
-                role="menuitemradio"
-                aria-checked={settings.lang === l.id}
-                aria-disabled={!l.enabled || undefined}
-                tabIndex={-1}
-                onClick={() => {
-                  if (!l.enabled) return;
-                  setSettings({ lang: l.id });
-                  closeMenu();
-                }}
-                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-sm px-3 text-left text-sm text-ink hover:bg-canvas-2 focus-visible:bg-canvas-2 focus-visible:outline-2 focus-visible:outline-accent aria-disabled:cursor-not-allowed aria-disabled:text-ink-3"
-              >
-                <span>
-                  {l.native}
-                  {l.native !== l.name ? <span className="text-ink-3"> ({l.name})</span> : null}
-                </span>
-                <span className="text-xs text-ink-3">{!l.enabled ? "Later" : ok.ok ? (ok.where === "device" ? "Heard on this device" : `Heard by ${ok.company ?? "the browser"}`) : "Type only here"}</span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-
       {settingsOpen ? (
         <SettingsPanel
           settings={settings}
@@ -1026,6 +950,11 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           }}
           lang={settings.lang}
           family={family}
+          languageNote={(id) => {
+            const l = LANGUAGES.find((x) => x.id === id)!;
+            const ok = voiceAvailability(id, family, speech.supported === true, id === "en" ? settings.onDeviceTag : null);
+            return !l.enabled ? "Later" : ok.ok ? (ok.where === "device" ? "Heard on this device" : `Heard by ${ok.company ?? "the browser"}`) : "Type only here";
+          }}
           speakUnavailable={voice.unavailable(settings.lang)}
           panelRef={settingsRef}
           onClose={closeSettings}
@@ -1033,17 +962,13 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       ) : null}
       </div>
 
-      <div ref={barRef} className="pointer-events-auto w-full max-w-3xl shrink-0 rounded-[1.75rem] bg-surface/90 shadow-e2 ring-1 ring-line backdrop-blur-md">
-        <div className="flex items-end gap-1.5 p-1.5 sm:gap-2 sm:p-2">
-          <span className="flex h-11 items-center pl-1 sm:hidden">
-            <VoiceCore state={core} level={level} size="sm" />
-          </span>
-          <span className="hidden h-12 items-center pl-1 sm:flex">
-            <VoiceCore state={core} level={level} />
-          </span>
-          <div className="min-w-0 flex-1 self-center">
+      <div ref={barRef} className="pointer-events-auto w-full max-w-2xl shrink-0 overflow-hidden rounded-[1.375rem] bg-surface/85 shadow-e2 ring-1 ring-line/80 backdrop-blur-xl">
+        {/* The command line: the mark, the words, then talk or send. */}
+        <div className="flex items-center gap-1 py-1 pl-2.5 pr-1">
+          <VoiceCore state={core} level={level} size="sm" />
+          <div className="min-w-0 flex-1">
             {listening ? (
-              <p aria-live="off" className="min-h-11 break-words px-1 py-2.5 text-base text-ink">
+              <p aria-live="off" className="min-h-11 break-words px-1.5 py-2.5 text-base text-ink">
                 {session.interim || <span className="text-ink-3">Listening…</span>}
               </p>
             ) : (
@@ -1058,13 +983,18 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
                   onKeyDown={onKey}
                   onFocus={keepWords}
                   onPointerDown={keepWords}
-                  placeholder="Say or type"
-                  className="block max-h-36 min-h-11 w-full resize-none bg-transparent px-1 py-2.5 text-base text-ink placeholder:text-ink-3 focus:outline-none [field-sizing:content]"
+                  placeholder={availability.ok ? (settings.mode === "live" ? "Tap the microphone, or type" : "Hold the microphone, or type") : "Type an instruction"}
+                  className="block max-h-36 min-h-11 w-full resize-none bg-transparent px-1.5 py-2.5 text-base text-ink placeholder:text-ink-3 focus:outline-none [field-sizing:content]"
                 />
               </label>
             )}
           </div>
-          <span className="hidden sm:block">{languageButton("h-11 px-3")}</span>
+          {/* Send shows once there's something to send; the microphone is the bar's one dark control. */}
+          {text.trim() && !listening ? (
+            <button type="button" aria-label="Send" disabled={phase === "working"} onClick={() => void run(text, phase === "heard" ? "voice" : "typed")} className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent transition-[transform,background-color] duration-150 hover:bg-accent-strong active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 motion-safe:animate-[usage-in_160ms_cubic-bezier(0.16,1,0.3,1)_both]">
+              <PaperPlaneRightIcon size={16} weight="fill" aria-hidden />
+            </button>
+          ) : null}
           <button
             type="button"
             aria-label={availability.ok ? micLabel : `Talking is off: ${availability.reason}`}
@@ -1087,39 +1017,43 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
               }
             }}
             onContextMenu={(e) => e.preventDefault()}
-            className={`inline-flex size-11 shrink-0 touch-none select-none items-center justify-center rounded-full transition-[transform,background-color] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${listening ? "bg-accent text-surface shadow-e1" : availability.ok ? "bg-ink text-surface" : "bg-canvas-2 text-ink-3 ring-1 ring-line"}`}
+            className={`inline-flex size-11 shrink-0 touch-none select-none items-center justify-center rounded-full transition-[transform,background-color] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${listening ? "bg-accent text-on-accent shadow-e1" : availability.ok ? "bg-ink text-surface hover:bg-ink/90" : "bg-canvas-2 text-ink-3"}`}
           >
-            {listening ? <StopIcon size={20} weight="fill" aria-hidden /> : availability.ok ? <MicrophoneIcon size={20} weight="fill" aria-hidden /> : <MicrophoneSlashIcon size={20} weight="bold" aria-hidden />}
-          </button>
-          <button type="button" aria-label="Send" disabled={!text.trim() || phase === "working"} onClick={() => void run(text, phase === "heard" ? "voice" : "typed")} className={buttonClasses("secondary", "sm", "size-11 !min-h-11 shrink-0 !px-0")}>
-            <PaperPlaneRightIcon size={20} weight="fill" aria-hidden />
+            {listening ? <StopIcon size={16} weight="fill" aria-hidden /> : availability.ok ? <MicrophoneIcon size={16} weight="fill" aria-hidden /> : <MicrophoneSlashIcon size={16} weight="bold" aria-hidden />}
           </button>
         </div>
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-line px-2 py-1.5 sm:gap-x-2 sm:px-3">
-          <div role="radiogroup" aria-label="How you talk" onKeyDown={onModeKey} className="inline-flex rounded-full bg-canvas-2 p-0.5 ring-1 ring-line">
-            {MODES.map(([m, label]) => (
-              <button
-                key={m}
-                type="button"
-                role="radio"
-                aria-checked={settings.mode === m}
-                tabIndex={settings.mode === m ? 0 : -1}
-                onClick={() => chooseMode(m)}
-                className={`min-h-11 rounded-full px-2.5 text-xs font-medium sm:px-3 transition-colors duration-150 ${settings.mode === m ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {/* On phones the status has a line of its own under the controls. */}
-          <p role="status" className="order-last min-w-0 basis-full px-1 pb-1 text-xs text-ink-3 sm:order-none sm:basis-auto sm:flex-1 sm:pb-0">
+        {/* The quiet row: what's happening, or the voice mode; then undo, settings and earlier instructions. */}
+        <div className="flex min-h-11 items-center gap-1 border-t border-line/60 pl-1.5 pr-1">
+          {statusShown ? (
+            <p aria-hidden className="min-w-0 flex-1 px-1.5 py-1.5 text-xs leading-snug text-ink-2">
+              {status}
+            </p>
+          ) : (
+            <div role="radiogroup" aria-label="How you talk" onKeyDown={onModeKey} className="flex min-w-0 flex-1 items-center">
+              {MODES.map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.mode === m}
+                  tabIndex={settings.mode === m ? 0 : -1}
+                  onClick={() => chooseMode(m)}
+                  className={`relative min-h-11 px-2.5 text-xs font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-accent ${settings.mode === m ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
+                >
+                  {label}
+                  {/* The chosen mode is marked by a short rule under its name, as well as its weight. */}
+                  <span aria-hidden className={`absolute inset-x-2.5 bottom-2 h-0.5 rounded-full transition-opacity duration-150 ${settings.mode === m ? "bg-ink opacity-100" : "opacity-0"}`} />
+                </button>
+              ))}
+            </div>
+          )}
+          {/* For screen readers, the status is always said here, whether or not the row shows it. */}
+          <p role="status" className="sr-only">
             {status}
           </p>
-          {/* On phones the code alone, so the row fits at 375 px; its name still says it's the language. */}
-          <span className="ml-auto sm:hidden">{languageButton("min-h-11 min-w-11 px-2", false)}</span>
           {lastUndoable && !bridge.readOnly ? (
-            <button type="button" onClick={() => takeBack(lastUndoable)} className={buttonClasses("ghost", "sm", "text-xs")}>
-              Undo
+            <button type="button" aria-label="Undo the assistant's last change" title="Undo the assistant's last change" onClick={() => takeBack(lastUndoable)} className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-canvas-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent">
+              <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden />
             </button>
           ) : null}
           <button
@@ -1127,8 +1061,9 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
             aria-haspopup="dialog"
             aria-expanded={settingsOpen}
             aria-label="Assistant settings"
+            title="Assistant settings"
             onClick={(e) => (settingsOpen ? closeSettings(false) : openSettings(e.currentTarget))}
-            className={buttonClasses("ghost", "sm", "size-11 !px-0")}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-canvas-2 hover:text-ink aria-expanded:text-ink focus-visible:outline-2 focus-visible:outline-accent"
           >
             <SlidersHorizontalIcon size={16} weight="bold" aria-hidden />
           </button>
@@ -1136,11 +1071,12 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
             type="button"
             aria-expanded={showDrawer}
             aria-label="Earlier instructions"
+            title="Earlier instructions"
             onClick={() => {
               if (!showDrawer) setDrawerAt(Date.now());
               setDrawer(!showDrawer);
             }}
-            className={buttonClasses("ghost", "sm", "size-11 !px-0")}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-canvas-2 hover:text-ink aria-expanded:text-ink focus-visible:outline-2 focus-visible:outline-accent"
           >
             <ClockCounterClockwiseIcon size={16} weight="bold" aria-hidden />
           </button>
