@@ -146,16 +146,20 @@ export function ChangeCard(props: {
       {props.readOnly ? <p className="mt-3 text-label text-ink-3">{props.readOnly}</p> : null}
       {/* On phones one row: Apply takes the width, and the other two keep their names for screen readers as 44 px icon buttons, so
           the values above stay in view. */}
-      <div className="sticky -bottom-3 -mx-3 -mb-3 mt-3 flex items-center gap-2 border-t border-line bg-surface px-3 py-2 sm:-bottom-4 sm:-mx-4 sm:-mb-4 sm:flex-wrap sm:px-4">
-        <button type="button" onClick={props.onApply} disabled={count === 0 || Boolean(props.readOnly)} className={buttonClasses("primary", "sm", "max-sm:flex-1")}>
+      <div className="sticky -bottom-3 -mx-3 -mb-3 mt-3 flex items-center gap-2 border-t border-line bg-surface px-3 py-2 max-[18em]:!flex-nowrap sm:-bottom-4 sm:-mx-4 sm:-mb-4 sm:flex-wrap sm:px-4">
+        <button type="button" onClick={props.onApply} disabled={count === 0 || Boolean(props.readOnly)} className={buttonClasses("primary", "sm", "max-sm:flex-1 max-[18em]:min-w-0 max-[18em]:!min-h-[48px] max-[18em]:!gap-[6px] max-[18em]:!px-[12px]")}>
           <CheckIcon size={14} weight="bold" aria-hidden />
-          {count === props.ops.length ? `Apply ${count === 1 ? "the change" : `${count} changes`}` : `Apply ${count} of ${props.ops.length}`}
+          {/* At the largest text sizes the button says "Apply"; the ticks above say which. */}
+          <span>
+            Apply
+            <span className="max-[18em]:sr-only">{count === props.ops.length ? ` ${count === 1 ? "the change" : `${count} changes`}` : ` ${count} of ${props.ops.length}`}</span>
+          </span>
         </button>
-        <button type="button" onClick={props.onEdit} className={buttonClasses("secondary", "sm", "max-sm:size-11 max-sm:!min-h-11 max-sm:shrink-0 max-sm:!px-0")}>
+        <button type="button" onClick={props.onEdit} className={buttonClasses("secondary", "sm", "max-sm:size-[44px] max-sm:!min-h-[44px] max-sm:!shrink-0 max-sm:!px-0")}>
           <PencilSimpleIcon size={14} weight="bold" aria-hidden />
           <span className="max-sm:sr-only">Change the words</span>
         </button>
-        <button type="button" onClick={props.onDiscard} className={buttonClasses("ghost", "sm", "max-sm:size-11 max-sm:!min-h-11 max-sm:shrink-0 max-sm:!px-0")}>
+        <button type="button" onClick={props.onDiscard} className={buttonClasses("ghost", "sm", "max-sm:size-[44px] max-sm:!min-h-[44px] max-sm:!shrink-0 max-sm:!px-0")}>
           <XIcon size={14} weight="bold" aria-hidden />
           <span className="max-sm:sr-only">Discard</span>
         </button>
