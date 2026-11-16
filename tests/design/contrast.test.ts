@@ -25,7 +25,7 @@ function contrast(a: string, b: string): number {
 }
 
 const BACKGROUNDS = ["canvas", "canvas-2", "surface", "surface-raised", "surface-sunken"];
-const TEXT = ["ink", "ink-2", "ink-3", "accent", "accent-strong", "accent-2", "verified", "approval", "caution", "failed", "info", "unverified", "simulated"];
+const TEXT = ["ink", "ink-2", "ink-3", "accent", "accent-strong", "accent-2", "verified", "approval", "caution", "failed", "info", "unverified", "simulated", "spark-rose", "spark-aqua", "spark-leaf", "spark-ember"];
 const GRAPHICS = ["accent", "line-strong", "seal"];
 const MEDIA_TEXT = ["media-ink", "media-ink-2", "media-ink-3", "media-accent", "media-cyan", "media-green", "media-caution", "media-red"];
 

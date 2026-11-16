@@ -12,6 +12,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export interface TourItem {
   id: string;
+  /** The space's colour (ADR 0217), as a CSS colour. */
+  tone: string;
+  icon: ReactNode;
   title: string;
   promise: string;
   body: string;
@@ -72,18 +75,27 @@ export function HomeTour({ items }: { items: TourItem[] }) {
                 return (
                   <li key={item.id} className="border-t border-line first:border-t-0">
                     <button type="button" aria-current={on ? "step" : undefined} onClick={() => go(i)} className="block w-full py-4 text-left">
-                      <span className={`block text-title-4 font-medium tracking-[-0.02em] transition-colors duration-300 ${on ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}>{item.title}</span>
+                      <span className={`flex items-center gap-2.5 text-title-4 font-medium tracking-[-0.02em] transition-colors duration-300 ${on ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}>
+                        <span
+                          aria-hidden
+                          className="flex size-8 items-center justify-center rounded-full transition-[background-color,color] duration-300"
+                          style={on ? { background: `color-mix(in oklab, ${item.tone} 12%, var(--color-surface))`, color: item.tone } : { background: "var(--color-canvas-2)" }}
+                        >
+                          {item.icon}
+                        </span>
+                        {item.title}
+                      </span>
                     </button>
                     <div className={`grid transition-[grid-template-rows,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${on ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`} inert={!on}>
                       <div className="overflow-hidden">
                         <p className="text-sm font-semibold leading-snug text-ink">{item.promise}</p>
                         <p className="mt-2 text-sm leading-relaxed text-ink-2">{item.body}</p>
-                        <Link href={item.href} className="group mt-3 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-ink pointer-coarse:min-h-11">
+                        <Link href={item.href} className="group mt-3 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium pointer-coarse:min-h-11" style={{ color: item.tone }}>
                           {item.cta}
                           <ArrowRightIcon size={14} weight="bold" aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5" />
                         </Link>
                         <span aria-hidden className="mb-4 mt-2 block h-px w-full bg-line">
-                          <span className="block h-px origin-left bg-ink" style={{ transform: `scaleX(${on ? progress : 0})` }} />
+                          <span className="block h-0.5 origin-left rounded-full" style={{ transform: `scaleX(${on ? progress : 0})`, background: item.tone }} />
                         </span>
                       </div>
                     </div>
@@ -107,18 +119,22 @@ export function HomeTour({ items }: { items: TourItem[] }) {
         </div>
       </div>
 
-      {/* Phones and tablets: each space with its window. */}
-      <ol className="mx-auto grid max-w-[40rem] gap-12 px-4 sm:px-6 lg:hidden">
+      {/* Phones and tablets: a row to swipe, one card for each space, so the page stays short. */}
+      <ol className="flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:scroll-px-6 sm:gap-4 sm:px-6 lg:hidden">
         {items.map((item) => (
-          <li key={item.id}>
-            <h3 className="text-title-4 font-medium tracking-[-0.02em] text-ink">{item.title}</h3>
-            <p className="mt-1.5 text-sm font-semibold leading-snug text-ink">{item.promise}</p>
-            <p className="mt-2 text-sm leading-relaxed text-ink-2">{item.body}</p>
-            <Link href={item.href} className="group mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-ink">
+          <li key={item.id} className="flex w-[84vw] max-w-[24rem] shrink-0 snap-start flex-col rounded-md p-4" style={{ background: `color-mix(in oklab, ${item.tone} 6%, var(--color-canvas-2))` }}>
+            <h3 className="flex items-center gap-2.5 text-title-4 font-medium tracking-[-0.02em] text-ink">
+              <span aria-hidden className="flex size-8 items-center justify-center rounded-full" style={{ background: `color-mix(in oklab, ${item.tone} 14%, var(--color-surface))`, color: item.tone }}>
+                {item.icon}
+              </span>
+              {item.title}
+            </h3>
+            <p className="mt-2 text-sm leading-snug text-ink-2">{item.promise}</p>
+            <div className="mt-5 aspect-[5/4.6] w-full sm:aspect-[16/11]">{item.visual}</div>
+            <Link href={item.href} className="group mt-auto inline-flex min-h-11 items-center gap-1.5 self-start pt-1 text-sm font-medium" style={{ color: item.tone }}>
               {item.cta}
               <ArrowRightIcon size={14} weight="bold" aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
-            <div className="mt-3 aspect-[16/11] w-full">{item.visual}</div>
           </li>
         ))}
       </ol>

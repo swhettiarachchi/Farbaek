@@ -35,6 +35,14 @@
   --on-accent: #ffffff;
   --seal: #5a616e;
 
+  /* The spectrum (ADR 0217): one colour for each of Farbaek AI's spaces beside Chat's signal blue. Rose for Images, aqua
+     for Video, leaf for Build, ember for playful marks. Used on the public site and in the spaces' own chrome for
+     identity and light, never for status. Each reads as text on every background (4.5:1). No gold, amber or purple. */
+  --spark-rose: #c81e5b;
+  --spark-aqua: #0b7285;
+  --spark-leaf: #0b7a4b;
+  --spark-ember: #b93d0b;
+
   --primary: #121317;
   --primary-hover: #23252b;
   --on-primary: #fbfbfc;

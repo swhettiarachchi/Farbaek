@@ -5,12 +5,22 @@
  * waits in this browser while they sign in (never in the address), then appears in Chat's box, ready to send. Quiet on
  * purpose: a hairline, the lightest shadow and one row of starters, measured against ChatGPT's and Claude's boxes.
  */
-import { ArrowUpIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, ChatCircleTextIcon, FilmSlateIcon, HammerIcon, ImageSquareIcon } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { HOME_QUESTION_KEY } from "@/core/chat/protocol";
 
-const STARTS = ["Plan my bakery's opening week", "Summarise a long PDF", "Explain this error in my code"];
+const START = "Summarise a long PDF in five points";
+
+/** The other spaces, one press away, each in its colour (ADR 0217). */
+const MAKE = [
+  { href: "/sign-in?next=/app/images", label: "Make a picture", icon: ImageSquareIcon, tone: "text-spark-rose" },
+  { href: "/sign-in?next=/app/video", label: "Make a video", icon: FilmSlateIcon, tone: "text-spark-aqua" },
+  { href: "/sign-in?next=/app/new", label: "Build a website", icon: HammerIcon, tone: "text-spark-leaf" },
+];
+
+const CHIP = "inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-surface px-3 text-sm text-ink-2 transition-[border-color,color,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-px hover:border-line-strong hover:text-ink pointer-coarse:min-h-11";
 
 export function HomeAsk({ id = "home-ask", starters = true }: { id?: string; starters?: boolean }) {
   const router = useRouter();
@@ -64,19 +74,23 @@ export function HomeAsk({ id = "home-ask", starters = true }: { id?: string; sta
         </button>
       </form>
       {starters ? (
-        <div className="mt-3 flex flex-wrap justify-center gap-2">
-          {STARTS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => {
-                setText(s);
-                box.current?.focus();
-              }}
-              className="inline-flex min-h-10 items-center rounded-full bg-canvas-2 px-3.5 text-sm text-ink-2 transition-colors duration-200 hover:bg-surface-raised hover:text-ink pointer-coarse:min-h-11"
-            >
-              {s}
-            </button>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:flex sm:flex-wrap sm:justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              setText(START);
+              box.current?.focus();
+            }}
+            className={CHIP}
+          >
+            <ChatCircleTextIcon size={16} weight="fill" aria-hidden className="text-accent" />
+            Summarise a PDF
+          </button>
+          {MAKE.map(({ href, label, icon: MakeIcon, tone }) => (
+            <Link key={href} href={href} className={CHIP}>
+              <MakeIcon size={16} weight="fill" aria-hidden className={tone} />
+              {label}
+            </Link>
           ))}
         </div>
       ) : null}

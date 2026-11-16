@@ -20,11 +20,11 @@ const ROWS: [string, string, string][] = [
 ];
 const CLOSE = "Want me to make the pictures and the video, and a simple website with the menu and the map?";
 
-const SPACES: { label: string; icon: Icon }[] = [
-  { label: "Chat", icon: ChatCircleTextIcon },
-  { label: "Images", icon: ImageSquareIcon },
-  { label: "Video", icon: FilmSlateIcon },
-  { label: "Build", icon: HammerIcon },
+const SPACES: { label: string; icon: Icon; tone: string }[] = [
+  { label: "Chat", icon: ChatCircleTextIcon, tone: "text-accent" },
+  { label: "Images", icon: ImageSquareIcon, tone: "text-spark-rose" },
+  { label: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua" },
+  { label: "Build", icon: HammerIcon, tone: "text-spark-leaf" },
 ];
 
 const RECENT = ["Opening week posts", "Menu prices in rupees", "Explain this SQL error", "Logo ideas, warm and simple"];
@@ -83,9 +83,9 @@ export function HomeDemo() {
   const writing = step < TOTAL;
 
   return (
-    <div ref={root} className="home-demo mx-auto w-full max-w-[64rem]">
+    <div ref={root} className="home-demo mx-auto w-full">
       <div className="overflow-hidden rounded-[1.25rem] border border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_24px_60px_-24px_rgb(18_24_40/0.22)] sm:rounded-[1.5rem]">
-        <div className="grid min-h-[30rem] lg:grid-cols-[14.5rem_minmax(0,1fr)]">
+        <div className="grid lg:min-h-[28rem] lg:grid-cols-[14rem_minmax(0,1fr)]">
           <aside aria-hidden className="hidden flex-col gap-1 border-r border-line bg-canvas-2/70 p-3 lg:flex">
             <div className="flex items-center gap-2 px-2 pb-3 pt-1">
               <BrandLogo height={24} />
@@ -97,7 +97,7 @@ export function HomeDemo() {
             </span>
             {SPACES.map((s, i) => (
               <span key={s.label} className={`flex h-9 items-center gap-2.5 rounded-full px-3 text-sm ${i === 0 ? "bg-surface font-medium text-ink ring-1 ring-line" : "text-ink-2"}`}>
-                <s.icon size={16} weight={i === 0 ? "fill" : "bold"} className={i === 0 ? "text-accent" : ""} />
+                <s.icon size={16} weight="fill" className={s.tone} />
                 {s.label}
               </span>
             ))}
@@ -110,17 +110,17 @@ export function HomeDemo() {
           </aside>
 
           <div className="flex min-w-0 flex-col">
-            <div className="flex h-12 items-center justify-between border-b border-line px-4 sm:px-6">
+            <div className="flex h-10 items-center justify-between border-b border-line px-3.5 sm:h-12 sm:px-6">
               <span className="truncate text-sm font-medium text-ink">Opening week posts</span>
               <span className="rounded-full bg-canvas-2 px-3 py-1 text-xs text-ink-2">Auto</span>
             </div>
-            <div className="flex flex-1 flex-col gap-5 px-4 py-5 sm:px-8 sm:py-7">
-              <div className="ml-auto max-w-[30rem] rounded-[1.25rem] rounded-br-md bg-canvas-2 px-4 py-2.5 text-sm leading-relaxed text-ink">{QUESTION}</div>
-              <div className="flex gap-3">
+            <div className="flex flex-1 flex-col gap-3.5 px-3.5 py-3.5 sm:gap-5 sm:px-8 sm:py-7">
+              <div className="ml-auto max-w-[30rem] rounded-[1.125rem] rounded-br-md bg-canvas-2 px-3.5 py-2 text-label leading-relaxed text-ink sm:px-4 sm:py-2.5 sm:text-sm">{QUESTION}</div>
+              <div className="flex gap-2.5 sm:gap-3">
                 <span className="mt-0.5 shrink-0">
                   <BrandLogo height={28} />
                 </span>
-                <div className="min-w-0 flex-1 text-sm leading-relaxed text-ink" aria-label="Farbaek AI's answer">
+                <div className="min-w-0 flex-1 text-label leading-relaxed text-ink sm:text-sm" aria-label="Farbaek AI's answer">
                   <p>
                     {INTRO_WORDS.map((w, i) => (
                       <span key={i} className={`transition-opacity duration-150 ${shown(i)}`}>
@@ -128,42 +128,43 @@ export function HomeDemo() {
                       </span>
                     ))}
                   </p>
-                  <div className="mt-3 overflow-x-auto rounded-md border border-line">
-                    <table className="w-full min-w-[26rem] border-collapse text-left text-sm">
+                  <div className="mt-2.5 overflow-hidden rounded-sm border border-line sm:mt-3 sm:rounded-md">
+                    <table className="w-full border-collapse text-left text-xs sm:text-sm">
                       <thead>
                         <tr className="bg-canvas-2 text-xs text-ink-3">
-                          <th className="px-3 py-2 font-medium">Day</th>
-                          <th className="px-3 py-2 font-medium">Post</th>
-                          <th className="px-3 py-2 font-medium">Format</th>
+                          <th className="px-2.5 py-1.5 font-medium sm:px-3 sm:py-2">Day</th>
+                          <th className="px-2.5 py-1.5 font-medium sm:px-3 sm:py-2">Post</th>
+                          <th className="hidden px-3 py-2 font-medium sm:table-cell">Format</th>
                         </tr>
                       </thead>
                       <tbody>
                         {ROWS.map((r, i) => (
                           <tr key={r[0]} className={`border-t border-line transition-opacity duration-300 ${shown(rowAt + i)}`}>
-                            <td className="px-3 py-2 font-medium">{r[0]}</td>
-                            <td className="px-3 py-2 text-ink-2">{r[1]}</td>
-                            <td className="whitespace-nowrap px-3 py-2 text-ink-2">{r[2]}</td>
+                            <td className="px-2.5 py-1.5 align-top font-medium sm:px-3 sm:py-2">{r[0]}</td>
+                            <td className="px-2.5 py-1.5 leading-snug text-ink-2 sm:px-3 sm:py-2">{r[1]}</td>
+                            <td className="hidden whitespace-nowrap px-3 py-2 text-ink-2 sm:table-cell">{r[2]}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <p className="mt-3">
+                  <p className="mt-2.5 sm:mt-3">
                     {CLOSE_WORDS.map((w, i) => (
                       <span key={i} className={`transition-opacity duration-150 ${shown(closeAt + i)}`}>
                         {w}{" "}
                       </span>
                     ))}
                   </p>
-                  <div className={`mt-3 flex flex-wrap gap-2 transition-[opacity,transform] duration-300 ${step >= TOTAL ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}>
+                  <div className={`mt-2.5 flex gap-1.5 transition-[opacity,transform] duration-300 sm:mt-3 sm:flex-wrap sm:gap-2 ${step >= TOTAL ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}>
                     {[
-                      { label: "Make the pictures", icon: ImageSquareIcon },
-                      { label: "Make the video", icon: FilmSlateIcon },
-                      { label: "Build the website", icon: HammerIcon },
+                      { label: "Make the pictures", short: "Pictures", icon: ImageSquareIcon, tone: "text-spark-rose" },
+                      { label: "Make the video", short: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua" },
+                      { label: "Build the website", short: "Website", icon: HammerIcon, tone: "text-spark-leaf" },
                     ].map((o) => (
-                      <span key={o.label} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-xs font-medium text-ink">
-                        <o.icon size={14} weight="bold" className="text-accent" />
-                        {o.label}
+                      <span key={o.label} className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-surface px-2.5 text-xs font-medium text-ink sm:px-3">
+                        <o.icon size={14} weight="fill" className={o.tone} />
+                        <span className="sm:hidden">{o.short}</span>
+                        <span className="hidden sm:inline">{o.label}</span>
                       </span>
                     ))}
                   </div>
@@ -182,7 +183,6 @@ export function HomeDemo() {
           </div>
         </div>
       </div>
-      <p className="mt-4 text-center text-xs text-ink-3">A sample conversation, drawn from Farbaek AI&apos;s chat.</p>
     </div>
   );
 }

@@ -54,7 +54,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 
 ## Design rules (White Signal, ADR 0008)
 
-- One light theme. Farbaek Chat alone offers Dark as the person's choice, scoped to its own root (`src/styles/chat-theme.css`, ADR 0213). Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold.
+- One light theme. Farbaek Chat alone offers Dark as the person's choice, scoped to its own root (`src/styles/chat-theme.css`, ADR 0213). Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold. The public site and the spaces' own chrome also use the spectrum (ADR 0217): `spark-rose` for Images, `spark-aqua` for Video, `spark-leaf` for Build, `spark-ember` for playful marks, as identity and as light from behind product windows (`Halo`), never for status.
 - Dark `media` tokens are for media frames only (concept film, evidence terminal), never for whole sections.
 - Shape lock: buttons, chips and segmented controls are pills; inputs 12px (`rounded-sm`); cards 20px (`rounded-md`); large panels 28px.
 - Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono for code and data only (hashes, paths, commands, IDs, keys). No serif.
