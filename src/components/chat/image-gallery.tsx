@@ -56,11 +56,11 @@ export function ImageGallery({ images, demo }: { images: GalleryImage[]; demo: b
                         {img.prompt ?? img.name}
                       </p>
                       {img.conversationId ? (
-                        <Link href={`/app/chat/${img.conversationId}`} aria-label="Open its chat" title="Open its chat" className="tap inline-flex size-8 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink">
+                        <Link href={`/app/chat/${img.conversationId}`} aria-label="Open its chat" title="Open its chat" className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink">
                           <ChatCircleIcon size={16} weight="bold" aria-hidden />
                         </Link>
                       ) : null}
-                      <a href={`${src}?download`} download={img.name} aria-label="Download" title="Download" className="tap inline-flex size-8 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink">
+                      <a href={`${src}?download`} download={img.name} aria-label="Download" title="Download" className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink">
                         <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                       </a>
                     </div>

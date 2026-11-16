@@ -12,7 +12,7 @@ import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { shareChatAction, unshareChatAction } from "@/app/app/chat/actions";
 import type { ChatAvailabilityView } from "./chat-shell";
 import { setChatPrefs, useChatPrefs, type ChatTheme } from "./prefs";
-import { Dialog } from "./primitives";
+import { Dialog, useCopy } from "./primitives";
 
 function Problem({ text }: { text: string | null }) {
   if (!text) return null;
@@ -33,7 +33,7 @@ function ShareBody({ state, onClose, onShared }: { state: { id: string; title: s
   const [lifetime, setLifetime] = useState<LinkLifetime>("30");
   const [link, setLink] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, copyText] = useCopy();
   const [shared, setShared] = useState(state.shared);
   const [pending, start] = useTransition();
 
@@ -61,14 +61,7 @@ function ShareBody({ state, onClose, onShared }: { state: { id: string; title: s
       onShared(state.id, false);
     });
   const copy = async () => {
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1_500);
-    } catch {
-      setProblem("The link couldn't be copied. Select it and copy it yourself.");
-    }
+    if (link && !(await copyText(link))) setProblem("The link couldn't be copied. Select it and copy it yourself.");
   };
 
   return (

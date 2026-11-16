@@ -6,7 +6,8 @@
  * and a download; tables scroll sideways inside their own frame; maths is the browser's own MathML.
  */
 import { CheckIcon, CheckSquareIcon, CopyIcon, DownloadSimpleIcon, SquareIcon } from "@phosphor-icons/react";
-import { createElement, memo, useMemo, useState, type ReactNode } from "react";
+import { createElement, memo, useDeferredValue, useMemo, type ReactNode } from "react";
+import { useCopy } from "./primitives";
 import { extensionFor, highlight, languageLabel, type TokenKind } from "@/core/chat/highlight";
 import { parseMarkdown, type Block, type Inline } from "@/core/chat/markdown";
 import { texToMath, type MathNode } from "@/core/chat/tex";
@@ -81,17 +82,9 @@ function InlineView({ nodes }: { nodes: Inline[] }) {
 }
 
 export function CodeBlock({ lang, code, open }: { lang: string; code: string; open: boolean }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, copyText] = useCopy();
   const tokens = useMemo(() => highlight(code, lang), [code, lang]);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1_500);
-    } catch {
-      setCopied(false);
-    }
-  };
+  const copy = () => void copyText(code);
   const download = () => {
     const url = URL.createObjectURL(new Blob([code], { type: "text/plain;charset=utf-8" }));
     const a = document.createElement("a");
@@ -102,15 +95,15 @@ export function CodeBlock({ lang, code, open }: { lang: string; code: string; op
   };
   return (
     <figure className="my-4 overflow-hidden rounded-md border border-line bg-surface-sunken/60 first:mt-0">
-      <figcaption className="flex min-h-10 items-center justify-between gap-2 border-b border-line bg-surface/60 pl-4 pr-1.5 text-xs text-ink-3 pointer-coarse:min-h-12">
+      <figcaption className="flex min-h-11 items-center justify-between gap-2 border-b border-line bg-surface/60 pl-4 pr-1 text-xs text-ink-3 pointer-coarse:min-h-12">
         <span className="font-medium text-ink-2">{languageLabel(lang)}</span>
         <span className="flex items-center">
           {open ? null : (
-            <button type="button" onClick={download} aria-label="Download this code" title="Download" className="tap inline-flex size-8 items-center justify-center rounded-full hover:bg-surface-raised hover:text-ink pointer-coarse:size-11">
+            <button type="button" onClick={download} aria-label="Download this code" title="Download" className="tap inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-raised hover:text-ink pointer-coarse:size-11">
               <DownloadSimpleIcon size={14} weight="bold" aria-hidden />
             </button>
           )}
-          <button type="button" onClick={copy} className="tap inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 hover:bg-surface-raised hover:text-ink pointer-coarse:min-h-11" aria-label={copied ? "Code copied" : "Copy code"}>
+          <button type="button" onClick={copy} className="tap inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 hover:bg-surface-raised hover:text-ink pointer-coarse:min-h-11" aria-label={copied ? "Code copied" : "Copy code"}>
             {copied ? <CheckIcon size={14} weight="bold" className="text-verified" aria-hidden /> : <CopyIcon size={14} weight="bold" aria-hidden />}
             {copied ? "Copied" : "Copy"}
           </button>
@@ -227,7 +220,9 @@ const MemoBlock = memo(function MemoBlock({ block }: { block: Block; src: string
 
 /** An answer's Markdown. `streaming` adds the caret after the last block. */
 export function MarkdownView({ text, streaming = false }: { text: string; streaming?: boolean }) {
-  const blocks = useMemo(() => parseMarkdown(text), [text]);
+  // While an answer streams, rendering can fall a frame or two behind under load instead of re-reading every frame.
+  const shown = useDeferredValue(text);
+  const blocks = useMemo(() => parseMarkdown(shown), [shown]);
   return (
     <div className="chat-prose text-body leading-[1.7] text-ink [overflow-wrap:break-word]">
       {blocks.map((b, i) => (

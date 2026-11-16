@@ -60,6 +60,8 @@ create table public.chat_messages (
 );
 create index chat_messages_parent_idx on public.chat_messages (conversation_id, parent_id, created_at);
 create index chat_messages_streaming_idx on public.chat_messages (owner_id) where status = 'streaming';
+-- Searching your own messages reads only your rows.
+create index chat_messages_owner_idx on public.chat_messages (owner_id, created_at desc);
 
 alter table public.chat_conversations
   add constraint chat_conversations_leaf_fkey foreign key (leaf_id) references public.chat_messages (id) on delete set null;

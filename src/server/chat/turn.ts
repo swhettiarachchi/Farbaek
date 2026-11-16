@@ -197,7 +197,8 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   if (conversationId) {
     const conversation = await deps.reads.conversation(conversationId);
     if (!conversation) return refused(404, "That conversation doesn't exist or isn't yours.");
-    conversationTitled = conversation.titled || Boolean(conversation.title);
+    // Named by the person; the question's first words are only a stand-in until the AI names it.
+    conversationTitled = conversation.titled;
   }
 
   if (request.action === "send") {
@@ -287,7 +288,8 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   if (continuing) contextMessages[contextMessages.length - 1] = asContext(continuing);
   const context = fitContext(contextMessages);
   const maxOutput = MAX_OUTPUT[request.effort];
-  const needsTitle = !conversationId || (!conversationTitled && base.length === 0);
+  // The AI names a chat with its first answer that finishes: a first answer that failed leaves it to the next.
+  const needsTitle = !conversationId || (!conversationTitled && !base.some((m) => m.role === "assistant" && m.status === "complete"));
   const units = reserveUnits(choice.model, context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0));
 
   const reserved = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units, manual: MANUAL, billing: plan.value });

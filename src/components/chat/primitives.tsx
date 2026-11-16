@@ -11,6 +11,23 @@ import { createPortal } from "react-dom";
 
 const noSubscribe = () => () => {};
 
+/** Copies text and says "Copied" for a moment. Resolves false when the browser refused (the caller can say so). */
+export function useCopy(): [boolean, (text: string) => Promise<boolean>] {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1_500);
+      return true;
+    } catch {
+      setCopied(false);
+      return false;
+    }
+  }, []);
+  return [copied, copy];
+}
+
 export function IconButton({
   label,
   icon: Glyph,
@@ -98,8 +115,13 @@ export function Menu({ label, trigger, items, align = "end", children }: { label
     const left = align === "end" ? Math.max(8, Math.min(window.innerWidth - width - 8, r.right - width)) : Math.max(8, Math.min(window.innerWidth - width - 8, r.left));
     // Inside an open dialog (the phone drawer), the menu has to live in the dialog too: everything outside it is inert.
     const host = button.current?.closest("dialog[open]") ?? document.querySelector(".chat-root") ?? document.body;
+    // A frame with a transform (the chat's root while the iPhone keyboard is open) is where "fixed" counts from.
+    const frame = getComputedStyle(host).transform !== "none" ? host.getBoundingClientRect() : null;
+    const dy = frame?.top ?? 0;
+    const dx = frame?.left ?? 0;
+    const bottomEdge = frame ? frame.bottom : window.innerHeight;
     // A menu that opens upward is placed by its bottom edge (its opening animation owns the transform).
-    setPlace({ top: up ? null : r.bottom + 6, bottom: up ? window.innerHeight - r.top + 6 : null, left, host });
+    setPlace({ top: up ? null : r.bottom + 6 - dy, bottom: up ? bottomEdge - r.top + 6 : null, left: left - dx, host });
     setOpen(true);
   }, [open, align]);
 
@@ -273,12 +295,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   t.action!.run();
                   setToasts((list) => list.filter((x) => x.id !== t.id));
                 }}
-                className="tap min-h-9 rounded-full px-3 font-medium text-accent hover:bg-surface-raised"
+                className="tap min-h-10 rounded-full px-3 font-medium text-accent hover:bg-surface-raised"
               >
                 {t.action.label}
               </button>
             ) : null}
-            <button type="button" aria-label="Close" onClick={() => setToasts((list) => list.filter((x) => x.id !== t.id))} className="tap inline-flex size-9 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink">
+            <button type="button" aria-label="Close" onClick={() => setToasts((list) => list.filter((x) => x.id !== t.id))} className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink">
               <XIcon size={14} weight="bold" aria-hidden />
             </button>
           </div>

@@ -34,3 +34,14 @@ describe("reading a turn's stream in the browser", () => {
     await expect(readTurnStream(streamOf([encodeEvent("text", { type: "text", v: "Part" })], true), (e) => seen.push(e))).rejects.toThrow();
   });
 });
+
+describe("choosing a voice to read aloud", () => {
+  it("takes the device's own voice first, and any voice for the language otherwise", async () => {
+    const { pickVoice } = await import("./use-speaker");
+    const net = { lang: "en-US", localService: false, default: false };
+    const local = { lang: "en-GB", localService: true, default: false };
+    expect(pickVoice([net, local], "en-US")).toBe(local);
+    expect(pickVoice([net], "en-US")).toBe(net);
+    expect(pickVoice([{ lang: "si-LK", localService: true, default: true }], "en-US")).toBeNull();
+  });
+});

@@ -110,7 +110,8 @@ export function createAnthropicChat(client: Anthropic = new Anthropic({ maxRetri
         const message = await client.messages.create(
           {
             model: request.model,
-            max_tokens: 400,
+            // Room for a short think first: thinking is on by default on current models, and counts toward this.
+            max_tokens: 2_000,
             output_config: { effort: "low" },
             system: TITLE_PROMPT,
             messages: [{ role: "user", content: `Question:\n${request.question.slice(0, 2000)}\n\nAnswer:\n${request.answer.slice(0, 1500)}` }],

@@ -192,7 +192,7 @@ describe("a chat turn (stage 199)", () => {
     const { deps, calls } = fakeDeps({ model, path: [msg(Q1, "user"), stopped] });
     const { events } = await run(deps, { action: "continue", conversationId: CONV, messageId: A1, model: "auto", effort: "balanced" });
     expect(calls.map((c) => c.name)).toContain("reopenReply");
-    expect(events.at(-1)).toMatchObject({ type: "done", status: "complete" });
+    expect(events.find((e) => e.type === "done")).toMatchObject({ type: "done", status: "complete" });
     expect(calls.filter((c) => c.name === "writeReply").at(-1)!.input).toMatchObject({ content: "Half and the rest." });
   });
 
@@ -274,6 +274,13 @@ describe("a chat turn, at its edges (review fixes)", () => {
     const { events } = await run(deps, send({ conversationId: CONV, parentId: OLD_A, text: "And now?" }));
     expect(calls).toBe(2);
     expect(events.at(-1)).toMatchObject({ type: "done", status: "complete" });
+  });
+
+  it("names a chat with the first answer that finishes, after a first one that failed", async () => {
+    const { deps, calls } = fakeDeps({ path: [msg(Q1, "user", { content: "Bakery names?" })] });
+    const { events } = await run(deps, { action: "regenerate", conversationId: CONV, messageId: Q1, model: "auto", effort: "balanced", mode: "text", aspect: "1:1" });
+    expect(events.some((e) => e.type === "title")).toBe(true);
+    expect(calls.some((c) => c.name === "autoTitle")).toBe(true);
   });
 
   it("doesn't announce the AI's name for a chat the person renamed meanwhile", async () => {

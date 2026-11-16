@@ -34,7 +34,7 @@ import type { ChatFile, ChatMessage } from "@/core/chat/protocol";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
 import { MarkdownView } from "./markdown-view";
-import { IconButton, Menu } from "./primitives";
+import { IconButton, Menu, useCopy } from "./primitives";
 
 export const fileUrl = (id: string, base = "/app/chat/api/file") => `${base}/${id}`;
 
@@ -50,11 +50,11 @@ export function BranchSwitch({ message, onSwitch, disabled }: { message: ChatMes
   const next = message.siblings[at + 1];
   return (
     <span className="inline-flex items-center text-xs text-ink-3" role="group" aria-label="Versions">
-      <IconButton label="Previous version" icon={CaretLeftIcon} disabled={disabled || !prev} onClick={() => prev && onSwitch(prev)} className="size-8 pointer-coarse:size-11" />
+      <IconButton label="Previous version" icon={CaretLeftIcon} disabled={disabled || !prev} onClick={() => prev && onSwitch(prev)} className="pointer-coarse:size-11" />
       <span className="tabular min-w-12 text-center" aria-live="polite">
         {at + 1} of {message.siblings.length}
       </span>
-      <IconButton label="Next version" icon={CaretRightIcon} disabled={disabled || !next} onClick={() => next && onSwitch(next)} className="size-8 pointer-coarse:size-11" />
+      <IconButton label="Next version" icon={CaretRightIcon} disabled={disabled || !next} onClick={() => next && onSwitch(next)} className="pointer-coarse:size-11" />
     </span>
   );
 }
@@ -98,7 +98,7 @@ export function UserMessage({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
-  const [copied, setCopied] = useState(false);
+  const [copied, copy] = useCopy();
   return (
     <article className="chat-message group flex flex-col items-end gap-2 motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both]" aria-label="You said">
       {message.files.length > 0 ? (
@@ -152,22 +152,14 @@ export function UserMessage({
           <IconButton
             label={copied ? "Copied" : "Copy"}
             icon={copied ? CheckIcon : CopyIcon}
-            className="size-8 pointer-coarse:size-11"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(message.content);
-                setCopied(true);
-                window.setTimeout(() => setCopied(false), 1_500);
-              } catch {
-                setCopied(false);
-              }
-            }}
+            className="pointer-coarse:size-11"
+            onClick={() => void copy(message.content)}
           />
           {!readOnly && onEdit ? (
             <IconButton
               label="Edit"
               icon={PencilSimpleIcon}
-              className="size-8 pointer-coarse:size-11"
+              className="pointer-coarse:size-11"
               disabled={busy}
               onClick={() => {
                 setDraft(message.content);
@@ -213,7 +205,7 @@ export function AnswerMessage({
   actions?: AnswerActions;
 }) {
   const router = useRouter();
-  const [copied, setCopied] = useState(false);
+  const [copied, copy] = useCopy();
   const [showThinking, setShowThinking] = useState(false);
   const streaming = message.status === "streaming";
   const waiting = streaming && !message.content && message.kind === "text";
@@ -228,7 +220,7 @@ export function AnswerMessage({
             type="button"
             onClick={() => setShowThinking((v) => !v)}
             aria-expanded={showThinking}
-            className="tap inline-flex min-h-8 items-center gap-2 rounded-full pr-2 text-sm text-ink-3 hover:text-ink-2"
+            className="tap inline-flex min-h-10 items-center gap-2 rounded-full pr-2 text-sm text-ink-3 hover:text-ink-2"
           >
             <span className="relative inline-flex size-6 items-center justify-center" aria-hidden>
               <span className="absolute inset-0 rounded-full bg-accent/10 motion-safe:animate-pulse" />
@@ -281,30 +273,22 @@ export function AnswerMessage({
             <IconButton
               label={copied ? "Copied" : "Copy"}
               icon={copied ? CheckIcon : CopyIcon}
-              className="size-8 pointer-coarse:size-11"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(message.content);
-                  setCopied(true);
-                  window.setTimeout(() => setCopied(false), 1_500);
-                } catch {
-                  setCopied(false);
-                }
-              }}
+              className="pointer-coarse:size-11"
+              onClick={() => void copy(message.content)}
             />
           ) : null}
           {!readOnly && actions ? (
             <>
-              {message.kind === "text" && message.content ? <IconButton label={speaking ? "Stop reading" : "Read aloud"} icon={speaking ? SpeakerSlashIcon : SpeakerHighIcon} pressed={speaking} className="size-8 pointer-coarse:size-11" onClick={actions.onSpeak} /> : null}
+              {message.kind === "text" && message.content ? <IconButton label={speaking ? "Stop reading" : "Read aloud"} icon={speaking ? SpeakerSlashIcon : SpeakerHighIcon} pressed={speaking} className="pointer-coarse:size-11" onClick={actions.onSpeak} /> : null}
               {message.status === "complete" ? (
                 <>
-                  <IconButton label="Good answer" icon={ThumbsUpIcon} pressed={message.rating === 1} className="size-8 pointer-coarse:size-11" onClick={() => actions.onRate(message.rating === 1 ? null : 1)} />
-                  <IconButton label="Not a good answer" icon={ThumbsDownIcon} pressed={message.rating === -1} className="size-8 pointer-coarse:size-11" onClick={() => actions.onRate(message.rating === -1 ? null : -1)} />
+                  <IconButton label="Good answer" icon={ThumbsUpIcon} pressed={message.rating === 1} className="pointer-coarse:size-11" onClick={() => actions.onRate(message.rating === 1 ? null : 1)} />
+                  <IconButton label="Not a good answer" icon={ThumbsDownIcon} pressed={message.rating === -1} className="pointer-coarse:size-11" onClick={() => actions.onRate(message.rating === -1 ? null : -1)} />
                 </>
               ) : null}
-              <IconButton label={message.kind === "image" ? "Make another version" : "Answer again"} icon={ArrowClockwiseIcon} className="size-8 pointer-coarse:size-11" disabled={busy} onClick={actions.onRegenerate} />
+              <IconButton label={message.kind === "image" ? "Make another version" : "Answer again"} icon={ArrowClockwiseIcon} className="pointer-coarse:size-11" disabled={busy} onClick={actions.onRegenerate} />
               {canContinue ? (
-                <button type="button" onClick={actions.onContinue} disabled={busy} className="tap ml-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2 hover:border-line-2 hover:text-ink disabled:opacity-50">
+                <button type="button" onClick={actions.onContinue} disabled={busy} className="tap ml-1 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2 hover:border-line-2 hover:text-ink disabled:opacity-50">
                   <PlayIcon size={14} weight="bold" aria-hidden /> Continue
                 </button>
               ) : null}
@@ -315,7 +299,7 @@ export function AnswerMessage({
                   { label: "Report this answer", icon: FlagIcon, onSelect: () => router.push("/app/help/new?topic=abuse"), hint: "Something wrong or harmful? Tell Farbaek." },
                 ]}
                 trigger={({ ref, open, toggle, id }) => (
-                  <button ref={ref} type="button" aria-label="More for this answer" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={toggle} className="tap inline-flex size-8 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink">
+                  <button ref={ref} type="button" aria-label="More for this answer" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={toggle} className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink pointer-coarse:size-11">
                     <DotsThreeIcon size={16} weight="bold" aria-hidden />
                   </button>
                 )}
@@ -363,11 +347,11 @@ function ImageAnswer({ message, fileBase, readOnly, onOpen, onEdit }: { message:
         </span>
       </button>
       <figcaption className="mt-2 flex flex-wrap items-center gap-1">
-        <a href={`${src}?download`} download={file.name} className="tap inline-flex min-h-8 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2 hover:border-line-2 hover:text-ink">
+        <a href={`${src}?download`} download={file.name} className="tap inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2 hover:border-line-2 hover:text-ink">
           <DownloadSimpleIcon size={14} weight="bold" aria-hidden /> Download
         </a>
         {!readOnly && onEdit ? (
-          <button type="button" onClick={() => onEdit(file)} className="tap inline-flex min-h-8 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2 hover:border-line-2 hover:text-ink">
+          <button type="button" onClick={() => onEdit(file)} className="tap inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2 hover:border-line-2 hover:text-ink">
             <PencilSimpleIcon size={14} weight="bold" aria-hidden /> Change it
           </button>
         ) : null}

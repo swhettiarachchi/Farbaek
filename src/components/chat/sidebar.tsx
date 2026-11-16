@@ -413,7 +413,7 @@ function Item({ c, current, onNavigate, onMove, archivedView }: { c: Conversatio
               aria-expanded={open}
               aria-controls={open ? id : undefined}
               onClick={toggle}
-              className={`tap inline-flex size-8 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink focus-visible:opacity-100 pointer-coarse:opacity-100 ${open || current ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+              className={`tap inline-flex size-10 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink focus-visible:opacity-100 pointer-coarse:opacity-100 ${open || current ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
             >
               <DotsThreeIcon size={16} weight="bold" aria-hidden />
             </button>

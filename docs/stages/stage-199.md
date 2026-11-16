@@ -58,6 +58,18 @@ A separate review of the risky files found no hole in row level security, grants
 - `pnpm qa:a11y` on `/app/chat`, a chat and `/app/chat/images` at 1280 and 375: no findings (after starting answer headings at h2).
 - `pnpm qa:responsive` on the same at 320, 375, 390, 430, 768, 1024, 1440 and 1920, and at 375 with text at 200%: no sideways scroll, nothing cut off, no small or lost taps, nothing out of proportion, no console errors (after fixes to touch areas, the task boxes and one padding).
 
+## A second review (the PR), and what changed
+
+1. **A chat shared with the workspace** couldn't see a teammate whose sign-in had timed out: `/share/chat/` now refreshes the session like the app.
+2. **Buttons** now follow the system sizes: 40px with a mouse, 44px on touch (message actions, code blocks, the composer, toasts, the gallery).
+3. **Searching messages** read every row in the database: an index on each person's messages.
+4. **Naming a chat:** the AI gets room to think before naming it, and a chat whose first answer failed is named by the first one that finishes.
+5. **Streaming long answers:** Markdown re-reads can skip a frame under load (a deferred value) instead of every frame.
+6. **Menus** open in the right place while the iPhone keyboard has moved the chat.
+7. **Read aloud** accepts any voice for the language, the device's own first (Android often has only network voices).
+8. **One copy helper** instead of four.
+9. Kept as is: "Answer this" asks in words, since a question can no longer be saved without its answer (one transaction), so the button is a safety net only.
+
 ## Not checked
 
 - A real answer, picture or upload against a database: the local environment has no Supabase with v98, and the demo has sending off. The server's turn is covered by fake-provider tests; the first real turn should be watched on production after v98 and the merge.
@@ -67,7 +79,7 @@ A separate review of the risky files found no hole in row level security, grants
 ## Apply v98 before the merge
 
 ```
-powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\apply-migration.ps1" -File "supabase\migrations\20270108090000_chat_workspace.sql" -Sha256 36593dd550ece883b9e06a73fb3ec96d2a4d8f97fa13954a625a2952416664ed -Check "select to_regclass('public.chat_conversations') is not null"
+powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\apply-migration.ps1" -File "supabase\migrations\20270108090000_chat_workspace.sql" -Sha256 fc0b37bd369a63659d34585f9c51b9f9a9431220718864ab765ac3cf61f43dff -Check "select to_regclass('public.chat_conversations') is not null"
 ```
 
 Then `scripts/vps/check-migrations.ps1`, which now reads v98 back.

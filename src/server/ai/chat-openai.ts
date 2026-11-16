@@ -121,7 +121,7 @@ export function createOpenAiChat(options: { key: string; fetcher?: typeof fetch 
             model: request.model,
             instructions: TITLE_PROMPT,
             input: `Question:\n${request.question.slice(0, 2000)}\n\nAnswer:\n${request.answer.slice(0, 1500)}`,
-            max_output_tokens: 300,
+            max_output_tokens: 1_000,
             store: false,
           }),
           signal,

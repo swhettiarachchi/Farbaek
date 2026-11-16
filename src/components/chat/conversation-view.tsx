@@ -14,7 +14,7 @@ import { flushSync } from "react-dom";
 import { CHAT_LIMITS, titleFrom, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
 import { speakable } from "@/core/chat/markdown";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { useVoiceReply } from "@/components/survey/assistant/use-voice-io";
+import { useSpeaker } from "./use-speaker";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
 import { branchAction, earlierMessagesAction, rateAnswerAction, switchBranchAction } from "@/app/app/chat/actions";
 import { useChat } from "./chat-shell";
@@ -52,7 +52,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
   const chat = useChat();
   const toast = useToast();
   const reduced = useReducedMotion();
-  const voice = useVoiceReply();
+  const voice = useSpeaker();
   const prefs = useChatPrefs();
   const [convId, setConvId] = useState<string | null>(conversation?.id ?? null);
   const [title, setTitle] = useState(conversation?.title ?? "");
@@ -385,13 +385,13 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
       setSpeaking(null);
       return;
     }
-    const why = voice.unavailable("en");
+    const why = voice.unavailable();
     if (why) {
       toast({ text: why, tone: "error" });
       return;
     }
     setSpeaking(answer.id);
-    voice.speak(speakable(answer.content), "en", () => setSpeaking(null));
+    voice.speak(speakable(answer.content), () => setSpeaking(null));
   };
 
   const share = () => {
@@ -458,7 +458,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
         </div>
         {convId && !chat.demo ? (
           <>
-            <button type="button" onClick={share} className="tap hidden min-h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-ink-2 hover:bg-surface-raised hover:text-ink sm:inline-flex">
+            <button type="button" onClick={share} className="tap hidden min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-ink-2 hover:bg-surface-raised hover:text-ink sm:inline-flex">
               <ShareNetworkIcon size={16} weight="bold" aria-hidden /> Share
             </button>
             <Menu
@@ -512,7 +512,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                   <div key={m.id} className="grid gap-1">
                     <UserMessage message={m} busy={busy} onEdit={chat.demo ? undefined : (text) => edit(m, text)} onSwitch={chat.demo ? undefined : (id) => void switchTo(id)} />
                     {i === messages.length - 1 && !busy && !chat.demo ? (
-                      <button type="button" onClick={() => askAgain(m)} className="ml-auto min-h-9 rounded-full px-3 text-sm font-medium text-accent hover:bg-surface-raised">
+                      <button type="button" onClick={() => askAgain(m)} className="tap ml-auto min-h-10 rounded-full px-3 text-sm font-medium text-accent hover:bg-surface-raised">
                         Answer this
                       </button>
                     ) : null}
