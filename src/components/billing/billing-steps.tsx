@@ -17,11 +17,12 @@ import type { PaidPlanId } from "@/core/billing/provider";
 import type { PlanChangePreview } from "@/server/billing/use-cases";
 import type { BillingView } from "@/server/billing/view";
 import { BillingSubmit } from "./billing-submit";
+import { BEZEL } from "@/components/ui/surfaces";
 
 /** The double bezel for the one step in progress: a raised shell around the card, so it reads as the thing to finish. */
 function StepShell({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section id="billing-step" aria-labelledby="billing-step-title" className="scroll-mt-24 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both]">
+    <section id="billing-step" aria-labelledby="billing-step-title" className={`scroll-mt-24 motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both] ${BEZEL}`}>
       <div className="rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
         <CardTitle id="billing-step-title" icon={CreditCardIcon}>
           {title}

@@ -31,7 +31,7 @@ Farbaek's interface should feel premium because it is fast, calm and honest. It 
 - No serif.
 
 **Small text (ADR 0049).** It should read like a calm product, not generated UI:
-- Labels are sentence-case Geist: field labels `text-[13px] font-medium text-ink-3`, group headers `text-xs font-medium text-ink-3`.
+- Labels are sentence-case Geist: field labels `LABEL_CLASSES` (`text-label font-medium text-ink-2`), group headers `text-xs font-medium text-ink-3`.
 - No `// label` overlines and no eyebrow over a page title: the title stands alone.
 - Meta lines are short phrases ("Python, 2 KB. Revision 3, updated 2 hours ago."), or items in a flex row with a gap. At most one `·` per line.
 - Nothing under 12px, except tab-bar labels and count badges (11px).
@@ -42,8 +42,14 @@ Farbaek's interface should feel premium because it is fast, calm and honest. It 
 
 **Depth:** `shadow-e1` (cards), `shadow-e2` (raised panels), `shadow-e3` (dialogs and menus).
 
+**Sized phone first (ADR 0211).** Every size starts at what a phone needs and steps up at `sm` and `lg`; never the other way round.
+- Titles come from `src/components/ui/titles.ts` (page 24px on a phone, public 32px, the home headline 36px, a public section 26px). `CardTitle` is 17px with a 16px icon on a phone.
+- Page stacks and the double bezel come from `src/components/ui/surfaces.ts` (`PAGE_STACK`, `BEZEL`). Cards pad 16px on a phone, marketing sections 56px. `system.test.ts` rejects hand-written copies.
+- Buttons: `buttonClasses(variant, "sm" | "md" | "icon")` is 40px, 44px or a 40px circle; `.tap` gives each a 48px touch area on touch screens. Hand-made icon buttons use `tap size-10`. Inside a sideways scroller, where a widened area is clipped, make the control 44px on touch (`pointer-coarse:min-h-11`).
+- Fields: `inputClasses()` is 44px with 16px text on touch (phones don't zoom) and 40px with 14px text with a mouse from `lg`. Never pass a smaller text size to a field a phone can type in.
+- Icons in buttons and rows are 16px (14px in chips), 20px only for section titles from `sm`.
+
 **Mobile first:**
-- 16px text in inputs (`text-base`) and 44px targets (`min-h-11`, `size-11`).
 - No sideways scroll at 375px.
 - A button's own `inline-flex` beats `hidden`, so control visibility with a wrapper.
 - Text sizes are in rem (`text-[0.9375rem]`, not `text-[15px]`), so Android's text size reaches them. Look at a new screen with `pnpm qa:responsive --text-scale=2 --widths=375 --routes=…`, and with your own eyes: long words and small fixed pieces break in ways the audit can't see. Below 18em (`max-[18em]:`) is where a phone at its largest text sizes lands, and normal text never gets there.

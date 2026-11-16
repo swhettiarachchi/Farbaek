@@ -9,6 +9,8 @@ import { PricingPlans } from "@/components/pricing/pricing-plans";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
 import { PLANS, TRIAL, chargeCents, formatUsd, getPlan } from "@/core/billing/catalog";
+import { PUBLIC_TITLE, SECTION_TITLE } from "@/components/ui/titles";
+import { BEZEL } from "@/components/ui/surfaces";
 
 const monthlyPrices = PLANS.flatMap((p) => (p.pricing.kind === "paid" ? [p.pricing.monthlyCents] : []));
 const FROM = formatUsd(Math.min(...monthlyPrices));
@@ -81,10 +83,10 @@ export default function PricingPage() {
       <section aria-labelledby="pricing-title" className="pb-16 pt-14 lg:pb-24 lg:pt-20">
         <Container>
           <div className="max-w-[46rem]">
-            <h1 id="pricing-title" className="text-4xl font-medium leading-[1.08] tracking-[-0.03em] max-[18em]:text-2xl sm:text-5xl">
+            <h1 id="pricing-title" className={PUBLIC_TITLE}>
               Build, preview and ship. One subscription.
             </h1>
-            <p className="mt-5 max-w-[58ch] text-lg leading-relaxed text-ink-2">
+            <p className="mt-4 max-w-[58ch] text-body leading-relaxed text-ink-2 sm:mt-5 sm:text-lg">
               Every plan includes Farbaek&apos;s AI, a test space and previews. You don&apos;t need your own AI account. Start with a {TRIAL.lengthDays}-day {trialBase} trial, no card
               required.
             </p>
@@ -117,8 +119,8 @@ export default function PricingPage() {
             </p>
           </WebPurchaseOnly>
 
-          <div className="mt-10 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
-            <ul aria-label="What Farbaek promises" className="grid gap-x-8 gap-y-6 rounded-md bg-surface p-6 shadow-e1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={`mt-10 ${BEZEL}`}>
+            <ul aria-label="What Farbaek promises" className="grid gap-x-8 gap-y-6 rounded-md bg-surface p-4 sm:p-6 shadow-e1 sm:grid-cols-2 lg:grid-cols-4">
               {PROMISES.map(({ icon: Icon, title, body }) => (
                 <li key={title} className="grid content-start gap-2">
                   <span className="flex size-10 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
@@ -134,9 +136,9 @@ export default function PricingPage() {
         </Container>
       </section>
 
-      <section aria-labelledby="compare-title" className="border-t border-line py-16 lg:py-24">
+      <section aria-labelledby="compare-title" className="border-t border-line py-12 sm:py-16 lg:py-24">
         <Container>
-          <h2 id="compare-title" className="text-3xl font-medium tracking-[-0.02em]">
+          <h2 id="compare-title" className={SECTION_TITLE}>
             Compare every plan
           </h2>
           <div className="mt-8">
@@ -145,9 +147,9 @@ export default function PricingPage() {
         </Container>
       </section>
 
-      <section aria-labelledby="pricing-faq-title" className="border-t border-line py-16 lg:py-24">
+      <section aria-labelledby="pricing-faq-title" className="border-t border-line py-12 sm:py-16 lg:py-24">
         <Container className="grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
-          <h2 id="pricing-faq-title" className="text-3xl font-medium tracking-[-0.02em]">
+          <h2 id="pricing-faq-title" className={SECTION_TITLE}>
             Questions about plans
           </h2>
           <FaqList items={PRICING_FAQ} />

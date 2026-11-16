@@ -59,7 +59,7 @@ export function AnnouncementBanner({ items }: { items: Announcement[] }) {
                   }
                   setClosed((c) => [...c, a.id]);
                 }}
-                className="-my-2 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 hover:text-ink"
+                className="-my-2 inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-3 hover:text-ink"
                 aria-label="Close this message"
               >
                 <XIcon size={16} weight="bold" aria-hidden />

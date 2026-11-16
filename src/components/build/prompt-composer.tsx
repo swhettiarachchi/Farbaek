@@ -214,10 +214,11 @@ export function PromptComposer({
                 ? `Say what it is for. For example: ${template.example}`
                 : "Describe what you want to build. For example: a one-page site for my bakery with the menu, opening hours and a map."
           }
-          // It grows with its text (and its placeholder) where field-sizing is supported; elsewhere the minimum keeps a phone's three-line placeholder clear of the button.
-          className={`block max-h-[50dvh] w-full resize-none rounded-lg bg-transparent px-5 pb-16 pt-4 text-base leading-relaxed text-ink outline-none field-sizing-content placeholder:text-ink-3 disabled:opacity-70 ${size === "large" ? "min-h-44 sm:min-h-36" : "min-h-40 sm:min-h-24"}`}
+          // It grows with its text (and its placeholder) where field-sizing is supported. The bottom padding keeps the button's row clear, so
+          // the floor is never taller on a phone than on a computer (ADR 0211); where field-sizing isn't supported a long placeholder scrolls.
+          className={`block max-h-[50dvh] w-full resize-none rounded-lg bg-transparent px-4 pb-14 pt-3.5 text-base leading-relaxed text-ink outline-none field-sizing-content placeholder:text-ink-3 disabled:opacity-70 sm:px-5 sm:pb-16 sm:pt-4 ${size === "large" ? "min-h-32 sm:min-h-36" : "min-h-24"}`}
         />
-        <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-3">
+        <div className="absolute inset-x-2.5 bottom-2.5 flex items-center justify-between gap-3 sm:inset-x-3 sm:bottom-3">
           {/* Notes wrap to a second line rather than cut off on narrow phones and with larger system text. */}
           <p className="flex min-w-0 items-center gap-1.5 pl-2 text-xs leading-snug text-ink-3" aria-live="polite">
             {pending ? (
@@ -234,7 +235,7 @@ export function PromptComposer({
             type="submit"
             disabled={disabled}
             aria-label={mode === "app" ? "Plan this build" : "Start building"}
-            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            className="tap inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {mode === "app" ? "Plan it" : "Start building"}
             <ArrowUpIcon size={16} weight="bold" aria-hidden />
@@ -283,7 +284,7 @@ export function PromptComposer({
                   setValue(ex);
                   store(ex);
                 }}
-                className="min-h-11 rounded-full border border-line bg-surface px-4 py-2 text-left text-sm text-ink-2 transition-colors hover:border-line-strong/50 hover:text-ink pointer-coarse:min-h-12 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink-2"
+                className="tap min-h-10 rounded-full border border-line bg-surface px-4 py-2 text-left text-sm text-ink-2 transition-colors hover:border-line-strong/50 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink-2"
               >
                 {ex}
               </button>

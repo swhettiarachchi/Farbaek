@@ -10,6 +10,7 @@ import type { PaidPlanId } from "@/core/billing/provider";
 import type { BillingView } from "@/server/billing/view";
 import { BillingSubmit } from "./billing-submit";
 import { NotInAndroidApp, WebPurchaseOnly } from "./web-purchase-only";
+import { BEZEL } from "@/components/ui/surfaces";
 
 /**
  * Buying more AI usage (ADR 0102): the monthly limit an owner or admin sets,
@@ -89,7 +90,7 @@ export function TopupCard({ planId, planName, topups, canManage, error }: { plan
 /** The consent step for one pack, like choosing a plan. */
 export function TopupStep({ planId, pack, error }: { planId: PaidPlanId; pack: TopupPack; error: string | null }) {
   return (
-    <section id="billing-step" aria-labelledby="topup-step-title" className="scroll-mt-24 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both]">
+    <section id="billing-step" aria-labelledby="topup-step-title" className={`scroll-mt-24 motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both] ${BEZEL}`}>
       <div className="rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
         <CardTitle id="topup-step-title" icon={CoinsIcon}>
           Buy {formatUsd(pack)} of AI usage

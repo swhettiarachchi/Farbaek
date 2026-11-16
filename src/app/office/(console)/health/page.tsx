@@ -9,6 +9,7 @@ import { deploymentConnections } from "@/server/admin/data";
 import { liveRunsHere } from "@/server/cloud-agent/executor";
 import { requireStaff } from "@/server/office/access";
 import { loadHealth, serverFacts, type CheckState } from "@/server/office/health";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Health" };
 
@@ -27,7 +28,7 @@ export default async function OfficeHealth() {
   const attention = "checks" in health ? health.checks.filter((c) => c.state !== "ok").length : null;
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Health"
         description="Is Farbaek working right now? Read live from the database and this server. Nothing here is estimated."
@@ -39,7 +40,7 @@ export default async function OfficeHealth() {
       />
 
       {"error" in health ? (
-        <p role="alert" className="flex items-start gap-3 rounded-lg border border-failed/35 bg-surface p-5 text-sm">
+        <p role="alert" className="flex items-start gap-3 rounded-lg border border-failed/35 bg-surface p-4 sm:p-5 text-sm">
           <WarningCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
           <span>
             <span className="block text-base font-medium text-ink">The platform check didn&apos;t complete</span>
@@ -77,7 +78,7 @@ export default async function OfficeHealth() {
                   <span className="mt-2 block text-xs leading-relaxed text-ink-3">{c.detail}</span>
                 </>
               );
-              const cls = `block h-full rounded-md border bg-surface p-5 shadow-e1 ${look.edge}`;
+              const cls = `block h-full rounded-md border bg-surface p-4 sm:p-5 shadow-e1 ${look.edge}`;
               return (
                 <li key={c.key}>
                   {c.href ? (

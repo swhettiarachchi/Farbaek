@@ -31,7 +31,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
       : null;
 
   return (
-    <section id="publish" aria-labelledby="publish-heading" className="grid scroll-mt-24 gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+    <section id="publish" aria-labelledby="publish-heading" className="grid scroll-mt-24 gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <CardTitle id="publish-heading" icon={GlobeIcon}>
           Publish

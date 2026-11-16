@@ -8,12 +8,12 @@ import { PAGE_TITLE } from "@/components/ui/titles";
 
 export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
         <h1 className={PAGE_TITLE}>{title}</h1>
-        {description ? <p className="mt-2 max-w-[62ch] text-body leading-relaxed text-ink-2">{description}</p> : null}
+        {description ? <p className="mt-1.5 max-w-[62ch] text-body leading-relaxed text-ink-2 sm:mt-2">{description}</p> : null}
       </div>
-      {actions ? <div className="flex min-w-0 flex-wrap gap-2 lg:justify-end">{actions}</div> : null}
+      {actions ? <div className="flex min-w-0 flex-wrap gap-2 md:shrink-0 md:justify-end">{actions}</div> : null}
     </div>
   );
 }
@@ -23,13 +23,14 @@ export function TaskStateBadge({ state }: { state: TaskState }) {
 }
 
 /**
- * A section's title with its icon (ADR 0183): 20px, outlined, in the quiet ink, so every section on a page is
- * marked the same way and the words stay first. The icon names what the section is about.
+ * A section's title with its icon (ADR 0183): outlined, in the quiet ink, so every section on a page is marked the same way
+ * and the words stay first. The icon names what the section is about. 17px words and a 16px icon on a phone, 18px and 20px
+ * from `sm` (ADR 0211).
  */
 export function CardTitle({ icon: TitleIcon, children, id, className = "" }: { icon: Icon; children: ReactNode; id?: string; className?: string }) {
   return (
-    <h2 id={id} className={`flex items-center gap-2.5 text-lg font-medium ${className}`}>
-      <TitleIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
+    <h2 id={id} className={`flex items-center gap-2 text-title-4 font-medium sm:gap-2.5 sm:text-lg ${className}`}>
+      <TitleIcon size={20} className="size-4 shrink-0 text-ink-3 sm:size-5" aria-hidden />
       <span className="min-w-0">{children}</span>
     </h2>
   );
@@ -37,7 +38,7 @@ export function CardTitle({ icon: TitleIcon, children, id, className = "" }: { i
 
 export function Card({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
   return (
-    <section id={id} className={`rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6 ${className}`}>
+    <section id={id} className={`rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5 lg:p-6 ${className}`}>
       {children}
     </section>
   );
@@ -45,13 +46,13 @@ export function Card({ children, className = "", id }: { children: ReactNode; cl
 
 export function EmptyState({ icon: EmptyIcon, title, children, action }: { icon: Icon; title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-md border border-line bg-surface px-6 py-12 text-center">
-      <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
-        <EmptyIcon size={24} aria-hidden />
+    <div className="flex flex-col items-center rounded-md border border-line bg-surface px-4 py-8 text-center sm:px-6 sm:py-12">
+      <span className="flex size-10 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line sm:size-12">
+        <EmptyIcon size={24} className="size-5 sm:size-6" aria-hidden />
       </span>
-      <h2 className="mt-4 text-lg font-medium">{title}</h2>
+      <h2 className="mt-3 text-title-4 font-medium sm:mt-4 sm:text-lg">{title}</h2>
       <p className="mt-1.5 max-w-[46ch] text-body leading-relaxed text-ink-2">{children}</p>
-      {action ? <div className="mt-6">{action}</div> : null}
+      {action ? <div className="mt-5 sm:mt-6">{action}</div> : null}
     </div>
   );
 }

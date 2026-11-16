@@ -32,6 +32,7 @@ import { AgentInbox } from "@/components/build/agent-inbox";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { aiMeter, loadUsageSummary } from "@/server/workspace/usage-summary";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Home" };
 
@@ -117,7 +118,7 @@ export default async function MissionControl() {
   );
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Home"
         description={

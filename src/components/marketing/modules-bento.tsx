@@ -48,7 +48,7 @@ function Cell({
 
 export function ModulesBento() {
   return (
-    <section id="modules" aria-labelledby="modules-title" className="py-20 lg:py-28">
+    <section id="modules" aria-labelledby="modules-title" className="py-14 sm:py-20 lg:py-28">
       <Container>
         <SectionHeading id="modules-title" title="Eight parts, one shared core.">
           Studio, the agent, moving projects and launching all use the same rules, proof and plan limits. Nothing is built twice.

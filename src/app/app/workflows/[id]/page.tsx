@@ -14,6 +14,7 @@ import { WORKFLOWS_NOT_IN_PLAN } from "@/server/workflows/use-cases";
 import { loadAppContext } from "@/server/workspace/context";
 import { periodUnits } from "@/server/workspace/plan-card-data";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
+import { BEZEL, PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Workflow" };
 
@@ -45,7 +46,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
   const stepShare = capShare(Math.floor(w.ceilingUnits / Math.max(1, w.steps.length)), periodUnits(ctx.current));
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <LiveRefresh active={w.status === "running" || w.status === "approved"} />
       <div>
         <Link href="/app/workflows" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
@@ -73,7 +74,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
         </p>
       </div>
 
-      <section aria-labelledby="steps-heading" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+      <section aria-labelledby="steps-heading" className={BEZEL}>
         <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
           <CardTitle id="steps-heading" icon={ListNumbersIcon}>
             Steps

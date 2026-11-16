@@ -16,6 +16,7 @@ import { vaultKey } from "@/server/launch/token-vault";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext, type AppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Projects" };
 
@@ -64,7 +65,7 @@ export default async function ProjectsPage() {
   }
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Projects"
         description={projectCountWords(projects.length, ws.plan.limits.workspaces)}

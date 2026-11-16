@@ -2,6 +2,7 @@ import { ArrowCircleRightIcon, ArrowRightIcon, InfoIcon } from "@phosphor-icons/
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
 import type { NeedsYou } from "@/core/realityloop/needs-you";
+import { BEZEL } from "@/components/ui/surfaces";
 
 /**
  * What needs this person, first thing on Home (ADR 0174), with the same words and shape as a task's next step. The line
@@ -12,7 +13,7 @@ export function NeedsYouCard({ step }: { step: NeedsYou }) {
   const yours = step.tone === "action";
   const ToneIcon = yours ? ArrowCircleRightIcon : InfoIcon;
   return (
-    <section aria-labelledby="needs-you" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+    <section aria-labelledby="needs-you" className={BEZEL}>
       <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-6">
         <div className="min-w-0">
           <p className={`flex items-center gap-1.5 text-label font-medium ${yours ? "text-accent" : "text-ink-2"}`}>

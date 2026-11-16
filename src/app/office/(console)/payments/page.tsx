@@ -18,6 +18,7 @@ import { createDodoClient } from "@/server/billing/providers/dodo/client";
 import { requireStaff } from "@/server/office/access";
 import { readPaymentsPage, type WebhookEventRow } from "@/server/office/payments-data";
 import { createProductsAction, endLiveAction, goLiveAction, replayWebhookAction } from "./actions";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Payments" };
 
@@ -106,7 +107,7 @@ export default async function OfficePayments() {
   const toCreate = missing.length + missingPacks.length;
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Payments"
         description={`Dodo Payments: the products checkout charges for, and every webhook Farbaek received.${liveSince ? "" : " Live payments stay off until the go-live checklist is complete."}`}

@@ -443,7 +443,7 @@ export function VisualEditor({
                   setDevice(d.id);
                   setScreen(d.id === "phone" ? "phone" : "all");
                 }}
-                className={`inline-flex size-11 items-center justify-center rounded-full transition-colors duration-150 ${device === d.id ? "bg-surface-raised text-ink" : "text-ink-3 hover:text-ink"}`}
+                className={`inline-flex tap size-10 items-center justify-center rounded-full transition-colors duration-150 ${device === d.id ? "bg-surface-raised text-ink" : "text-ink-3 hover:text-ink"}`}
               >
                 <d.icon size={20} weight={device === d.id ? "fill" : "regular"} aria-hidden />
               </button>
@@ -467,7 +467,7 @@ export function VisualEditor({
                   win?.postMessage({ type: DESIGN_SECTIONS_MESSAGE, items: sectionItems.map((s) => [s.n, s.label]) }, "*");
                   if (selected) win?.postMessage({ type: DESIGN_SELECT_MESSAGE, n: selected.n }, "*");
                 }}
-                className="block h-[min(62dvh,640px)] w-full bg-white"
+                className="block h-[min(48dvh,640px)] w-full bg-white sm:h-[min(62dvh,640px)]"
               />
             </div>
           )}

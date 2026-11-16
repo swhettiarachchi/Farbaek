@@ -56,7 +56,7 @@ export default async function OfficeDevice() {
 
       {code ? (
         <>
-          <div className="rounded-md border border-line bg-surface-sunken p-5 text-center">
+          <div className="rounded-md border border-line bg-surface-sunken p-4 sm:p-5 text-center">
             <p className="text-sm text-ink-2">Device code for {label}</p>
             <p className="mt-2 font-mono text-[2rem] font-semibold tracking-[0.3em] text-ink tabular">
               {code.slice(0, 3)} {code.slice(3)}

@@ -18,6 +18,7 @@ import { formatDuration } from "@/core/sandbox/usage";
 import { healthWithin, sandboxForPage } from "@/server/sandbox/page-context";
 import { loadAppContext } from "@/server/workspace/context";
 import { forPeople } from "@/core/text/operator-detail";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Test space" };
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
   const sandbox = await sandboxForPage(ctx);
   if (!sandbox.ok) {
     return (
-      <div className="grid gap-8">
+      <div className={PAGE_STACK}>
         <PageHeader title="Test space" description="A safe place to run your app and try it, kept apart from everything else." />
         <Notice tone="warning">{sandbox.reason}</Notice>
       </div>
@@ -75,7 +76,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
 
   const changing: SessionState[] = ["requested", "provisioning", "stopping"];
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       {/* A session that's starting or stopping changes state on its own, so the list keeps up. */}
       <LiveRefresh active={list.rows.some((s) => changing.includes(s.state))} />
       <PageHeader

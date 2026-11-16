@@ -5,6 +5,7 @@ import { StatusGlyph } from "@/components/ui/status-badge";
 import { adminMetadata, requireAdmin } from "@/server/admin/access";
 import { deploymentConnections, loadOverview } from "@/server/admin/data";
 import { usd } from "@/server/admin/summaries";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const generateMetadata = (): Promise<Metadata> => adminMetadata("Overview");
 
@@ -18,13 +19,13 @@ export default async function AdminOverview() {
   const finishedShare = o.runs.lastWeek > 0 ? Math.round((o.runs.finished / o.runs.lastWeek) * 100) : null;
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader title="Overview" description="Every workspace on this deployment, read live with the server key. Nothing on these pages changes data." />
 
-      <section aria-label="This month's AI cost" className="grid gap-5 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+      <section aria-label="This month's AI cost" className="grid gap-5 rounded-lg border border-line bg-surface p-5 shadow-e2 sm:p-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <div>
           <p className="text-sm text-ink-2">AI list cost since {monthName(o.aiCost.since)} (UTC)</p>
-          <p className="mt-2 text-[clamp(2.5rem,6vw,4rem)] font-medium leading-none tracking-[-0.04em] tabular">{usd(o.aiCost.usd)}</p>
+          <p className="mt-2 text-[clamp(2rem,6vw,4rem)] font-medium leading-none tracking-[-0.04em] tabular">{usd(o.aiCost.usd)}</p>
           <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-ink-2">
             From {number.format(o.aiCost.settledCalls)} settled AI calls at the providers&apos; list prices, before any discounts. Refunded calls aren&apos;t counted. Revenue
             and margin are on Office Space&apos;s overview.

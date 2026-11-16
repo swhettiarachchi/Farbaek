@@ -99,7 +99,7 @@ export function AgentCore({ phase, activity = null, kind, children }: { phase: C
             "radial-gradient(60% 90% at 12% 50%, color-mix(in oklab, var(--color-accent) 7%, transparent), transparent 70%), radial-gradient(40% 70% at 0% 100%, color-mix(in oklab, var(--color-accent-2) 6%, transparent), transparent 70%)",
         }}
       />
-      <div className="grid grid-cols-[104px_minmax(0,1fr)] items-center gap-4 p-4 sm:grid-cols-[168px_minmax(0,1fr)] sm:gap-6 sm:p-6">
+      <div className="grid grid-cols-[80px_minmax(0,1fr)] items-center gap-3 p-4 sm:grid-cols-[168px_minmax(0,1fr)] sm:gap-6 sm:p-6">
         <div ref={box} className="relative aspect-square">
           <div className={`absolute inset-0 ${fade(!ready)}`}>
             <StaticCore phase={phase} />
@@ -111,8 +111,8 @@ export function AgentCore({ phase, activity = null, kind, children }: { phase: C
           ) : null}
         </div>
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-xl font-medium tracking-[-0.02em] sm:text-2xl" role="status" aria-live="polite">
-            <StatusGlyph status={kind ?? style.kind} size={24} />
+          <p className="flex items-center gap-2 text-base font-medium tracking-[-0.02em] sm:text-2xl" role="status" aria-live="polite">
+            <StatusGlyph status={kind ?? style.kind} size={24} className="size-5 sm:size-6" />
             {CORE_PHASE_LABELS[phase]}
           </p>
           {/* The step in words (ADR 0180); only a path or a command is mono. A finished run's outcome is a sentence. */}

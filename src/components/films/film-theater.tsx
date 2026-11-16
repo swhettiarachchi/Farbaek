@@ -366,7 +366,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
 
                   {notice === "error" ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-canvas/80 p-4" role="alert">
-                      <div className="max-w-xs rounded-md bg-surface p-5 text-center shadow-e2 ring-1 ring-line">
+                      <div className="max-w-xs rounded-md bg-surface p-4 sm:p-5 text-center shadow-e2 ring-1 ring-line">
                         <WarningCircleIcon size={20} weight="fill" aria-hidden className="mx-auto text-failed" />
                         <p className="mt-2 font-medium text-ink">The film couldn&apos;t load.</p>
                         <p className="mt-1 text-sm text-ink-2">Check your connection and try again, or read what happens in it.</p>

@@ -12,6 +12,7 @@ import { ROLE_LABELS, ROLE_SUMMARIES, STAFF_ROLES, type StaffRole } from "@/core
 import { requireStaff } from "@/server/office/access";
 import { loadStaffPage } from "@/server/office/staff-data";
 import { changeRoleAction, endSessionsAction, inviteStaffAction, removeStaffAction, resetAuthenticatorAction, revokeInviteAction } from "./actions";
+import { BEZEL } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Staff" };
 
@@ -137,7 +138,7 @@ export default async function OfficeStaff() {
       </section>
 
       {owner ? (
-        <section aria-labelledby="invite-title" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+        <section aria-labelledby="invite-title" className={BEZEL}>
           <div className="grid gap-5 rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             <div>
               <CardTitle id="invite-title" icon={UserPlusIcon}>

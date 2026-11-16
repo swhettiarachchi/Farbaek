@@ -10,6 +10,7 @@ import { WORKFLOWS_NOT_IN_PLAN } from "@/server/workflows/use-cases";
 import { loadAppContext } from "@/server/workspace/context";
 import { runEstimates } from "@/server/workspace/plan-card-data";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "New workflow" };
 
@@ -37,7 +38,7 @@ export default async function NewWorkflowPage({ searchParams }: { searchParams: 
               : null;
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <div>
         <Link href="/app/workflows" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> Workflows

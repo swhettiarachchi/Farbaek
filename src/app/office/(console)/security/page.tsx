@@ -12,6 +12,7 @@ import { officeAuth } from "@/server/office/supabase-auth";
 import { endOtherSessionsAction, removeAuthenticatorAction } from "./actions";
 import { AddAuthenticator } from "./add-authenticator";
 import { DevicesCard } from "./devices";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "My security" };
 
@@ -23,7 +24,7 @@ export default async function OfficeSecurity() {
   const endsAt = new Date(staff.firstFactorAt.getTime() + OFFICE_POLICY.maxSessionHours * 3_600_000).toISOString();
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader title="My security" description="Your devices, your authenticators and this office session." />
 
       {factors.length < 2 ? <Notice tone="warning">You have one authenticator. Add a second on another device, so a lost or broken phone doesn&apos;t lock you out.</Notice> : null}

@@ -76,7 +76,7 @@ export function RescueImport({ disabledReason }: { disabledReason: string | null
       ) : null}
 
       {prepared ? (
-        <div className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
+        <div className="grid gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
           <p className="flex items-center gap-2 text-body">
             <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden />
             <span>

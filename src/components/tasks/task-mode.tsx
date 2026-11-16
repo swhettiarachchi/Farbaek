@@ -30,7 +30,7 @@ export function TaskModeControl({ taskId, mode, disabledReason }: { taskId: stri
 
   return (
     <div className="grid gap-2">
-      <div role="radiogroup" aria-label="Operating mode" className="inline-flex max-w-full gap-1 rounded-full border border-line max-[18em]:flex-col max-[18em]:rounded-md bg-surface p-1">
+      <div role="radiogroup" aria-label="Operating mode" className="inline-flex max-w-full gap-1 rounded-full border border-line max-[18em]:flex-col max-[18em]:rounded-md bg-surface p-0.5">
         {TASK_MODES.map((m) => {
           const Icon = ICONS[m];
           const on = m === current;
@@ -42,7 +42,7 @@ export function TaskModeControl({ taskId, mode, disabledReason }: { taskId: stri
               aria-checked={on}
               disabled={pending || (Boolean(disabledReason) && !on)}
               onClick={() => choose(m)}
-              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors duration-150 sm:px-4 ${on ? "bg-primary text-on-primary" : "text-ink-2 hover:bg-surface-raised hover:text-ink disabled:opacity-60"}`}
+              className={`tap inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors duration-150 sm:px-4 ${on ? "bg-primary text-on-primary" : "text-ink-2 hover:bg-surface-raised hover:text-ink disabled:opacity-60"}`}
             >
               <span className="hidden sm:inline-flex">
                 <Icon size={16} weight="bold" aria-hidden />

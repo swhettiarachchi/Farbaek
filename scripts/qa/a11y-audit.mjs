@@ -21,6 +21,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright-core";
+import { DISCOVER, STATIC_ROUTES, discoverRoutes } from "./routes.mjs";
 
 const args = process.argv.slice(2);
 const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
@@ -29,21 +30,6 @@ const WIDTHS = (flag("widths") ?? "1280,375").split(",").map(Number);
 const OUT = flag("out") ?? join(tmpdir(), `farbaek-a11y-${Date.now()}.json`);
 const TAB_STOPS = Number(flag("tabs") ?? 60);
 
-const STATIC_ROUTES = [
-  "/", "/pricing", "/security", "/sign-in", "/verify", "/this-page-does-not-exist",
-  "/terms", "/privacy", "/acceptable-use", "/delete-account", "/proofpack/v1", "/account-deleted",
-  "/app", "/app/agents", "/app/approvals", "/app/billing", "/app/build", "/app/help", "/app/help/new", "/app/mesh",
-  "/app/more", "/app/new", "/app/projects", "/app/rescue", "/app/sandbox", "/app/sandbox/new", "/app/settings",
-  "/app/tasks", "/app/templates", "/app/workspaces/new",
-  "/app/activity", "/app/incidents", "/app/integrations", "/app/policies", "/app/trust", "/app/workflows", "/app/workflows/new",
-];
-const DISCOVER = [
-  { from: "/app/projects", pattern: /^\/app\/projects\/[^/]+$/, then: ["", "/files", "/launch", "/security", "/github", "/graph", "/design"] },
-  { from: "/app/tasks", pattern: /^\/app\/tasks\/[^/]+$/, then: [""] },
-  { from: "/app/incidents", pattern: /^\/app\/incidents\/\d+$/, then: [""] },
-  { from: "/app/workflows", pattern: /^\/app\/workflows\/(?!new$)[^/]+$/, then: [""] },
-  { from: "/app/templates", pattern: /^\/app\/templates\/[^/]+$/, then: [""] },
-];
 const routeFilter = flag("routes")?.split(",");
 
 function chromePath() {
@@ -116,18 +102,7 @@ function focusLook() {
 const browser = await chromium.launch({ executablePath: chromePath(), headless: true });
 const report = { base: BASE, ranAt: new Date().toISOString(), widths: WIDTHS, pages: [] };
 try {
-  const routes = [...STATIC_ROUTES];
-  {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-    const page = await ctx.newPage();
-    for (const d of DISCOVER) {
-      await page.goto(BASE + d.from, { waitUntil: "load" });
-      const hrefs = await page.$$eval("a[href]", (as) => as.map((a) => a.getAttribute("href")));
-      const hit = hrefs.find((h) => h && d.pattern.test(h.split(/[?#]/)[0]));
-      if (hit) for (const suffix of d.then) routes.push(hit.split(/[?#]/)[0] + suffix);
-    }
-    await ctx.close();
-  }
+  const routes = [...STATIC_ROUTES, ...(routeFilter ? [] : await discoverRoutes(browser, BASE, DISCOVER))];
   const selected = routeFilter ?? routes;
 
   for (const width of WIDTHS) {

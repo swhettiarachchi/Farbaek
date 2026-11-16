@@ -11,7 +11,7 @@ import { Showroom } from "./showroom";
  */
 export function ShowcaseSection() {
   return (
-    <section id="showcase" aria-labelledby="showcase-title" className="overflow-x-clip py-20 lg:py-28">
+    <section id="showcase" aria-labelledby="showcase-title" className="overflow-x-clip py-14 sm:py-20 lg:py-28">
       <Container>
         <SectionHeading id="showcase-title" title="Start from something like these.">
           Eight concepts, each with its own look, motion and purpose, the way Farbaek designs every build. Pick one and start a build like it.

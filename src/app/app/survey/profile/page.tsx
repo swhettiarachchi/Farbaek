@@ -16,7 +16,7 @@ export default async function SurveyorProfilePage() {
     ? await client.from("survey_surveyor_profiles").select("full_name, designation, registration, address, contact").eq("org_id", ctx.current.id).eq("user_id", ctx.user.id).maybeSingle()
     : { data: null };
   return (
-    <div className="grid max-w-2xl gap-8">
+    <div className="grid max-w-2xl gap-6 lg:gap-8">
       <PageHeader
         title="Surveyor details"
         description="Your details for the surveyor block of plans you are responsible for. Only you can set them, and only you can approve a plan that names you. Farbaek shows what you enter and checks no register."

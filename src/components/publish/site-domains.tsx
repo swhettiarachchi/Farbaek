@@ -29,7 +29,7 @@ function Copy({ value, label }: { value: string; label: string }) {
           setTimeout(() => setCopied(false), 1_500);
         });
       }}
-      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink"
+      className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink"
       aria-label={copied ? `Copied ${label}` : `Copy ${label}`}
     >
       {copied ? <CheckCircleIcon size={16} weight="fill" className="text-verified" aria-hidden /> : <CopyIcon size={16} weight="bold" aria-hidden />}
@@ -51,7 +51,7 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
             action={removeDomainAction}
             fields={{ projectId, domainId: domain.id }}
             className="ml-auto"
-            triggerClassName="inline-flex size-11 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
+            triggerClassName="inline-flex tap size-10 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
             trigger={
               <>
                 <TrashIcon size={16} weight="bold" aria-hidden />

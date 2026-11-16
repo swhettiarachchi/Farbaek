@@ -483,7 +483,7 @@ function Preview({ ring, result }: { ring: SurveyPoint[]; result: Extract<Return
   const centre = (cs: { e: number; n: number }[]) => ({ e: cs.reduce((s, c) => s + c.e, 0) / cs.length, n: cs.reduce((s, c) => s + c.n, 0) / cs.length });
   const stroke = Math.max(w, h) / 250;
   return (
-    <svg viewBox={`0 0 ${w + 2 * pad} ${h + 2 * pad}`} role="img" aria-label="The lot with its new dividing lines" className="h-auto w-full rounded-md bg-surface ring-1 ring-line">
+    <svg viewBox={`0 0 ${w + 2 * pad} ${h + 2 * pad}`} role="img" aria-label="The lot with its new dividing lines" className="h-auto max-h-[min(60svh,28rem)] w-full rounded-md bg-surface ring-1 ring-line">
       <polygon points={ring.map((p) => `${x(p.e)},${y(p.n)}`).join(" ")} fill="none" stroke="var(--color-ink)" strokeWidth={stroke * 1.4} />
       {cuts.map((c, i) => (
         <line key={i} x1={x(c.a.e)} y1={y(c.a.n)} x2={x(c.b.e)} y2={y(c.b.n)} stroke="var(--color-accent)" strokeWidth={stroke} strokeDasharray={`${stroke * 4} ${stroke * 3}`} />

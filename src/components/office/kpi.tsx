@@ -26,13 +26,13 @@ export function KpiTile({ label, value, detail, trend, href, className = "" }: {
     <>
       <p className="text-sm text-ink-2">{label}</p>
       <div className="mt-2 flex items-end justify-between gap-3">
-        <p className="text-[2rem] font-medium leading-none tracking-[-0.03em] tabular">{value}</p>
+        <p className="text-2xl font-medium leading-none tracking-[-0.03em] tabular sm:text-[2rem]">{value}</p>
         {trend ? <div className="shrink-0 pb-0.5">{trend}</div> : null}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-ink-3">{detail}</p>
     </>
   );
-  const cls = `block rounded-md border border-line bg-surface p-5 shadow-e1 ${className}`;
+  const cls = `block rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 ${className}`;
   return href ? (
     <Link href={href} className={`${cls} transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-e2 motion-reduce:hover:translate-y-0`}>
       {body}

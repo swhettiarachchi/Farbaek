@@ -14,7 +14,7 @@ export function EffortPicker({ value, onChange, disabled = false, name = "effort
   return (
     <fieldset className="grid gap-1.5" disabled={disabled}>
       <legend className="sr-only">Effort</legend>
-      <div className="inline-flex w-full rounded-full border border-line bg-surface p-1 shadow-e1 max-[18em]:flex-col max-[18em]:rounded-md sm:w-auto">
+      <div className="inline-flex w-full rounded-full border border-line bg-surface p-0.5 shadow-e1 max-[18em]:flex-col max-[18em]:rounded-md sm:w-auto">
         {EFFORTS.map((e) => (
           <label key={e} className="relative flex-1 sm:flex-none">
             <input
@@ -26,7 +26,7 @@ export function EffortPicker({ value, onChange, disabled = false, name = "effort
               aria-describedby={`${id}-detail`}
               className="peer sr-only"
             />
-            <span className="flex min-h-11 cursor-pointer items-center justify-center rounded-full px-4 text-sm text-ink-2 transition-colors duration-[160ms] peer-checked:bg-primary peer-checked:font-medium peer-checked:text-on-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
+            <span className="tap flex min-h-10 cursor-pointer items-center justify-center rounded-full px-4 text-sm text-ink-2 transition-colors duration-[160ms] peer-checked:bg-primary peer-checked:font-medium peer-checked:text-on-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
               {EFFORT_LABELS[e].title}
             </span>
           </label>

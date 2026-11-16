@@ -15,7 +15,7 @@ export function FaqList({ items }: { items: FaqItem[] }) {
     <div className="divide-y divide-line border-y border-line">
       {items.map((item) => (
         <details key={item.q} data-web-purchase={item.webOnly ? "" : undefined} className="group">
-          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-title-4 font-medium [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 py-3 text-title-4 sm:min-h-14 sm:py-4 font-medium [&::-webkit-details-marker]:hidden">
             {item.q}
             <CaretDownIcon
               size={20}
@@ -59,7 +59,7 @@ const HOME_FAQ: FaqItem[] = [
 
 export function HomeFaq() {
   return (
-    <section aria-labelledby="faq-title" className="py-20 lg:py-28">
+    <section aria-labelledby="faq-title" className="py-14 sm:py-20 lg:py-28">
       <Container className="grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
         <SectionHeading id="faq-title" title="Common questions" />
         <FaqList items={HOME_FAQ} />

@@ -15,6 +15,7 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { KeptPrompt } from "./kept-prompt";
 import { SignInForm } from "./sign-in-form";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
+import { BEZEL } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -76,7 +77,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
             ? `Then you see ${planName}'s price and what's included, and agree, before anything is charged.`
             : `New workspaces start with a ${TRIAL.lengthDays}-day ${getPlan(TRIAL.basePlan).name} trial, with no card.`}
         </p>
-        <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+        <div className={`mt-8 ${BEZEL}`}>
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             <KeptPrompt />
             {supabase ? (
@@ -115,8 +116,8 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         </div>
       ) : (
       <section aria-labelledby="next-title" className="aurora hidden lg:block">
-        <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
-          <div className="rounded-md bg-surface p-8 shadow-e2">
+        <div className={BEZEL}>
+          <div className="rounded-md bg-surface p-5 sm:p-8 shadow-e2">
             <h2 id="next-title" className="text-xl font-medium tracking-[-0.02em]">
               What happens next
             </h2>

@@ -29,6 +29,7 @@ import { loadIntegrations } from "@/server/workspace/integrations";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { loadUsageMeters, loadUsageSummary } from "@/server/workspace/usage-summary";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Billing and usage" };
 
@@ -104,7 +105,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const returned = billing.open && !sub && one(sp.checkout) === "done";
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader title="Billing and usage" description="Your plan, its limits and what this workspace has used." />
 
       {!billing.open ? (

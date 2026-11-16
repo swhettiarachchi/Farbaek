@@ -10,6 +10,7 @@ import { baseName, billingChoosePath, subscribePath } from "@/core/billing/subsc
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { isDemoMode, loadAppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
+import { BEZEL } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = {
   title: "Subscribe",
@@ -54,7 +55,7 @@ export default async function SubscribePage({ params, searchParams }: { params: 
           {ctx.current ? `First, name a workspace of your own. ${ctx.current.name} stays as it is.` : "First, name your workspace."} Your projects live in it, and the
           plan belongs to it. Next you review {name} and agree before anything is charged.
         </p>
-        <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+        <div className={`mt-8 ${BEZEL}`}>
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             <CreateOrganizationForm plan={planId} submitLabel="Continue to review" defaultName="My workspace" />
           </div>

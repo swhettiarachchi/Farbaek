@@ -7,7 +7,7 @@ import { AndroidEarlyMark } from "@/components/billing/android-early-mark";
 import { nonceFromCsp } from "@/server/http/app-headers";
 import { waitingChanges } from "@/server/workspace/waiting-changes";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
-import { CommandPalette, PaletteTrigger } from "@/components/app/command-palette";
+import { CommandPalette, PaletteIconButton, PaletteTrigger } from "@/components/app/command-palette";
 import { CspSafe } from "@/components/app/csp-safe";
 import { ServiceWorker } from "@/components/app/service-worker";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
@@ -39,7 +39,7 @@ import { DISPLAY_TITLE, FOCUSED_TITLE } from "@/components/ui/titles";
 
 /** The page-wide bands (demo, saving off, agents paused): one neutral style, the icon's colour says which kind (ADR 0183). */
 // The icon sits beside the first line, and the words wrap beside it, never under it.
-const BAND = "flex items-start justify-center gap-2 border-b border-line bg-surface-raised px-4 py-2.5 text-label text-ink [&>svg]:mt-0.5";
+const BAND = "flex items-start justify-center gap-2 border-b border-line bg-surface-raised px-4 py-2 text-label text-ink sm:py-2.5 [&>svg]:mt-0.5";
 
 export const metadata: Metadata = {
   title: { default: "Workspace", template: "%s | Farbaek" },
@@ -105,7 +105,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <PromptComposer mode="app" autoResume />
         </div>
         <FirstRunTour />
-        <details className="mt-16 rounded-md border border-line bg-surface p-5 shadow-e1">
+        <details className="mt-16 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
           <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-ink-2">Or create an empty workspace</summary>
           <div className="mt-4">
             <CreateOrganizationForm />
@@ -166,12 +166,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{ctx.user.email}</span>
             {ctx.mode === "live" ? (
               <SignOutForm action={signOut}>
-                <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink" aria-label="Sign out">
+                <button type="submit" className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink" aria-label="Sign out">
                   <SignOutIcon size={16} weight="bold" aria-hidden />
                 </button>
               </SignOutForm>
             ) : (
-              <Link href="/" className="text-xs text-ink-2 hover:text-ink">
+              <Link href="/" className="inline-flex items-center text-xs text-ink-2 hover:text-ink pointer-coarse:min-h-11">
                 Leave demo
               </Link>
             )}
@@ -185,7 +185,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <p className={BAND}>
             <EyeIcon size={16} weight="fill" className="shrink-0 text-simulated" aria-hidden />
             <span>
-              <span className="font-medium">Demo workspace.</span> Sample data only. Nothing you do here is saved or sent anywhere.
+              <span className="font-medium">Demo workspace.</span> Sample data only.<span className="hidden sm:inline"> Nothing you do here is saved or sent anywhere.</span>
             </span>
           </p>
         ) : !ctx.writes.enabled ? (
@@ -222,9 +222,10 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
         {ctx.mode === "live" && readBillingConfig()?.mode === "test" && checkoutOpenFor(readBillingConfig(), current.id) ? <TestModeBand /> : null}
 
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-canvas/85 px-4 backdrop-blur-xl lg:hidden">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-canvas/85 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] backdrop-blur-xl sm:pl-[max(1.5rem,env(safe-area-inset-left))] lg:hidden">
           <Brand />
           <div className="flex min-w-0 items-center gap-1">
+            <PaletteIconButton />
             {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} compact /> : null}
             {/* The pill stays small; the link around it is a full 44px target. */}
             <Link href="/app/more" aria-label={`${current.name}, switch workspace and more`} className="flex min-h-11 min-w-0 max-w-[42vw] items-center rounded-full">
@@ -236,7 +237,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           </div>
         </header>
 
-        <main id="main" className="overflow-x-clip px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
+        <main id="main" className="overflow-x-clip px-4 pb-28 pt-5 sm:px-6 sm:pt-6 lg:px-10 lg:pb-16 lg:pt-10">
           <div className="mx-auto max-w-[1120px]">
             <PageTransition>{children}</PageTransition>
           </div>

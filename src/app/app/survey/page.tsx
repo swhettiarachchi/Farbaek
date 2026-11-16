@@ -11,6 +11,7 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { listSurveyProjects } from "@/server/survey/read";
 import { surveyReadOnlyReason } from "@/server/survey/access";
 import { loadAppContext } from "@/server/workspace/context";
+import { BEZEL, PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Survey Studio" };
 
@@ -22,7 +23,7 @@ export default async function SurveyStudioPage() {
   const readOnly = surveyReadOnlyReason(ctx);
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Survey Studio"
         description="Land survey plans from your field data: computed from the coordinates, checked, drawn to an exact scale and exported as PDF and DXF. You review every plan, and you sign it."
@@ -45,13 +46,13 @@ export default async function SurveyStudioPage() {
       {readOnly ? <Notice>{readOnly} The Sample project below shows a whole plan.</Notice> : null}
       {projects === null ? <Notice tone="warning">Survey projects can&apos;t be read right now. Reload the page in a moment.</Notice> : null}
 
-      <Link href="/app/survey/sample" className="group grid gap-4 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line transition-shadow duration-200 hover:shadow-e2 sm:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="rounded-md bg-surface p-5 shadow-e1 sm:col-span-2">
+      <Link href="/app/survey/sample" className={`group grid gap-4 transition-shadow duration-200 hover:shadow-e2 sm:grid-cols-[minmax(0,1fr)_auto] ${BEZEL}`}>
+        <div className="rounded-md bg-surface p-4 sm:p-5 shadow-e1 sm:col-span-2">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status="simulated" label="Sample" />
             <span className="text-sm text-ink-3">Synthetic data, read-only</span>
           </div>
-          <p className="mt-3 text-lg font-medium tracking-[-0.01em] text-ink">Sample land survey</p>
+          <p className="mt-3 text-title-4 font-medium tracking-[-0.01em] text-ink sm:text-lg">Sample land survey</p>
           <p className="mt-1 max-w-[60ch] text-sm text-ink-2">A five-sided parcel with a building and a wall, on the SLD99 grid: open it to see the boundary, the plan sheet, the checks and the exports before importing your own points.</p>
         </div>
       </Link>
@@ -66,7 +67,7 @@ export default async function SurveyStudioPage() {
               const crs = crsById(p.crsId);
               return (
                 <li key={p.id}>
-                  <Link href={`/app/survey/${p.id}`} className="flex h-full flex-col gap-3 rounded-md border border-line bg-surface p-5 shadow-e1 transition-[box-shadow,border-color] duration-150 hover:border-line-strong hover:shadow-e2">
+                  <Link href={`/app/survey/${p.id}`} className="flex h-full flex-col gap-3 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 transition-[box-shadow,border-color] duration-150 hover:border-line-strong hover:shadow-e2">
                     <div className="flex flex-wrap items-center gap-2">
                       {p.approvedVersions.length > 0 ? <StatusBadge status="done" label={`Version ${Math.max(...p.approvedVersions)} approved`} /> : <StatusBadge status="info" label="Draft" />}
                       {p.crsConfirmedAt ? null : <StatusBadge status="unverified" label="CRS not confirmed" />}

@@ -44,6 +44,7 @@ import { Card, CardTitle, PageHeader } from "@/components/app/primitives";
 import { RelativeTime } from "@/components/ui/local-time";
 import { loadAppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -129,7 +130,7 @@ export default async function SettingsPage() {
   const renameReason = ctx.mode === "demo" ? "The demo workspace is read-only." : canRename ? null : "Only owners and admins can rename this workspace.";
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader title="Settings" description="Your workspace, the people in it, and how much the agent can do on its own." />
 
       <Card>

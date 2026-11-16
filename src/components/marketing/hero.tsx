@@ -5,26 +5,27 @@ import { HeroWord } from "@/components/marketing/hero-word";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { HeroVisual } from "@/components/three/hero-visual";
 import { Container } from "@/components/ui/container";
+import { HERO_TITLE } from "@/components/ui/titles";
 
 export function Hero() {
   return (
     <section aria-labelledby="hero-title" className="relative overflow-hidden">
       <div aria-hidden className="dot-grid pointer-events-none absolute inset-0" />
-      <Container className="relative grid items-center gap-8 pb-16 pt-10 sm:pt-14 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-12 lg:gap-6 lg:py-12">
+      <Container className="relative grid items-center gap-8 pb-12 pt-8 sm:pb-16 sm:pt-14 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-12 lg:gap-6 lg:py-12">
         <Reveal className="relative z-10 lg:col-span-7">
           <h1
             id="hero-title"
-            className="max-w-[12ch] text-balance text-[2.9rem] font-medium leading-[1.02] tracking-[-0.045em] sm:text-[4.2rem] lg:text-[5.2rem]"
+            className={`max-w-[12ch] ${HERO_TITLE}`}
           >
             {/* "Vibe coding" leads: it's what people search for. "Verified" is what Farbaek adds (stage 186). */}
             <span className="sr-only">Vibe coding for verified software, websites and apps.</span>
             <span aria-hidden>Vibe coding for verified </span>
             <HeroWord />
           </h1>
-          <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-ink-2 sm:text-xl">
+          <p className="mt-5 max-w-[34rem] text-body leading-relaxed text-ink-2 sm:mt-6 sm:text-xl">
             Describe the app or website you want. Farbaek&apos;s AI agent plans and builds it, runs the real checks, and waits for your approval before anything ships.
           </p>
-          <div className="aurora mt-8 max-w-[36rem]">
+          <div className="aurora mt-6 max-w-[36rem] sm:mt-8">
             <PromptComposer mode="public" size="compact" />
           </div>
           <p className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">

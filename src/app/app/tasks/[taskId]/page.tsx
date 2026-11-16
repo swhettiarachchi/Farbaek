@@ -420,7 +420,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           <p className="mt-1 text-sm text-ink-2">
             Exactly what the agent wants to change, file by file.
           </p>
-          <div className="mt-6 grid gap-8">
+          <div className="mt-6 grid gap-6 lg:gap-8">
             {trying ? <ArenaPanel proposalId={proposal!.id} taskId={task.id} checks={checksForRun} run={arenaRun} disabledReason={arenaReason} /> : null}
             {showProposal ? (
               <ProposalReview
@@ -552,7 +552,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           <p className="mt-1 text-sm text-ink-2">
             Undo this change, file by file. Each file goes back to how it was. A file that changed since is left alone, so newer work is never overwritten.
           </p>
-          <div className="mt-6 grid gap-8">
+          <div className="mt-6 grid gap-6 lg:gap-8">
             {recovery && applied ? (
               <RecoveryPanel
                 projectId={task.projectId}

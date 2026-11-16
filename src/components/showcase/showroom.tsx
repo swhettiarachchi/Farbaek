@@ -151,7 +151,7 @@ export function Showroom() {
                   onClick={() => setFinish(f)}
                   aria-pressed={finish.name === f.name}
                   aria-label={`${f.name} finish`}
-                  className="grid size-11 place-items-center rounded-full transition-transform duration-150 active:scale-95"
+                  className="grid tap size-10 place-items-center rounded-full transition-transform duration-150 active:scale-95"
                 >
                   <span
                     className={`size-6 rounded-full ring-1 ring-ink/15 transition-[box-shadow] duration-200 ${finish.name === f.name ? "shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--ink)]" : ""}`}

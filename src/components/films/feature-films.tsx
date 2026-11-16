@@ -86,7 +86,7 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
                 </Bezel>
               </div>
               <h3
-                className={`text-balance text-[1.75rem] font-medium leading-[1.12] tracking-[-0.03em] transition-colors duration-300 sm:text-[2rem] ${
+                className={`text-balance text-2xl font-medium leading-[1.12] tracking-[-0.03em] transition-colors duration-300 sm:text-[2rem] ${
                   current ? "text-ink" : "text-ink lg:text-ink-3"
                 }`}
               >

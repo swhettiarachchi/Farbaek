@@ -3,6 +3,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { deploymentName, EnvPill } from "@/components/office/badges";
 import { OFFICE_POLICY } from "@/config/office";
 import { PUBLIC_TITLE } from "@/components/ui/titles";
+import { BEZEL } from "@/components/ui/surfaces";
 
 /**
  * The way into Office Space: who it's for and what protects it on one side,
@@ -12,7 +13,7 @@ import { PUBLIC_TITLE } from "@/components/ui/titles";
 export default function OfficeAuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <main id="main" className="mx-auto grid min-h-[100dvh] max-w-[1180px] content-start gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:content-center lg:items-center lg:gap-16 lg:py-12">
-      <section className="grid content-start gap-8 lg:content-center">
+      <section className="grid content-start gap-6 lg:gap-8 lg:content-center">
         <div className="flex flex-wrap items-center gap-3">
           <BrandLogo height={30} />
           <EnvPill label={deploymentName()} />
@@ -46,8 +47,8 @@ export default function OfficeAuthLayout({ children }: Readonly<{ children: Reac
           </li>
         </ul>
       </section>
-      <section className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
-        <div className="rounded-md bg-surface p-6 shadow-e2 sm:p-8">{children}</div>
+      <section className={BEZEL}>
+        <div className="rounded-md bg-surface p-5 shadow-e2 sm:p-8">{children}</div>
       </section>
     </main>
   );

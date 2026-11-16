@@ -41,7 +41,7 @@ const SNIPPET_ICONS: Record<SnippetId, Icon> = {
 
 // 44px with a mouse and 48px on touch, as buttonClasses gives (ADR 0171).
 const iconButton =
-  "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-raised hover:text-ink pointer-coarse:size-12 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  "inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const actionButton =
   "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-raised hover:text-ink pointer-coarse:min-h-12 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 

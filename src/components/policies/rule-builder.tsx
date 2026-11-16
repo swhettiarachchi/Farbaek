@@ -351,7 +351,7 @@ function RuleCard({
           type="button"
           onClick={onRemove}
           aria-label={`Remove rule ${index + 1}`}
-          className="inline-flex size-11 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-raised hover:text-failed"
+          className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-raised hover:text-failed"
         >
           <TrashIcon size={20} aria-hidden />
         </button>

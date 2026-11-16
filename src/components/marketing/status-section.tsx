@@ -64,7 +64,7 @@ const GROUPS: Group[] = [
 
 export function StatusSection() {
   return (
-    <section id="status" aria-labelledby="status-title" className="py-20 lg:py-28">
+    <section id="status" aria-labelledby="status-title" className="py-14 sm:py-20 lg:py-28">
       <Container>
         <SectionHeading id="status-title" title="What works today, and what doesn't yet.">
           New workspaces start a {TRIAL.lengthDays}-day trial with no card, one per email address. After it, stay on Free or choose a plan from {FROM} a month.

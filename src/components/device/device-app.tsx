@@ -205,7 +205,7 @@ export function DeviceApp() {
     return (
       <Shell online={online}>
         <Intro />
-        <div className="mt-8 flex flex-col items-center rounded-md border border-line bg-surface px-6 py-12 text-center">
+        <div className="mt-6 flex flex-col items-center rounded-md border border-line bg-surface px-4 py-8 text-center sm:mt-8 sm:px-6 sm:py-12">
           <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
             <DeviceMobileIcon size={24} aria-hidden />
           </span>
@@ -444,7 +444,7 @@ function Shell({ online, children }: { online: boolean; children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-24 pt-4 sm:px-6 sm:pt-8">
       <div className="flex items-center justify-between gap-3">
-        <Link prefetch={false} href="/app" className="flex min-h-11 items-center gap-2 rounded-full" aria-label="Farbaek, Home">
+        <Link prefetch={false} href="/app" className="flex min-h-11 min-w-11 items-center gap-2 rounded-full" aria-label="Farbaek, Home">
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo's own file, which the service worker keeps for offline; the image optimiser isn't reachable then. */}
           <img src={LOGO.src} alt="" width={21} height={32} className="h-8 w-auto shrink-0" />
           <span className="text-base font-medium tracking-[-0.02em] max-[18em]:sr-only">Farbaek</span>

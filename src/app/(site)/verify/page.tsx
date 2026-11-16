@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { EvidenceCheck } from "@/components/verify/evidence-check";
-import { PUBLIC_TITLE } from "@/components/ui/titles";
+import { PART_TITLE, PUBLIC_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = {
   title: "Check a proof",
@@ -50,12 +50,12 @@ export default function VerifyPage() {
         </Container>
       </section>
 
-      <section aria-labelledby="meaning-title" className="border-t border-line bg-surface py-16 lg:py-20">
+      <section aria-labelledby="meaning-title" className="border-t border-line bg-surface py-12 sm:py-16 lg:py-20">
         <Container>
-          <h2 id="meaning-title" className="max-w-[24ch] text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em]">
+          <h2 id="meaning-title" className={`max-w-[24ch] ${PART_TITLE}`}>
             What a check here does, and doesn&apos;t, tell you.
           </h2>
-          <ul className="mt-10 grid gap-8 sm:grid-cols-3">
+          <ul className="mt-10 grid gap-6 lg:gap-8 sm:grid-cols-3">
             {MEANING.map((m) => (
               <li key={m.title} className="grid content-start gap-3">
                 <m.icon size={24} className="text-ink-2" aria-hidden />

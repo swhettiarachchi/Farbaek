@@ -10,7 +10,7 @@ import { SectionHeading } from "./section-heading";
 
 export function PricingTeaser() {
   return (
-    <section aria-labelledby="pricing-teaser-title" className="py-20 lg:py-28">
+    <section aria-labelledby="pricing-teaser-title" className="py-14 sm:py-20 lg:py-28">
       <Container>
         <SectionHeading id="pricing-teaser-title" title="One subscription. The models, test spaces and checks are included.">
           No API keys to bring. New workspaces get a {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial with no card, one per email address.

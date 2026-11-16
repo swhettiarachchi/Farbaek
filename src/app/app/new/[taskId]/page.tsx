@@ -33,7 +33,7 @@ const rise = "motion-safe:animate-[usage-in_420ms_cubic-bezier(0.16,1,0.3,1)_bot
 /** Each section's title carries the icon that names it (ADR 0183), the same way on every section. */
 function Section({ title, icon, delay, children }: { title: string; icon: Icon; delay: number; children: React.ReactNode }) {
   return (
-    <section className={`grid content-start gap-3 rounded-md border border-line bg-canvas-2/60 p-5 ${rise}`} style={{ animationDelay: `${delay}ms` }}>
+    <section className={`grid content-start gap-3 rounded-md border border-line bg-canvas-2/60 p-4 sm:p-5 ${rise}`} style={{ animationDelay: `${delay}ms` }}>
       <CardTitle icon={icon}>{title}</CardTitle>
       {children}
     </section>
@@ -109,7 +109,7 @@ export default async function PlanCardPage({ params }: Params) {
       </Link>
 
       {!contract || !c ? (
-        <section className="grid gap-4 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
+        <section className="grid gap-4 rounded-lg border border-line bg-surface p-5 shadow-e2 sm:p-8">
           <h1 className={PAGE_TITLE}>{task.title}</h1>
           <p className="text-body leading-relaxed text-ink-2">
             Your project <span className="font-medium text-ink">{project?.name ?? ""}</span> is ready, but there&apos;s no plan yet. The AI couldn&apos;t draft one this time.
@@ -120,7 +120,7 @@ export default async function PlanCardPage({ params }: Params) {
           </Link>
         </section>
       ) : (
-        <section aria-labelledby="plan-title" className="grid gap-6 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
+        <section aria-labelledby="plan-title" className="grid gap-6 rounded-lg border border-line bg-surface p-5 shadow-e2 sm:p-8">
           <div className="flex">
             {task.state === "CANCELLED" ? (
               <StatusBadge status="off" label="Cancelled" />
@@ -171,7 +171,7 @@ export default async function PlanCardPage({ params }: Params) {
 
           {c.openQuestions.length ? (
             // Questions need a person to settle them, so the box is in the "your turn" blue (ADR 0183).
-            <div className={`grid gap-2 rounded-md border border-approval/30 bg-approval/[0.04] p-5 ${rise}`} style={{ animationDelay: "400ms" }}>
+            <div className={`grid gap-2 rounded-md border border-approval/30 bg-approval/[0.04] p-4 sm:p-5 ${rise}`} style={{ animationDelay: "400ms" }}>
               <p className="flex items-center gap-2 text-sm font-medium text-approval">
                 <QuestionIcon size={20} className="shrink-0" aria-hidden /> Questions to settle
               </p>

@@ -41,7 +41,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
   const held = skills.filter((s) => s.status !== "approved").length;
   return (
     // It sits inside the project page's Skills fold, which carries the title and what skills are for, so it doesn't repeat them.
-    <section id="skills" aria-label="Skills" className="grid scroll-mt-24 gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+    <section id="skills" aria-label="Skills" className="grid scroll-mt-24 gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
       <p className="text-sm leading-relaxed text-ink-2">
         Add a proven design skill from the library, one from GitHub, or write your own brand and rules. A skill applies to every build here and can&apos;t widen what a
         plan allows. If one changes or arrives from outside, it waits for your review first. Skills use the open SKILL.md format.
@@ -90,7 +90,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
                     <ConfirmAction
                       action={removeSkillAction}
                       fields={{ projectId, path: s.path, revision: s.revision }}
-                      triggerClassName="inline-flex size-11 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
+                      triggerClassName="inline-flex tap size-10 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
                       trigger={
                         <>
                           <TrashIcon size={16} weight="bold" aria-hidden />

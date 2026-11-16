@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { FirstStep, FirstSteps } from "@/core/workspace/first-steps";
 import { hideFirstStepsAction, showFirstStepsAction } from "@/app/app/actions";
 import { CardTitle } from "@/components/app/primitives";
+import { BEZEL } from "@/components/ui/surfaces";
 
 const STATE_WORDS: Record<FirstStep["state"], string> = { done: "done", next: "next", later: "to do", unavailable: "not available here" };
 
@@ -44,7 +45,7 @@ export function FirstStepsPanel({ data, composer }: { data: FirstSteps; composer
   const proven = Math.max(done - 1, 0);
 
   return (
-    <section aria-labelledby="first-steps-heading" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line motion-safe:animate-[usage-in_420ms_cubic-bezier(0.16,1,0.3,1)_both]">
+    <section aria-labelledby="first-steps-heading" className={`motion-safe:animate-[usage-in_420ms_cubic-bezier(0.16,1,0.3,1)_both] ${BEZEL}`}>
       <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
           <div className="min-w-0">

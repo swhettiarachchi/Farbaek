@@ -9,6 +9,7 @@ import { isImagePath } from "@/core/workspace/images";
 import { LINK_CLOSED, shareContentVisible, sharePathVisible } from "@/core/workspace/sharing";
 import { siteAddress } from "@/server/publish/config";
 import { openShare, readSharedFile } from "@/server/workspace/share-access";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Shared project" };
 
@@ -51,7 +52,7 @@ export default async function SharedLinkPage({ params, searchParams }: { params:
   const base = `/share/${token}`;
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <header className="grid gap-3">
         <h1 className={FOCUSED_TITLE}>{view.project.name}</h1>
         {view.project.description ? <p className="max-w-[65ch] text-body leading-relaxed text-ink-2">{view.project.description}</p> : null}
@@ -114,7 +115,7 @@ export default async function SharedLinkPage({ params, searchParams }: { params:
 
         <section aria-label="File" className="min-w-0">
           {!selected ? (
-            <div className="rounded-md border border-dashed border-line-strong p-8 text-center text-sm text-ink-3">Choose a file to read it.</div>
+            <div className="rounded-md border border-dashed border-line-strong p-5 sm:p-8 text-center text-sm text-ink-3">Choose a file to read it.</div>
           ) : !file ? (
             <p className="text-sm text-ink-2">This file couldn&apos;t be read just now. Reload the page to try again.</p>
           ) : isImagePath(file.path) && file.encoding === "base64" ? (

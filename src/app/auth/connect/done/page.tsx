@@ -4,6 +4,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
 import { CODE_PATTERN, STATE_PATTERN, callbackUrl } from "@/server/phone/tokens";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
+import { BEZEL } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Back to the Farbaek app", robots: { index: false, follow: false }, referrer: "no-referrer" };
 
@@ -26,21 +27,21 @@ export default async function ConnectDonePage({ searchParams }: { searchParams: 
   const target = state && (code || error) ? callbackUrl(code ? { code, state } : { error: error!, state }) : null;
 
   return (
-    <main className="mx-auto grid min-h-[100dvh] w-full max-w-[480px] content-center gap-8 px-4 py-10">
+    <main className="mx-auto grid min-h-[100dvh] w-full max-w-[480px] content-center gap-6 lg:gap-8 px-4 py-10">
       {target ? <meta httpEquiv="refresh" content={`0;url=${target}`} /> : null}
       <div className="flex items-center gap-2">
         <BrandLogo height={40} preload />
         <span className="text-lg font-semibold tracking-[-0.02em]">Farbaek</span>
       </div>
-      <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
-        <div className="rounded-md bg-surface p-6 shadow-e1" role="status">
+      <div className={BEZEL}>
+        <div className="rounded-md bg-surface p-4 sm:p-6 shadow-e1" role="status">
           {code ? <CheckCircleIcon size={32} weight="fill" className="text-verified" aria-hidden /> : <WarningCircleIcon size={32} weight="fill" className="text-failed" aria-hidden />}
           <h1 className={`mt-4 ${FOCUSED_TITLE}`}>{code ? "Connected. Back to the app" : "The phone wasn't connected"}</h1>
           <p className="mt-2 text-body leading-relaxed text-ink-2">
             {code ? "The Farbaek app finishes signing in on its own. If it didn't open, tap the button." : error ? ERRORS[error] : "This page opens from the Farbaek app. Open it on your phone and tap Sign in."}
           </p>
           {target ? (
-            <a href={target} className={buttonClasses("primary", "md", "mt-6 min-h-11 w-full")}>
+            <a href={target} className={buttonClasses("primary", "md", "mt-6 w-full")}>
               Open the Farbaek app
               <ArrowSquareOutIcon size={16} weight="bold" aria-hidden />
             </a>

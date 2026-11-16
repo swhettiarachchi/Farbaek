@@ -4,6 +4,9 @@ import {
   ArrowArcLeftIcon,
   ArrowArcRightIcon,
   ArrowsInIcon,
+  ArrowsOutIcon,
+  CornersInIcon,
+  XIcon,
   CheckCircleIcon,
   EyeIcon,
   EyeSlashIcon,
@@ -20,13 +23,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { LAYER_IDS, type LayerId, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
-import type { SceneItem } from "@/core/survey/sheet/scene";
+import type { SceneItem, SheetPage } from "@/core/survey/sheet/scene";
 import { buildPlan } from "@/core/survey/view";
 import { LAYER_NAMES } from "@/core/survey/assistant/describe";
 import { applyOps, revertPatch, type Applied, type Patch } from "@/core/survey/assistant/apply";
 import type { PlanOp } from "@/core/survey/assistant/ops";
 import type { StepId } from "@/core/survey/assistant/reader";
 import { entityBounds, viewAround } from "@/core/survey/sheet/entities";
+import { drawingView, pinchView, scaleIn, sheetPoint, type Box, type View } from "@/core/survey/sheet/view-math";
 import { saveSurveyDrawingAction } from "@/app/app/survey/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { AssistantDock, type EditorBridge } from "./assistant/assistant-dock";
@@ -55,7 +59,6 @@ export interface PlanEditorProps {
 
 
 type Tab = "sheet" | "codes" | "layers" | "selection";
-type View = [number, number, number, number];
 
 interface History {
   stack: SurveyDocument[];
@@ -75,6 +78,7 @@ export function PlanEditor(props: PlanEditorProps) {
   const docRef = useRef(doc);
   // Where the history stands, moved at once by the assistant's undo and redo, so "undo, undo" in one turn sees the first.
   const historyAt = useRef({ index: history.index, length: history.stack.length });
+  const pageRef = useRef<SheetPage | null>(null);
   useLayoutEffect(() => {
     docRef.current = doc;
     historyAt.current = { index: history.index, length: history.stack.length };
@@ -101,15 +105,22 @@ export function PlanEditor(props: PlanEditorProps) {
     [shown, doc.surveyorUserId, props.points, props.crsId, props.crsConfirmation, props.surveyors, props.approval, props.approvedSurveyor, dirty, baseVersion],
   );
   const page = plan.sheet.pages[0]!;
+  useLayoutEffect(() => {
+    pageRef.current = page;
+  });
   const fullView: View = [0, 0, page.widthMm, page.heightMm];
   const [view, setView] = useState<View>(fullView);
+  // A phone or a narrow tablet: the whole sheet's text is too small to read there, so the sheet opens on the drawing (stage 196).
+  const [narrow, setNarrow] = useState(false);
   const viewKey = `${page.widthMm}x${page.heightMm}`;
   const [lastKey, setLastKey] = useState(viewKey);
   if (lastKey !== viewKey) {
-    // The sheet changed size (paper or orientation): show the whole new sheet.
+    // The sheet changed size (paper or orientation): show the new sheet the way it opens.
     setLastKey(viewKey);
-    setView([0, 0, page.widthMm, page.heightMm]);
+    setView(narrow ? drawingView(page) : [0, 0, page.widthMm, page.heightMm]);
   }
+  // Drawing full screen on a phone: the sheet and its tools only, the page and the tab bar out of the way.
+  const [full, setFull] = useState(false);
 
   /** Applies an edit. Edits with the same key within 1.5 s (typing in one field) become one undo step. */
   const update = useCallback(
@@ -158,13 +169,44 @@ export function PlanEditor(props: PlanEditorProps) {
       return { stack, index: stack.length - 1, saved: h.saved > stack.length - 1 ? -1 : h.saved, coalesce: null };
     });
 
-  // Leaving with unsaved edits asks first.
+  // Leaving with unsaved edits asks first: closing the page, and following a link in the app (a step, the tab bar, the sidebar).
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty || props.readOnly) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    const leave = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+      const to = new URL(a.href, window.location.href);
+      if (to.origin !== window.location.origin || (to.pathname === window.location.pathname && to.search === window.location.search)) return;
+      if (!window.confirm("The plan has changes that aren't saved. Leave without saving them?")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+    document.addEventListener("click", leave, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", leave, true);
+    };
+  }, [dirty, props.readOnly]);
+
+  // Full screen holds the page still behind it, and Esc leaves it.
+  useEffect(() => {
+    if (!full) return;
+    const root = document.documentElement;
+    const before = root.style.overflow;
+    root.style.overflow = "hidden";
+    const esc = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") setFull(false);
+    };
+    window.addEventListener("keydown", esc);
+    return () => {
+      root.style.overflow = before;
+      window.removeEventListener("keydown", esc);
+    };
+  }, [full]);
 
   // ---- Pan, zoom and dragging -------------------------------------------------
   const svgWrap = useRef<HTMLDivElement>(null);
@@ -182,15 +224,33 @@ export function PlanEditor(props: PlanEditorProps) {
       // Not an active pointer: the drag still works while it stays over the canvas.
     }
   };
-  const pinch = useRef<{ dist: number; view: View } | null>(null);
+  const pinch = useRef<{ from: [[number, number], [number, number]]; view: View } | null>(null);
 
+  /** The sheet's box on the screen. */
+  const boxOf = useCallback((): Box => {
+    const r = svgWrap.current?.getBoundingClientRect();
+    return r ? { left: r.left, top: r.top, width: r.width || 1, height: r.height || 1 } : { left: 0, top: 0, width: 1, height: 1 };
+  }, []);
   /** Screen pixels per sheet millimetre at the current view. */
-  const pxPerMm = useCallback(() => {
+  const pxPerMm = useCallback(() => scaleIn(view, boxOf()), [view, boxOf]);
+
+  // How wide the editor is, and on first sight on a narrow one, the drawing rather than the whole sheet.
+  const opened = useRef(false);
+  useEffect(() => {
     const el = svgWrap.current;
-    if (!el) return 1;
-    const r = el.getBoundingClientRect();
-    return Math.min(r.width / view[2], r.height / view[3]);
-  }, [view]);
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => {
+      const w = entry?.contentRect.width ?? 0;
+      if (w <= 0) return;
+      setNarrow(w < 640);
+      if (!opened.current) {
+        opened.current = true;
+        if (w < 640 && pageRef.current) setView(drawingView(pageRef.current));
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const zoomAt = useCallback(
     (factor: number, cx?: number, cy?: number) => {
@@ -206,18 +266,7 @@ export function PlanEditor(props: PlanEditorProps) {
   );
 
   /** A client point as sheet millimetres in the current view. */
-  const toSheet = useCallback(
-    (clientX: number, clientY: number): [number, number] => {
-      const el = svgWrap.current;
-      if (!el) return [0, 0];
-      const r = el.getBoundingClientRect();
-      const k = pxPerMm();
-      const ox = (r.width - view[2] * k) / 2;
-      const oy = (r.height - view[3] * k) / 2;
-      return [view[0] + (clientX - r.left - ox) / k, view[1] + (clientY - r.top - oy) / k];
-    },
-    [view, pxPerMm],
-  );
+  const toSheet = useCallback((clientX: number, clientY: number): [number, number] => sheetPoint(view, boxOf(), clientX, clientY), [view, boxOf]);
 
   useEffect(() => {
     const el = svgWrap.current;
@@ -231,44 +280,53 @@ export function PlanEditor(props: PlanEditorProps) {
     return () => el.removeEventListener("wheel", wheel);
   }, [toSheet, zoomAt]);
 
-  const layerOf = (l: string) => doc.layers[l as LayerId];
-  const canDrag = (item: SceneItem) => !props.readOnly && item.kind === "text" && Boolean(item.entity) && item.layer !== "SHEET" && !layerOf(item.layer)?.locked && item.entity !== "north" && item.entity !== "scalebar" && item.entity !== "checkline";
+  // Stable while the layers and the right to edit stay the same, so the memoised drawing keeps its move cursors without redrawing.
+  const layers = doc.layers;
+  const canDrag = useCallback(
+    (item: SceneItem) => !props.readOnly && item.kind === "text" && Boolean(item.entity) && item.layer !== "SHEET" && !layers[item.layer as LayerId]?.locked && item.entity !== "north" && item.entity !== "scalebar" && item.entity !== "checkline",
+    [props.readOnly, layers],
+  );
 
-  const onEntityDown = (item: SceneItem, e: ReactPointerEvent<SVGElement>) => {
-    if (!item.entity || e.button !== 0) return;
-    e.stopPropagation();
-    capture(e.pointerId);
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (canDrag(item)) {
-      const base = doc.labelOffsets[item.entity] ?? { dx: 0, dy: 0 };
-      drag.current = { kind: "label", entity: item.entity, startX: e.clientX, startY: e.clientY, base, moved: false };
-    } else {
-      drag.current = { kind: "pan", startX: e.clientX, startY: e.clientY, view, moved: false, entity: item.entity };
-    }
-  };
-
-  const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+  /**
+   * Every pointer starts here, on the sheet or on something drawn on it, so a second finger always pinches, wherever it lands
+   * (stage 196). A label moves under a mouse at once; under a finger only once it's selected, so a finger on a label pans the sheet.
+   */
+  const begin = (e: ReactPointerEvent<Element>, item: SceneItem | null) => {
     capture(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()];
-      pinch.current = { dist: Math.hypot(a!.x - b!.x, a!.y - b!.y), view };
+      pinch.current = { from: [[a!.x, a!.y], [b!.x, b!.y]], view };
       drag.current = null;
       return;
     }
-    drag.current = { kind: "pan", startX: e.clientX, startY: e.clientY, view, moved: false, entity: null };
+    if (item?.entity && canDrag(item) && (e.pointerType === "mouse" || selected === item.entity)) {
+      const base = doc.labelOffsets[item.entity] ?? { dx: 0, dy: 0 };
+      drag.current = { kind: "label", entity: item.entity, startX: e.clientX, startY: e.clientY, base, moved: false };
+    } else {
+      drag.current = { kind: "pan", startX: e.clientX, startY: e.clientY, view, moved: false, entity: item?.entity ?? null };
+    }
   };
+  const onEntityDown = (item: SceneItem, e: ReactPointerEvent<SVGElement>) => {
+    if (!item.entity || e.button !== 0) return;
+    // Taken here, so the sheet doesn't take it again.
+    e.stopPropagation();
+    begin(e, item);
+  };
+  // The drawing is memoised (SheetSvg), so it gets one handler for good, which calls the newest.
+  const entityDown = useRef(onEntityDown);
+  useLayoutEffect(() => {
+    entityDown.current = onEntityDown;
+  });
+  const onEntityPointerDown = useCallback((item: SceneItem, e: ReactPointerEvent<SVGElement>) => entityDown.current(item, e), []);
+
+  const onDown = (e: ReactPointerEvent<HTMLDivElement>) => begin(e, null);
 
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch.current && pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()];
-      const dist = Math.hypot(a!.x - b!.x, a!.y - b!.y);
-      const f = dist / (pinch.current.dist || 1);
-      const v = pinch.current.view;
-      const w = Math.min(page.widthMm * 1.2, Math.max(8, v[2] / f));
-      const h = (w / v[2]) * v[3];
-      setView([v[0] + (v[2] - w) / 2, v[1] + (v[3] - h) / 2, w, h]);
+      setView(pinchView(pinch.current.view, boxOf(), pinch.current.from, [[a!.x, a!.y], [b!.x, b!.y]], { minWidth: 8, maxWidth: page.widthMm * 1.2 }));
       return;
     }
     const d = drag.current;
@@ -416,120 +474,203 @@ export function PlanEditor(props: PlanEditorProps) {
     goto: go,
   };
 
-  return (
-    <div className={`grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem] ${props.assistantAiOff !== undefined ? "pb-[calc(var(--assist-bar,10rem)+2rem)] lg:pb-0" : ""}`}>
-      <div className="grid min-w-0 content-start gap-3 xl:sticky xl:top-4 xl:self-start">
-        <div role="toolbar" aria-label="Plan tools" className="flex flex-wrap items-center gap-2">
-          <ToolButton label="Undo" onClick={undo} disabled={history.index === 0} icon={<ArrowArcLeftIcon size={16} weight="bold" aria-hidden />} />
-          <ToolButton label="Redo" onClick={redo} disabled={history.index >= history.stack.length - 1} icon={<ArrowArcRightIcon size={16} weight="bold" aria-hidden />} />
-          <span className="mx-1 h-6 w-px bg-line" aria-hidden />
-          <ToolButton label="Zoom out" onClick={() => zoomAt(0.8)} icon={<MagnifyingGlassMinusIcon size={16} weight="bold" aria-hidden />} />
-          <ToolButton label="Whole sheet" onClick={() => setView(fullView)} icon={<ArrowsInIcon size={16} weight="bold" aria-hidden />} />
-          <ToolButton label="Zoom in" onClick={() => zoomAt(1.25)} icon={<MagnifyingGlassPlusIcon size={16} weight="bold" aria-hidden />} />
-          <button type="button" aria-pressed={several} aria-label="Select several" title="Select several: tap points in order. Shift, Ctrl or Cmd and a click do the same." onClick={() => setSeveral((v) => !v)} className={buttonClasses(several ? "primary" : "secondary", "sm", "size-11 !px-0")}>
-            <SelectionPlusIcon size={16} weight="bold" aria-hidden />
-          </button>
-          {picked.length > 1 ? <span className="text-sm text-ink-2">{picked.length} picked, in order</span> : null}
-          <div className="ml-auto flex items-center gap-3">
-            <span className="text-sm text-ink-3" aria-live="polite">
-              {props.readOnly ? props.readOnly : saving ? "Saving…" : dirty ? "Unsaved changes" : `Version ${baseVersion}`}
+  const panelsRef = useRef<HTMLDivElement>(null);
+  /** From the selection card to its details, under the sheet (leaving full screen first). */
+  const showDetails = () => {
+    setFull(false);
+    setTab("selection");
+    window.requestAnimationFrame(() => panelsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  };
+  const status = props.readOnly ? null : saving ? "Saving…" : dirty ? "Unsaved changes" : `Version ${baseVersion}`;
+
+  const toolbar = (
+    // Sticky under the phone's header, so Save and whether the plan is saved stay in reach while the panels below are edited.
+    <div
+      role="toolbar"
+      aria-label="Plan tools"
+      className={`z-20 flex items-center gap-2 ${full ? "" : "sticky top-14 -mx-4 bg-canvas/90 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:top-0 lg:mx-0 lg:rounded-full lg:px-0"}`}
+    >
+      <ToolButton label="Undo" onClick={undo} disabled={history.index === 0} icon={<ArrowArcLeftIcon size={16} weight="bold" aria-hidden />} />
+      <ToolButton label="Redo" onClick={redo} disabled={history.index >= history.stack.length - 1} icon={<ArrowArcRightIcon size={16} weight="bold" aria-hidden />} />
+      <span className="mx-0.5 h-6 w-px bg-line sm:mx-1" aria-hidden />
+      {/* Fingers pinch to zoom, so on a touch screen the zoom buttons step aside for the rest. */}
+      <span className="contents pointer-coarse:hidden">
+        <ToolButton label="Zoom out" onClick={() => zoomAt(0.8)} icon={<MagnifyingGlassMinusIcon size={16} weight="bold" aria-hidden />} />
+        <ToolButton label="Zoom in" onClick={() => zoomAt(1.25)} icon={<MagnifyingGlassPlusIcon size={16} weight="bold" aria-hidden />} />
+      </span>
+      <ToolButton label="Whole sheet" onClick={() => setView(fullView)} icon={<ArrowsInIcon size={16} weight="bold" aria-hidden />} />
+      <button type="button" aria-pressed={several} aria-label="Select several" title="Select several: tap points in order. Shift, Ctrl or Cmd and a click do the same." onClick={() => setSeveral((v) => !v)} className={buttonClasses(several ? "primary" : "secondary", "icon")}>
+        <SelectionPlusIcon size={16} weight="bold" aria-hidden />
+      </button>
+      <span className="contents lg:hidden">
+        <ToolButton label={full ? "Leave full screen" : "Draw full screen"} onClick={() => setFull((f) => !f)} icon={full ? <CornersInIcon size={16} weight="bold" aria-hidden /> : <ArrowsOutIcon size={16} weight="bold" aria-hidden />} />
+      </span>
+      <div className="ml-auto flex min-w-0 items-center gap-2">
+        {props.readOnly ? (
+          // The whole reason for a screen reader and a wider screen; on a phone, the short of it.
+          <span className="min-w-0 truncate text-label text-ink-3" title={props.readOnly}>
+            <span aria-hidden className="sm:hidden">
+              Not saved here
             </span>
-            {props.readOnly ? null : (
-              <button type="button" onClick={() => save()} disabled={!dirty || saving} className={buttonClasses("primary", "sm")}>
-                <FloppyDiskIcon size={16} weight="bold" aria-hidden />
+            <span className="max-sm:sr-only">{props.readOnly}</span>
+          </span>
+        ) : (
+          <>
+            <span className="min-w-0 truncate text-label text-ink-3 max-[25em]:sr-only" aria-live="polite">
+              {status}
+            </span>
+            <button type="button" onClick={() => save()} disabled={!dirty || saving} aria-label="Save version" className={buttonClasses("primary", "sm", "shrink-0")}>
+              <FloppyDiskIcon size={16} weight="bold" aria-hidden />
+              <span aria-hidden className="sm:hidden">
+                Save
+              </span>
+              <span aria-hidden className="max-sm:hidden">
                 Save version
+              </span>
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const canvas = (
+    <div className={full ? "relative min-h-0 flex-1" : "relative"}>
+      <div
+        ref={svgWrap}
+        tabIndex={0}
+        role="application"
+        data-plan-canvas="true"
+        aria-label="Plan sheet. Drag to move around, scroll or pinch to zoom, drag a label to move it (on a touch screen, tap it first). Plus and minus zoom, 0 shows the whole sheet, arrow keys move."
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        onKeyDown={onKey}
+        className={`relative touch-none select-none overflow-hidden rounded-lg bg-canvas-2 ring-1 ring-line focus-visible:outline-2 focus-visible:outline-accent ${full ? "h-full" : "h-[min(58svh,34rem)] min-h-[15rem] lg:h-[70svh]"}`}
+      >
+        <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} picked={picked} marks={markSet} draggable={canDrag} onEntityPointerDown={onEntityPointerDown} hitTargets label={`Plan sheet, ${plan.sheet.paper} ${shown.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}${preview?.ok ? ", showing the assistant's change before it's applied" : ""}`} className="h-full w-full" />
+        {/* One place over the sheet for what it says about itself: the change being looked at, or on a narrow screen what was tapped. */}
+        <div className="pointer-events-none absolute inset-x-2 top-2 flex flex-col items-start gap-2 sm:inset-x-3 sm:top-3">
+          {preview?.ok ? <span className="rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow-e1 ring-1 ring-line">Showing the change before it&apos;s applied</span> : null}
+          {narrow && selection && !preview?.ok ? (
+            <div className="pointer-events-auto flex max-w-full items-center gap-2 rounded-md bg-surface/95 py-1.5 pl-3 pr-1.5 shadow-e2 ring-1 ring-line">
+              <span className="min-w-0">
+                <span className="block truncate text-label font-medium text-ink">{selection.title}</span>
+                {selection.rows[0] ? (
+                  <span className="block truncate text-xs text-ink-3">
+                    {selection.rows[0][0]}: <span className="font-mono tabular text-ink-2">{selection.rows[0][1]}</span>
+                  </span>
+                ) : null}
+              </span>
+              <button type="button" onClick={showDetails} className={buttonClasses("secondary", "sm", "shrink-0 px-3")}>
+                Details
               </button>
-            )}
-          </div>
+              <button type="button" aria-label="Clear the selection" onClick={() => (setSelected(null), setPicked([]))} className={buttonClasses("ghost", "icon", "shrink-0")}>
+                <XIcon size={14} weight="bold" aria-hidden />
+              </button>
+            </div>
+          ) : null}
+          {several ? <span className="rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow-e1 ring-1 ring-line">{picked.length > 1 ? `${picked.length} picked, in order. Tap again to take one out.` : "Tap points in order to pick them."}</span> : null}
         </div>
-        {message ? (
-          <p role={message.tone === "error" ? "alert" : "status"} className={`flex items-start gap-2 text-sm ${message.tone === "error" ? "text-failed" : "text-ink-2"}`}>
-            {message.tone === "error" ? <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> : <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />}
-            {message.text}
-          </p>
-        ) : null}
-        <div className="relative">
-        <div
-          ref={svgWrap}
-          tabIndex={0}
-          role="application"
-          data-plan-canvas="true"
-          aria-label="Plan sheet. Drag to move around, scroll or pinch to zoom, drag a label to move it. Plus and minus zoom, 0 shows the whole sheet, arrow keys move."
-          onPointerDown={onDown}
-          onPointerMove={onMove}
-          onPointerUp={onUp}
-          onPointerCancel={onUp}
-          onKeyDown={onKey}
-          className="relative h-[62vh] min-h-[22rem] touch-none select-none overflow-hidden rounded-lg bg-canvas-2 ring-1 ring-line focus-visible:outline-2 focus-visible:outline-accent lg:h-[70vh]"
-        >
-          <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} picked={picked} marks={markSet} draggable={canDrag} onEntityPointerDown={onEntityDown} label={`Plan sheet, ${plan.sheet.paper} ${shown.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}${preview?.ok ? ", showing the assistant's change before it's applied" : ""}`} className="h-full w-full" />
-          {preview?.ok ? <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow-e1 ring-1 ring-line">Showing the change before it&apos;s applied</span> : null}
-        </div>
-        {props.assistantAiOff !== undefined ? <AssistantDock bridge={bridge} /> : null}
-        </div>
-        <p className="text-sm text-ink-3">
-          {plan.sheet.scale ? `Scale 1:${fmt(plan.sheet.scale, 0)}${shown.settings.scale === null ? " (automatic)" : ""} on ${plan.sheet.paper} ${shown.settings.orientation}.` : "Set the lots to see the plan at scale."}{" "}
-          {blocking.length > 0 ? `${blocking.length} ${blocking.length === 1 ? "check stops" : "checks stop"} export: see the Check step.` : "Labels move on paper only: no coordinate changes."}
-        </p>
+      </div>
+      {props.assistantAiOff !== undefined ? <AssistantDock bridge={bridge} /> : null}
+    </div>
+  );
+
+  const panels = (
+    <div ref={panelsRef} className="@container grid scroll-mt-28 content-start gap-3 lg:scroll-mt-16">
+      <div role="tablist" aria-label="Plan panels" className="inline-flex w-full rounded-full bg-canvas-2 p-1 ring-1 ring-line">
+        {(["sheet", "codes", "layers", "selection"] as Tab[]).map((t) => (
+          <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`tap min-h-10 flex-1 rounded-full px-2 text-label font-medium transition-colors duration-150 sm:px-3 sm:text-sm ${tab === t ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}>
+            {t === "sheet" ? "Sheet" : t === "codes" ? "Codes" : t === "layers" ? "Layers" : "Selected"}
+          </button>
+        ))}
       </div>
 
-      <div className="grid content-start gap-3">
-        <div role="tablist" aria-label="Plan panels" className="inline-flex w-full rounded-full bg-canvas-2 p-1 ring-1 ring-line">
-          {(["sheet", "codes", "layers", "selection"] as Tab[]).map((t) => (
-            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`min-h-11 flex-1 rounded-full px-3 text-sm font-medium transition-colors duration-150 ${tab === t ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}>
-              {t === "sheet" ? "Sheet" : t === "codes" ? "Codes" : t === "layers" ? "Layers" : "Selected"}
-            </button>
-          ))}
+      {tab === "layers" ? (
+        <ul className="grid gap-x-2 gap-y-0.5 rounded-md bg-surface p-1.5 ring-1 ring-line @sm:grid-cols-2">
+          {/* The north point, scale bar, check line and title block always print, so they're never hidden here either. */}
+          {LAYER_IDS.filter((l) => l !== "TITLE").map((l) => {
+            const st = doc.layers[l] ?? { visible: true, locked: false };
+            return (
+              <li key={l} className="flex items-center gap-0.5">
+                <span className="min-w-0 flex-1 truncate px-2 text-sm text-ink">{LAYER_NAMES[l]}</span>
+                <button type="button" aria-pressed={st.visible} aria-label={`${st.visible ? "Hide" : "Show"} ${LAYER_NAMES[l]}`} disabled={Boolean(props.readOnly)} onClick={() => update((d) => void (d.layers[l] = { ...st, visible: !st.visible }))} className={buttonClasses("ghost", "icon")}>
+                  {st.visible ? <EyeIcon size={16} weight="bold" aria-hidden /> : <EyeSlashIcon size={16} weight="bold" aria-hidden />}
+                </button>
+                <button type="button" aria-pressed={st.locked} aria-label={`${st.locked ? "Unlock" : "Lock"} ${LAYER_NAMES[l]}`} disabled={Boolean(props.readOnly)} onClick={() => update((d) => void (d.layers[l] = { ...st, locked: !st.locked }))} className={buttonClasses("ghost", "icon")}>
+                  {st.locked ? <LockSimpleIcon size={16} weight="bold" aria-hidden /> : <LockSimpleOpenIcon size={16} weight="bold" aria-hidden />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
+      {tab === "selection" ? (
+        <div className="rounded-md bg-surface p-4 ring-1 ring-line">
+          {selection ? (
+            <>
+              <p className="font-medium text-ink">{selection.title}</p>
+              <dl className="mt-3 grid gap-2 text-sm">
+                {selection.rows.map(([k, v]) => (
+                  <div key={k} className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                    <dt className="text-ink-3">{k}</dt>
+                    <dd className="font-mono text-ink tabular break-words">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              {selection.note ? <p className="mt-3 text-sm text-ink-3">{selection.note}</p> : null}
+              {selected && doc.labelOffsets[selected] && !props.readOnly ? (
+                <button type="button" onClick={() => update((d) => void delete d.labelOffsets[selected])} className={buttonClasses("secondary", "sm", "mt-3")}>
+                  Put the label back
+                </button>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm text-ink-2">Tap a line, point or label on the sheet to see where its figures come from. On a touch screen, tap a label before dragging it.</p>
+          )}
         </div>
+      ) : null}
 
-        {tab === "layers" ? (
-          <ul className="grid gap-1 rounded-md bg-surface p-2 ring-1 ring-line">
-            {/* The north point, scale bar, check line and title block always print, so they're never hidden here either. */}
-            {LAYER_IDS.filter((l) => l !== "TITLE").map((l) => {
-              const st = doc.layers[l] ?? { visible: true, locked: false };
-              return (
-                <li key={l} className="flex items-center gap-1">
-                  <span className="min-w-0 flex-1 truncate px-2 text-sm text-ink">{LAYER_NAMES[l]}</span>
-                  <button type="button" aria-pressed={st.visible} aria-label={`${st.visible ? "Hide" : "Show"} ${LAYER_NAMES[l]}`} disabled={Boolean(props.readOnly)} onClick={() => update((d) => void (d.layers[l] = { ...st, visible: !st.visible }))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
-                    {st.visible ? <EyeIcon size={16} weight="bold" aria-hidden /> : <EyeSlashIcon size={16} weight="bold" aria-hidden />}
-                  </button>
-                  <button type="button" aria-pressed={st.locked} aria-label={`${st.locked ? "Unlock" : "Lock"} ${LAYER_NAMES[l]}`} disabled={Boolean(props.readOnly)} onClick={() => update((d) => void (d.layers[l] = { ...st, locked: !st.locked }))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
-                    {st.locked ? <LockSimpleIcon size={16} weight="bold" aria-hidden /> : <LockSimpleOpenIcon size={16} weight="bold" aria-hidden />}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
+      {tab === "sheet" ? <SheetFields doc={doc} update={update} readOnly={Boolean(props.readOnly)} surveyors={props.surveyors} suggested={plan.sheet.suggestedScale} paper={plan.sheet.paper} /> : null}
+      {tab === "codes" ? <CodesPanel doc={doc} update={update} readOnly={Boolean(props.readOnly)} /> : null}
+    </div>
+  );
 
-        {tab === "selection" ? (
-          <div className="rounded-md bg-surface p-4 ring-1 ring-line">
-            {selection ? (
-              <>
-                <p className="font-medium text-ink">{selection.title}</p>
-                <dl className="mt-3 grid gap-2 text-sm">
-                  {selection.rows.map(([k, v]) => (
-                    <div key={k} className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
-                      <dt className="text-ink-3">{k}</dt>
-                      <dd className="font-mono text-ink tabular break-words">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-                {selection.note ? <p className="mt-3 text-sm text-ink-3">{selection.note}</p> : null}
-                {selected && doc.labelOffsets[selected] && !props.readOnly ? (
-                  <button type="button" onClick={() => update((d) => void delete d.labelOffsets[selected])} className={buttonClasses("secondary", "sm", "mt-3")}>
-                    Put the label back
-                  </button>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-sm text-ink-2">Tap a line, point or label on the sheet to see where its figures come from.</p>
-            )}
-          </div>
-        ) : null}
+  const note = message ? (
+    <p role={message.tone === "error" ? "alert" : "status"} className={`flex items-start gap-2 text-sm ${message.tone === "error" ? "text-failed" : "text-ink-2"}`}>
+      {message.tone === "error" ? <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> : <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />}
+      {message.text}
+    </p>
+  ) : null;
 
-        {tab === "sheet" ? <SheetFields doc={doc} update={update} readOnly={Boolean(props.readOnly)} surveyors={props.surveyors} suggested={plan.sheet.suggestedScale} paper={plan.sheet.paper} /> : null}
-        {tab === "codes" ? <CodesPanel doc={doc} update={update} readOnly={Boolean(props.readOnly)} /> : null}
+  if (full) {
+    // Full screen: the tools, any message and the sheet, over everything, with the assistant at the bottom (no tab bar to sit above).
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col gap-2 bg-canvas px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] [--tab-bar:0px]">
+        {toolbar}
+        {note}
+        {canvas}
+      </div>
+    );
+  }
+
+  return (
+    // The panel sits beside the sheet only when the editor itself has room for both (a container query), not at a fixed screen size.
+    <div className={`@container grid gap-3 ${props.assistantAiOff !== undefined ? "pb-[calc(var(--assist-bar,10rem)+2rem)] lg:pb-0" : ""}`}>
+      {toolbar}
+      {note}
+      <div className="grid gap-4 @4xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid min-w-0 content-start gap-3 @4xl:sticky @4xl:top-16 @4xl:self-start">
+          {canvas}
+          <p className="text-sm text-ink-3">
+            {plan.sheet.scale ? `Scale 1:${fmt(plan.sheet.scale, 0)}${shown.settings.scale === null ? " (automatic)" : ""} on ${plan.sheet.paper} ${shown.settings.orientation}.` : "Set the lots to see the plan at scale."}{" "}
+            {blocking.length > 0 ? `${blocking.length} ${blocking.length === 1 ? "check stops" : "checks stop"} export: see the Check step.` : "Labels move on paper only: no coordinate changes."}
+          </p>
+        </div>
+        {panels}
       </div>
     </div>
   );
@@ -537,7 +678,7 @@ export function PlanEditor(props: PlanEditorProps) {
 
 function ToolButton({ label, onClick, icon, disabled = false }: { label: string; onClick: () => void; icon: ReactNode; disabled?: boolean }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className={buttonClasses("secondary", "sm", "size-11 !px-0")}>
+    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className={buttonClasses("secondary", "icon")}>
       {icon}
     </button>
   );

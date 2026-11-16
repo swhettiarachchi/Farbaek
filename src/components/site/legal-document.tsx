@@ -33,7 +33,7 @@ export function LegalDocument({
   updated?: string;
 }) {
   return (
-    <section className="pt-14 pb-20 sm:pt-20 lg:pb-28">
+    <section className="pb-14 pt-10 sm:pb-20 sm:pt-20 lg:pb-28">
       <Container>
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-16">
           <article className="min-w-0 max-w-[72ch]">
@@ -93,7 +93,7 @@ function Contents({ title, path, sections }: { title: string; path: string; sect
       <ol className="mt-2 grid gap-0.5">
         {sections.map((s, i) => (
           <li key={s.id}>
-            <a href={`#${s.id}`} className="flex min-h-11 items-center gap-2 text-sm text-ink-2 hover:text-ink lg:min-h-9">
+            <a href={`#${s.id}`} className="flex min-h-11 items-center gap-2 text-sm text-ink-2 hover:text-ink lg:pointer-fine:min-h-9">
               <span className="tabular w-5 text-ink-3">{i + 1}</span>
               {s.title}
             </a>
@@ -105,7 +105,7 @@ function Contents({ title, path, sections }: { title: string; path: string; sect
         <ul className="mt-1 grid gap-0.5">
           {LEGAL_DOCS.filter((o) => o.href !== path).map((o) => (
             <li key={o.href}>
-              <Link href={o.href} className="flex min-h-11 items-center text-sm text-accent hover:underline lg:min-h-9">
+              <Link href={o.href} className="flex min-h-11 items-center text-sm text-accent hover:underline lg:pointer-fine:min-h-9">
                 {o.label}
               </Link>
             </li>

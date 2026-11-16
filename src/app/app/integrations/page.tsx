@@ -141,7 +141,7 @@ export default async function IntegrationsPage() {
 
       <ul className="grid gap-4 md:grid-cols-2">
         {rows.map((r) => (
-          <li key={r.id} className="grid content-start gap-3 rounded-md border border-line bg-surface p-5 shadow-e1">
+          <li key={r.id} className="grid content-start gap-3 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
             <div className="flex items-start justify-between gap-3">
               <CardTitle icon={r.icon} className="min-h-6">
                 {r.name}
@@ -161,7 +161,7 @@ export default async function IntegrationsPage() {
         ))}
       </ul>
 
-      <section aria-labelledby="not-yet" className="grid gap-3 rounded-md border border-line bg-canvas p-5">
+      <section aria-labelledby="not-yet" className="grid gap-3 rounded-md border border-line bg-canvas p-4 sm:p-5">
         <CardTitle id="not-yet" icon={LockSimpleIcon}>
           Not available yet
         </CardTitle>

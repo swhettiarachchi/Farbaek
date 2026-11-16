@@ -10,6 +10,7 @@ import { FLAG_DETAILS } from "@/core/office/flags";
 import { requireStaff } from "@/server/office/access";
 import { listFlags } from "@/server/office/controls-data";
 import { setFlagAction } from "./actions";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Controls" };
 
@@ -23,7 +24,7 @@ export default async function OfficeControls() {
   const owner = staff.can("flags.set");
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Controls"
         description="Pause part of Farbaek for everyone during an incident. Each switch needs a reason and a fresh authenticator code, both ways, and customers see your message where they'd otherwise hit the pause."
@@ -37,9 +38,9 @@ export default async function OfficeControls() {
             <li
               key={f.key}
               // A paused switch says so in its chip and a burnt-orange edge; no hazard stripe (ADR 0183).
-              className={`grid content-start gap-4 rounded-lg bg-surface-raised/60 p-2 ring-1 ${f.paused ? "ring-caution/35" : "ring-line"}`}
+              className={`grid content-start gap-4 rounded-[1.625rem] bg-surface-raised/60 p-1.5 ring-1 sm:rounded-lg sm:p-2 ${f.paused ? "ring-caution/35" : "ring-line"}`}
             >
-              <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1">
+              <div className="grid gap-4 rounded-md bg-surface p-4 sm:p-5 shadow-e1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <CardTitle icon={SlidersHorizontalIcon}>{d.label}</CardTitle>

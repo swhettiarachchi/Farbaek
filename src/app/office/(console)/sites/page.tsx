@@ -11,6 +11,7 @@ import { requireStaff } from "@/server/office/access";
 import { listAllSites } from "@/server/office/controls-data";
 import { siteDomain } from "@/server/publish/config";
 import { blockSiteAction, unblockSiteAction } from "./actions";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Sites" };
 
@@ -27,7 +28,7 @@ export default async function OfficeSites() {
   const canBlock = staff.can("site.block");
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Sites"
         description="Every site people have published, newest first. Taking one offline keeps its files and name as evidence; its owner sees your notice and visitors see that it isn't available."

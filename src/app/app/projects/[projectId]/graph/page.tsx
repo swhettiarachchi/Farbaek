@@ -11,6 +11,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { buildLanes, graphAnalytics } from "@/core/insights/project-graph";
 import { GRAPH_LIMITS } from "@/server/insights/project-graph";
 import { loadAppContext } from "@/server/workspace/context";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Project map" };
 
@@ -27,7 +28,7 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
   const analytics = graphAnalytics(records);
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <div>
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}

@@ -13,6 +13,7 @@ import { loadAppContext } from "@/server/workspace/context";
 import type { ProjectSharing } from "@/server/workspace/sharing";
 import { createSupabaseSharingDeps } from "@/server/workspace/sharing-wiring";
 import { removeGuestAction, revokeGuestInviteAction, revokeShareLinkAction } from "./actions";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Share" };
 
@@ -50,7 +51,7 @@ export default async function SharePage({ params }: { params: Promise<{ projectI
   const closeReason = ctx.mode !== "live" || !loaded?.ok ? reason : sharing.canShare ? null : "Only owners, admins and members who may publish can change who has access.";
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <div>
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}

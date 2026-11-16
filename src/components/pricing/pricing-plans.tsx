@@ -76,7 +76,7 @@ export function PricingPlans() {
             }`}
           >
             <div
-              className={`group relative flex w-full flex-col rounded-md bg-surface p-6 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
+              className={`group relative flex w-full flex-col rounded-md bg-surface p-5 sm:p-6 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
                 featured ? "shadow-e2 ring-1 ring-ink" : "shadow-e1 hover:shadow-e2"
               }`}
             >
@@ -88,8 +88,8 @@ export function PricingPlans() {
 
             <p className="mt-5">
               {/* Inside Farbaek for Android, Google Play's own price when Google Play sells the plan (ADR 0154). */}
-              <PlayPrice ready productId={googlePlayProductForPlan(plan.id)?.productId ?? null} amountClass="text-[2.75rem] font-medium leading-none tracking-[-0.04em] tabular" perClass="ml-1.5 text-sm text-ink-3">
-                <span className="text-[2.75rem] font-medium leading-none tracking-[-0.04em] tabular">{price.price}</span>
+              <PlayPrice ready productId={googlePlayProductForPlan(plan.id)?.productId ?? null} amountClass="text-[2rem] font-medium leading-none tracking-[-0.04em] tabular sm:text-[2.75rem]" perClass="ml-1.5 text-sm text-ink-3">
+                <span className="text-[2rem] font-medium leading-none tracking-[-0.04em] tabular sm:text-[2.75rem]">{price.price}</span>
                 <span className="ml-1.5 text-sm text-ink-3">{price.per}</span>
               </PlayPrice>
             </p>
@@ -123,7 +123,7 @@ export function PricingPlans() {
                   {yearly && isPaidPlanId(yearly.id) ? (
                     <>
                       {/* Above the card's stretched link, so it stays its own target. */}
-                      <Link href={subscribePath(yearly.id)} className={buttonClasses("ghost", "md", "relative z-10 min-h-11 w-full")}>
+                      <Link href={subscribePath(yearly.id)} className={buttonClasses("ghost", "md", "relative z-10 w-full")}>
                         Pay yearly instead
                       </Link>
                       <p className="relative z-10 text-center text-xs leading-relaxed text-ink-3">

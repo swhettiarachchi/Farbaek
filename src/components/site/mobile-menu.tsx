@@ -95,7 +95,7 @@ export function MobileMenu() {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => (open ? close() : setPhase("open"))}
-        className="relative inline-flex size-11 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-surface-raised"
+        className="relative inline-flex tap size-10 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-surface-raised"
       >
         <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
         <span aria-hidden className="relative block h-3 w-5">
@@ -117,7 +117,7 @@ export function MobileMenu() {
               aria-modal="true"
               aria-label="Menu"
               inert={phase === "closing"}
-              className={`fixed inset-0 z-30 flex flex-col bg-canvas/90 px-5 pb-8 pt-24 backdrop-blur-2xl supports-[not(backdrop-filter:blur(0))]:bg-canvas ${
+              className={`fixed inset-0 z-30 flex flex-col overflow-y-auto overscroll-contain bg-canvas/90 pb-[max(2rem,env(safe-area-inset-bottom))] pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))] pt-24 backdrop-blur-2xl supports-[not(backdrop-filter:blur(0))]:bg-canvas ${
                 phase === "closing" ? "motion-safe:animate-[sheet-out_220ms_cubic-bezier(0.32,0.72,0,1)_both]" : "motion-safe:animate-[sheet-in_300ms_cubic-bezier(0.32,0.72,0,1)_both]"
               }`}
             >
@@ -128,7 +128,7 @@ export function MobileMenu() {
                       <Link
                         href={link.href}
                         onClick={() => close(false)}
-                        className="group flex min-h-14 items-center justify-between gap-4 border-b border-line/80 py-2 text-[1.75rem] font-medium tracking-[-0.03em] text-ink"
+                        className="group flex min-h-12 items-center justify-between gap-4 border-b border-line/80 py-2 text-[1.375rem] font-medium tracking-[-0.03em] text-ink"
                       >
                         {link.label}
                         <span className="flex size-10 items-center justify-center rounded-full bg-surface-raised text-ink-2 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-px group-hover:translate-x-0.5">
@@ -143,14 +143,14 @@ export function MobileMenu() {
                 <Link
                   href="/sign-in?next=/app/new"
                   onClick={() => close(false)}
-                  className="flex h-14 items-center justify-center rounded-full bg-primary text-base font-medium text-on-primary shadow-e2 active:scale-[0.98]"
+                  className="flex h-12 shrink-0 items-center justify-center rounded-full bg-primary text-body font-medium text-on-primary shadow-e2 active:scale-[0.98]"
                 >
                   Start building
                 </Link>
                 <Link
                   href="/sign-in"
                   onClick={() => close(false)}
-                  className="flex h-14 items-center justify-center rounded-full border border-line bg-surface text-base font-medium text-ink active:scale-[0.98]"
+                  className="flex h-12 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-body font-medium text-ink active:scale-[0.98]"
                 >
                   Sign in
                 </Link>

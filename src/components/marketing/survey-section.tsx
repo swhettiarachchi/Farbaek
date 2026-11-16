@@ -6,6 +6,7 @@ import { SheetSvg } from "@/components/survey/sheet-svg";
 import { Container } from "@/components/ui/container";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SectionHeading } from "./section-heading";
+import { BEZEL } from "@/components/ui/surfaces";
 
 const FACTS = [
   "Describe the job in your own words and the AI drafts the lots and the title for you to check. Anything it can't quote from you is left out.",
@@ -24,7 +25,7 @@ const FACTS = [
 export function SurveySection() {
   const plan = samplePlan();
   return (
-    <section id="survey-studio" aria-labelledby="survey-studio-title" className="overflow-hidden py-20 lg:py-28">
+    <section id="survey-studio" aria-labelledby="survey-studio-title" className="overflow-hidden py-14 sm:py-20 lg:py-28">
       <Container>
         <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-16">
           <div>
@@ -42,7 +43,7 @@ export function SurveySection() {
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
                 href="/survey"
-                className="group inline-flex min-h-12 items-center gap-3 rounded-full bg-primary py-2 pl-6 pr-2 text-body font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary-hover active:scale-[0.98]"
+                className="tap group inline-flex min-h-11 items-center gap-3 rounded-full bg-primary py-1.5 pl-5 pr-1.5 text-body font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary-hover active:scale-[0.98]"
               >
                 See Survey Studio
                 <span className="flex size-8 items-center justify-center rounded-full bg-on-primary/15 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-px group-hover:translate-x-0.5">
@@ -58,7 +59,7 @@ export function SurveySection() {
           <figure className="grid gap-4">
             <DrawWhenSeen className="relative sm:pb-12">
               <div className="ml-auto w-full max-w-[28rem] [perspective:1800px]">
-                <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] lg:[transform:rotateX(7deg)_rotateY(-10deg)_rotateZ(0.8deg)] lg:hover:[transform:none]">
+                <div className={`transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] lg:[transform:rotateX(7deg)_rotateY(-10deg)_rotateZ(0.8deg)] lg:hover:[transform:none] ${BEZEL}`}>
                   <div className="overflow-hidden rounded-md bg-surface shadow-e3 ring-1 ring-line">
                     <SheetSvg page={plan.page} draw label="A sample land survey plan sheet in the classic Sri Lankan layout: three lots with raised labels, a road with its width, adjoining lands, the Reference, the title and the extent. Synthetic sample data." className="h-auto w-full" />
                   </div>

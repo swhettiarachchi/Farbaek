@@ -196,7 +196,7 @@ export function DraftPanel(props: DraftPanelProps) {
                 Looks right
               </button>
             )}
-            <button type="button" aria-label={`Take out ${a.label}`} onClick={() => setRemoved((s) => new Set(s).add(a.key))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
+            <button type="button" aria-label={`Take out ${a.label}`} onClick={() => setRemoved((s) => new Set(s).add(a.key))} className={buttonClasses("ghost", "icon")}>
               <TrashIcon size={16} weight="bold" aria-hidden />
             </button>
           </span>

@@ -57,7 +57,7 @@ export default async function SkillsPage() {
         </ul>
       </section>
 
-      <section aria-labelledby="own-heading" className="grid gap-3 rounded-md border border-line bg-surface p-5 shadow-e1">
+      <section aria-labelledby="own-heading" className="grid gap-3 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
         <CardTitle id="own-heading" icon={NotePencilIcon}>
           Your own, or one from GitHub
         </CardTitle>
@@ -81,7 +81,7 @@ export default async function SkillsPage() {
             Farbaek chooses the ones that fit each plan, and you can untick any of them before a build starts. Nothing to add.
           </p>
         </div>
-        <ul className="grid gap-x-6 gap-y-3 rounded-md border border-line bg-surface p-5 shadow-e1 sm:grid-cols-2">
+        <ul className="grid gap-x-6 gap-y-3 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 sm:grid-cols-2">
           {FARBAEK_SKILLS.map((s) => (
             <li key={s.id} className="flex min-w-0 items-start gap-2.5">
               <BookOpenTextIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />

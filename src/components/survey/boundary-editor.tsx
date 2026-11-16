@@ -14,6 +14,7 @@ import { saveSurveyDrawingAction } from "@/app/app/survey/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 const FEATURE_LABELS: Record<(typeof FEATURE_LAYERS)[number], string> = { BUILDINGS: "Building", WALLS: "Wall", FENCES: "Fence", DRAINS: "Drain", ROADS: "Road edge", UTILITIES: "Utility" };
 
@@ -124,7 +125,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
     });
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <section className="grid gap-3" aria-labelledby="lots-title">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 id="lots-title" className="font-medium text-ink">
@@ -171,7 +172,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                     <span className={LABEL_CLASSES}>Note (optional)</span>
                     <input value={l.note} maxLength={80} disabled={ro} placeholder="Res. for Access, 10ft. wide" onChange={(e) => (setLots((all) => all.map((x, j) => (j === i ? { ...x, note: e.target.value } : x))), reviewed(`lot:${l.id}`))} className={inputClasses()} />
                   </label>
-                  <button type="button" aria-label={`Remove lot ${l.label}${l.sup}`} disabled={ro} onClick={() => (setLots((all) => all.filter((_, j) => j !== i)), setAdjoining((a) => a.filter((x) => x.lot !== l.id)))} className={buttonClasses("ghost", "sm", "size-11 px-0 self-end")}>
+                  <button type="button" aria-label={`Remove lot ${l.label}${l.sup}`} disabled={ro} onClick={() => (setLots((all) => all.filter((_, j) => j !== i)), setAdjoining((a) => a.filter((x) => x.lot !== l.id)))} className={buttonClasses("ghost", "icon", "self-end max-sm:[grid-area:1/3]")}>
                     <TrashIcon size={16} weight="bold" aria-hidden />
                   </button>
                 </div>
@@ -304,7 +305,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                       ))}
                     </select>
                   </label>
-                  <button type="button" aria-label="Remove this label" disabled={ro} onClick={() => setAdjoining((all) => all.filter((_, j) => j !== i))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
+                  <button type="button" aria-label="Remove this label" disabled={ro} onClick={() => setAdjoining((all) => all.filter((_, j) => j !== i))} className={buttonClasses("ghost", "icon")}>
                     <TrashIcon size={16} weight="bold" aria-hidden />
                   </button>
                 </div>
@@ -373,7 +374,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                 <span className="text-sm font-medium text-ink">{FEATURE_LABELS[f.layer]}</span>
                 {f.code ? <span className="text-sm text-ink-2">{f.code}</span> : null}
                 <span className="min-w-0 flex-1 truncate text-sm text-ink-3">{numbers(f.points)}</span>
-                <button type="button" aria-label={`Remove this ${FEATURE_LABELS[f.layer].toLowerCase()}`} disabled={ro} onClick={() => setFeatures((all) => all.filter((_, j) => j !== i))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
+                <button type="button" aria-label={`Remove this ${FEATURE_LABELS[f.layer].toLowerCase()}`} disabled={ro} onClick={() => setFeatures((all) => all.filter((_, j) => j !== i))} className={buttonClasses("ghost", "icon")}>
                   <TrashIcon size={16} weight="bold" aria-hidden />
                 </button>
               </li>

@@ -34,6 +34,7 @@ import { INCIDENT_TOOLS_NOT_IN_PLAN, RESUME_MANAGERS_ONLY } from "@/server/works
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { RULES_NOT_IN_PLAN } from "@/server/workspace/workspace-rules";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Problem" };
 
@@ -77,7 +78,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
   const who = (actor: string | null) => (actor === null ? "Farbaek" : actor === ctx.user.id ? "You" : "A teammate");
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <div className="grid gap-4">
         <Link href="/app/incidents" className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> All problems
