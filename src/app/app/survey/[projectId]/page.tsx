@@ -181,7 +181,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
               <table className="w-full min-w-[30rem] border-separate border-spacing-0 text-left text-label sm:text-sm">
                 <thead className="sticky top-0 z-10 bg-canvas-2 text-ink-2">
                   <tr>
-                    <th scope="col" className="sticky left-0 bg-canvas-2 p-2 font-medium">Point</th>
+                    <th scope="col" className="sticky left-0 bg-canvas-2 p-2 font-medium max-[18em]:static">Point</th>
                     <th scope="col" className="p-2 text-right font-medium">Easting</th>
                     <th scope="col" className="p-2 text-right font-medium">Northing</th>
                     <th scope="col" className="p-2 text-right font-medium">Elevation</th>
@@ -191,7 +191,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
                 <tbody>
                   {data.points.slice(0, POINTS_SHOWN).map((p) => (
                     <tr key={p.id} className="[&>td]:border-t [&>td]:border-line">
-                      <td className="sticky left-0 bg-surface p-2 font-medium text-ink">{p.pointId}</td>
+                      <td className="sticky left-0 bg-surface p-2 font-medium text-ink max-[18em]:static">{p.pointId}</td>
                       <td className="p-2 text-right font-mono tabular">{fmt(p.e, 3)}</td>
                       <td className="p-2 text-right font-mono tabular">{fmt(p.n, 3)}</td>
                       <td className="p-2 text-right font-mono tabular">{p.z === null ? "" : fmt(p.z, 3)}</td>

@@ -219,7 +219,7 @@ function BrowserBar({
           value={page}
           onChange={(e) => onPick(e.target.value)}
           disabled={pages.length < 2}
-          className="h-10 w-full min-w-0 cursor-pointer appearance-none truncate rounded-full bg-surface-raised pl-4 pr-9 font-mono text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default"
+          className="h-10 w-full min-w-0 cursor-pointer appearance-none pointer-coarse:h-11 truncate rounded-full bg-surface-raised pl-4 pr-9 font-mono text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default"
         >
           {(pages.length > 0 ? pages : [page]).map((p) => (
             <option key={p} value={p}>

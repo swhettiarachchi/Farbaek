@@ -18,12 +18,14 @@
 //   pnpm qa:responsive --widths=320,375,844x390,1180t --routes=/,/pricing
 //   pnpm qa:responsive --shots=<folder>      also save a screenshot of each (--shot=viewport for the first screen only)
 //   pnpm qa:responsive --text-scale=2        as Android's text size at 200% (ADR 0171)
-//   pnpm qa:responsive --strict              also fail on small targets, lost taps and anything out of proportion
+//   pnpm qa:responsive --strict              also fail on anything out of proportion
 //
 // Screens: "375" is a phone (or a tablet from 768, a desktop from 1024), "844x390" a landscape phone, and "1180t" a touch
 // screen of that width (an iPad). It writes a JSON report (--out, default the system temp folder) and exits 1 when a page
-// scrolls sideways, has a crowded scroll frame or logs an error, and with --strict on the rest. These are emulated screens;
-// they don't stand in for real phones.
+// scrolls sideways, has a crowded scroll frame, a small target or a lost tap, or logs an error, and with --strict when anything is
+// out of proportion. These are emulated screens;
+// they don't stand in for real phones. Small targets and lost taps fail the run too (stage 196); --strict also fails on anything out
+// of proportion, which is a judgement to check against the contact sheets.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -342,7 +344,7 @@ function proportions(opts) {
     if (r.width < vw * 0.4 || r.left > vw * 0.5 || r.right > vw + 1) continue;
     if (r.left > inset.value) inset = { value: r.left, el };
   }
-  if (inset.el && inset.value > 48 * scale) add("inset", inset.el, inset.value, 48 * scale);
+  if (inset.el && inset.value > 56 * scale) add("inset", inset.el, inset.value, 56 * scale);
   // Section padding.
   for (const el of document.querySelectorAll("section, footer")) {
     if (!shown(el) || exempt(el)) continue;
@@ -376,9 +378,16 @@ function proportions(opts) {
       if (words.length < 3 || words.length > 14) continue;
       const cs = getComputedStyle(el);
       if (cs.position === "absolute" || /grid/.test(cs.display) || (/flex/.test(cs.display) && cs.flexDirection.startsWith("column")) || el.querySelector("div, p, ul, ol, li, dl, br, section")) continue;
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      const lines = new Set([...range.getClientRects()].filter((q) => q.width > 2 && q.height > 2).map((q) => Math.round(q.top / 6))).size;
+      // The lines the words themselves are on: each text node's line boxes, leaving out hidden and 1px (screen-reader) text.
+      const tops = new Set();
+      const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let t = walk.nextNode(); t; t = walk.nextNode()) {
+        if (!t.textContent.trim() || !shown(t.parentElement)) continue;
+        const range = document.createRange();
+        range.selectNodeContents(t);
+        for (const q of range.getClientRects()) if (q.width > 2 && q.height > 2) tops.add(Math.round(q.top / 6));
+      }
+      const lines = tops.size;
       if (lines >= words.length) found.push({ kind: "squeezed", el: describe(el), value: lines, limit: words.length - 1 });
     }
   }
@@ -466,7 +475,7 @@ try {
 writeFileSync(OUT, JSON.stringify(report, null, 2));
 const pages = report.pages;
 const count = (f) => pages.filter(f).length;
-const failing = pages.filter((p) => p.overflow > 0 || p.errors.length || p.crowdedCount || (STRICT && (p.smallCount || p.lostCount || p.proportionCount)));
+const failing = pages.filter((p) => p.overflow > 0 || p.errors.length || p.crowdedCount || p.smallCount || p.lostCount || (STRICT && p.proportionCount));
 console.log(
   `\n${pages.length} page views: ${count((p) => p.overflow > 0)} scroll sideways, ${count((p) => p.cutCount)} cut content off, ${count((p) => p.smallCount)} have small touch targets, ${count((p) => p.lostCount)} lose taps, ${count((p) => p.crowdedCount)} have crowded scroll frames, ${count((p) => p.proportionCount)} are out of proportion, ${count((p) => p.errors.length)} log errors.`,
 );

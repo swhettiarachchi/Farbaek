@@ -28,7 +28,7 @@ export function SiteHeader() {
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="block rounded-full px-3.5 py-2 text-sm text-ink-2 transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-surface-raised hover:text-ink"
+                  className="block rounded-full px-3.5 py-2 text-sm text-ink-2 pointer-coarse:py-3 transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-surface-raised hover:text-ink"
                 >
                   {link.label}
                 </Link>

@@ -171,7 +171,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
                 </button>
               </SignOutForm>
             ) : (
-              <Link href="/" className="text-xs text-ink-2 hover:text-ink">
+              <Link href="/" className="inline-flex items-center text-xs text-ink-2 hover:text-ink pointer-coarse:min-h-11">
                 Leave demo
               </Link>
             )}

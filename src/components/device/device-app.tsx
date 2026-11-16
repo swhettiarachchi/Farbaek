@@ -444,7 +444,7 @@ function Shell({ online, children }: { online: boolean; children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-24 pt-4 sm:px-6 sm:pt-8">
       <div className="flex items-center justify-between gap-3">
-        <Link prefetch={false} href="/app" className="flex min-h-11 items-center gap-2 rounded-full" aria-label="Farbaek, Home">
+        <Link prefetch={false} href="/app" className="flex min-h-11 min-w-11 items-center gap-2 rounded-full" aria-label="Farbaek, Home">
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo's own file, which the service worker keeps for offline; the image optimiser isn't reachable then. */}
           <img src={LOGO.src} alt="" width={21} height={32} className="h-8 w-auto shrink-0" />
           <span className="text-base font-medium tracking-[-0.02em] max-[18em]:sr-only">Farbaek</span>
