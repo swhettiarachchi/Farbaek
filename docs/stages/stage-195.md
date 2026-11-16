@@ -133,6 +133,18 @@ Checked against the plan before the merge, the stage still lacked these, now don
 - **The record:** changes the local rules made are recorded too, as `local`. The drawer lists earlier visits' instructions.
 - **A way in:** the Import and Lots steps say the assistant is on the Plan step.
 - **A decision:** divisions stay on the Lots step's divide panel (ASSISTANT.md says why).
+- **Its review:** a fresh reviewer found 9 more problems, all fixed:
+  - the record action took the browser's operations; the server now reads the words again itself;
+  - the settings could send people to a download that wasn't shown;
+  - on-device hearing now fails closed where the recogniser can't stay on the computer, and switches on only once English is downloaded;
+  - copy promised hints or named Chrome where that wasn't true;
+  - the drawer's labels and its 20-row window.
+- **Checked on a production demo build:**
+  - `qa:a11y`: 12 page views, 0 findings;
+  - `qa:responsive`: 55 page views from 320 to 1440 px, all clean;
+  - double text size at 375 px: clean.
+
+  The pages were the projects page, the Plan, Lots and Import steps, the public page and the Privacy page. Then `pnpm check` (3,516 tests) and `pnpm build`.
 
 ## Next
 
