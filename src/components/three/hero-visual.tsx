@@ -50,6 +50,7 @@ const noSubscribe = () => () => {};
 export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640px) 440px, 92vw" }: { sizes?: string } = {}) {
   const reduce = useReducedMotion();
   const box = useRef<HTMLDivElement>(null);
+  const ring = useRef<HTMLDivElement>(null);
   const [want3D, setWant3D] = useState(false);
   const [ready, setReady] = useState(false);
   const [visible, setVisible] = useState(true);
@@ -106,13 +107,16 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
     };
   }, [reduce]);
 
-  // A tap or a click makes him hop once: the class is taken off and put back, so every tap plays it again.
+  // A tap or a click makes him hop once, and a ring of light spreads along the ground from his feet: the classes are
+  // taken off and put back, so every tap plays them again.
   const hop = useCallback(() => {
     const el = box.current;
     if (!el) return;
     el.classList.remove("knight-hop", "knight-enter");
+    ring.current?.classList.remove("knight-ripple-go");
     void el.offsetWidth;
     el.classList.add("knight-hop");
+    ring.current?.classList.add("knight-ripple-go");
   }, []);
 
   const onReady = useCallback(() => setReady(true), []);
@@ -131,21 +135,24 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
       className="knight-enter relative mx-auto aspect-[4/5] w-full max-w-[440px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:max-w-none"
       style={{ transform: "perspective(900px) rotateY(calc(var(--lean-x, 0) * 7deg)) rotateX(calc(var(--lean-y, 0) * -5deg))" }}
     >
-      {/* Soft light pool and contact shadow: page lighting around the figure, not a plate. */}
-      <div
-        aria-hidden
-        className="hero-aura pointer-events-none absolute inset-[-16%]"
-        style={{
-          background:
-            // The spectrum's light (ADR 0217): blue behind him, rose low on one side, aqua high on the other. Each fades to nothing.
-            "radial-gradient(40% 36% at 50% 44%, color-mix(in oklab, var(--color-accent) 16%, transparent), transparent 70%), radial-gradient(30% 28% at 24% 66%, color-mix(in oklab, var(--color-spark-rose) 13%, transparent), transparent 70%), radial-gradient(30% 28% at 78% 26%, color-mix(in oklab, var(--color-spark-aqua) 14%, transparent), transparent 70%)",
-        }}
-      />
-      <div
-        aria-hidden
-        className="hero-shadow pointer-events-none absolute bottom-[6%] left-1/2 h-[6%] w-[46%] -translate-x-1/2 rounded-[50%]"
-        style={{ background: "radial-gradient(50% 50% at 50% 50%, color-mix(in oklab, var(--color-ink) 16%, transparent), transparent 70%)" }}
-      />
+      {/* Soft light pool and contact shadow: page lighting around the figure, not a plate. The light blooms in as he
+          arrives, then lives in two layers (ADR 0217): blue breathing behind him, and rose and aqua drifting slowly round. */}
+      <div aria-hidden className="knight-bloom pointer-events-none absolute inset-0">
+        <div className="hero-aura absolute inset-[-16%]" style={{ background: "radial-gradient(40% 36% at 50% 44%, color-mix(in oklab, var(--color-accent) 17%, transparent), transparent 70%)" }} />
+        <div
+          className="hero-aura-drift absolute inset-[-16%]"
+          style={{
+            background:
+              "radial-gradient(30% 28% at 24% 66%, color-mix(in oklab, var(--color-spark-rose) 14%, transparent), transparent 70%), radial-gradient(30% 28% at 78% 26%, color-mix(in oklab, var(--color-spark-aqua) 15%, transparent), transparent 70%)",
+          }}
+        />
+        <div
+          className="hero-shadow absolute bottom-[6%] left-1/2 h-[6%] w-[46%] -translate-x-1/2 rounded-[50%]"
+          style={{ background: "radial-gradient(50% 50% at 50% 50%, color-mix(in oklab, var(--color-ink) 16%, transparent), transparent 70%)" }}
+        />
+        {/* The ring a tap sends out along the ground. Out of sight until then. */}
+        <div ref={ring} className="knight-ripple absolute bottom-[3.5%] left-1/2 h-[11%] w-[62%] -translate-x-1/2 rounded-[50%] border border-accent/45 opacity-0" />
+      </div>
 
       {/* The Loom's far side, the knight, then its near side over him. Drawn once mounted; still under reduced motion. */}
       <LoomCanvas boxRef={box} still={!mounted || reduce !== false} paused={!running} hidden={!mounted || ready}>

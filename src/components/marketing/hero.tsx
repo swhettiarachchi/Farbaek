@@ -36,14 +36,16 @@ export function Halo({ tones }: { tones: [string, string, string, string] }) {
  */
 export function Hero() {
   return (
-    <section aria-labelledby="hero-title" data-lean className="relative overflow-x-clip pb-10 pt-2 sm:pb-20 sm:pt-8">
+    <section aria-labelledby="hero-title" data-lean className="relative overflow-x-clip pb-10 pt-2 sm:pb-20 sm:pt-8 lg:pt-4">
       <HeroProps />
       <Container>
         <Reveal className="relative mx-auto flex max-w-[46rem] flex-col items-center text-center">
-          <div className="w-[13rem] sm:w-[12.5rem] lg:w-[12.5rem]">
-            <HeroVisual sizes="210px" />
+          {/* His height is his box's width. It follows the screen's height too, so he is as large as each screen allows
+              while the message box stays on the first screen; the margins take back the empty air inside his box. */}
+          <div className="knight-away -mb-[calc(var(--knight)*0.06)] -mt-[calc(var(--knight)*0.04)] w-[var(--knight)] [--knight:clamp(13rem,calc((100svh_-_20.75rem)_*_0.87),20rem)] sm:[--knight:clamp(12rem,calc((100svh_-_24.5rem)_*_0.87),22rem)] lg:[--knight:clamp(14rem,calc((100svh_-_25.5rem)_*_0.87),23rem)] 2xl:[--knight:clamp(14rem,calc((100svh_-_25.5rem)_*_0.87),25rem)]">
+            <HeroVisual sizes="(min-width: 1536px) 400px, (min-width: 1024px) 368px, (min-width: 640px) 352px, 320px" />
           </div>
-          <h1 id="hero-title" className={`mt-2 ${HERO_TITLE}`}>
+          <h1 id="hero-title" className={`relative mt-2 ${HERO_TITLE}`}>
             <span className="text-accent">Ask</span>, <span className="text-spark-rose">create</span> and <span className="text-spark-leaf">build</span> with Farbaek AI.
           </h1>
           <p className={`mt-3 max-w-[34rem] text-ink-2 sm:mt-4 ${LEAD}`}>One assistant for questions, writing and code, pictures and video, and the sites and apps it builds and checks for you.</p>

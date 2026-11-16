@@ -61,6 +61,10 @@ The owner wanted the compact proportions kept but the page colourful and playful
 
 The owner found the page too long and oversized on a phone, then asked for the knight to be larger there. On phones now: the knight is 208 px wide (springs in, sways as he floats, his light breathes, and he hops when tapped); the headline is 32 px and section titles 24 px; Farbaek AI's window has a two-column table that never scrolls sideways and one row of short offers; the four-space tour is one row to swipe instead of four tall blocks; the rail's cards are shorter; and every section's spacing is tighter. The hero, knight included, fits one phone screen.
 
+## A much larger knight
+
+The owner asked a fourth time, now for every screen: "significantly larger and more visually prominent", with smooth animation. His size is now one rule, the largest that keeps the message box on the first screen, worked out from the screen's height: 233 px tall at 360 by 560, 289 px on an iPhone, 352 px on a tablet, 270 px on a 720 px laptop, 366 px at 1440 by 900 and 400 px on a large desktop (he was 208 px on phones and 200 px everywhere else). His light blooms in and then drifts in two layers, a tap sends a ring along the ground with the hop, and he eases away as the hero scrolls off. The knight at the foot of the page grew to match. Measured in the browser at eight sizes; the responsive audit is clean on `/` at six.
+
 ## Verified
 
 - Type check and lint clean. The full suite: 3,679 tests pass; the one failure (`tests/db/project-images.test.ts` used `video_generation` as its example of an unknown operation) was fixed to use one that still doesn't exist.
