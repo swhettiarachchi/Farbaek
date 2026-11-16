@@ -333,7 +333,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
         </div>
         {sealed ? (
           <SealReveal hash={r.computed} className="justify-self-center">
-            <ProofPackSeal hash={r.computed} caption={r.sample ? "Sample ProofPack" : "ProofPack verified"} size={150} idSuffix="-verify" className="size-[150px]" />
+            <ProofPackSeal hash={r.computed} caption={r.sample ? "Sample ProofPack" : "ProofPack verified"} size={150} idSuffix="-verify" className="size-28 sm:size-[150px]" />
           </SealReveal>
         ) : null}
       </div>
@@ -485,7 +485,7 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
           </p>
         </div>
         <SealReveal hash={opened.digest} className="justify-self-center">
-          <ProofPackSeal hash={opened.digest} caption="Capsule verified" hashText={`blake3:${opened.digest.slice(0, 8)}…${opened.digest.slice(-6)}`} size={150} idSuffix="-verify" className="size-[150px]" />
+          <ProofPackSeal hash={opened.digest} caption="Capsule verified" hashText={`blake3:${opened.digest.slice(0, 8)}…${opened.digest.slice(-6)}`} size={150} idSuffix="-verify" className="size-28 sm:size-[150px]" />
         </SealReveal>
       </div>
       <dl className="grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">

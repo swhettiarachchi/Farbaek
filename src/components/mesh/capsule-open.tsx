@@ -383,7 +383,7 @@ function Report({ opened }: { opened: Extract<OpenedCapsule, { ok: true }> }) {
   for (const e of manifest.excluded) byReason.set(e.reason, [...(byReason.get(e.reason) ?? []), e.path]);
   return (
     <div className="grid gap-5 sm:grid-cols-[132px_minmax(0,1fr)] sm:items-start">
-      <ProofPackSeal hash={digest} caption="Capsule verified" hashText={blake3Short(digest)} size={132} idSuffix="-open" className="size-[132px] justify-self-center sm:justify-self-start" />
+      <ProofPackSeal hash={digest} caption="Capsule verified" hashText={blake3Short(digest)} size={132} idSuffix="-open" className="size-28 justify-self-center sm:size-[132px] sm:justify-self-start" />
       <div className="grid min-w-0 gap-3">
         <p className="flex items-start gap-2 text-body">
           <StatusGlyph status="verified" size={20} className="mt-px" />

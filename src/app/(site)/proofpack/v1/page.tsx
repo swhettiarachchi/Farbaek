@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/container";
 import { CommandBlock } from "@/components/verify/command-block";
 import { IN_TOTO_STATEMENT_TYPE, LEGACY_PROOFPACK_PREDICATE_TYPE, PROOFPACK_PREDICATE_TYPE } from "@/core/proof/proofpack";
 import { IN_TOTO_PAYLOAD_TYPE } from "@/core/trust/dsse";
-import { PUBLIC_TITLE } from "@/components/ui/titles";
+import { PART_TITLE, PUBLIC_TITLE } from "@/components/ui/titles";
 
 /**
  * What the ProofPack predicate URI points at (ADR 0062): the format of a
@@ -125,7 +125,7 @@ export default function ProofPackFormatPage() {
 
       <section aria-labelledby="envelope-title" className="border-t border-line py-14 lg:py-20">
         <Container>
-          <h2 id="envelope-title" className="text-[1.75rem] font-medium leading-tight tracking-[-0.03em]">
+          <h2 id="envelope-title" className={PART_TITLE}>
             The statement, its digest and its signature
           </h2>
           <dl className="mt-8 grid gap-px overflow-hidden rounded-md border border-line bg-line">
@@ -144,7 +144,7 @@ export default function ProofPackFormatPage() {
 
       <section aria-labelledby="fields-title" className="border-t border-line bg-surface py-14 lg:py-20">
         <Container>
-          <h2 id="fields-title" className="text-[1.75rem] font-medium leading-tight tracking-[-0.03em]">
+          <h2 id="fields-title" className={PART_TITLE}>
             What the predicate records
           </h2>
           <p className="mt-3 max-w-[60ch] text-body leading-relaxed text-ink-2">The fields inside the statement&apos;s predicate.</p>
@@ -161,7 +161,7 @@ export default function ProofPackFormatPage() {
 
       <section aria-labelledby="check-title" className="border-t border-line py-14 lg:py-20">
         <Container>
-          <h2 id="check-title" className="text-[1.75rem] font-medium leading-tight tracking-[-0.03em]">
+          <h2 id="check-title" className={PART_TITLE}>
             Check one without Farbaek
           </h2>
           <p className="mt-3 max-w-[60ch] text-body leading-relaxed text-ink-2">
@@ -184,7 +184,7 @@ export default function ProofPackFormatPage() {
 
       <section aria-labelledby="proves-title" className="border-t border-line bg-surface py-14 lg:py-20">
         <Container>
-          <h2 id="proves-title" className="text-[1.75rem] font-medium leading-tight tracking-[-0.03em]">
+          <h2 id="proves-title" className={PART_TITLE}>
             What a ProofPack proves
           </h2>
           <ul className="mt-8 grid gap-8 sm:grid-cols-3">

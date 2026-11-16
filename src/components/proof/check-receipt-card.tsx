@@ -94,7 +94,7 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
       </div>
       {receipt.status === "verified" && intact ? (
         <SealReveal hash={receipt.digest} className="justify-self-center">
-          <ProofPackSeal hash={receipt.digest} caption="Farbaek verified checks" size={160} className="block size-40" />
+          <ProofPackSeal hash={receipt.digest} caption="Farbaek verified checks" size={160} className="block size-28 sm:size-40" />
         </SealReveal>
       ) : null}
     </div>

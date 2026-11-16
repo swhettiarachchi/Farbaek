@@ -128,7 +128,7 @@ export function MobileMenu() {
                       <Link
                         href={link.href}
                         onClick={() => close(false)}
-                        className="group flex min-h-14 items-center justify-between gap-4 border-b border-line/80 py-2 text-[1.75rem] font-medium tracking-[-0.03em] text-ink"
+                        className="group flex min-h-12 items-center justify-between gap-4 border-b border-line/80 py-2 text-[1.375rem] font-medium tracking-[-0.03em] text-ink"
                       >
                         {link.label}
                         <span className="flex size-10 items-center justify-center rounded-full bg-surface-raised text-ink-2 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-px group-hover:translate-x-0.5">

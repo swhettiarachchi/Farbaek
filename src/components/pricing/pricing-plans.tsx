@@ -88,8 +88,8 @@ export function PricingPlans() {
 
             <p className="mt-5">
               {/* Inside Farbaek for Android, Google Play's own price when Google Play sells the plan (ADR 0154). */}
-              <PlayPrice ready productId={googlePlayProductForPlan(plan.id)?.productId ?? null} amountClass="text-[2.75rem] font-medium leading-none tracking-[-0.04em] tabular" perClass="ml-1.5 text-sm text-ink-3">
-                <span className="text-[2.75rem] font-medium leading-none tracking-[-0.04em] tabular">{price.price}</span>
+              <PlayPrice ready productId={googlePlayProductForPlan(plan.id)?.productId ?? null} amountClass="text-[2rem] font-medium leading-none tracking-[-0.04em] tabular sm:text-[2.75rem]" perClass="ml-1.5 text-sm text-ink-3">
+                <span className="text-[2rem] font-medium leading-none tracking-[-0.04em] tabular sm:text-[2.75rem]">{price.price}</span>
                 <span className="ml-1.5 text-sm text-ink-3">{price.per}</span>
               </PlayPrice>
             </p>

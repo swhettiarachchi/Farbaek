@@ -119,7 +119,7 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
       </div>
       {pack.status === "verified" && intact ? (
         <SealReveal hash={pack.digest} className="justify-self-center">
-          <ProofPackSeal hash={pack.digest} caption="Farbaek ProofPack" size={160} className="block size-40" />
+          <ProofPackSeal hash={pack.digest} caption="Farbaek ProofPack" size={160} className="block size-28 sm:size-40" />
         </SealReveal>
       ) : null}
     </div>

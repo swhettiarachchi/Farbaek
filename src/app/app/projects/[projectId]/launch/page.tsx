@@ -202,7 +202,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
       {/* The plan's headline is the page's lead statement, set large, so it stands as words alone like a page title. */}
       <section aria-labelledby="plan-title" className="rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
-        <h2 id="plan-title" className="text-balance text-[1.7rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.2rem]">
+        <h2 id="plan-title" className="text-balance text-2xl font-medium leading-tight tracking-[-0.03em] sm:text-[2.2rem]">
           {KIND_LABELS[plan.kind]}
           {sitesDestination.available ? <span className="text-ink-3">, ready for Farbaek Sites</span> : null}
         </h2>

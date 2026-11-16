@@ -15,7 +15,7 @@ import { samplePlan } from "@/components/survey/sample-plan";
 import { SheetSvg } from "@/components/survey/sheet-svg";
 import { Container } from "@/components/ui/container";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { PUBLIC_TITLE } from "@/components/ui/titles";
+import { PART_TITLE, PUBLIC_TITLE, SECTION_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = {
   title: "Survey Studio",
@@ -200,7 +200,7 @@ export default function SurveyStudioPage() {
         <Container>
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-16">
             <div className="lg:sticky lg:top-28 lg:self-start">
-              <h2 id="steps-title" className="max-w-[18ch] text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.25rem]">
+              <h2 id="steps-title" className={`max-w-[18ch] ${SECTION_TITLE}`}>
                 From field points to a signed plan.
               </h2>
               <p className="mt-4 max-w-[38ch] text-body leading-relaxed text-ink-2">The steps follow the way a plan is made in the office, and each one can be checked before the next.</p>
@@ -224,7 +224,7 @@ export default function SurveyStudioPage() {
 
       <section aria-labelledby="numbers-title" className="border-t border-line py-16 lg:py-24">
         <Container>
-          <h2 id="numbers-title" className="max-w-[22ch] text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.25rem]">
+          <h2 id="numbers-title" className={`max-w-[22ch] ${SECTION_TITLE}`}>
             The numbers come from tested code.
           </h2>
           <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
@@ -290,7 +290,7 @@ export default function SurveyStudioPage() {
 
       <section aria-labelledby="sri-lanka-title" className="border-t border-line bg-canvas-2 py-16 lg:py-24">
         <Container>
-          <h2 id="sri-lanka-title" className="max-w-[22ch] text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.25rem]">
+          <h2 id="sri-lanka-title" className={`max-w-[22ch] ${SECTION_TITLE}`}>
             Made for Sri Lankan plans, from the sources.
           </h2>
           <p className="mt-4 max-w-[60ch] text-body leading-relaxed text-ink-2">
@@ -320,7 +320,7 @@ export default function SurveyStudioPage() {
       <section aria-labelledby="not-yet-title" className="border-t border-line py-16 lg:py-24">
         <Container>
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-16">
-            <h2 id="not-yet-title" className="max-w-[18ch] text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.25rem]">
+            <h2 id="not-yet-title" className={`max-w-[18ch] ${SECTION_TITLE}`}>
               What it doesn&apos;t do yet.
             </h2>
             <ul className="grid list-disc gap-3 pl-5 text-body leading-relaxed text-ink-2 marker:text-ink-3">
@@ -337,7 +337,7 @@ export default function SurveyStudioPage() {
           <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
             <div className="grid gap-6 rounded-md bg-surface px-6 py-10 shadow-e1 ring-1 ring-line sm:px-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:py-12">
               <div className="grid gap-3">
-                <h2 id="start-title" className="max-w-[24ch] text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em]">
+                <h2 id="start-title" className={`max-w-[24ch] ${PART_TITLE}`}>
                   Start with the sample plan, then bring your own points.
                 </h2>
                 <p className="max-w-[56ch] text-body leading-relaxed text-ink-2">Survey Studio is in your Farbaek workspace, next to your projects. Your points stay in your workspace and only its members can see them.</p>

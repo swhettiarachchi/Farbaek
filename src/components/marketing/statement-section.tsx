@@ -98,7 +98,7 @@ export function StatementSection() {
         <p
           id="statement"
           ref={ref}
-          className="mx-auto mt-14 max-w-[24ch] text-balance text-center text-[1.75rem] font-medium leading-[1.2] tracking-[-0.03em] sm:text-[2.6rem] lg:text-[3.1rem]"
+          className="mx-auto mt-14 max-w-[24ch] text-balance text-center text-2xl font-medium leading-[1.2] tracking-[-0.03em] sm:text-[2.6rem] lg:text-[3.1rem]"
         >
           {/* The same words on the server and the client; under reduced motion CSS holds them at full ink. */}
           {words.map((w, i) => (

@@ -38,7 +38,7 @@ export function SubscribeSummary({ planId, stage }: { planId: PaidPlanId; stage:
           </Link>
         </div>
         <p data-web-purchase className="mt-2">
-          <span className="text-[2.25rem] font-medium leading-none tracking-[-0.04em] tabular">{price.price}</span>
+          <span className="text-[2rem] font-medium leading-none tracking-[-0.04em] tabular sm:text-4xl">{price.price}</span>
           <span className="ml-1.5 text-sm text-ink-3">{price.per}</span>
           {price.billed ? <span className="mt-1.5 block text-xs text-ink-3 tabular">{price.billed}</span> : null}
         </p>

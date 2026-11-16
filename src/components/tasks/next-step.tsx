@@ -41,7 +41,7 @@ export function NextStepCard({ step, projectId, runId = null, seal = null }: { s
       <div className={`grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:items-center sm:p-6 ${seal ? "sm:grid-cols-[auto_minmax(0,1fr)_auto]" : "sm:grid-cols-[minmax(0,1fr)_auto]"}`}>
         {seal ? (
           <SealReveal hash={seal.digest} className="justify-self-center">
-            <ProofPackSeal hash={seal.digest} caption={seal.caption} size={128} idSuffix="-next" className="block size-32" />
+            <ProofPackSeal hash={seal.digest} caption={seal.caption} size={128} idSuffix="-next" className="block size-24 sm:size-32" />
           </SealReveal>
         ) : null}
         <div className="min-w-0">

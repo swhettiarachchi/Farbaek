@@ -167,7 +167,7 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
       <section aria-label="This month's AI cost" className="grid gap-5 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <div>
           <p className="text-sm text-ink-2">AI list cost since {monthName(o.aiCost.since)} (UTC), an estimate</p>
-          <p className="mt-2 text-[clamp(2.5rem,6vw,4rem)] font-medium leading-none tracking-[-0.04em] tabular">{usd(o.aiCost.usd)}</p>
+          <p className="mt-2 text-[clamp(2rem,6vw,4rem)] font-medium leading-none tracking-[-0.04em] tabular">{usd(o.aiCost.usd)}</p>
           <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-ink-2">
             From {number.format(o.aiCost.settledCalls)} settled AI calls at the providers&apos; list prices, before any discounts. Refunded calls aren&apos;t counted.
           </p>
