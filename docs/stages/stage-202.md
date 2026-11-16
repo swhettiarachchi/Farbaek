@@ -30,6 +30,8 @@ Files: `src/components/chat/{chat-shell,sidebar,conversation-view,message,compos
 - `src/core/chat/handoff.test.ts` (6 tests), the design tests (212 of 212, with the night colours), the chat, build and agent tests (173 of 173), lint and the type check.
 - `qa:a11y` on `/app/chat`, `/app/images` and `/` at 1280 and 375: no findings. `qa:responsive` on `/app/chat`, `/app/images` and `/app/video` at nine sizes: no sideways scroll, cut content, small or lost taps.
 
+- The production build (demo) succeeds on this branch. `qa:vitals` on it, phone profile, median of three: `/` LCP 2.04 s, CLS 0, TBT 194 ms (LCP was 1.87 s before the knight grew; he is the largest paint, and his picture is now larger); `/app/chat` LCP 1.70 s, CLS 0, TBT 224 ms, 535 KB of script (no earlier measurement of this route to compare with).
+
 ## Not verified (Chat)
 
 - A real answer streaming, so the turning light and the orbit were only seen with the busy state set by hand: the demo workspace can't send.
