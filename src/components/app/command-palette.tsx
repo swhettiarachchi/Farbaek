@@ -42,7 +42,7 @@ export function PaletteTrigger() {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
-      className="flex h-10 w-full items-center gap-2.5 rounded-full border border-line bg-surface px-3.5 text-label text-ink-3 shadow-e1 transition-colors duration-150 hover:text-ink"
+      className="flex h-10 w-full items-center gap-2.5 rounded-full border border-line bg-surface px-3.5 text-label text-ink-3 pointer-coarse:h-11 shadow-e1 transition-colors duration-150 hover:text-ink"
     >
       <MagnifyingGlassIcon size={16} weight="bold" aria-hidden />
       <span className="flex-1 truncate whitespace-nowrap text-left">Search or jump to</span>
@@ -198,7 +198,7 @@ export function CommandPalette({
           aria-activedescendant={commands.length ? optionId(current) : undefined}
           aria-autocomplete="list"
           placeholder={canBuild ? "Go to a page or project, or describe a build" : "Go to a page or project"}
-          className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-ink-3"
+          className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none sm:h-14 placeholder:text-ink-3"
         />
         <kbd className="hidden rounded-full border border-line px-1.5 font-mono text-xs text-ink-3 sm:inline">Esc</kbd>
       </div>

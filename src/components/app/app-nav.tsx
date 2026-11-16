@@ -149,7 +149,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
           href={item.href}
           transitionTypes={PAGE_NAV}
           aria-current={active ? "page" : undefined}
-          className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-sm transition-colors duration-150 ${
+          className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-sm transition-colors duration-150 pointer-coarse:h-11 ${
             active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
           }`}
         >
@@ -180,7 +180,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
             setClosedHere(open);
             writeToolsOpen(!open);
           }}
-          className="flex h-10 w-full items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface/70 hover:text-ink"
+          className="flex h-10 w-full items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 pointer-coarse:h-11 transition-colors duration-150 hover:bg-surface/70 hover:text-ink"
         >
           <ToolboxIcon size={20} aria-hidden />
           More tools

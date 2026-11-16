@@ -136,7 +136,7 @@ function PrimaryLink({ href, download, icon, children }: { href: string; downloa
       download={download}
       {...(download ? {} : { target: "_blank", rel: "noopener noreferrer" })}
       // It grows rather than spills when the label is long or the phone's text is large.
-      className="group inline-flex min-h-12 max-w-full items-center justify-between gap-2 justify-self-start rounded-full bg-primary py-1.5 pl-5 pr-1.5 text-left text-body font-medium leading-snug text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary/90 active:scale-[0.98] sm:gap-3"
+      className="tap group inline-flex min-h-11 max-w-full items-center justify-between gap-2 justify-self-start rounded-full bg-primary py-1.5 pl-5 pr-1.5 text-left text-body font-medium leading-snug text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary/90 active:scale-[0.98] sm:gap-3"
     >
       <span className="min-w-0">{children}</span>
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-on-primary/15 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-y-0.5">{icon}</span>

@@ -205,7 +205,7 @@ export function DeviceApp() {
     return (
       <Shell online={online}>
         <Intro />
-        <div className="mt-8 flex flex-col items-center rounded-md border border-line bg-surface px-6 py-12 text-center">
+        <div className="mt-6 flex flex-col items-center rounded-md border border-line bg-surface px-4 py-8 text-center sm:mt-8 sm:px-6 sm:py-12">
           <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
             <DeviceMobileIcon size={24} aria-hidden />
           </span>

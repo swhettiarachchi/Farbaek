@@ -333,7 +333,7 @@ export default function SurveyStudioPage() {
         </Container>
       </section>
 
-      <section aria-labelledby="start-title" className="pb-20 lg:pb-28">
+      <section aria-labelledby="start-title" className="pb-14 sm:pb-20 lg:pb-28">
         <Container>
           <div className={BEZEL}>
             <div className="grid gap-6 rounded-md bg-surface px-6 py-10 shadow-e1 ring-1 ring-line sm:px-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:py-12">

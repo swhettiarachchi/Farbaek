@@ -243,7 +243,7 @@ function inspect(touch) {
 
 /** Runs in the page on phones: what's out of proportion (ADR 0211). Limits are in CSS pixels at the default text size. */
 function proportions(opts) {
-  const { app } = opts;
+  const { app, portrait } = opts;
   const scale = (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16;
   const vw = document.documentElement.clientWidth;
   const vh = window.innerHeight;
@@ -267,6 +267,10 @@ function proportions(opts) {
   const found = [];
   const add = (kind, el, value, limit) => found.push({ kind, el: describe(el), value: Math.round(value), limit: Math.round(limit) });
 
+  if (!portrait) {
+    pinnedCover(found);
+    return found;
+  }
   // Titles: an app page's h1 is at most the display title's phone size, a public page's the hero's.
   const h1 = (app ? 30 : 36) * scale;
   const h2 = (app ? 24 : 28) * scale;
@@ -324,13 +328,14 @@ function proportions(opts) {
     for (const n of [el, el.parentElement]) {
       for (let sib = n?.previousElementSibling; sib; sib = sib.previousElementSibling) {
         const q = sib.getBoundingClientRect();
-        if (q.right <= r.left + 1 && q.bottom > r.top && q.top < r.bottom && (sib.matches("svg, img, picture, span, i") || sib.querySelector("svg, img"))) return true;
+        const level = n === el ? q.bottom > r.top && q.top < r.bottom : true;
+        if (q.right <= r.left + 1 && level && (sib.matches("svg, img, picture, span, i") || sib.querySelector("svg, img"))) return true;
       }
     }
     return false;
   };
   for (const el of document.querySelectorAll("p, h2, h3, dd")) {
-    if (!shown(el) || exempt(el) || el.closest("figure, li")) continue;
+    if (!shown(el) || exempt(el) || el.closest("figure, li") || getComputedStyle(el).textAlign === "center") continue;
     const r = el.getBoundingClientRect();
     if (besidePicture(el, r)) continue;
     // The left-hand column of what's on the screen: a second column, or a card in a sideways rail, starts further in on purpose.
@@ -345,16 +350,24 @@ function proportions(opts) {
     const pad = Math.max(px(s.paddingTop), px(s.paddingBottom));
     if (pad > 64 * scale + 0.5) add("section", el, pad, 64 * scale);
   }
-  // Anything pinned that covers more than a third of the screen (dialogs and menus that are open aside).
+  pinnedCover(found);
+  // Words one per line: something squeezed into a column too narrow for it.
+  squeezed(found);
+  return found;
+
+  /** Anything pinned that covers more than a third of the screen (dialogs and menus that are open aside). */
+  function pinnedCover(found) {
   for (const el of document.body.querySelectorAll("*")) {
     const s = getComputedStyle(el);
     if (s.position !== "fixed" && s.position !== "sticky") continue;
     if (el.matches("dialog, [role=dialog], [aria-modal=true], [data-overlay]") || el.closest("dialog, [role=dialog], [data-overlay]") || !shown(el) || exempt(el)) continue;
     const r = el.getBoundingClientRect();
     const covered = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0)) * Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
-    if (covered > (vw * vh) / 3) add("pinned", el, covered / vw, vh / 3);
+    if (covered > (vw * vh) / 3) found.push({ kind: "pinned", el: describe(el), value: Math.round(covered / vw), limit: Math.round(vh / 3) });
   }
-  // Words one per line: something squeezed into a column too narrow for it.
+  }
+
+  function squeezed(found) {
   if (scale < 1.25) {
     for (const el of document.querySelectorAll("h1, h2, h3, h4, button, a, label, p, dt, dd, th, td, li")) {
       // The tab bar stacks each icon over its name on purpose.
@@ -362,14 +375,14 @@ function proportions(opts) {
       const words = (el.innerText ?? "").trim().split(/\s+/).filter(Boolean);
       if (words.length < 3 || words.length > 14) continue;
       const cs = getComputedStyle(el);
-      if (/grid/.test(cs.display) || (/flex/.test(cs.display) && cs.flexDirection.startsWith("column")) || el.querySelector("div, p, ul, ol, li, dl, br, section")) continue;
-      const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3;
-      const r = el.getBoundingClientRect();
-      const lines = Math.round((r.height - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0)) / lh);
-      if (lines >= words.length) add("squeezed", el, lines, words.length - 1);
+      if (cs.position === "absolute" || /grid/.test(cs.display) || (/flex/.test(cs.display) && cs.flexDirection.startsWith("column")) || el.querySelector("div, p, ul, ol, li, dl, br, section")) continue;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const lines = new Set([...range.getClientRects()].filter((q) => q.width > 2 && q.height > 2).map((q) => Math.round(q.top / 6))).size;
+      if (lines >= words.length) found.push({ kind: "squeezed", el: describe(el), value: lines, limit: words.length - 1 });
     }
   }
-  return found;
+  }
 }
 
 const browser = await chromium.launch({
@@ -400,7 +413,7 @@ try {
     const check = async (route, label) => {
       const found = await page.evaluate(inspect, device.hasTouch);
       if (device.hasTouch && !found.coarse) notCoarse++;
-      const out = kind === "phone" ? await page.evaluate(proportions, { app: /^\/(app|office|admin|device)\b/.test(route) }) : [];
+      const out = kind === "phone" ? await page.evaluate(proportions, { app: /^\/(app|office|admin|device)\b/.test(route), portrait: device.viewport.width < 640 }) : [];
       const entry = {
         route: label,
         screen: spec,

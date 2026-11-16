@@ -61,8 +61,10 @@ describe("one system (ADR 0184)", () => {
     // The double bezel and the page stack come from surfaces.ts.
     expect(hits(/rounded-lg bg-surface-raised\/60 p-2\b/).filter(own)).toEqual([]);
     expect(hits(/className="grid gap-8"/)).toEqual([]);
-    // Section padding of 80px or more has a phone step below it.
+    // Section padding of 80px or more, above, below or both, has a phone step below it. (A main area's bottom padding that clears the
+    // phone's tab bar isn't a section's.)
     expect(hits(/(?<![\w:-])py-(?:20|24|28)\b/)).toEqual([]);
+    expect(hits(/<section\b[^>]*(?<![\w:-])p[tb]-(?:20|24|28)\b/)).toEqual([]);
     // A card or panel padded 24px or more is padded less on a phone.
     expect(hits(/rounded-(?:md|lg)\b.*(?<![\w:-])p-(?:6|7|8)\b|(?<![\w:-])p-(?:6|7|8)\b.*rounded-(?:md|lg)\b/).filter((h) => {
       const f = sources.find((s) => h.startsWith(`${s.rel}:`))!;

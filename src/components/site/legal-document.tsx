@@ -33,7 +33,7 @@ export function LegalDocument({
   updated?: string;
 }) {
   return (
-    <section className="pt-14 pb-20 sm:pt-20 lg:pb-28">
+    <section className="pb-14 pt-10 sm:pb-20 sm:pt-20 lg:pb-28">
       <Container>
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-16">
           <article className="min-w-0 max-w-[72ch]">

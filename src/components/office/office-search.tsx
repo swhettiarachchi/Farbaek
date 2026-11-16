@@ -221,7 +221,7 @@ export function OfficeSearch() {
           spellCheck={false}
           maxLength={100}
           placeholder="Search workspaces, people, sites"
-          className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-ink-3"
+          className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none sm:h-14 placeholder:text-ink-3"
         />
         <kbd className="hidden rounded-full border border-line px-1.5 font-mono text-xs text-ink-3 sm:inline">Esc</kbd>
       </div>

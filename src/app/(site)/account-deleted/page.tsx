@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 /** Where a person lands after deleting their account (ADR 0064). */
 export default function AccountDeletedPage() {
   return (
-    <section className="pt-16 pb-24 sm:pt-24">
+    <section className="pb-16 pt-12 sm:pb-24 sm:pt-24">
       {/* Nothing the account kept for offline use stays in this browser (ADR 0192). */}
       <ForgetDeviceNow />
       <Container>
