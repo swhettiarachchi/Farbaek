@@ -39,10 +39,11 @@ Duplicate lot labels keep the first. Drafted items get new ids, never one an ear
 - The description and photos are sent to the AI provider (Claude, by Anthropic) to be read. The Draft step says so before the photos are sent. Farbaek stores neither: only what the surveyor saves becomes part of the plan.
 - Each run writes one audit event, `survey.ai_drafted`, with the operation, the model and the counts of items kept, left out and asked about (`app_survey_record_ai_draft`, schema v94).
 - Usage is reserved before the call, settled to its real cost after, and refunded when the call fails or is refused, when Farbaek's own checks fail, or when the checked draft wouldn't save ([docs/billing/usage.md](../billing/usage.md)).
+- **Free while Survey Studio is tested** ([ADR 0212](../adr/0212-survey-ai-free-while-tested.md)): drafts and photo reads need no plan and draw nothing from the workspace. They're free ledger entries under Farbaek's daily limits, 20 of each a day per person on Farbaek's key, routed as the trial (Sonnet). A workspace with its own Claude key keeps using it.
 
 ## When it's off
 
-The Draft step's buttons say why: the Sample and the demo are read-only, viewers can't change plans, a workspace without AI usage or without Claude can't run them, and drafting needs imported points. Everything the assistant fills can be entered by hand on the Lots and Plan steps.
+The Draft step's buttons say why: the Sample and the demo are read-only, viewers can't change plans, a server without Claude or with AI paused by Farbaek can't run them, and drafting needs imported points. While Survey Studio is tested they need no plan or AI usage. Everything the assistant fills can be entered by hand on the Lots and Plan steps.
 
 ## Tests
 

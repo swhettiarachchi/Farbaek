@@ -13,7 +13,7 @@ import { surveyDocumentSchema, type SurveyDocument } from "@/core/survey/documen
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { routeModel } from "@/server/ai/routing";
 import { SURVEY_DRAFT_PROMPT, SURVEY_READ_PROMPT, SURVEY_READ_TOKENS_PER_IMAGE, surveyDraftMessage, surveyReadMessage, type DraftRequest, type ReadRequest, type SurveyDraftOutcome, type SurveyDrafter } from "@/server/ai/survey-drafter";
-import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, type ModelSource } from "@/server/workspace/ai-usage";
+import { refundUsage, reserveMetered, resolveMetering, settleUsage, type AiUsageDeps, type FreeUsageDeps, type ModelSource } from "@/server/workspace/ai-usage";
 import { fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "@/server/workspace/use-cases";
 
 export const MANUAL_SURVEY_DRAFT = "Add the lots on the Lots step and fill in the title on the Plan step yourself: everything works without AI.";
@@ -26,7 +26,7 @@ export interface SurveyDraftDeps {
   recordAiDraft(input: { orgId: string; actor: string; projectId: string; operation: "survey_draft" | "survey_read"; model: string; accepted: number; dropped: number; questions: number }): Promise<RpcResult<null>>;
 }
 
-type Deps = WriteDeps & AiUsageDeps & SurveyDraftDeps;
+type Deps = WriteDeps & AiUsageDeps & FreeUsageDeps & SurveyDraftDeps;
 
 const FAILURES = {
   REFUSED: "The AI declined to read this, so it wasn't counted.",
@@ -58,11 +58,12 @@ async function run(
   call: (drafter: SurveyDrafter) => Promise<SurveyDraftOutcome>,
   check: (outcome: Extract<SurveyDraftOutcome, { ok: true }>) => DraftResult,
 ): Promise<WriteResult<SurveyDraftValue>> {
-  const billing = await resolvePlan(deps, input.orgId);
-  if (!billing.ok) return billing;
-  const drafter = source.create(routeModel({ plan: billing.value.plan, family: source.family, step: "review", effort: "balanced" }));
+  // Free while Survey Studio is tested (ADR 0212): no plan is read, and nothing is drawn from the workspace.
+  const metering = await resolveMetering(deps, input.orgId, input.operation);
+  if (!metering.ok) return metering;
+  const drafter = source.create(routeModel({ plan: metering.value.plan, family: source.family, step: "review", effort: "balanced" }));
   const units = reserveUnits(drafter.model, input.promptTokens + 500, drafter.maxOutputTokens);
-  const reserved = await reserveUsage(deps, { orgId: input.orgId, userId: input.userId, taskId: null, operation: input.operation, units, manual: input.manual, billing: billing.value });
+  const reserved = await reserveMetered(deps, metering.value, { orgId: input.orgId, userId: input.userId, taskId: null, operation: input.operation, units, manual: input.manual });
   if (!reserved.ok) return reserved;
 
   let outcome: SurveyDraftOutcome;

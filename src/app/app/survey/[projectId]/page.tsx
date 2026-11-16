@@ -36,6 +36,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { crsById } from "@/core/survey/crs";
+import { readModelKey } from "@/server/ai/workspace-ai";
 import { fmt } from "@/core/survey/sheet/compose";
 import { compareDocuments, type ChangeArea } from "@/core/survey/compare";
 import { buildPlan } from "@/core/survey/view";
@@ -103,6 +104,11 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   const aiOff = (a: typeof draftAi) => readOnly ?? (a ? a.disabledReason : "AI isn't available right now. Try again in a minute, or fill in the plan yourself on the Lots and Plan steps.");
   // The drafting assistant on the Plan step (stage 195, ADR 0210): why its AI is off here, if it is. Its local reader works regardless.
   const assistAi = step === "plan" && !readOnly && ctx.mode !== "demo" ? await loadAiAvailability(ctx, ws, "survey_assist").catch(() => null) : null;
+  // What the AI costs here (ADR 0212): free on Farbaek's key while Survey Studio is tested; a workspace's own key is its own.
+  const keyClient = (step === "draft" || step === "plan") && !readOnly && ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const ownKey = keyClient ? await readModelKey(keyClient, ws.id).catch(() => null) : null;
+  const draftCost = ownKey ? "Runs on your workspace's own Claude key." : "Free while Survey Studio is being tested.";
+  const assistantCost = ownKey ? "The assistant's AI runs on your workspace's own Claude key." : "The assistant's AI is free while Survey Studio is being tested.";
   const assistantAiOff = ctx.mode === "demo" ? "The demo workspace is sample data, so the assistant's AI is off here." : (readOnly ?? (assistAi ? assistAi.disabledReason : "The assistant's AI isn't available right now."));
   // Earlier visits' instructions, for the assistant's drawer (read through RLS; none for the Sample or the demo).
   const historyClient = step === "plan" && !sample && ctx.mode === "live" ? await createSupabaseServerClient() : null;
@@ -239,6 +245,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           draftOff={draftOff}
           readOff={aiOff(readAi)}
           provider={readAi?.provider ?? null}
+          aiCost={draftCost}
         />
       ) : null}
 
@@ -295,6 +302,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           approvedSurveyor={input.approval ? input.surveyor : null}
           readOnly={readOnly}
           assistantAiOff={assistantAiOff}
+          assistantAiCost={assistantCost}
         />
         </AssistantProvider>
       ) : null}

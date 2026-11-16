@@ -16,18 +16,21 @@ import type { SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { routeModel } from "@/server/ai/routing";
 import { SURVEY_ASSIST_PROMPT, surveyAssistMessage, type SurveyAssistOutcome, type SurveyAssistant } from "@/server/ai/survey-assistant";
-import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, type ModelSource } from "@/server/workspace/ai-usage";
+import { refundUsage, reserveMetered, resolveMetering, settleUsage, type AiUsageDeps, type FreeUsageDeps, type ModelSource } from "@/server/workspace/ai-usage";
 import { fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "@/server/workspace/use-cases";
 
 export const MANUAL_SURVEY_ASSIST = "Without AI the assistant still zooms, shows and hides layers, sets the paper and scale, moves labels and answers the area; the Lots and Plan steps have every other tool.";
 export const ASSIST_LIMITS = { words: 2_000, recent: 6 } as const;
+
+/** What one person may ask Survey Studio's free AI in a UTC day while it's tested (ADR 0212): instructions, drafts and photo reads. */
+export const SURVEY_AI_DAILY = { assist: 300, draft: 20, read: 20 } as const;
 
 export interface SurveyAssistDeps {
   /** Records the turn (words, reply, operations as checked, outcome) and its audit event; returns its id. */
   recordAssistTurn(input: { orgId: string; actor: string; projectId: string; lang: AssistLanguage; inputMethod: "voice" | "typed"; words: string; reply: string; operations: unknown; dropped: unknown; outcome: "suggested" | "failed"; model: string }): Promise<RpcResult<string>>;
 }
 
-type Deps = WriteDeps & AiUsageDeps & SurveyAssistDeps;
+type Deps = WriteDeps & AiUsageDeps & FreeUsageDeps & SurveyAssistDeps;
 
 const FAILURES = {
   REFUSED: "The AI declined that instruction, so it wasn't counted.",
@@ -77,11 +80,12 @@ export async function runAssistant(deps: Deps, source: ModelSource<SurveyAssista
   const context = assistContext({ doc: input.document, points: input.points, selection: input.selection, recent: input.recent.slice(-ASSIST_LIMITS.recent), step: "plan" });
   const request = { words, lang: input.lang, plan: context.plan };
 
-  const billing = await resolvePlan(deps, input.orgId);
-  if (!billing.ok) return billing;
-  const assistant = source.create(routeModel({ plan: billing.value.plan, family: source.family, step: "plan", effort: "fast" }));
+  // Free while Survey Studio is tested (ADR 0212): no plan is read, and nothing is drawn from the workspace.
+  const metering = await resolveMetering(deps, input.orgId, "survey_assist");
+  if (!metering.ok) return metering;
+  const assistant = source.create(routeModel({ plan: metering.value.plan, family: source.family, step: "plan", effort: "fast" }));
   const units = reserveUnits(assistant.model, approxTokens(SURVEY_ASSIST_PROMPT) + approxTokens(surveyAssistMessage(request)) + 200, assistant.maxOutputTokens);
-  const reserved = await reserveUsage(deps, { orgId: input.orgId, userId: input.userId, taskId: null, operation: "survey_assist", units, manual: MANUAL_SURVEY_ASSIST, billing: billing.value });
+  const reserved = await reserveMetered(deps, metering.value, { orgId: input.orgId, userId: input.userId, taskId: null, operation: "survey_assist", units, manual: MANUAL_SURVEY_ASSIST });
   if (!reserved.ok) return reserved;
 
   let outcome: SurveyAssistOutcome;

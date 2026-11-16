@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { AssistOutput } from "@/core/survey/assistant/ops";
 import { SAMPLE_POINTS, sampleDocument } from "@/core/survey/fixtures";
 import type { AssistRequest, SurveyAssistOutcome, SurveyAssistant } from "@/server/ai/survey-assistant";
-import type { AiUsageDeps } from "@/server/workspace/ai-usage";
+import type { AiUsageDeps, FreeUsageDeps } from "@/server/workspace/ai-usage";
 import type { OrgRole } from "@/server/workspace/types";
 import type { WriteDeps } from "@/server/workspace/use-cases";
 import { recordedDropped, recordedOps, runAssistant, type SurveyAssistDeps } from "./assistant";
@@ -36,12 +36,13 @@ function fakeAssistant(result: SurveyAssistOutcome) {
   return a satisfies SurveyAssistant & { requests: AssistRequest[] };
 }
 
-function fakeDeps(role: OrgRole = "member") {
+function fakeDeps(role: OrgRole = "member", freeError: string | null = null) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
-  const deps: WriteDeps & AiUsageDeps & SurveyAssistDeps = {
+  const deps: WriteDeps & AiUsageDeps & FreeUsageDeps & SurveyAssistDeps = {
     role: async () => role,
-    billing: async () => ({ state: "active", paidPlanId: "pro" }),
+    // Free while it's tested (ADR 0212): the plan is never read, so an unreadable one can't stop it.
+    billing: async () => (calls.push({ name: "billing", input: null }), null),
     countActiveProjects: async () => 0,
     loadTask: async () => null,
     createProject: async () => ({ ok: true, value: "p1" }),
@@ -50,7 +51,8 @@ function fakeDeps(role: OrgRole = "member") {
     saveContract: async () => ({ ok: true, value: 1 }),
     approveContract: async () => ({ ok: true, value: null }),
     listUsageGrants: async () => [],
-    reserveUsage: async (input) => (calls.push({ name: "reserve", input }), { ok: true, value: "entry-1" }),
+    reserveUsage: async (input) => (calls.push({ name: "reserve from the allowance", input }), { ok: true, value: "entry-0" }),
+    reserveFreeUsage: async (input) => (calls.push({ name: "reserve", input }), freeError ? { ok: false, error: freeError } : { ok: true, value: "entry-1" }),
     settleUsage: async (input) => (calls.push({ name: input.status === "refunded" ? "refund" : "settle", input }), { ok: true, value: null }),
     recordAssistTurn: async (input) => (calls.push({ name: "record", input }), { ok: true, value: "turn-1" }),
     newEventId: () => "key-1",
@@ -73,7 +75,8 @@ describe("the drafting assistant's turn", () => {
     expect(sent).toContain(WORDS);
     expect(sent).not.toMatch(/500\d{3}\.|600\d{3}\.|21\.43/);
     expect(f.calls.map((c) => c.name)).toEqual(["reserve", "settle", "record"]);
-    expect(f.calls[0]!.input).toMatchObject({ operation: "survey_assist", taskId: null });
+    expect(f.calls[0]!.input).toEqual({ orgId: "o1", actor: "u1", key: "key-1", operation: "survey_assist", units: expect.any(Number) });
+    expect(f.calls[1]!.input).toMatchObject({ entryId: "entry-1", status: "settled" });
     const rec = f.calls[2]!.input;
     expect(rec).toMatchObject({ orgId: "o1", actor: "u1", projectId: "p1", lang: "en", inputMethod: "voice", words: WORDS, outcome: "suggested", model: "claude-haiku-5-5" });
     // "district Gampaha" isn't in the words, so it was left out, not recorded as an operation.
@@ -92,6 +95,17 @@ describe("the drafting assistant's turn", () => {
     expect(r2.ok).toBe(true);
     expect(empty.calls.map((c) => c.name)).toEqual(["reserve", "refund", "record"]);
     expect(empty.calls[2]!.input.outcome).toBe("failed");
+  });
+
+  it("stops at Farbaek's daily limit on free use before the model is asked", async () => {
+    const f = fakeDeps("member", "FREE_DAILY_LIMIT: Survey Studio's free AI reached today's limit");
+    const assistant = fakeAssistant({ ok: true, output: OUTPUT, usage });
+    const r = await runAssistant(f.deps, { family: "anthropic", create: () => assistant }, input);
+    expect(r).toMatchObject({ ok: false, code: "FREE_DAILY_LIMIT", message: expect.stringContaining("free AI has reached today's limit") });
+    expect(assistant.requests).toEqual([]);
+    expect(f.calls.map((c) => c.name)).toEqual(["reserve"]);
+    const platform = fakeDeps("member", "PLATFORM_DAILY_LIMIT");
+    expect(await runAssistant(platform.deps, { family: "anthropic", create: () => fakeAssistant({ ok: true, output: OUTPUT, usage }) }, input)).toMatchObject({ ok: false, code: "PLATFORM_DAILY_LIMIT" });
   });
 
   it("refuses viewers and empty or overlong instructions before any usage is reserved", async () => {

@@ -46,3 +46,18 @@ export const TYPICAL_PROMPT_TOKENS: Record<ButtonOperation, number> = {
   survey_read: 6_000,
   survey_assist: 4_000,
 };
+
+/**
+ * Survey Studio's AI is free while it's being tested (ADR 0212): these
+ * operations reserve on the ledger as free entries, with no plan and nothing
+ * drawn from a workspace's AI usage, under Farbaek's own daily limits.
+ * Pricing comes back by emptying this list. The database's
+ * app_reserve_free_usage accepts only these operations.
+ */
+export const FREE_WHILE_TESTING = ["survey_draft", "survey_read", "survey_assist"] as const satisfies readonly UsageOperation[];
+
+export type FreeOperation = (typeof FREE_WHILE_TESTING)[number];
+
+export function isFreeWhileTesting(operation: UsageOperation): operation is FreeOperation {
+  return (FREE_WHILE_TESTING as readonly UsageOperation[]).includes(operation);
+}

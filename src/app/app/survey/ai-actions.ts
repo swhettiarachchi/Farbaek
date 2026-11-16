@@ -13,6 +13,7 @@ import { createAnthropicSurveyDrafter, type ReadRequest } from "@/server/ai/surv
 import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
+import { SURVEY_AI_DAILY } from "@/server/survey/assistant";
 import { BRIEF_LIMITS, PHOTO_LIMITS, draftSurveyPlan, imageTypeOf, readSurveyPhotos, type SurveyDraftDeps } from "@/server/survey/drafting";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { SURVEY_MESSAGES } from "@/server/survey/store";
@@ -47,7 +48,7 @@ type Prepared =
       common: { orgId: string; userId: string; projectId: string; document: SurveyDocument; points: SurveyProjectData["points"] };
     };
 
-async function prepare(projectId: string, baseVersion: number, label: string): Promise<Prepared> {
+async function prepare(projectId: string, baseVersion: number, label: string, kind: "draft" | "read"): Promise<Prepared> {
   if (!uuid.safeParse(projectId).success || !Number.isInteger(baseVersion)) return { error: SURVEY_MESSAGES.INVALID_REQUEST };
   const ctx = await loadAppContext();
   if (!ctx) redirect("/sign-in");
@@ -62,9 +63,16 @@ async function prepare(projectId: string, baseVersion: number, label: string): P
   if (!data) return { error: SURVEY_MESSAGES.NOT_FOUND };
   if (data.drawing.version !== baseVersion) return { error: "A newer version of this plan was saved. Reload, then draft again." };
   if (!data.drawing.readable) return { error: "This version couldn't be read, so there's nothing to draft onto. Reload, or ask support." };
+  if (kind === "draft" && data.points.length === 0) return { error: "Import the surveyed points first: the draft names lots by their corner points." };
   const deps = { ...createSupabaseWriteDeps(user, admin, ctx.user.id), ...recorder(admin) };
   const ai = await aiForWorkspace(orgId, deps, { timeout: 180_000, claudeOnly: label });
   if ("error" in ai) return { error: ai.error };
+  // Free while it's tested (ADR 0212): a day's fair share for one person on Farbaek's key. A workspace's own key has no such limit.
+  if (!ai.own) {
+    const day = await admin.rpc("app_rate_limit", { p_key: `survey-${kind}-day:${ctx.user.id}`, p_window_seconds: 86_400, p_limit: SURVEY_AI_DAILY[kind] });
+    if (day.error) return { error: "Drafting isn't available right now. Try again in a minute." };
+    if (day.data !== true) return { error: `That's ${SURVEY_AI_DAILY[kind]} ${kind === "draft" ? "drafts" : "photo reads"} today, the most for one person while Survey Studio is being tested. It's back tomorrow; everything without AI still works.` };
+  }
   const source = { family: "anthropic" as const, create: (s: { model: string }) => createAnthropicSurveyDrafter({ model: s.model, client: ai.client }) };
   return { ai, source, data, common: { orgId, userId: ctx.user.id, projectId, document: data.drawing.document, points: data.points } };
 }
@@ -73,7 +81,8 @@ async function prepare(projectId: string, baseVersion: number, label: string): P
 export async function draftSurveyPlanAction(input: { projectId: string; baseVersion: number; brief: string }): Promise<SurveyDraftState> {
   const brief = typeof input.brief === "string" ? input.brief : "";
   if (brief.length > BRIEF_LIMITS.max) return { status: "error", message: `Keep the description under ${BRIEF_LIMITS.max.toLocaleString("en-US")} characters.` };
-  const p = await prepare(input.projectId, input.baseVersion, "Drafting survey plans");
+  if (brief.trim().length < BRIEF_LIMITS.min) return { status: "error", message: "Describe the job first: the lots and their corner points, the land's name and where it is." };
+  const p = await prepare(input.projectId, input.baseVersion, "Drafting survey plans", "draft");
   if ("error" in p) return { status: "error", message: p.error };
   const r = await draftSurveyPlan(p.ai.deps, p.source, { ...p.common, brief });
   if (!r.ok) return { status: "error", message: r.message };
@@ -94,7 +103,7 @@ export async function readOldPlanAction(form: FormData): Promise<SurveyDraftStat
     if (!mediaType) return { status: "error", message: "Use photos or scans saved as JPEG, PNG or WebP." };
     images.push({ mediaType, data });
   }
-  const p = await prepare(projectId, baseVersion, "Reading old plans");
+  const p = await prepare(projectId, baseVersion, "Reading old plans", "read");
   if ("error" in p) return { status: "error", message: p.error };
   const r = await readSurveyPhotos(p.ai.deps, p.source, { ...p.common, images });
   if (!r.ok) return { status: "error", message: r.message };

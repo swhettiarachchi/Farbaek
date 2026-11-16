@@ -7,7 +7,7 @@ import type { DraftOutput } from "@/core/survey/ai-draft";
 import { emptyDocument } from "@/core/survey/document";
 import { SAMPLE_POINTS } from "@/core/survey/fixtures";
 import type { DraftRequest, SurveyDraftOutcome, SurveyDrafter } from "@/server/ai/survey-drafter";
-import type { AiUsageDeps } from "@/server/workspace/ai-usage";
+import type { AiUsageDeps, FreeUsageDeps } from "@/server/workspace/ai-usage";
 import type { OrgRole } from "@/server/workspace/types";
 import type { WriteDeps } from "@/server/workspace/use-cases";
 import { draftSurveyPlan, imageTypeOf, namedPoints, readSurveyPhotos, type SurveyDraftDeps } from "./drafting";
@@ -47,9 +47,10 @@ function fakeDrafter(result: SurveyDraftOutcome) {
 function fakeDeps(role: OrgRole = "member") {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
-  const deps: WriteDeps & AiUsageDeps & SurveyDraftDeps = {
+  const deps: WriteDeps & AiUsageDeps & FreeUsageDeps & SurveyDraftDeps = {
     role: async () => role,
-    billing: async () => ({ state: "active", paidPlanId: "pro" }),
+    // Free while it's tested (ADR 0212): the plan is never read, so an unreadable one can't stop it.
+    billing: async () => (calls.push({ name: "billing", input: null }), null),
     countActiveProjects: async () => 0,
     loadTask: async () => null,
     createProject: async () => ({ ok: true, value: "p1" }),
@@ -58,7 +59,8 @@ function fakeDeps(role: OrgRole = "member") {
     saveContract: async () => ({ ok: true, value: 1 }),
     approveContract: async () => ({ ok: true, value: null }),
     listUsageGrants: async () => [],
-    reserveUsage: async (input) => (calls.push({ name: "reserve", input }), { ok: true, value: "entry-1" }),
+    reserveUsage: async (input) => (calls.push({ name: "reserve from the allowance", input }), { ok: true, value: "entry-0" }),
+    reserveFreeUsage: async (input) => (calls.push({ name: "reserve", input }), { ok: true, value: "entry-1" }),
     settleUsage: async (input) => (calls.push({ name: "settle", input }), { ok: true, value: null }),
     recordAiDraft: async (input) => (calls.push({ name: "record", input }), { ok: true, value: null }),
     newEventId: () => "key-1",
@@ -70,10 +72,13 @@ function fakeDeps(role: OrgRole = "member") {
 const common = { orgId: "o1", userId: "u1", projectId: "p1", document: emptyDocument(), points: SAMPLE_POINTS };
 
 describe("drafting from the surveyor's description", () => {
-  it("sends only the points the brief names, meters it as survey_draft, and checks what comes back", async () => {
+  it("sends only the points the brief names, meters it as free survey_draft use, and checks what comes back", async () => {
     const f = fakeDeps();
     const drafter = fakeDrafter({ ok: true, output: OUTPUT, usage });
-    const r = await draftSurveyPlan(f.deps, { family: "anthropic", create: () => drafter }, { ...common, brief: BRIEF });
+    let chosen = "";
+    const r = await draftSurveyPlan(f.deps, { family: "anthropic", create: (s) => ((chosen = s.model), drafter) }, { ...common, brief: BRIEF });
+    // Routed as the trial, so every tester sees the real quality, whatever their plan.
+    expect(chosen).toBe("claude-sonnet-5-5");
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const sent = drafter.requests[0] as DraftRequest;
@@ -81,7 +86,7 @@ describe("drafting from the surveyor's description", () => {
     expect(sent.brief).toBe(BRIEF);
     expect(JSON.stringify(sent)).not.toMatch(/500000|600000/);
     expect(f.calls.map((c) => c.name)).toEqual(["reserve", "settle", "record"]);
-    expect(f.calls[0]!.input).toMatchObject({ operation: "survey_draft", taskId: null });
+    expect(f.calls[0]!.input).toEqual({ orgId: "o1", actor: "u1", key: "key-1", operation: "survey_draft", units: expect.any(Number) });
     expect(f.calls[2]!.input).toEqual({ orgId: "o1", actor: "u1", projectId: "p1", operation: "survey_draft", model: "claude-sonnet-5-5", accepted: 2, dropped: 1, questions: 1 });
     expect(r.value.document.lots.map((l) => l.label)).toEqual(["A"]);
     expect(r.value.document.sheet.landName).toBe("Sample Watta");

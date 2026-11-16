@@ -161,7 +161,7 @@ export default function SurveyStudioPage() {
                 Survey Studio is Farbaek&apos;s module for licensed surveyors and the people who draw their plans. Import the points, confirm the grid, describe the job in your own words or set the lots yourself, and get a plan sheet in the classic Sri Lankan layout with every extent and width worked out by tested code. Print it at the scale it says, or take it into CAD.
               </p>
               <Actions />
-              <p className="text-sm text-ink-3">You&apos;ll sign in first. The sample plan is in every workspace.</p>
+              <p className="text-sm text-ink-3">You&apos;ll sign in first. The sample plan is in every workspace, and Survey Studio&apos;s AI is free on every plan while it&apos;s being tested.</p>
             </div>
           </div>
 

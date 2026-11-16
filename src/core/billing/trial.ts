@@ -153,7 +153,8 @@ function freePlan(): EffectivePlan {
   return { source: "free", planId: "free", limits: getPlan("free").limits };
 }
 
-function trialPlan(): EffectivePlan {
+/** The trial's entitlements. Survey Studio's free AI routes models as the trial does (ADR 0212). */
+export function trialPlan(): EffectivePlan {
   const team = getPlan(TRIAL.basePlan).limits;
   return {
     source: "trial",

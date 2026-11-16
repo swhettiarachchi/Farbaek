@@ -25,7 +25,7 @@ import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import { openToken, sealToken, vaultKey } from "@/server/launch/token-vault";
 import { resolveAiProvider, type AiProviderId } from "@/server/ai/config";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
-import type { AiUsageDeps } from "@/server/workspace/ai-usage";
+import type { AiUsageDeps, FreeUsageDeps } from "@/server/workspace/ai-usage";
 
 const BIND = (orgId: string) => ({ orgId, provider: "model:anthropic" });
 const ANTHROPIC_API = "https://api.anthropic.com";
@@ -144,13 +144,16 @@ export interface OwnKeyRecord {
  */
 export function ownKeyMetering<D extends AiUsageDeps>(deps: D, record: (row: OwnKeyRecord) => Promise<void>): D {
   const open = new Map<string, { orgId: string; actor: string; taskId: string | null; operation: string }>();
+  const reserve = async (input: { orgId: string; actor: string; key: string; taskId: string | null; operation: string }) => {
+    const id = `own:${input.key}`;
+    open.set(id, { orgId: input.orgId, actor: input.actor, taskId: input.taskId, operation: input.operation });
+    return { ok: true as const, value: id };
+  };
   return {
     ...deps,
-    async reserveUsage(input) {
-      const id = `own:${input.key}`;
-      open.set(id, { orgId: input.orgId, actor: input.actor, taskId: input.taskId, operation: input.operation });
-      return { ok: true as const, value: id };
-    },
+    reserveUsage: reserve,
+    // Survey Studio's free AI (ADR 0212) on a workspace's own key is on that key, as every other call is: off Farbaek's free limit.
+    ...("reserveFreeUsage" in deps ? { reserveFreeUsage: (input: Parameters<FreeUsageDeps["reserveFreeUsage"]>[0]) => reserve({ ...input, taskId: null }) } : {}),
     async settleUsage(input) {
       if (!input.entryId.startsWith("own:")) return deps.settleUsage(input);
       const r = open.get(input.entryId);

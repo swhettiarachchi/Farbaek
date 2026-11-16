@@ -12,10 +12,10 @@
  * Units are internal only. People see the share of their usage used, when
  * it resets and what rolled over (ADR 0019), never units or costs.
  */
-import { TYPICAL_PROMPT_TOKENS, type ButtonOperation, type UsageOperation } from "@/config/usage";
+import { TYPICAL_PROMPT_TOKENS, isFreeWhileTesting, type ButtonOperation, type FreeOperation, type UsageOperation } from "@/config/usage";
 import { costUnits, reserveUnits } from "@/core/billing/rate-card";
 import type { ModelFamily } from "@/core/agent/routing";
-import { resolveEffectivePlan, type BillingSnapshot, type EffectivePlan } from "@/core/billing/trial";
+import { resolveEffectivePlan, trialPlan, type BillingSnapshot, type EffectivePlan } from "@/core/billing/trial";
 import { currentGrant, walletView, type GrantRow, type GrantSpec, type WalletView } from "@/core/billing/wallet";
 import type { DraftFailure, ProviderUsage } from "@/server/ai/contract-drafter";
 import type { ModelSelection } from "@/server/ai/providers";
@@ -39,6 +39,14 @@ export interface AiUsageDeps {
     refundReason: RefundReason | null;
     retryCap: number | null;
   }): Promise<RpcResult<null>>;
+}
+
+/**
+ * Survey Studio's free AI (ADR 0212): a reservation on the ledger, marked free, that draws nothing from
+ * the workspace and needs no plan. The platform's daily limit and a daily limit on free use still apply.
+ */
+export interface FreeUsageDeps {
+  reserveFreeUsage(input: { orgId: string; actor: string; key: string; operation: FreeOperation; units: number }): Promise<RpcResult<string>>;
 }
 
 /** What a screen shows about an AI action, computed on the server for the current workspace. */
@@ -89,6 +97,8 @@ export function aiAvailability(input: {
   needs: number;
   /** What the person can still do by hand, for example "You can still write the contract yourself." */
   manual: string;
+  /** Free while it's tested (ADR 0212): no plan or allowance is needed, only Farbaek's own daily limits. */
+  free?: boolean;
 }): AiAvailability {
   const current = input.wallet?.current ?? null;
   const base = {
@@ -99,6 +109,7 @@ export function aiAvailability(input: {
   };
   if (input.writeReason) return { ...base, disabledReason: input.writeReason };
   if (!input.keyPresent) return { ...base, disabledReason: `${input.notConnectedReason ?? "AI isn't connected on this server yet."} ${input.manual}` };
+  if (input.free) return { ...base, disabledReason: null };
   if (!input.plan) return { ...base, disabledReason: PLAN_UNCONFIRMED };
   if (!input.wallet) return { ...base, disabledReason: "AI usage couldn't be read, so AI is paused." };
   if (input.wallet.available < input.needs) return { ...base, disabledReason: outOfUsage(input.plan.source === "trial", input.manual) };
@@ -154,6 +165,42 @@ export async function reserveUsage(
     return fail(code);
   }
   return { ok: true, value: { entryId: reserved.value, units, plan, grant } };
+}
+
+/** A free call's reservation: no plan, no grant, only Farbaek's own daily limits. Settled and refunded as any other. */
+export async function reserveFreeUsage(
+  deps: UsageContext & FreeUsageDeps,
+  input: { orgId: string; userId: string; operation: FreeOperation; units: number },
+): Promise<WriteResult<{ entryId: string; units: number }>> {
+  const units = Math.min(MAX_UNITS_PER_CALL, Math.max(1, Math.ceil(input.units)));
+  const reserved = await deps.reserveFreeUsage({ orgId: input.orgId, actor: input.userId, key: deps.newEventId(), operation: input.operation, units });
+  if (!reserved.ok) return fail(codeFromDatabaseError(reserved.error));
+  return { ok: true, value: { entryId: reserved.value, units } };
+}
+
+/**
+ * How one operation is paid for: free while it's tested (ADR 0212), routed as the trial so every tester
+ * sees the real quality and with no plan read, or from the workspace's plan as every other operation.
+ */
+export type Metering = { free: true; plan: EffectivePlan } | { free: false; plan: EffectivePlan; billing: ResolvedPlan };
+
+export async function resolveMetering(deps: UsageContext, orgId: string, operation: UsageOperation): Promise<WriteResult<Metering>> {
+  if (isFreeWhileTesting(operation)) return { ok: true, value: { free: true, plan: trialPlan() } };
+  const billing = await resolvePlan(deps, orgId);
+  if (!billing.ok) return billing;
+  return { ok: true, value: { free: false, plan: billing.value.plan, billing: billing.value } };
+}
+
+/** Reserves for one call as its metering says: a free entry, or room from the workspace's grants. */
+export async function reserveMetered(
+  deps: UsageContext & AiUsageDeps & FreeUsageDeps,
+  metering: Metering,
+  input: { orgId: string; userId: string; taskId: string | null; operation: UsageOperation; units: number; manual: string },
+): Promise<WriteResult<{ entryId: string; units: number }>> {
+  if (metering.free && isFreeWhileTesting(input.operation)) return reserveFreeUsage(deps, { orgId: input.orgId, userId: input.userId, operation: input.operation, units: input.units });
+  if (metering.free) return fail("ENTITLEMENT_UNAVAILABLE", PLAN_UNCONFIRMED);
+  const reserved = await reserveUsage(deps, { ...input, billing: metering.billing });
+  return reserved.ok ? { ok: true, value: { entryId: reserved.value.entryId, units: reserved.value.units } } : reserved;
 }
 
 const safely = (p: Promise<RpcResult<null>>): Promise<RpcResult<null>> => p.catch(() => ({ ok: false as const, error: "SETTLE_FAILED" }));

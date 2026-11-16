@@ -23,6 +23,7 @@ const PAUSES = [
 ] as const;
 
 export function SettingsPanel({
+  costNote,
   settings,
   setSettings,
   lang,
@@ -32,6 +33,8 @@ export function SettingsPanel({
   panelRef,
   onClose,
 }: {
+  /** What the assistant's AI costs, in a sentence, or null. */
+  costNote: string | null;
   settings: AssistantSettings;
   setSettings(change: Partial<AssistantSettings>): void;
   lang: AssistLanguage;
@@ -152,8 +155,9 @@ export function SettingsPanel({
           </div>
         ) : null}
       </div>
-      <div className="mt-3 flex justify-end">
-        <button type="button" onClick={() => onClose(true)} className={buttonClasses("ghost", "sm")}>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        {costNote ? <p className="text-xs text-ink-3">{costNote}</p> : <span />}
+        <button type="button" onClick={() => onClose(true)} className={buttonClasses("ghost", "sm", "shrink-0")}>
           Done
         </button>
       </div>

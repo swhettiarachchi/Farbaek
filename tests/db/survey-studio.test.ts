@@ -279,3 +279,121 @@ describe("the drafting assistant (v96)", () => {
     expect(await su("select count(*)::int as c from public.survey_assistant_turns where project_id = $1", [extra])).toEqual([{ c: 0 }]);
   });
 });
+
+describe("Survey Studio's AI is free while it's tested (v97, ADR 0212)", () => {
+  const reserveFree = (units: number, opts: { op?: string; actor?: string; key?: string; platform?: number | null; free?: number | null; orgId?: string } = {}) =>
+    q<{ id: string }>("select public.app_reserve_free_usage($1, $2, $3, $4, $5, $6, $7) as id", [
+      opts.orgId ?? org,
+      opts.actor ?? USERS.alice,
+      opts.key ?? `free-${Math.random()}`,
+      opts.op ?? "survey_assist",
+      units,
+      opts.platform === undefined ? null : opts.platform,
+      opts.free === undefined ? null : opts.free,
+    ]).then((r) => r[0]!.id);
+  const settleFree = (entry: string, status: "settled" | "refunded", units: number, reason: string | null = status === "refunded" ? "failed" : null) =>
+    q("select public.app_settle_usage($1, $2, $3, $4, 'claude-haiku-5-5', 3100, 180, 0, 2800, $5, null)", [org, entry, status, units, reason]);
+  const entry = (id: string) =>
+    su<{ free: boolean; status: string; credits: number; reserved_units: number; grants: unknown[]; operation: string; refund_reason: string | null; model: string | null }>(
+      "select free, status, credits::int, reserved_units::int, grants, operation, refund_reason, model from public.ai_credit_ledger where id = $1",
+      [id],
+    ).then((r) => r[0]!);
+  const wallet = () => su<{ n: number; used: number }>("select count(*)::int as n, coalesce(sum(used), 0)::int as used from public.usage_grants where org_id = $1", [org]).then((r) => r[0]!);
+
+  it("reserves a free entry for each survey operation and draws nothing from the workspace", async () => {
+    await su("delete from public.ai_credit_ledger");
+    const before = await wallet();
+    for (const op of ["survey_assist", "survey_draft", "survey_read"]) {
+      const id = await reserveFree(40, { op });
+      expect(await entry(id)).toMatchObject({ free: true, status: "reserved", credits: 40, reserved_units: 40, grants: [], operation: op });
+    }
+    expect(await wallet()).toEqual(before);
+  });
+
+  it("settles to the real cost, even over the reservation, without drawing from the workspace, and refunds in full", async () => {
+    const before = await wallet();
+    const over = await reserveFree(40);
+    await settleFree(over, "settled", 95);
+    expect(await entry(over)).toMatchObject({ free: true, status: "settled", credits: 95, grants: [], model: "claude-haiku-5-5", refund_reason: null });
+    const under = await reserveFree(40);
+    await settleFree(under, "settled", 12);
+    expect(await entry(under)).toMatchObject({ status: "settled", credits: 12, grants: [] });
+    const failed = await reserveFree(40);
+    await settleFree(failed, "refunded", 7);
+    expect(await entry(failed)).toMatchObject({ status: "refunded", refund_reason: "failed", credits: 7, grants: [] });
+    // A free entry settles once.
+    await expect(settleFree(over, "settled", 95)).rejects.toThrow(/NOT_FOUND/);
+    expect(await wallet()).toEqual(before);
+  });
+
+  it("counts free use toward the platform's daily limit, and stops at the daily limit on free use", async () => {
+    await su("delete from public.ai_credit_ledger");
+    await reserveFree(600, { platform: 1_000, free: 1_000 });
+    await expect(reserveFree(500, { platform: 1_000 })).rejects.toThrow(/PLATFORM_DAILY_LIMIT/);
+    await expect(reserveFree(500, { free: 1_000 })).rejects.toThrow(/FREE_DAILY_LIMIT/);
+    await reserveFree(400, { platform: 1_000, free: 1_000 });
+    // A paid entry counts toward the platform's limit, not toward the free one.
+    await su("insert into public.ai_credit_ledger (org_id, actor_id, idempotency_key, operation, credits, reserved_units, grants) values ($1, $2, 'paid-1', 'agent_step', 5000, 5000, '[]'::jsonb)", [org, USERS.alice]);
+    await expect(reserveFree(1, { platform: 6_000 })).rejects.toThrow(/PLATFORM_DAILY_LIMIT/);
+    await expect(reserveFree(1, { free: 1_000 })).rejects.toThrow(/FREE_DAILY_LIMIT/);
+    await reserveFree(1, { free: 1_001 });
+    await su("delete from public.ai_credit_ledger");
+  });
+
+  it("counts a refunded free call toward every daily total, since Farbaek paid for it", async () => {
+    await su("delete from public.ai_credit_ledger");
+    const refunded = await reserveFree(700);
+    await settleFree(refunded, "refunded", 700);
+    await expect(reserveFree(400, { free: 1_000 })).rejects.toThrow(/FREE_DAILY_LIMIT/);
+    await expect(reserveFree(400, { platform: 1_000 })).rejects.toThrow(/PLATFORM_DAILY_LIMIT/);
+    // The paid reservation's platform total counts it too, and so do the owner's spend alerts.
+    await expect(
+      q("select public.app_reserve_usage($1, $2, 'paid-after-free', 'agent_step', null, 400, null, 1000)", [org, USERS.alice]),
+    ).rejects.toThrow(/PLATFORM_DAILY_LIMIT/);
+    expect(await q<{ n: number }>("select public.app_platform_ai_units_today()::int as n")).toEqual([{ n: 700 }]);
+    // A paid refund still doesn't count, as before.
+    await su("insert into public.ai_credit_ledger (org_id, actor_id, idempotency_key, operation, credits, reserved_units, grants, status, refund_reason, settled_at) values ($1, $2, 'paid-refunded', 'agent_step', 5000, 5000, '[]'::jsonb, 'refunded', 'failed', now())", [org, USERS.alice]);
+    expect(await q<{ n: number }>("select public.app_platform_ai_units_today()::int as n")).toEqual([{ n: 700 }]);
+    // A free entry is never a free retry: that's for paid work.
+    const other = await reserveFree(10);
+    await expect(settleFree(other, "refunded", 10, "free_retry")).rejects.toThrow(/INVALID_STATUS/);
+    await su("delete from public.ai_credit_ledger");
+  });
+
+  it("refuses other operations, other workspaces, viewers, bad sizes and repeated keys", async () => {
+    await expect(reserveFree(10, { op: "agent_step" })).rejects.toThrow(/INVALID_OPERATION/);
+    await expect(reserveFree(10, { op: "contract_draft" })).rejects.toThrow(/INVALID_OPERATION/);
+    await expect(reserveFree(10, { actor: USERS.bob })).rejects.toThrow(/FORBIDDEN/);
+    await su("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'viewer')", [org, USERS.bob]);
+    await expect(reserveFree(10, { actor: USERS.bob })).rejects.toThrow(/FORBIDDEN/);
+    await su("delete from public.organization_members where org_id = $1 and user_id = $2", [org, USERS.bob]);
+    await expect(reserveFree(0)).rejects.toThrow(/INVALID_CREDITS/);
+    await expect(reserveFree(10_000_001)).rejects.toThrow(/INVALID_CREDITS/);
+    await reserveFree(10, { key: "same" });
+    await expect(reserveFree(10, { key: "same" })).rejects.toThrow(/DUPLICATE_REQUEST/);
+  });
+
+  it("is refused in a suspended workspace and while Farbaek has paused AI", async () => {
+    await su("update public.organizations set suspended_at = now() where id = $1", [org]);
+    await expect(reserveFree(10)).rejects.toThrow(/WORKSPACE_SUSPENDED/);
+    await su("update public.organizations set suspended_at = null where id = $1", [org]);
+    await su("update public.platform_flags set paused = true where key = 'ai_runs'");
+    await expect(reserveFree(10)).rejects.toThrow(/PAUSED_BY_FARBAEK/);
+    await su("update public.platform_flags set paused = false where key = 'ai_runs'");
+    await reserveFree(10);
+  });
+
+  it("can be called only by the server", async () => {
+    for (const role of ["anon", "authenticated"] as const) {
+      await as(db, role, role === "anon" ? null : USERS.alice, async () => {
+        await expect(db.query("select public.app_reserve_free_usage($1, $2, 'k-browser', 'survey_assist', 10, null, null)", [org, USERS.alice])).rejects.toThrow(/permission denied/);
+      });
+    }
+    // Members still see their own entries, free ones too, and only the server writes them.
+    await as(db, "authenticated", USERS.alice, async () => {
+      const rows = await db.query<{ free: boolean }>("select free from public.ai_credit_ledger where org_id = $1 and free", [org]);
+      expect(rows.rows.length).toBeGreaterThan(0);
+      await expect(db.query("update public.ai_credit_ledger set free = true where org_id = $1", [org])).rejects.toThrow(/permission denied/);
+    });
+  });
+});

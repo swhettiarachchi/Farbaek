@@ -129,6 +129,7 @@ Shift, Ctrl or Cmd plus a tap, or "Select several" on phones, picks items in ord
 ## Cost and limits
 
 - **Metering:** each model turn is metered as `survey_assist` ([docs/billing/usage.md](../billing/usage.md)). It's refunded when the call fails or when nothing in the answer survives the checks.
+- **Free while it's tested** ([ADR 0212](../adr/0212-survey-ai-free-while-tested.md)): no plan is read and nothing is drawn from the workspace. Each turn is a free ledger entry under Farbaek's daily limits, with 300 instructions a day per person on Farbaek's key, beside the 20 a minute. A workspace with its own Claude key keeps using it, with no daily limit from Farbaek.
 - **Rate limit:** 20 turns a minute per person.
 - **No model turn:** the local reader, the answers and the hand-overs use no AI.
 - **Off:** in the demo and on read-only plans the model is off with the reason. The local reader still works.

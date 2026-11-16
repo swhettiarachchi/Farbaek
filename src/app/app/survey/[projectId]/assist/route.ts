@@ -7,7 +7,7 @@ import { readTextCapped } from "@/server/http/body";
 import { sameOrigin } from "@/server/sandbox/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
-import { ASSIST_LIMITS, runAssistant, type SurveyAssistDeps } from "@/server/survey/assistant";
+import { ASSIST_LIMITS, SURVEY_AI_DAILY, runAssistant, type SurveyAssistDeps } from "@/server/survey/assistant";
 import { loadSurveyProject } from "@/server/survey/read";
 import { loadAppContext } from "@/server/workspace/context";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
@@ -60,6 +60,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   }
   const body = Body.safeParse(raw);
   if (!body.success) return refuse("That instruction couldn't be read.", 400);
+  if (!body.data.words.trim()) return refuse("Say or type an instruction first.", 400);
   const doc = surveyDocumentSchema.safeParse(body.data.document);
   if (!doc.success) return refuse("The plan on this screen couldn't be read. Reload the page, then try again.", 400);
 
@@ -97,6 +98,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   const deps = { ...createSupabaseWriteDeps(user, admin, ctx.user.id), ...recorder };
   const ai = await aiForWorkspace(orgId, deps, { timeout: 20_000, claudeOnly: "The drafting assistant's AI" });
   if ("error" in ai) return refuse(ai.error, 503);
+  // Free while it's tested (ADR 0212): a day's fair share for one person on Farbaek's key. A workspace's own key has no such limit.
+  if (!ai.own) {
+    const day = await admin.rpc("app_rate_limit", { p_key: `survey-assist-day:${ctx.user.id}`, p_window_seconds: 86_400, p_limit: SURVEY_AI_DAILY.assist });
+    if (day.error) return refuse("The assistant isn't available right now. Try again in a minute.", 503);
+    if (day.data !== true) return refuse(`That's ${SURVEY_AI_DAILY.assist} instructions to the AI today, the most for one person while Survey Studio is being tested. It's back tomorrow; zooming, layers, the paper and the area still work.`, 429);
+  }
   const source = { family: "anthropic" as const, create: (s: { model: string }) => createAnthropicSurveyAssistant({ model: s.model, client: ai.client }) };
   const r = await runAssistant(
     ai.deps,
@@ -112,7 +119,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
           ? 403
           : r.code === "QUOTA_EXCEEDED" || r.code === "TRIAL_CAP_REACHED" || r.code === "BILLING_SUSPENDED"
             ? 402
-            : r.code === "PLATFORM_DAILY_LIMIT"
+            : r.code === "PLATFORM_DAILY_LIMIT" || r.code === "FREE_DAILY_LIMIT"
               ? 429
               : r.code === "INVALID_REQUEST"
                 ? 400

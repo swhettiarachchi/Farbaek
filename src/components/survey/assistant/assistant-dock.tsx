@@ -52,6 +52,8 @@ export interface EditorBridge {
   readOnly: string | null;
   /** Why the model can't be asked here (the demo, no AI), or null; the local reader still works. */
   aiOff: string | null;
+  /** What the assistant's AI costs, in a sentence (ADR 0212), or null when there's nothing to say. */
+  aiCost: string | null;
   approved: boolean;
   dirty: boolean;
   setPreview(ops: PlanOp[] | null): void;
@@ -944,6 +946,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
 
       {settingsOpen ? (
         <SettingsPanel
+          costNote={bridge.aiCost}
           settings={settings}
           setSettings={(change) => {
             if (change.speak === false) voice.cancel();
