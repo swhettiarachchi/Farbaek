@@ -101,7 +101,8 @@ function decide(t: Turn, outcome: "applied" | "discarded" | "reverted", ops: rea
  */
 function recordLocal(projectId: string, t: Pick<Turn, "id" | "words" | "lang" | "inputMethod">, ops: readonly PlanOp[], update: (id: string, change: Partial<Turn>) => void) {
   void canonicalHash(ops)
-    .then((hash) => recordLocalAssistTurnAction({ projectId, words: t.words, lang: t.lang, inputMethod: t.inputMethod, operations: ops as unknown as { kind: string }[], appliedSha256: hash }))
+    // The server reads the words again itself; only the hash of what was applied goes with them.
+    .then((hash) => recordLocalAssistTurnAction({ projectId, words: t.words, lang: t.lang, inputMethod: t.inputMethod, appliedSha256: hash }))
     .then((r) => {
       if (r.ok && r.turnId) update(t.id, { serverId: r.turnId });
     })
@@ -534,7 +535,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         // The recogniser has ended without sending anything; a live conversation ends with it.
         // On the computer, "not supported" means Chrome no longer has English downloaded.
         const msg =
-          code === "language-not-supported" && latest.current.settings.onDeviceTag
+          code === "language-not-supported" && latest.current.settings.lang === "en" && latest.current.settings.onDeviceTag
             ? "English isn't downloaded for this computer any more. Download it again in the assistant's settings, or switch off hearing on this computer."
             : speechErrorMessage(code, languageOf(latest.current.settings.lang).name);
         clearTimers();

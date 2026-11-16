@@ -182,7 +182,7 @@ const earlierTurnRow = z.object({
  * The drafting assistant's latest instructions on a project (v96), oldest first, for the drawer's earlier visits. Read through RLS:
  * members of the workspace see them. Empty when they can't be read; the drawer then shows this visit only.
  */
-export async function loadAssistantHistory(client: SupabaseClient, projectId: string, limit = 20): Promise<EarlierTurn[]> {
+export async function loadAssistantHistory(client: SupabaseClient, projectId: string, limit = 40): Promise<EarlierTurn[]> {
   if (!z.string().uuid().safeParse(projectId).success) return [];
   const { data, error } = await client.from("survey_assistant_turns").select("id, words, outcome, input_method, model, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(limit);
   if (error || !data) return [];

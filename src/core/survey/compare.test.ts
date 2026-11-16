@@ -75,6 +75,6 @@ describe("comparing two versions", () => {
     after.notes.push("Boundary walls are the owner's.");
     after.lots.push({ id: "lot-a1", label: "B", sup: "4", points: [id(1), id(2), id(3)], note: "" });
     after.provenance["lot:lot-a1"] = { source: "ai_assist", reviewed: true };
-    expect(compareDocuments(before, after, SAMPLE_POINTS).map((c) => c.text)).toContain("1 item was added or changed with the drafting assistant, each applied after you saw it.");
+    expect(compareDocuments(before, after, SAMPLE_POINTS).map((c) => c.text)).toContain("1 item was added or changed with the drafting assistant, each applied by the surveyor after seeing it.");
   });
 });

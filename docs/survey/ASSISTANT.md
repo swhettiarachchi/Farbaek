@@ -110,7 +110,8 @@ Shift, Ctrl or Cmd plus a tap, or "Select several" on phones, picks items in ord
 - **The record:** every turn that reaches the model is recorded in `survey_assistant_turns` (migration v96; [DATA_MODEL.md](DATA_MODEL.md)) with the words, the reply, the operations as checked, what was left out, the outcome and, when applied, the SHA-256 of what was applied.
   - Changes the local rules read and the surveyor applied are recorded too, as model `local` (`recordLocalAssistTurnAction`), so the record has every change the assistant made.
   - Views and answers change nothing and aren't recorded.
-- **The drawer:** the latest 20 instructions from earlier visits (from the record, with what came of them and "Use again"), then this visit's, with "Use again" and "Take back".
+- **The drawer:** "Earlier on this project", the latest 20 instructions from the record, anyone's in the workspace, with what came of them ("No change made" for answers, questions and changes never applied) and "Use again". Then this visit's, with "Use again" and "Take back". It opens at the newest.
+- **The record of a local change** is read again on the server from the words, by the same local rules: the browser sends only the words and the hash of what was applied, never operations, so the record holds only what the words ask for. 20 a minute per person.
 - **Marks:** what the assistant adds is marked `ai_assist` (checked: the surveyor applied it after seeing it). History's compare names it: "added or changed with the drafting assistant, each applied after you saw it".
 - **Divisions stay on the Lots step:** a division is handed to the divide panel there, after the plan is saved, so nothing is lost. The panel needs that step's room, with the lots editor and the block-out plan beside it, so it isn't repeated on the Plan step. The Import and Lots steps say the assistant is on the Plan step.
 

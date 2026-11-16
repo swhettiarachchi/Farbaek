@@ -25,9 +25,9 @@ const OUTCOME: Record<Outcome, { status: Status; label: string }> = {
   reverted: { status: "off", label: "Taken back" },
 };
 
-/** What came of an earlier visit's instruction, as the record says. One never decided was left when the page closed. */
+/** What came of an earlier instruction, as the record says. "Suggested" is also every answer or question, which change nothing. */
 const EARLIER: Record<EarlierTurn["outcome"], { status: Status; label: string }> = {
-  suggested: { status: "off", label: "Left undecided" },
+  suggested: { status: "off", label: "No change made" },
   applied: { status: "done", label: "Applied" },
   discarded: { status: "off", label: "Discarded" },
   failed: { status: "attention", label: "Couldn't" },
@@ -51,7 +51,7 @@ export function TurnsDrawer({
 }) {
   // This visit's own turns are already listed below, so the record's copies of them are left out.
   const mine = new Set(turns.map((t) => t.serverId).filter(Boolean));
-  const before = earlier.filter((e) => !mine.has(e.id));
+  const before = earlier.filter((e) => !mine.has(e.id)).slice(-20);
   return (
     <section aria-label="Earlier instructions" className="pointer-events-auto w-full max-w-3xl rounded-md bg-surface shadow-e2 ring-1 ring-line motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2">
@@ -60,10 +60,11 @@ export function TurnsDrawer({
           <XIcon size={16} weight="bold" aria-hidden />
         </button>
       </div>
-      <div className="max-h-[min(44vh,26rem)] overflow-y-auto">
+      {/* Opens at the newest, this visit's, with what came of them and Take back. */}
+      <div ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }} className="max-h-[min(44vh,26rem)] overflow-y-auto">
       {before.length > 0 ? (
-        <section aria-label="Earlier visits" className="border-b border-line">
-          <h4 className="px-4 pt-3 text-xs font-medium text-ink-3">Earlier visits</h4>
+        <section aria-label="Earlier on this project" className="border-b border-line">
+          <h4 className="px-4 pt-3 text-xs font-medium text-ink-3">Earlier on this project</h4>
           <ol className="grid gap-1 p-2">
             {before.map((e) => (
               <li key={e.id} className="grid gap-2 rounded-sm px-3 py-2.5 hover:bg-canvas-2">

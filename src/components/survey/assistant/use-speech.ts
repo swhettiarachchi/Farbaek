@@ -63,7 +63,8 @@ export type OnDeviceStatus = { state: "available" | "downloadable" | "downloadin
  */
 export async function onDeviceStatus(tags: readonly string[]): Promise<OnDeviceStatus> {
   const C = recogniserClass() as (RecogniserClass & SpeechStatics) | null;
-  if (!C || typeof C.available !== "function") return { state: "unavailable" };
+  // Offered only where the recogniser itself can be told to stay on the computer; a browser that only answers the question isn't enough.
+  if (!C || typeof C.available !== "function" || !("processLocally" in C.prototype)) return { state: "unavailable" };
   let later: OnDeviceStatus | null = null;
   for (const tag of tags) {
     try {
@@ -94,6 +95,8 @@ let phrasesRefused = false;
 /** What a recogniser's error means for the surveyor, and what to do; null when it isn't one to show (a cancel, silence). */
 export function speechErrorMessage(code: string, langName: string): string | null {
   switch (code) {
+    case "on-device-unsupported":
+      return "This browser can't keep the sound on this computer, so it didn't listen. Switch off hearing on this computer in the assistant's settings, or type the instruction.";
     case "phrases-not-supported":
       return "This browser didn't take the survey-word hints, so they're off now. Try again.";
     case "not-allowed":
@@ -182,6 +185,8 @@ export function useSpeech() {
     r.maxAlternatives = 1;
     if (o.processLocally) {
       const local = r as Recogniser & { processLocally?: boolean; phrases?: unknown };
+      // Fails closed: a recogniser that can't stay on the computer isn't started, so the sound never goes elsewhere unasked.
+      if (!("processLocally" in local)) throw new Error("on-device-unsupported");
       local.processLocally = true;
       const Phrase = (window as unknown as { SpeechRecognitionPhrase?: new (phrase: string, boost: number) => unknown }).SpeechRecognitionPhrase;
       if (Phrase && o.phrases?.length && !phrasesRefused) {
@@ -252,9 +257,9 @@ export function useSpeech() {
       setListening(true);
       try {
         begin();
-      } catch {
+      } catch (e) {
         end();
-        o.onError("start-failed");
+        o.onError(e instanceof Error && e.message === "on-device-unsupported" ? "on-device-unsupported" : "start-failed");
       }
     },
     [begin, end],

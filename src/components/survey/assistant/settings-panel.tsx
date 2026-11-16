@@ -8,11 +8,13 @@
  * sound never leaves the computer, and Chrome listens for survey words such as bearing and perch. Where the browser doesn't offer it,
  * the choice isn't shown.
  */
-import { useEffect, useId, useState, type KeyboardEvent, type RefObject } from "react";
+import { useEffect, useId, useState, useSyncExternalStore, type KeyboardEvent, type RefObject } from "react";
 import { ON_DEVICE_ENGLISH, type AssistLanguage, type BrowserFamily } from "@/core/survey/assistant/languages";
 import { buttonClasses } from "@/components/ui/button";
 import type { AssistantSettings } from "./assistant-context";
 import { installOnDevice, onDeviceStatus, type OnDeviceStatus } from "./use-speech";
+
+const noSubscribe = () => () => {};
 
 const PAUSES = [
   [800, "0.8 s"],
@@ -42,6 +44,8 @@ export function SettingsPanel({
   const [device, setDevice] = useState<OnDeviceStatus | { state: "checking" }>(() => (offered ? { state: "checking" } : { state: "unavailable" }));
   const [downloading, setDownloading] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
+  // Survey-word hints exist only in newer browsers (Chrome 142 and later); the help text promises them only where they do.
+  const hints = useSyncExternalStore(noSubscribe, () => typeof (window as unknown as { SpeechRecognitionPhrase?: unknown }).SpeechRecognitionPhrase === "function", () => false);
 
   useEffect(() => {
     if (!offered) return;
@@ -55,13 +59,16 @@ export function SettingsPanel({
   const download = async (tag: string) => {
     setDownloading(true);
     setDownloadFailed(false);
-    // The click is the user activation Chrome needs for the download.
+    // The click is the user activation the browser needs for the download.
     const ok = await installOnDevice(tag);
+    // Switched on only once the browser says English is really there; it may still be downloading.
+    const now = ok ? await onDeviceStatus([tag]) : null;
     setDownloading(false);
-    if (ok) {
-      setDevice({ state: "available", tag });
+    if (now?.state === "available") {
+      setDevice(now);
       setSettings({ onDeviceTag: tag });
-    } else setDownloadFailed(true);
+    } else if (now) setDevice(now);
+    else setDownloadFailed(true);
   };
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -73,6 +80,7 @@ export function SettingsPanel({
   };
 
   const onDevice = settings.onDeviceTag !== null;
+  const busy = downloading || device.state === "downloading";
   return (
     <div
       ref={panelRef}
@@ -100,28 +108,41 @@ export function SettingsPanel({
         {offered && (device.state === "available" || onDevice) ? (
           <SwitchRow
             label="Hear English on this computer"
-            help="Chrome turns your speech into text here, without sending the sound to Google, and listens for survey words such as bearing and perch."
+            help={`The browser turns your speech into text here, without sending the sound off the computer${hints ? ", and listens for survey words such as bearing and perch" : ""}.`}
             on={onDevice}
             onChange={(on) => setSettings({ onDeviceTag: on ? (device.state === "available" ? device.tag : settings.onDeviceTag) : null })}
           />
-        ) : offered && (device.state === "downloadable" || device.state === "downloading") ? (
+        ) : null}
+        {/* The download stays here while English isn't on the computer, even with the switch on (after Chrome removed it, say). */}
+        {offered && (device.state === "downloadable" || device.state === "downloading") ? (
           <div className="grid gap-2 py-3">
-            <p className="text-sm font-medium text-ink">Hear English on this computer</p>
-            <p className="text-xs text-ink-3">
-              Chrome can turn your speech into text here, so the sound never leaves the computer, and listen for survey words such as bearing and perch. It needs a one-time download by Chrome.
-            </p>
-            {device.state === "downloading" || downloading ? (
-              <p role="status" className="text-xs text-ink-2">
-                Chrome is downloading English for this computer. It can take a few minutes.
-              </p>
+            {onDevice ? (
+              <p className="text-xs text-ink-2">English isn&apos;t on this computer any more, so listening won&apos;t work until it&apos;s downloaded again, or you switch this off.</p>
             ) : (
-              <button type="button" onClick={() => void download(device.tag)} className={buttonClasses("secondary", "sm", "w-fit")}>
-                Download English for this computer
-              </button>
+              <>
+                <p className="text-sm font-medium text-ink">Hear English on this computer</p>
+                <p className="text-xs text-ink-3">
+                  The browser can turn your speech into text here, so the sound never leaves the computer{hints ? ", and listen for survey words such as bearing and perch" : ""}. It needs a one-time download by the browser.
+                </p>
+              </>
             )}
+            {/* The button stays while it downloads, so the focus stays on it. */}
+            <button
+              type="button"
+              aria-disabled={busy || undefined}
+              onClick={() => !busy && void download(device.tag)}
+              className={buttonClasses("secondary", "sm", "w-fit aria-disabled:cursor-not-allowed aria-disabled:opacity-70")}
+            >
+              {busy ? "Downloading English…" : "Download English for this computer"}
+            </button>
+            {busy ? (
+              <p role="status" className="text-xs text-ink-2">
+                The browser is downloading English for this computer. It can take a few minutes; close this and open it again to see when it&apos;s ready.
+              </p>
+            ) : null}
             {downloadFailed ? (
               <p role="status" className="text-xs text-ink-2">
-                Chrome didn&apos;t download it. Try again later; the assistant hears you through Google meanwhile.
+                It didn&apos;t download. Try again later; meanwhile the assistant hears you through the browser&apos;s own service.
               </p>
             ) : null}
           </div>
