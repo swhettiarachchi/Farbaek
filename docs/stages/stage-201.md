@@ -2,7 +2,7 @@
 
 - **Date:** 2026-11-17
 - **Branch:** `feat/stage-201-farbaek-ai` (built on `feat/stage-200-platform-spaces`, PR #263, not yet merged)
-- **Decisions:** ADR 0215 (Farbaek AI's intelligence layer), ADR 0216 (the studios and the chat-first order)
+- **Decisions:** ADR 0215 (Farbaek AI's intelligence layer), ADR 0216 (the studios and the chat-first order), ADR 0217 (the spectrum, and the knight back in the hero)
 - **Migration:** v100, `supabase/migrations/20270110090000_creative_studios.sql`, SHA-256 `d1bc41e6eda9c283e9535bfe5d51b02756eba9b7151ed67eaeb8ba5149b1ebc4`. Apply and read back before the merge (below).
 
 ## What the owner asked

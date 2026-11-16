@@ -22,7 +22,7 @@ A second look at the references for colour: ChatGPT colours one word of its head
 
 **The headline** names the three verbs in the spaces' colours: Ask (blue), create (rose), build (leaf).
 
-**Sizes stay compact:** the headline is 36, 52 and 64 px; buttons 40 px; the hero, knight included, fits one screen with the product window showing under it.
+**Sizes stay compact:** the headline is 32, 52 and 64 px; buttons 40 px; the hero, knight included, fits one screen with the product window showing under it.
 
 ## Consequences
 
