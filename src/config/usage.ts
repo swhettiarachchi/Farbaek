@@ -5,7 +5,7 @@
  * reserves room first and is settled to the real cost afterwards.
  * The database ledger (ai_credit_ledger) accepts only these operations.
  */
-export const USAGE_OPERATIONS = ["contract_draft", "change_proposal", "agent_step", "security_review", "model_gateway", "lens_mapping", "policy_draft", "image_generation", "second_check", "task_note", "failure_test", "survey_draft", "survey_read", "survey_assist", "chat"] as const;
+export const USAGE_OPERATIONS = ["contract_draft", "change_proposal", "agent_step", "security_review", "model_gateway", "lens_mapping", "policy_draft", "image_generation", "second_check", "task_note", "failure_test", "survey_draft", "survey_read", "survey_assist", "chat", "video_generation"] as const;
 
 export type UsageOperation = (typeof USAGE_OPERATIONS)[number];
 
@@ -25,6 +25,7 @@ export const USAGE_OPERATION_LABELS: Record<UsageOperation, string> = {
   survey_read: "Read an old survey plan from a photo",
   survey_assist: "Drafting assistant instruction",
   chat: "Chat message",
+  video_generation: "Make a video",
 };
 
 /** The operations a button in the web app starts directly. */

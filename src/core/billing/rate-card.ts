@@ -42,6 +42,12 @@ export const RATE_CARD: Record<ModelId, ModelRate> = {
   // The second checker (ADR 0121). OpenAI's pricing page, 2026-10-30: $1 input, $0.05 cached input, $5 output; caching is automatic with no
   // write charge. Above 272K prompt tokens input doubles and output is 1.5x; metering the whole call at 2x there never under-meters.
   "gpt-6.1-terra": { label: MODEL_NAMES["gpt-6.1-terra"], provider: "openai", input: 1, output: 5, cacheWrite: 1, cacheRead: 0.05, longPrompt: { aboveTokens: 272_000, multiplier: 2 } },
+  // The image studio (ADR 0216). OpenAI's pricing page, 2026-11-17: image output $30 per million tokens, image input $8 (text input $5:
+  // metered at the image price, so a prompt is never under-metered), cached image input $2.
+  "gpt-image-2.5-sunburst": { label: MODEL_NAMES["gpt-image-2.5-sunburst"], provider: "openai", input: 8, output: 30, cacheWrite: 8, cacheRead: 2 },
+  // The video studio (ADR 0216). Google's pricing page, 2026-11-17: input $1.50, video output $12 per million tokens, at 5,792 tokens a
+  // second of 720p video (about $0.07 a second).
+  "gemini-omni-1.2-flash": { label: MODEL_NAMES["gemini-omni-1.2-flash"], provider: "gemini", input: 1.5, output: 12, cacheWrite: 1.5, cacheRead: 0.15 },
 };
 
 export interface TokenUsage {

@@ -3,14 +3,20 @@
 import { usePathname } from "next/navigation";
 import { PageTransition } from "@/components/app/page-transition";
 
-/** Farbaek Chat has its own full-screen workspace (stage 199, ADR 0213): its own sidebar, header and composer, no app shell. */
+/**
+ * Farbaek AI's workspaces bring their own full-screen frame, with no app shell: Chat (stage 199, ADR 0213) and the image and video
+ * studios (stage 201, ADR 0216).
+ */
+const OWN_FRAME = ["/app/chat", "/app/images", "/app/video"];
+
 export function isChatPath(pathname: string | null): boolean {
-  return pathname === "/app/chat" || (pathname ?? "").startsWith("/app/chat/");
+  const p = pathname ?? "";
+  return OWN_FRAME.some((root) => p === root || p.startsWith(`${root}/`));
 }
 
 /**
  * The signed-in app's frame: the sidebar, the page bands and phone header, the page, and the phone tab bar, all rendered on the
- * server and passed in. On Farbaek Chat's pages only the page shows, since the chat brings its own frame.
+ * server and passed in. On Chat's and the studios' pages only the page shows, since they bring their own frame.
  */
 export function AppFrame({ sidebar, top, tabBar, children }: { sidebar: React.ReactNode; top: React.ReactNode; tabBar: React.ReactNode; children: React.ReactNode }) {
   if (isChatPath(usePathname())) {
