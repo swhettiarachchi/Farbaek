@@ -164,7 +164,7 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
                       type="button"
                       aria-pressed={width === k}
                       onClick={() => setWidth(k)}
-                      className={`inline-flex size-11 items-center justify-center rounded-full ${width === k ? "bg-ink text-surface" : "text-ink-2 hover:bg-surface-raised"}`}
+                      className={`inline-flex tap size-10 items-center justify-center rounded-full ${width === k ? "bg-ink text-surface" : "text-ink-2 hover:bg-surface-raised"}`}
                       aria-label={W.label}
                     >
                       <W.icon size={16} weight="bold" aria-hidden />
@@ -179,12 +179,12 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
                   setPreview((p) => (p ? { ...p, src: `${p.origin}/` } : p));
                   setFrameKey((k) => k + 1);
                 }}
-                className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised"
+                className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised"
                 aria-label="Reload preview"
               >
                 <ArrowClockwiseIcon size={16} weight="bold" aria-hidden />
               </button>
-              <button type="button" onClick={() => void close()} className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Close preview">
+              <button type="button" onClick={() => void close()} className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Close preview">
                 <XIcon size={16} weight="bold" aria-hidden />
               </button>
             </div>

@@ -182,7 +182,7 @@ export function UsagePanel({ planLabel }: { planLabel: string }) {
         >
           <div className="mb-4 flex items-center justify-between gap-3">
             <CardTitle icon={GaugeIcon}>Usage</CardTitle>
-            <Link href="/app/billing" onClick={() => setOpen(false)} className="-my-2 -mr-2 inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink" aria-label="Billing and usage">
+            <Link href="/app/billing" onClick={() => setOpen(false)} className="-my-2 -mr-2 inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink" aria-label="Billing and usage">
               <ArrowUpRightIcon size={16} weight="bold" aria-hidden />
             </Link>
           </div>

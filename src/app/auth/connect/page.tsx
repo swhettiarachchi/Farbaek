@@ -100,10 +100,10 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
         <input type="hidden" name="state" value={state} />
         <input type="hidden" name="platform" value={platform} />
         <input type="hidden" name="device" value={name} />
-        <button type="submit" className={buttonClasses("primary", "md", "min-h-11 w-full")}>
+        <button type="submit" className={buttonClasses("primary", "md", "w-full")}>
           Connect this {what}
         </button>
-        <a href={callbackUrl({ error: "cancelled", state })} className={buttonClasses("ghost", "md", "min-h-11 w-full")}>
+        <a href={callbackUrl({ error: "cancelled", state })} className={buttonClasses("ghost", "md", "w-full")}>
           Cancel
         </a>
       </form>

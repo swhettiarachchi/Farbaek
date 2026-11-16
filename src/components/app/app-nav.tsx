@@ -229,12 +229,14 @@ export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number;
   const claimed = PHONE_TAB_FOR.find((c) => c.page.test(pathname))?.tab ?? null;
   const moreActive = !claimed && ["/app/more", "/app/workspaces", ...MORE_PAGES.map((p) => p.href)].some((p) => pathname.startsWith(p));
   return (
+    // On a tablet the five tabs spread out, each icon beside its name (ADR 0211), instead of bunching in the middle.
     <nav
       aria-label="App"
       data-hide-for-keyboard
+      data-tab-bar
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-5">
+      <ul className="mx-auto grid max-w-lg grid-cols-5 md:max-w-3xl md:px-4">
         {TABS.map((item) => {
           const active = item.href === "/app/more" ? moreActive : item.href === claimed || (!claimed && isActive(pathname, item));
           return (
@@ -243,19 +245,19 @@ export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number;
                 href={item.href}
                 transitionTypes={PAGE_NAV}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex h-[64px] flex-col items-center justify-center gap-1 text-[min(0.6875rem,14px)] leading-tight ${active ? "font-medium text-accent" : "text-ink-2"}`}
+                className={`relative flex h-[64px] flex-col items-center justify-center gap-1 text-[min(0.6875rem,14px)] leading-tight md:flex-row md:gap-2 md:text-[min(0.8125rem,15px)] ${active ? "font-medium text-accent" : "text-ink-2"}`}
               >
-                <item.icon size={24} weight={active ? "fill" : "regular"} aria-hidden />
+                <item.icon size={24} weight={active ? "fill" : "regular"} aria-hidden className="md:size-5" />
                 {item.short}
                 {item.href === "/app/approvals" && approvals > 0 ? (
-                  <span className="absolute right-[calc(50%-20px)] top-[8px] flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-approval px-[4px] text-[min(0.6875rem,12px)] font-semibold text-on-accent tabular">
+                  <span className="absolute right-[calc(50%-20px)] top-[8px] flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-approval md:static px-[4px] text-[min(0.6875rem,12px)] font-semibold text-on-accent tabular">
                     {approvals}
                     <span className="sr-only"> waiting</span>
                   </span>
                 ) : null}
                 {/* Help lives under More on phones; a dot there says Farbaek replied. */}
                 {item.href === "/app/more" && helpUnread > 0 ? (
-                  <span className="absolute right-[calc(50%-16px)] top-[10px] size-[10px] rounded-full bg-accent ring-2 ring-surface">
+                  <span className="absolute right-[calc(50%-16px)] top-[10px] size-[10px] rounded-full bg-accent ring-2 ring-surface md:static">
                     <span className="sr-only">, Farbaek replied to your request</span>
                   </span>
                 ) : null}

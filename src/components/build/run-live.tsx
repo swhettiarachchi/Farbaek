@@ -250,7 +250,7 @@ function MessageBar({ runId }: { runId: string }) {
         <button
           type="submit"
           disabled={pending || !text.trim()}
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Send to the agent"
         >
           <PaperPlaneRightIcon size={20} aria-hidden />

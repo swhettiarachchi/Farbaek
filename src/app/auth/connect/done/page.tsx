@@ -40,7 +40,7 @@ export default async function ConnectDonePage({ searchParams }: { searchParams: 
             {code ? "The Farbaek app finishes signing in on its own. If it didn't open, tap the button." : error ? ERRORS[error] : "This page opens from the Farbaek app. Open it on your phone and tap Sign in."}
           </p>
           {target ? (
-            <a href={target} className={buttonClasses("primary", "md", "mt-6 min-h-11 w-full")}>
+            <a href={target} className={buttonClasses("primary", "md", "mt-6 w-full")}>
               Open the Farbaek app
               <ArrowSquareOutIcon size={16} weight="bold" aria-hidden />
             </a>

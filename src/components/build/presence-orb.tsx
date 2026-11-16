@@ -58,7 +58,7 @@ export function PresenceOrb({ orgId, initial, compact = false }: { orgId: string
 
   if (compact) {
     return (
-      <Link href={href} className="inline-flex size-11 shrink-0 items-center justify-center rounded-full" aria-label={label} title={label}>
+      <Link href={href} className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full" aria-label={label} title={label}>
         <CoreMark state={presence.state} size="sm" />
       </Link>
     );

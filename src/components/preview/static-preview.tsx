@@ -206,7 +206,7 @@ function BrowserBar({
   onReload: () => void;
   onFull?: () => void;
 }) {
-  const round = "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:text-ink-3/50 disabled:hover:bg-transparent";
+  const round = "inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:text-ink-3/50 disabled:hover:bg-transparent";
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1 rounded-full border border-line bg-surface p-1 shadow-e1">
       <button type="button" onClick={onBack} disabled={!canGoBack} aria-label="Back to the page before" title="Back" className={round}>
@@ -412,7 +412,7 @@ function FullScreen({
               onClick={() => dialog.current?.close()}
               aria-label="Close full screen"
               title="Close"
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink shadow-e1 transition-colors duration-150 hover:bg-surface-raised"
+              className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink shadow-e1 transition-colors duration-150 hover:bg-surface-raised"
             >
               <XIcon size={20} weight="bold" aria-hidden />
             </button>

@@ -997,7 +997,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           </div>
           {/* Send shows once there's something to send; the microphone is the bar's one dark control. */}
           {text.trim() && !listening ? (
-            <button type="button" aria-label="Send" disabled={phase === "working"} onClick={() => void run(text, phase === "heard" ? "voice" : "typed")} className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent max-[18em]:!size-[44px] max-[18em]:!shrink-0 transition-[transform,background-color] duration-150 hover:bg-accent-strong active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 motion-safe:animate-[usage-in_160ms_cubic-bezier(0.16,1,0.3,1)_both]">
+            <button type="button" aria-label="Send" disabled={phase === "working"} onClick={() => void run(text, phase === "heard" ? "voice" : "typed")} className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent max-[18em]:!size-[44px] max-[18em]:!shrink-0 transition-[transform,background-color] duration-150 hover:bg-accent-strong active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 motion-safe:animate-[usage-in_160ms_cubic-bezier(0.16,1,0.3,1)_both]">
               <PaperPlaneRightIcon size={16} weight="fill" aria-hidden />
             </button>
           ) : null}
@@ -1023,7 +1023,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
               }
             }}
             onContextMenu={(e) => e.preventDefault()}
-            className={`inline-flex size-11 shrink-0 touch-none select-none items-center justify-center rounded-full max-[18em]:!size-[44px] max-[18em]:!shrink-0 transition-[transform,background-color] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${listening ? "bg-accent text-on-accent shadow-e1" : availability.ok ? "bg-ink text-surface hover:bg-ink/90" : "bg-canvas-2 text-ink-3"}`}
+            className={`inline-flex tap size-10 shrink-0 touch-none select-none items-center justify-center rounded-full max-[18em]:!size-[44px] max-[18em]:!shrink-0 transition-[transform,background-color] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${listening ? "bg-accent text-on-accent shadow-e1" : availability.ok ? "bg-ink text-surface hover:bg-ink/90" : "bg-canvas-2 text-ink-3"}`}
           >
             {listening ? <StopIcon size={16} weight="fill" aria-hidden /> : availability.ok ? <MicrophoneIcon size={16} weight="fill" aria-hidden /> : <MicrophoneSlashIcon size={16} weight="bold" aria-hidden />}
           </button>
@@ -1058,7 +1058,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
             {status}
           </p>
           {lastUndoable && !bridge.readOnly ? (
-            <button type="button" aria-label="Undo the assistant's last change" title="Undo the assistant's last change" onClick={() => takeBack(lastUndoable)} className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 max-[18em]:!size-[44px] max-[18em]:!shrink-0 hover:bg-canvas-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent">
+            <button type="button" aria-label="Undo the assistant's last change" title="Undo the assistant's last change" onClick={() => takeBack(lastUndoable)} className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 max-[18em]:!size-[44px] max-[18em]:!shrink-0 hover:bg-canvas-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent">
               <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden />
             </button>
           ) : null}
@@ -1069,7 +1069,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
             aria-label="Assistant settings"
             title="Assistant settings"
             onClick={(e) => (settingsOpen ? closeSettings(false) : openSettings(e.currentTarget))}
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 max-[18em]:!size-[44px] max-[18em]:!shrink-0 hover:bg-canvas-2 hover:text-ink aria-expanded:text-ink focus-visible:outline-2 focus-visible:outline-accent"
+            className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 max-[18em]:!size-[44px] max-[18em]:!shrink-0 hover:bg-canvas-2 hover:text-ink aria-expanded:text-ink focus-visible:outline-2 focus-visible:outline-accent"
           >
             <SlidersHorizontalIcon size={16} weight="bold" aria-hidden />
           </button>
@@ -1082,7 +1082,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
               if (!showDrawer) setDrawerAt(Date.now());
               setDrawer(!showDrawer);
             }}
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 max-[18em]:!size-[44px] max-[18em]:!shrink-0 hover:bg-canvas-2 hover:text-ink aria-expanded:text-ink focus-visible:outline-2 focus-visible:outline-accent"
+            className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 max-[18em]:!size-[44px] max-[18em]:!shrink-0 hover:bg-canvas-2 hover:text-ink aria-expanded:text-ink focus-visible:outline-2 focus-visible:outline-accent"
           >
             <ClockCounterClockwiseIcon size={16} weight="bold" aria-hidden />
           </button>

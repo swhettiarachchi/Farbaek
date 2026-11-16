@@ -199,7 +199,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
       <div className="flex min-h-0 flex-col border-b border-line md:border-b-0">
         <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
           <span className="text-label font-medium text-ink-3">Files</span>
-          <button type="button" onClick={() => setVersion((v) => v + 1)} className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Refresh files">
+          <button type="button" onClick={() => setVersion((v) => v + 1)} className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Refresh files">
             <ArrowClockwiseIcon size={16} weight="bold" aria-hidden />
           </button>
         </div>
@@ -224,7 +224,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
               placeholder="src/new-file.ts"
               className={inputClasses("min-w-0 flex-1 sm:text-sm")}
             />
-            <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Create file">
+            <button type="submit" className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Create file">
               <FilePlusIcon size={20} aria-hidden />
             </button>
           </form>

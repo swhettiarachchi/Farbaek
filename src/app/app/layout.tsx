@@ -166,7 +166,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{ctx.user.email}</span>
             {ctx.mode === "live" ? (
               <SignOutForm action={signOut}>
-                <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink" aria-label="Sign out">
+                <button type="submit" className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink" aria-label="Sign out">
                   <SignOutIcon size={16} weight="bold" aria-hidden />
                 </button>
               </SignOutForm>

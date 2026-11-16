@@ -81,7 +81,7 @@ export function OfficeSearchTrigger() {
         </button>
       </span>
       <span className="md:hidden">
-        <button type="button" onClick={open} aria-label="Search" className="flex size-11 items-center justify-center rounded-full border border-line bg-surface text-ink-2 shadow-e1">
+        <button type="button" onClick={open} aria-label="Search" className="flex tap size-10 items-center justify-center rounded-full border border-line bg-surface text-ink-2 shadow-e1">
           <MagnifyingGlassIcon size={20} aria-hidden />
         </button>
       </span>

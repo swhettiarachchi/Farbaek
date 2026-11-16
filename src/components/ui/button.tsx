@@ -1,12 +1,17 @@
 import Link from "next/link";
 import type { ComponentProps } from "react";
+import { mergeClasses } from "./merge";
 
 type Variant = "primary" | "accent" | "secondary" | "outline" | "ghost" | "danger";
 export type ButtonVariant = Variant;
-type Size = "md" | "sm";
+type Size = "md" | "sm" | "icon";
 
+/**
+ * Every button's look (ADR 0008, ADR 0211). `tap` gives it a 48px target on a touch screen (globals.css), so the pill can be the
+ * size of what it says: 40px small, 44px medium, a 40px circle for an icon alone. They grow at the largest text sizes.
+ */
 const base =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium max-[18em]:whitespace-normal max-[18em]:py-2 max-[18em]:text-center transition-[background-color,border-color,color,transform,box-shadow] duration-[160ms] ease-standard active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100";
+  "tap inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium max-[18em]:whitespace-normal max-[18em]:py-2 max-[18em]:text-center transition-[background-color,border-color,color,transform,box-shadow] duration-[160ms] ease-standard active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100";
 
 const variants: Record<Variant, string> = {
   primary: "bg-primary text-on-primary shadow-e1 hover:bg-primary-hover",
@@ -19,13 +24,14 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  md: "min-h-12 px-6 text-body",
-  // 44px with a mouse, and 48px on touch, Google's size for primary controls (ADR 0171).
-  sm: "min-h-11 px-4 text-sm pointer-coarse:min-h-12",
+  md: "min-h-11 px-5 text-body",
+  sm: "min-h-10 px-4 text-sm",
+  // An icon alone; its name is its aria-label.
+  icon: "size-10 shrink-0 px-0 text-sm",
 };
 
 export function buttonClasses(variant: Variant = "primary", size: Size = "md", className = ""): string {
-  return `${base} ${variants[variant]} ${sizes[size]} ${className}`.trim();
+  return mergeClasses(`${base} ${variants[variant]} ${sizes[size]}`.split(" "), className);
 }
 
 type ButtonLinkProps = ComponentProps<typeof Link> & { variant?: Variant; size?: Size };

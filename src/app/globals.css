@@ -159,8 +159,27 @@
   --tab-bar: 0px;
 }
 
-:root[data-keyboard] [data-hide-for-keyboard] {
+/* A bar with the field being typed in stays, above the keyboard (the drafting assistant's own box, say). */
+:root[data-keyboard] [data-hide-for-keyboard]:not(:focus-within) {
   display: none;
+}
+
+/*
+ * A 48px target on a touch screen, whatever the pill's size (ADR 0211, keeping ADR 0171's 48px): a button 40px tall reaches 4px
+ * past each edge with an invisible ::after. In the components layer, so a caller's own `absolute` or `sticky` still wins.
+ */
+@layer components {
+  @media (pointer: coarse) {
+    .tap {
+      position: relative;
+    }
+
+    .tap::after {
+      content: "";
+      position: absolute;
+      inset: min(0px, calc((100% - 48px) / 2));
+    }
+  }
 }
 
 /*

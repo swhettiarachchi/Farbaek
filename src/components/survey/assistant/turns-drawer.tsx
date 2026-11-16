@@ -56,7 +56,7 @@ export function TurnsDrawer({
     <section aria-label="Earlier instructions" className="pointer-events-auto w-full max-w-3xl rounded-md bg-surface shadow-e2 ring-1 ring-line motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2">
         <h3 className="text-sm font-medium text-ink">Earlier instructions</h3>
-        <button type="button" aria-label="Close earlier instructions" onClick={onClose} className={buttonClasses("ghost", "sm", "size-11 !px-0")}>
+        <button type="button" aria-label="Close earlier instructions" onClick={onClose} className={buttonClasses("ghost", "icon")}>
           <XIcon size={16} weight="bold" aria-hidden />
         </button>
       </div>

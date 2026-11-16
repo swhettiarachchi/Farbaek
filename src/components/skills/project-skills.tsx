@@ -90,7 +90,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
                     <ConfirmAction
                       action={removeSkillAction}
                       fields={{ projectId, path: s.path, revision: s.revision }}
-                      triggerClassName="inline-flex size-11 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
+                      triggerClassName="inline-flex tap size-10 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
                       trigger={
                         <>
                           <TrashIcon size={16} weight="bold" aria-hidden />

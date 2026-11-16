@@ -426,7 +426,7 @@ export function PlanEditor(props: PlanEditorProps) {
           <ToolButton label="Zoom out" onClick={() => zoomAt(0.8)} icon={<MagnifyingGlassMinusIcon size={16} weight="bold" aria-hidden />} />
           <ToolButton label="Whole sheet" onClick={() => setView(fullView)} icon={<ArrowsInIcon size={16} weight="bold" aria-hidden />} />
           <ToolButton label="Zoom in" onClick={() => zoomAt(1.25)} icon={<MagnifyingGlassPlusIcon size={16} weight="bold" aria-hidden />} />
-          <button type="button" aria-pressed={several} aria-label="Select several" title="Select several: tap points in order. Shift, Ctrl or Cmd and a click do the same." onClick={() => setSeveral((v) => !v)} className={buttonClasses(several ? "primary" : "secondary", "sm", "size-11 !px-0")}>
+          <button type="button" aria-pressed={several} aria-label="Select several" title="Select several: tap points in order. Shift, Ctrl or Cmd and a click do the same." onClick={() => setSeveral((v) => !v)} className={buttonClasses(several ? "primary" : "secondary", "icon")}>
             <SelectionPlusIcon size={16} weight="bold" aria-hidden />
           </button>
           {picked.length > 1 ? <span className="text-sm text-ink-2">{picked.length} picked, in order</span> : null}
@@ -490,10 +490,10 @@ export function PlanEditor(props: PlanEditorProps) {
               return (
                 <li key={l} className="flex items-center gap-1">
                   <span className="min-w-0 flex-1 truncate px-2 text-sm text-ink">{LAYER_NAMES[l]}</span>
-                  <button type="button" aria-pressed={st.visible} aria-label={`${st.visible ? "Hide" : "Show"} ${LAYER_NAMES[l]}`} disabled={Boolean(props.readOnly)} onClick={() => update((d) => void (d.layers[l] = { ...st, visible: !st.visible }))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
+                  <button type="button" aria-pressed={st.visible} aria-label={`${st.visible ? "Hide" : "Show"} ${LAYER_NAMES[l]}`} disabled={Boolean(props.readOnly)} onClick={() => update((d) => void (d.layers[l] = { ...st, visible: !st.visible }))} className={buttonClasses("ghost", "icon")}>
                     {st.visible ? <EyeIcon size={16} weight="bold" aria-hidden /> : <EyeSlashIcon size={16} weight="bold" aria-hidden />}
                   </button>
-                  <button type="button" aria-pressed={st.locked} aria-label={`${st.locked ? "Unlock" : "Lock"} ${LAYER_NAMES[l]}`} disabled={Boolean(props.readOnly)} onClick={() => update((d) => void (d.layers[l] = { ...st, locked: !st.locked }))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
+                  <button type="button" aria-pressed={st.locked} aria-label={`${st.locked ? "Unlock" : "Lock"} ${LAYER_NAMES[l]}`} disabled={Boolean(props.readOnly)} onClick={() => update((d) => void (d.layers[l] = { ...st, locked: !st.locked }))} className={buttonClasses("ghost", "icon")}>
                     {st.locked ? <LockSimpleIcon size={16} weight="bold" aria-hidden /> : <LockSimpleOpenIcon size={16} weight="bold" aria-hidden />}
                   </button>
                 </li>
@@ -537,7 +537,7 @@ export function PlanEditor(props: PlanEditorProps) {
 
 function ToolButton({ label, onClick, icon, disabled = false }: { label: string; onClick: () => void; icon: ReactNode; disabled?: boolean }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className={buttonClasses("secondary", "sm", "size-11 !px-0")}>
+    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className={buttonClasses("secondary", "icon")}>
       {icon}
     </button>
   );

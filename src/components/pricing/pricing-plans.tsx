@@ -123,7 +123,7 @@ export function PricingPlans() {
                   {yearly && isPaidPlanId(yearly.id) ? (
                     <>
                       {/* Above the card's stretched link, so it stays its own target. */}
-                      <Link href={subscribePath(yearly.id)} className={buttonClasses("ghost", "md", "relative z-10 min-h-11 w-full")}>
+                      <Link href={subscribePath(yearly.id)} className={buttonClasses("ghost", "md", "relative z-10 w-full")}>
                         Pay yearly instead
                       </Link>
                       <p className="relative z-10 text-center text-xs leading-relaxed text-ink-3">

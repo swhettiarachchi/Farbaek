@@ -95,7 +95,7 @@ export function MobileMenu() {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => (open ? close() : setPhase("open"))}
-        className="relative inline-flex size-11 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-surface-raised"
+        className="relative inline-flex tap size-10 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-surface-raised"
       >
         <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
         <span aria-hidden className="relative block h-3 w-5">

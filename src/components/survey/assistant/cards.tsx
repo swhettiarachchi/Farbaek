@@ -155,11 +155,11 @@ export function ChangeCard(props: {
             <span className="max-[18em]:sr-only">{count === props.ops.length ? ` ${count === 1 ? "the change" : `${count} changes`}` : ` ${count} of ${props.ops.length}`}</span>
           </span>
         </button>
-        <button type="button" onClick={props.onEdit} className={buttonClasses("secondary", "sm", "max-sm:size-[44px] max-sm:!min-h-[44px] max-sm:!shrink-0 max-sm:!px-0")}>
+        <button type="button" onClick={props.onEdit} className={buttonClasses("secondary", "sm", "max-sm:size-[40px] max-sm:!min-h-[40px] max-sm:!shrink-0 max-sm:!px-0")}>
           <PencilSimpleIcon size={14} weight="bold" aria-hidden />
           <span className="max-sm:sr-only">Change the words</span>
         </button>
-        <button type="button" onClick={props.onDiscard} className={buttonClasses("ghost", "sm", "max-sm:size-[44px] max-sm:!min-h-[44px] max-sm:!shrink-0 max-sm:!px-0")}>
+        <button type="button" onClick={props.onDiscard} className={buttonClasses("ghost", "sm", "max-sm:size-[40px] max-sm:!min-h-[40px] max-sm:!shrink-0 max-sm:!px-0")}>
           <XIcon size={14} weight="bold" aria-hidden />
           <span className="max-sm:sr-only">Discard</span>
         </button>

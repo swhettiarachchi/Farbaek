@@ -388,7 +388,7 @@ export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; upd
                 <span className="text-xs text-ink-3">Meaning</span>
                 <input value={c.meaning} maxLength={60} disabled={readOnly} onChange={(e) => update((d) => void (d.codes[i]!.meaning = e.target.value), `cm${i}`)} className={inputClasses()} />
               </label>
-              <button type="button" aria-label={`Remove ${c.code || "this code"}`} disabled={readOnly} onClick={() => update((d) => void d.codes.splice(i, 1))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
+              <button type="button" aria-label={`Remove ${c.code || "this code"}`} disabled={readOnly} onClick={() => update((d) => void d.codes.splice(i, 1))} className={buttonClasses("ghost", "icon")}>
                 <TrashIcon size={16} weight="bold" aria-hidden />
               </button>
             </div>

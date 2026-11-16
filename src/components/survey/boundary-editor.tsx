@@ -171,7 +171,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                     <span className={LABEL_CLASSES}>Note (optional)</span>
                     <input value={l.note} maxLength={80} disabled={ro} placeholder="Res. for Access, 10ft. wide" onChange={(e) => (setLots((all) => all.map((x, j) => (j === i ? { ...x, note: e.target.value } : x))), reviewed(`lot:${l.id}`))} className={inputClasses()} />
                   </label>
-                  <button type="button" aria-label={`Remove lot ${l.label}${l.sup}`} disabled={ro} onClick={() => (setLots((all) => all.filter((_, j) => j !== i)), setAdjoining((a) => a.filter((x) => x.lot !== l.id)))} className={buttonClasses("ghost", "sm", "size-11 px-0 self-end")}>
+                  <button type="button" aria-label={`Remove lot ${l.label}${l.sup}`} disabled={ro} onClick={() => (setLots((all) => all.filter((_, j) => j !== i)), setAdjoining((a) => a.filter((x) => x.lot !== l.id)))} className={buttonClasses("ghost", "icon", "self-end")}>
                     <TrashIcon size={16} weight="bold" aria-hidden />
                   </button>
                 </div>
@@ -304,7 +304,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                       ))}
                     </select>
                   </label>
-                  <button type="button" aria-label="Remove this label" disabled={ro} onClick={() => setAdjoining((all) => all.filter((_, j) => j !== i))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
+                  <button type="button" aria-label="Remove this label" disabled={ro} onClick={() => setAdjoining((all) => all.filter((_, j) => j !== i))} className={buttonClasses("ghost", "icon")}>
                     <TrashIcon size={16} weight="bold" aria-hidden />
                   </button>
                 </div>
@@ -373,7 +373,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                 <span className="text-sm font-medium text-ink">{FEATURE_LABELS[f.layer]}</span>
                 {f.code ? <span className="text-sm text-ink-2">{f.code}</span> : null}
                 <span className="min-w-0 flex-1 truncate text-sm text-ink-3">{numbers(f.points)}</span>
-                <button type="button" aria-label={`Remove this ${FEATURE_LABELS[f.layer].toLowerCase()}`} disabled={ro} onClick={() => setFeatures((all) => all.filter((_, j) => j !== i))} className={buttonClasses("ghost", "sm", "size-11 px-0")}>
+                <button type="button" aria-label={`Remove this ${FEATURE_LABELS[f.layer].toLowerCase()}`} disabled={ro} onClick={() => setFeatures((all) => all.filter((_, j) => j !== i))} className={buttonClasses("ghost", "icon")}>
                   <TrashIcon size={16} weight="bold" aria-hidden />
                 </button>
               </li>

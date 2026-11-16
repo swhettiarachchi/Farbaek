@@ -443,7 +443,7 @@ export function VisualEditor({
                   setDevice(d.id);
                   setScreen(d.id === "phone" ? "phone" : "all");
                 }}
-                className={`inline-flex size-11 items-center justify-center rounded-full transition-colors duration-150 ${device === d.id ? "bg-surface-raised text-ink" : "text-ink-3 hover:text-ink"}`}
+                className={`inline-flex tap size-10 items-center justify-center rounded-full transition-colors duration-150 ${device === d.id ? "bg-surface-raised text-ink" : "text-ink-3 hover:text-ink"}`}
               >
                 <d.icon size={20} weight={device === d.id ? "fill" : "regular"} aria-hidden />
               </button>

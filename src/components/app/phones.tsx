@@ -59,7 +59,7 @@ export function Phones({ phones, disabledReason }: { phones: PhoneRow[]; disable
               </div>
               <form action={action}>
                 <input type="hidden" name="deviceId" value={p.id} />
-                <button type="submit" disabled={pending} className={buttonClasses("secondary", "sm", "min-h-11")} aria-label={`Disconnect ${p.name}`}>
+                <button type="submit" disabled={pending} className={buttonClasses("secondary", "sm")} aria-label={`Disconnect ${p.name}`}>
                   Disconnect
                 </button>
               </form>
