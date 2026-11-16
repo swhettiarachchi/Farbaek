@@ -178,7 +178,7 @@ export function UsagePanel({ planLabel }: { planLabel: string }) {
           aria-label="Usage"
           tabIndex={-1}
           style={{ left: anchor.left, bottom: anchor.bottom }}
-          className="fixed z-40 w-[min(300px,calc(100vw-16px))] origin-bottom-left rounded-md border border-line bg-surface p-5 shadow-e2 outline-none motion-safe:animate-[usage-in_150ms_cubic-bezier(0.16,1,0.3,1)]"
+          className="fixed z-40 w-[min(300px,calc(100vw-16px))] origin-bottom-left rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e2 outline-none motion-safe:animate-[usage-in_150ms_cubic-bezier(0.16,1,0.3,1)]"
         >
           <div className="mb-4 flex items-center justify-between gap-3">
             <CardTitle icon={GaugeIcon}>Usage</CardTitle>

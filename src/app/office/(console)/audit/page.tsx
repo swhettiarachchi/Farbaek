@@ -10,6 +10,7 @@ import { ROLE_LABELS, isStaffRole } from "@/core/office/permissions";
 import { requireStaff } from "@/server/office/access";
 import { loadAuditPage } from "@/server/office/staff-data";
 import { verifyAuditChainAction } from "./actions";
+import { BEZEL, PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Audit log" };
 
@@ -68,14 +69,14 @@ export default async function OfficeAudit({ searchParams }: { searchParams: Prom
   const page = await loadAuditPage(staff.admin, { before: beforeSeq, ownOnly });
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Audit log"
         description="Every sign-in, refusal and change made in Office Space, newest first. Each event carries a hash of the one before it, so an edited, removed or reordered event shows when the chain is checked."
       />
       {ownOnly ? <Notice>Your role sees your own events here. Owners, admins and viewers see everyone&apos;s.</Notice> : null}
 
-      <section aria-labelledby="chain-title" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+      <section aria-labelledby="chain-title" className={BEZEL}>
         <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-6">
           <div className="flex items-start gap-3">
             {page.lastCheck?.ok === false ? (

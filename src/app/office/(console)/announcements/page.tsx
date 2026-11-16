@@ -8,6 +8,7 @@ import { RelativeTime } from "@/components/ui/local-time";
 import { requireStaff } from "@/server/office/access";
 import { isLiveAnnouncement, listAnnouncements } from "@/server/office/controls-data";
 import { endAnnouncementAction, publishAnnouncementAction } from "./actions";
+import { BEZEL, PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Announcements" };
 
@@ -19,12 +20,12 @@ export default async function OfficeAnnouncements() {
   const can = staff.can("announcements.manage");
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader title="Announcements" description="A message across the top of everyone's Farbaek app. A notice can be closed; an incident stays until you end it." />
       {!can ? <Notice>Only admins and owners post announcements.</Notice> : null}
 
       {can ? (
-        <section aria-labelledby="new-title" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+        <section aria-labelledby="new-title" className={BEZEL}>
           <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             <CardTitle id="new-title" icon={PencilSimpleLineIcon}>
               Post a message

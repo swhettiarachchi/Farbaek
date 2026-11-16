@@ -48,6 +48,7 @@ import { KeepOnDevice } from "@/components/device/keep-on-device";
 import { previewImages } from "@/server/workspace/preview-images";
 import { loadAppContext } from "@/server/workspace/context";
 import { withheldFor } from "@/core/workspace/permissions";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Project" };
 
@@ -111,7 +112,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const publishReason = !canChange ? (project.archivedAt ? "This project is archived." : ctx.writes.enabled ? null : ctx.writes.reason) : ctx.role && CONTRIBUTOR_ROLES.includes(ctx.role) ? null : "Your role can view this project but not publish it.";
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <div>
         <Link href="/app/projects" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> Projects

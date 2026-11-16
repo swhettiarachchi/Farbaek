@@ -19,6 +19,7 @@ import { CurrencyToggle, ManageInGooglePlay, claim, localCurrency, playPrices, u
 import { buttonClasses } from "@/components/ui/button";
 import { StatusGlyph } from "@/components/ui/status-badge";
 import { GOOGLE_PLAY_BILLING_METHOD, GOOGLE_PLAY_PRODUCTS } from "@/core/billing/google-play";
+import { BEZEL } from "@/components/ui/surfaces";
 
 /** A plan Google Play sells, as Billing describes it. */
 export interface PlayPlanOption {
@@ -101,7 +102,7 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
   }
 
   return (
-    <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+    <div className={BEZEL}>
       <div className="rounded-md bg-surface p-4 shadow-e1 sm:p-5">
         <p className="font-medium">{mode === "change" ? "Switch your plan" : "Choose a plan"}</p>
         <p className="mt-1 text-sm leading-relaxed text-ink-2">Monthly plans, billed through Google Play.</p>
@@ -234,7 +235,7 @@ function Reason({ children }: { children: string }) {
 /** While Google Play is asked for its prices: the picker's own shape, so nothing jumps when they arrive. */
 function PickerLoading({ rows }: { rows: number }) {
   return (
-    <div aria-busy="true" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+    <div aria-busy="true" className={BEZEL}>
       <div className="rounded-md bg-surface p-4 shadow-e1 sm:p-5">
         <p role="status" className="flex items-center gap-2 text-sm text-ink-3">
           <StatusGlyph status="working" />
@@ -262,7 +263,7 @@ export function PlayPricingNotice({ children }: { children: ReactNode }) {
   if (!p?.ok || !GOOGLE_PLAY_PRODUCTS.some((g) => p.prices.has(g.productId))) return children;
   const local = localCurrency(p);
   return (
-    <div className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+    <div className="grid gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
       <div className="flex gap-4">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-2 ring-1 ring-line">
           <GooglePlayLogoIcon size={20} aria-hidden />

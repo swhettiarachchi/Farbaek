@@ -51,7 +51,7 @@ export default async function HelpRequestPage({ params }: { params: Promise<{ id
         {request.status === "waiting_on_farbaek" ? <p className="text-sm text-ink-2">Farbaek&apos;s team has it. The reply will appear here.</p> : null}
       </header>
 
-      <div className="mx-auto grid w-full max-w-[820px] gap-8">
+      <div className="mx-auto grid w-full max-w-[820px] gap-6 lg:gap-8">
         <SupportConversation messages={messages} />
 
         {closed ? (

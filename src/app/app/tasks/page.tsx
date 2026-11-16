@@ -8,6 +8,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { taskGroup } from "@/core/realityloop/progress";
 import { loadAppContext } from "@/server/workspace/context";
 import type { Task } from "@/server/workspace/types";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Tasks" };
 
@@ -26,7 +27,7 @@ export default async function TasksPage() {
   const tasks = await ctx.reader.listTasks(ctx.current.id);
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader title="Tasks" description="Every task in this workspace, grouped by what it needs." />
       {tasks.length === 0 ? (
         <EmptyState icon={ListBulletsIcon} title="No tasks yet" action={<ButtonLink href="/app/new" size="sm">Describe what you want to build</ButtonLink>}>

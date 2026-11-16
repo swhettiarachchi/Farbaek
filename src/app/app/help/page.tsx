@@ -13,6 +13,7 @@ import { TOPIC_LABELS } from "@/core/support/support";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { listMyRequests, type SupportRequestView } from "@/server/workspace/support";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Help and support" };
 
@@ -31,7 +32,7 @@ export default async function HelpPage() {
   }
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Help and support"
         description="Write to Farbaek's team about anything: a build, your plan, your account or a site you want reported. We answer here, and Help shows a dot when there's a reply."
@@ -99,7 +100,7 @@ export default async function HelpPage() {
           )}
         </section>
 
-        <aside className="grid gap-4 rounded-lg border border-line bg-surface p-6 shadow-e1">
+        <aside className="grid gap-4 rounded-lg border border-line bg-surface p-4 sm:p-6 shadow-e1">
           <BrandLogo height={34} />
           <div className="grid gap-1.5">
             <CardTitle icon={UsersThreeIcon}>Real people at Farbaek</CardTitle>

@@ -14,6 +14,7 @@ import { saveSurveyDrawingAction } from "@/app/app/survey/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 const FEATURE_LABELS: Record<(typeof FEATURE_LAYERS)[number], string> = { BUILDINGS: "Building", WALLS: "Wall", FENCES: "Fence", DRAINS: "Drain", ROADS: "Road edge", UTILITIES: "Utility" };
 
@@ -124,7 +125,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
     });
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <section className="grid gap-3" aria-labelledby="lots-title">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 id="lots-title" className="font-medium text-ink">

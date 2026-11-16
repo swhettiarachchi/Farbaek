@@ -8,6 +8,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { NETWORK_PROFILE_LABELS, NETWORK_PROFILES, REGISTRY_HOSTS, type NetworkProfile } from "@/core/sandbox/network";
 import { SANDBOX_SIZES, SANDBOX_TEMPLATES, SIZE_IDS, TEMPLATE_IDS, sizeOnRuntime, type SizeId, type TemplateId } from "@/core/sandbox/templates";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 const IDLE: CreateSessionState = { status: "idle" };
 
@@ -59,9 +60,9 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
   const disabled = Boolean(props.disabledReason) || pending;
 
   return (
-    <form action={action} className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+    <form action={action} className="grid gap-6 lg:gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
       <input type="hidden" name="idempotencyKey" value={props.idempotencyKey} />
-      <div className="grid gap-8">
+      <div className={PAGE_STACK}>
         <fieldset className="grid gap-3">
           <legend className="text-base font-medium">Environment</legend>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -195,7 +196,7 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
         </fieldset>
       </div>
 
-      <aside className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1 lg:sticky lg:top-6">
+      <aside className="grid gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 lg:sticky lg:top-6">
         <CardTitle icon={HardDrivesIcon}>What you&apos;ll get</CardTitle>
         <ul className="grid gap-3 text-sm">
           <li className="flex gap-3">

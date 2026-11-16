@@ -32,7 +32,7 @@ export default async function RescuePage() {
           : null;
 
   return (
-    <div className="mx-auto grid w-full max-w-3xl gap-8">
+    <div className="mx-auto grid w-full max-w-3xl gap-6 lg:gap-8">
       <PageHeader
         title="Check an app you built elsewhere"
         description="Made it with another AI builder or by hand? Bring it here: Farbaek looks for what could go wrong before your users find it, then helps you fix it."

@@ -19,6 +19,7 @@ import { loadWorkspace360 } from "@/server/office/controls-data";
 import { siteDomain } from "@/server/publish/config";
 import { addUsageAction, extendTrialAction, restoreWorkspaceAction, suspendWorkspaceAction } from "./actions";
 import { PAGE_TITLE } from "@/components/ui/titles";
+import { BEZEL, PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Workspace" };
 
@@ -41,7 +42,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
   const dayChoices = [...new Set([1, 3, 5, 7, 10, 14, 21, 30].filter((d) => d < trialCap).concat(trialCap))].filter((d) => d > 0);
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <div className="grid gap-4">
         <Link href="/workspaces" className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> All workspaces
@@ -164,7 +165,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
           </Card>
 
           {staff.can("trial.extend") && ws.trial ? (
-            <section aria-labelledby="trial-title" className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+            <section aria-labelledby="trial-title" className="grid gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
               <div>
                 <CardTitle id="trial-title" icon={ClockIcon}>
                   Extend the trial
@@ -198,8 +199,8 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
           ) : null}
 
           {staff.can("usage.add") ? (
-            <section aria-labelledby="add-usage-title" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
-              <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1">
+            <section aria-labelledby="add-usage-title" className={BEZEL}>
+              <div className="grid gap-4 rounded-md bg-surface p-4 sm:p-5 shadow-e1">
                 <div>
                   <CardTitle id="add-usage-title" icon={PlusCircleIcon}>
                     Add AI usage
@@ -238,7 +239,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
           ) : null}
 
           {staff.can("workspace.suspend") ? (
-            <section aria-labelledby="danger-title" className="grid gap-4 rounded-md border border-failed/25 p-5">
+            <section aria-labelledby="danger-title" className="grid gap-4 rounded-md border border-failed/25 p-4 sm:p-5">
               {/* A callout with its title: its icon in the failed colour (ADR 0183). */}
               <h2 id="danger-title" className="flex items-center gap-2.5 text-lg font-medium">
                 <ProhibitIcon size={20} className="shrink-0 text-failed" aria-hidden /> {ws.suspension ? "Restore this workspace" : "Suspend this workspace"}

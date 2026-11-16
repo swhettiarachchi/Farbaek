@@ -5,6 +5,7 @@ import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { LocalTime } from "@/components/ui/local-time";
 import { GUEST_ACCESS_LABELS } from "@/core/workspace/sharing";
 import { loadSharedWithMe } from "@/server/workspace/guest-context";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Shared with you" };
 
@@ -20,7 +21,7 @@ export default async function SharedWithYouPage() {
   }
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Shared with you"
         description={`Projects other workspaces invited ${shared.user.email} to. You see each project on its own, never the rest of its workspace.`}
@@ -35,7 +36,7 @@ export default async function SharedWithYouPage() {
             <li key={p.projectId}>
               <Link
                 href={`/shared/${p.projectId}`}
-                className="group grid h-full gap-2 rounded-md border border-line bg-surface p-5 shadow-e1 transition-colors duration-150 hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="group grid h-full gap-2 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 transition-colors duration-150 hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <span className="flex items-start justify-between gap-3">
                   <span className="text-lg font-medium tracking-[-0.02em]">{p.projectName}</span>

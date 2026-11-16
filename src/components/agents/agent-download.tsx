@@ -2,6 +2,7 @@ import { AppleLogoIcon, ArrowUpRightIcon, CaretRightIcon, DesktopIcon, DownloadS
 import type { ReactNode } from "react";
 import { CardTitle } from "@/components/app/primitives";
 import { AGENT_DOWNLOAD, AGENT_LINUX, AGENT_MAC, AGENT_STORE_URL, agentDownloadUrl } from "@/config/agent-download";
+import { BEZEL } from "@/components/ui/surfaces";
 
 const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
 
@@ -19,7 +20,7 @@ export function AgentDownload() {
   const storeUrl = AGENT_STORE_URL;
   const fromStore = storeUrl !== null;
   return (
-    <section aria-labelledby="download-heading" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+    <section aria-labelledby="download-heading" className={BEZEL}>
       <div className="grid gap-6 rounded-md bg-surface p-4 shadow-e1 min-[400px]:p-5 sm:p-7">
         <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div className="min-w-0">

@@ -1,3 +1,4 @@
+import { PAGE_STACK } from "@/components/ui/surfaces";
 /**
  * Shown while a page in the app loads: the shape every page shares (a title, a
  * line of description and cards below), not a spinner and not one page's layout,
@@ -6,7 +7,7 @@
 export default function Loading() {
   const block = "rounded-sm bg-surface-sunken motion-safe:animate-pulse";
   return (
-    <div className="grid gap-8" role="status">
+    <div className={PAGE_STACK} role="status">
       <div className="grid gap-3">
         <div className={`${block} h-9 w-56 max-w-full`} />
         <div className={`${block} h-4 w-[34rem] max-w-full`} />

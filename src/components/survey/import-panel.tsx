@@ -257,7 +257,7 @@ export function ImportPanel({
         />
       ) : null}
       <div className={shownEntry === "file" ? "grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "hidden"}>
-        <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-canvas-2 p-5 text-center text-sm text-ink-2 has-focus-visible:outline-2 has-focus-visible:outline-accent">
+        <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-canvas-2 p-4 sm:p-5 text-center text-sm text-ink-2 has-focus-visible:outline-2 has-focus-visible:outline-accent">
           <FileArrowUpIcon size={24} aria-hidden className="text-ink-3" />
           <span>
             <span className="font-medium text-ink">Choose the file from your instrument</span>

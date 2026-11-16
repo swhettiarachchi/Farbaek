@@ -16,6 +16,7 @@ import { relayShareToday } from "@/server/mesh/relay-usage";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Move projects" };
 
@@ -54,7 +55,7 @@ export default async function MeshPage() {
           : null;
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Move projects"
         description="Send a project to another computer or workspace as one file, called a Capsule. Farbaek checks every part of it when it arrives, so you'll know if anything changed on the way."

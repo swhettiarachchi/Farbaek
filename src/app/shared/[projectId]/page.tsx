@@ -11,6 +11,7 @@ import type { GuestAccess } from "@/core/workspace/sharing";
 import { siteAddress } from "@/server/publish/config";
 import { loadGuestProject } from "@/server/workspace/guest-context";
 import { leaveSharedProjectAction } from "../actions";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Shared project" };
 
@@ -29,7 +30,7 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
   const canEdit = guest.writes.enabled;
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <div>
         <Link href="/shared" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> Shared with you

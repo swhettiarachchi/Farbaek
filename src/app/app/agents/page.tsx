@@ -16,6 +16,7 @@ import { LEASE_WARNING_DAYS, leaseDaysLeft, leaseState } from "@/core/agent/leas
 import { AGENT_MODE_LABELS } from "@/core/agent/modes";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Desktop app" };
 
@@ -69,7 +70,7 @@ export default async function AgentsPage() {
   ];
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Desktop app"
         description="Farbaek Agent lets the agent work on your own computer, under a plan you've approved. You don't need an AI account of your own, since it uses your workspace's AI allowance. Its work arrives here as a change for you to review and approve."

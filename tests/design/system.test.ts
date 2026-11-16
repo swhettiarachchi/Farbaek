@@ -56,6 +56,21 @@ describe("one system (ADR 0184)", () => {
     }
   });
 
+  it("spaces pages phone first, through the shared surfaces (ADR 0211)", () => {
+    const own = (h: string) => !h.startsWith("src/components/ui/surfaces.ts");
+    // The double bezel and the page stack come from surfaces.ts.
+    expect(hits(/rounded-lg bg-surface-raised\/60 p-2\b/).filter(own)).toEqual([]);
+    expect(hits(/className="grid gap-8"/)).toEqual([]);
+    // Section padding of 80px or more has a phone step below it.
+    expect(hits(/(?<![\w:-])py-(?:20|24|28)\b/)).toEqual([]);
+    // A card or panel padded 24px or more is padded less on a phone.
+    expect(hits(/rounded-(?:md|lg)\b.*(?<![\w:-])p-(?:6|7|8)\b|(?<![\w:-])p-(?:6|7|8)\b.*rounded-(?:md|lg)\b/).filter((h) => {
+      const f = sources.find((s) => h.startsWith(`${s.rel}:`))!;
+      const line = f.text.split(/\r?\n/)[Number(h.slice(h.lastIndexOf(":") + 1)) - 1]!;
+      return !/\bsm:p-/.test(line);
+    })).toEqual([]);
+  });
+
   it("has no half-step sizes nobody would choose", () => {
     expect(hits(/text-\[(?:0\.78125|0\.84375|0\.90625|0\.96875)rem\]|text-\[\d+\.5px\]/)).toEqual([]);
   });

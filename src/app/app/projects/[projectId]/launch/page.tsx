@@ -35,6 +35,7 @@ import { loadLaunchPage } from "@/server/launch/plan-data";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { withheldFor } from "@/core/workspace/permissions";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Launch" };
 
@@ -190,7 +191,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   ];
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <div>
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}
@@ -201,7 +202,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
       </div>
 
       {/* The plan's headline is the page's lead statement, set large, so it stands as words alone like a page title. */}
-      <section aria-labelledby="plan-title" className="rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
+      <section aria-labelledby="plan-title" className="rounded-lg border border-line bg-surface p-5 shadow-e2 sm:p-8">
         <h2 id="plan-title" className="text-balance text-2xl font-medium leading-tight tracking-[-0.03em] sm:text-[2.2rem]">
           {KIND_LABELS[plan.kind]}
           {sitesDestination.available ? <span className="text-ink-3">, ready for Farbaek Sites</span> : null}

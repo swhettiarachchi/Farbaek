@@ -7,6 +7,7 @@ import { SealReveal } from "@/components/proof/seal-reveal";
 import { JumpLink } from "@/components/ui/disclosure";
 import type { TaskSeal } from "@/core/proof/verified-digest";
 import type { NextStep, NextStepTarget, NextStepTone } from "@/core/realityloop/next-step";
+import { BEZEL } from "@/components/ui/surfaces";
 
 // Every tone has its own icon and word, so status never relies on colour alone (ADR 0183). Filled icons report the
 // state; the spinner turns while work is live.
@@ -37,7 +38,7 @@ export function NextStepCard({ step, projectId, runId = null, seal = null }: { s
   const tone = TONES[step.tone];
   const button = `${buttonClasses("primary", "md", "w-full justify-center sm:w-auto")} whitespace-nowrap`;
   return (
-    <section aria-labelledby="next-step" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both]">
+    <section aria-labelledby="next-step" className={`motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both] ${BEZEL}`}>
       <div className={`grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:items-center sm:p-6 ${seal ? "sm:grid-cols-[auto_minmax(0,1fr)_auto]" : "sm:grid-cols-[minmax(0,1fr)_auto]"}`}>
         {seal ? (
           <SealReveal hash={seal.digest} className="justify-self-center">

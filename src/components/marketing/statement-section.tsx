@@ -91,7 +91,7 @@ export function StatementSection() {
   const words = STATEMENT.split(" ");
 
   return (
-    <section aria-labelledby="statement" className="overflow-hidden py-16 lg:py-24">
+    <section aria-labelledby="statement" className="overflow-hidden py-12 sm:py-16 lg:py-24">
       <Container>
         <StageArc />
 

@@ -167,7 +167,7 @@ export default function ProofPackFormatPage() {
           <p className="mt-3 max-w-[60ch] text-body leading-relaxed text-ink-2">
             With a signed ProofPack downloaded from Farbaek as proofpack.json, these steps need a shell, curl, jq and OpenSSL 3. The verify page does the same in your browser.
           </p>
-          <ol className="mt-8 grid max-w-3xl gap-8">
+          <ol className="mt-8 grid max-w-3xl gap-6 lg:gap-8">
             {STEPS.map((s, i) => (
               <li key={s.title} className="grid min-w-0 gap-3">
                 <h3 className="flex items-baseline gap-3 text-title-4 font-medium">
@@ -187,7 +187,7 @@ export default function ProofPackFormatPage() {
           <h2 id="proves-title" className={PART_TITLE}>
             What a ProofPack proves
           </h2>
-          <ul className="mt-8 grid gap-8 sm:grid-cols-3">
+          <ul className="mt-8 grid gap-6 lg:gap-8 sm:grid-cols-3">
             {PROVES.map((p) => (
               <li key={p.title} className="grid content-start gap-3">
                 <p.icon size={24} className="text-ink-2" aria-hidden />

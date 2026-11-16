@@ -21,6 +21,7 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { withheldFor } from "@/core/workspace/permissions";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Build" };
 
@@ -77,7 +78,7 @@ export default async function BuildPage() {
   );
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       {/* The list promises live steps, so it keeps up while a run is going or waiting. */}
       <LiveRefresh active={going > 0 || Boolean(waitingRun)} />
       <PageHeader
@@ -138,7 +139,7 @@ export default async function BuildPage() {
         ) : (
           <ul className="grid gap-4 lg:grid-cols-2">
             {ready.map((t) => (
-              <li key={t.id} className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+              <li key={t.id} className="grid gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
                 <div className="min-w-0">
                   <Link href={`/app/tasks/${t.id}`} className="-my-3 inline-flex min-h-11 items-center text-body font-medium hover:underline">
                     {t.title}

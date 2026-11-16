@@ -169,7 +169,7 @@ export default function SecurityTestsPage() {
         );
       })}
 
-      <section aria-labelledby="details-title" className="border-t border-line bg-canvas-2 py-16 lg:py-20">
+      <section aria-labelledby="details-title" className="border-t border-line bg-canvas-2 py-12 sm:py-16 lg:py-20">
         <Container>
           <h2 id="details-title" className={`max-w-[26ch] ${PART_TITLE}`}>
             Every risk: what&apos;s tested, and what isn&apos;t.
@@ -187,12 +187,12 @@ export default function SecurityTestsPage() {
         </Container>
       </section>
 
-      <section aria-labelledby="meaning-title" className="border-t border-line bg-surface py-16 lg:py-20">
+      <section aria-labelledby="meaning-title" className="border-t border-line bg-surface py-12 sm:py-16 lg:py-20">
         <Container>
           <h2 id="meaning-title" className={`max-w-[24ch] ${PART_TITLE}`}>
             What these tests are, and aren&apos;t.
           </h2>
-          <ul className="mt-10 grid gap-8 sm:grid-cols-3">
+          <ul className="mt-10 grid gap-6 lg:gap-8 sm:grid-cols-3">
             {MEANING.map((m) => (
               <li key={m.title} className="grid content-start gap-3">
                 <m.icon size={24} className="text-ink-2" aria-hidden />

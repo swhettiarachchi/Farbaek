@@ -5,6 +5,7 @@ import { CoreMark } from "@/components/build/core-mark";
 import { CapabilityStatusPill, capabilityRows } from "@/components/showcase/capabilities";
 import { Showroom } from "@/components/showcase/showroom";
 import { siteDomain } from "@/server/publish/config";
+import { BEZEL } from "@/components/ui/surfaces";
 
 /**
  * What someone sees under the build box before they have a workspace: their
@@ -31,7 +32,7 @@ export function FirstRunTour() {
         <CardTitle id="first-run-how" icon={HammerIcon}>
           How a build goes
         </CardTitle>
-        <div className="mt-5 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+        <div className={`mt-5 ${BEZEL}`}>
           <ol className="grid gap-7 rounded-md bg-surface p-5 shadow-e1 sm:p-7">
             {steps.map((s, i) => (
               <li key={s.title} className="relative grid grid-cols-[44px_minmax(0,1fr)] items-start gap-4">
@@ -76,7 +77,7 @@ export function FirstRunTour() {
           className="-mx-4 mt-5 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0"
         >
           {capabilities.map((c) => (
-            <li key={c.id} className="flex w-[80%] shrink-0 snap-start flex-col rounded-md border border-line bg-surface p-5 shadow-e1 sm:w-auto">
+            <li key={c.id} className="flex w-[80%] shrink-0 snap-start flex-col rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 sm:w-auto">
               <div className="flex items-start justify-between gap-3">
                 <span className="flex size-10 items-center justify-center rounded-full bg-surface-raised text-ink-2 ring-1 ring-line">
                   <c.icon size={20} aria-hidden />

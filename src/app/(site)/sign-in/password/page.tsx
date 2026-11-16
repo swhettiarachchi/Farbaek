@@ -9,6 +9,7 @@ import { safeNextPath } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { PasswordSignInForm } from "./password-form";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
+import { BEZEL } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = {
   title: "Sign in with a password",
@@ -37,7 +38,7 @@ export default async function PasswordSignInPage({ searchParams }: { searchParam
         <p className="mt-3 text-body leading-relaxed text-ink-2">
           For accounts Farbaek set up with a password, such as app store review accounts. Every other account signs in with an email link, Google or Apple.
         </p>
-        <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+        <div className={`mt-8 ${BEZEL}`}>
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             {supabase ? (
               <PasswordSignInForm next={next} captchaSiteKey={turnstileSiteKey()} />

@@ -32,7 +32,7 @@ export function KpiTile({ label, value, detail, trend, href, className = "" }: {
       <p className="mt-3 text-xs leading-relaxed text-ink-3">{detail}</p>
     </>
   );
-  const cls = `block rounded-md border border-line bg-surface p-5 shadow-e1 ${className}`;
+  const cls = `block rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 ${className}`;
   return href ? (
     <Link href={href} className={`${cls} transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-e2 motion-reduce:hover:translate-y-0`}>
       {body}

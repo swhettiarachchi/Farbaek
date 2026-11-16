@@ -18,6 +18,7 @@ import { requireStaff } from "@/server/office/access";
 import { readModelsPage, type CanaryRun } from "@/server/office/models-data";
 import { overridesFrom } from "@/server/platform/state";
 import { restoreDefaultModelAction, startCanaryAction, switchModelAction } from "./actions";
+import { BEZEL, PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Models" };
 
@@ -103,7 +104,7 @@ export default async function OfficeModels() {
   const now = new Date().getTime();
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <LiveRefresh active={running} />
       <PageHeader
         title="Models"
@@ -121,8 +122,8 @@ export default async function OfficeModels() {
             const model = effective[tier];
             const found = check ? listedAs(model, check.listed) : null;
             return (
-              <li key={tier} className="grid content-start rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
-                <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1">
+              <li key={tier} className={`grid content-start ${BEZEL}`}>
+                <div className="grid gap-4 rounded-md bg-surface p-4 sm:p-5 shadow-e1">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="text-title-4 font-medium tracking-[-0.01em]">{TIER_WORDS[tier].label}</h3>
@@ -195,7 +196,7 @@ export default async function OfficeModels() {
           The daily check
         </CardTitle>
         {check ? (
-          <div className="grid gap-3 rounded-md border border-line bg-surface p-5 shadow-e1">
+          <div className="grid gap-3 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
             <p className="text-sm text-ink-2">
               Checked <RelativeTime iso={check.checkedAt} /> (<LocalTime iso={check.checkedAt} />) against {check.listed.length} models Anthropic lists.
             </p>
@@ -242,7 +243,7 @@ export default async function OfficeModels() {
                       ? "This report is more than 7 days old. Run a new canary to switch."
                       : null;
             return (
-              <li key={run.id} className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+              <li key={run.id} className="grid gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-body font-medium">

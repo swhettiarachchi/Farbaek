@@ -109,7 +109,7 @@ export function LibraryCard({ skill, projects, disabledReason }: { skill: Librar
   // Kept by hand: a form action resets its fields, and the next add is usually to the same project.
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   return (
-    <article className="grid h-full content-start gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+    <article className="grid h-full content-start gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
       <div className="grid gap-1.5">
         <h3 className="text-title-4 font-medium tracking-[-0.01em]">{skill.label}</h3>
         <p className="text-sm leading-relaxed text-ink-2">{skill.summary}</p>

@@ -14,6 +14,7 @@ import { vaultKey } from "@/server/launch/token-vault";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "GitHub" };
 
@@ -50,7 +51,7 @@ export default async function ProjectGitHubPage({ params }: { params: Promise<{ 
   const linked = link ? `${link.owner}/${link.repo}` : null;
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <div>
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}
@@ -69,7 +70,7 @@ export default async function ProjectGitHubPage({ params }: { params: Promise<{ 
         </p>
       ) : null}
 
-      <section aria-labelledby="repo-title" className="rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
+      <section aria-labelledby="repo-title" className="rounded-lg border border-line bg-surface p-5 shadow-e2 sm:p-8">
         <CardTitle id="repo-title" icon={GithubLogoIcon}>
           Linked repository
         </CardTitle>

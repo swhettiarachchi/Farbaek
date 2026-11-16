@@ -13,6 +13,7 @@ import { loadAppContext } from "@/server/workspace/context";
 import { INCIDENT_TOOLS_NOT_IN_PLAN, RESUME_MANAGERS_ONLY } from "@/server/workspace/incidents";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Problems and pause" };
 
@@ -30,7 +31,7 @@ export default async function IncidentsPage() {
   const toolsReason = readOnly ?? (contributor ? null : "Viewers can read problems, but not report them.") ?? (tools.allowed ? null : tools.code === "FEATURE_NOT_IN_PLAN" ? INCIDENT_TOOLS_NOT_IN_PLAN : tools.message);
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader title="Problems and pause" description="What went wrong in this workspace and what was done about it, plus a button that stops every agent at once." />
 
       <Card>

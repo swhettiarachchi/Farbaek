@@ -94,7 +94,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
 export function FeatureFilmsSection() {
   const features: Feature[] = FEATURES.map((f) => ({ ...f, poster: <FilmPoster id={f.id} sizes="(min-width: 1024px) 640px, calc(100vw - 2rem)" /> }));
   return (
-    <section aria-labelledby="features-title" className="py-20 lg:py-28">
+    <section aria-labelledby="features-title" className="py-14 sm:py-20 lg:py-28">
       <Container>
         <SectionHeading id="features-title" title="What it does for you.">
           Four moments from the same build, up close. Each clip is recorded from Farbaek with a sample project.
@@ -108,7 +108,7 @@ export function FeatureFilmsSection() {
 /** How a change is proven before it ships. "How it works" in the menu goes to the build film (#film); this is the proof. */
 export function ProofFilmSection() {
   return (
-    <section id="proof-film" aria-labelledby="proof-film-title" className="py-20 lg:py-28">
+    <section id="proof-film" aria-labelledby="proof-film-title" className="py-14 sm:py-20 lg:py-28">
       <Container>
         <div className="mb-10 flex flex-col gap-4 lg:mb-14 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <SectionHeading id="proof-film-title" title="Proof before anything ships.">

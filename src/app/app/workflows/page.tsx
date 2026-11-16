@@ -10,6 +10,7 @@ import { checkFeature } from "@/core/billing/entitlements";
 import { nextAction } from "@/core/realityloop/workflow";
 import { WORKFLOWS_NOT_IN_PLAN } from "@/server/workflows/use-cases";
 import { loadAppContext } from "@/server/workspace/context";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Workflows" };
 
@@ -23,7 +24,7 @@ export default async function WorkflowsPage() {
   const planReason = feature.allowed ? null : feature.code === "FEATURE_NOT_IN_PLAN" ? WORKFLOWS_NOT_IN_PLAN : feature.message;
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Workflows"
         description="A bigger goal, done step by step. The agent works through the steps in order once an owner or admin approves, and stops whenever a person needs to look."
@@ -55,7 +56,7 @@ export default async function WorkflowsPage() {
               <li key={w.id}>
                 <Link
                   href={`/app/workflows/${w.id}`}
-                  className="grid gap-3 rounded-md border border-line bg-surface p-5 shadow-e1 transition-[box-shadow,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-px hover:shadow-e2"
+                  className="grid gap-3 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 transition-[box-shadow,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-px hover:shadow-e2"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">

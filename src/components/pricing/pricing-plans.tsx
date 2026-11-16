@@ -76,7 +76,7 @@ export function PricingPlans() {
             }`}
           >
             <div
-              className={`group relative flex w-full flex-col rounded-md bg-surface p-6 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
+              className={`group relative flex w-full flex-col rounded-md bg-surface p-5 sm:p-6 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
                 featured ? "shadow-e2 ring-1 ring-ink" : "shadow-e1 hover:shadow-e2"
               }`}
             >

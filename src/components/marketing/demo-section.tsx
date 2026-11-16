@@ -4,7 +4,7 @@ import { SectionHeading } from "./section-heading";
 
 export function DemoSection() {
   return (
-    <section id="demo" aria-labelledby="demo-title" className="overflow-x-clip py-20 lg:py-28">
+    <section id="demo" aria-labelledby="demo-title" className="overflow-x-clip py-14 sm:py-20 lg:py-28">
       <Container>
         <SectionHeading id="demo-title" title="Approvals bind to the exact change.">
           Approve the change, then edit it. The approval stops matching, because it was tied to a hash of exactly what you saw.

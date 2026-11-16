@@ -30,7 +30,7 @@ export default async function MorePage() {
       <PageHeader title="More" />
       <WorkspaceSwitcher workspaces={ctx.workspaces} current={ctx.current} canCreate={ctx.mode === "live"} />
 
-      <section aria-labelledby="usage-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1">
+      <section aria-labelledby="usage-heading" className="rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
         <CardTitle id="usage-heading" icon={GaugeIcon} className="mb-4">
           Usage
         </CardTitle>

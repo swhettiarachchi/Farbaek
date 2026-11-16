@@ -30,7 +30,7 @@ export function IdleWarning({ lastSeenAt, idleMinutes, warnSeconds, stayActive }
 
   if (left > warnSeconds) return null;
   return (
-    <div role="alertdialog" aria-labelledby="idle-title" aria-describedby="idle-body" className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-md rounded-md border border-caution/35 bg-surface p-5 shadow-e3 lg:bottom-6">
+    <div role="alertdialog" aria-labelledby="idle-title" aria-describedby="idle-body" className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-md rounded-md border border-caution/35 bg-surface p-4 sm:p-5 shadow-e3 lg:bottom-6">
       <p id="idle-title" className="flex items-center gap-2 font-medium">
         <ClockCountdownIcon size={20} className="shrink-0 text-caution" aria-hidden /> Still there?
       </p>

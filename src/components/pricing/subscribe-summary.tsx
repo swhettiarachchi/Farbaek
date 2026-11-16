@@ -6,6 +6,7 @@ import { getPlan, priceWords } from "@/core/billing/catalog";
 import type { PaidPlanId } from "@/core/billing/provider";
 import { baseName } from "@/core/billing/subscribe";
 import { sessionsLine } from "./pricing-plans";
+import { BEZEL } from "@/components/ui/surfaces";
 
 const number = new Intl.NumberFormat("en-US");
 
@@ -29,8 +30,8 @@ export function SubscribeSummary({ planId, stage }: { planId: PaidPlanId; stage:
   const l = plan.limits;
   const at = STEPS.findIndex((s) => s.id === stage);
   return (
-    <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
-      <div className="rounded-md bg-surface p-6 shadow-e2 sm:p-8">
+    <div className={BEZEL}>
+      <div className="rounded-md bg-surface p-5 shadow-e2 sm:p-8">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl font-medium tracking-[-0.02em]">{baseName(plan)}</h2>
           <Link href="/pricing" className="inline-flex min-h-11 items-center text-sm font-medium text-accent underline-offset-4 hover:underline">

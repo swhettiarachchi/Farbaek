@@ -14,6 +14,7 @@ import { loadAiAvailability } from "@/server/workspace/usage-summary";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { RULES_MANAGERS_ONLY, RULES_NOT_IN_PLAN } from "@/server/workspace/workspace-rules";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Rules" };
 
@@ -52,7 +53,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
   const manager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Rules"
         description="What has to happen before a change goes in. Farbaek's built-in rules always apply. Yours can add to them: they can make a change wait or stop it, but never let more through."

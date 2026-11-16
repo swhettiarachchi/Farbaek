@@ -11,7 +11,7 @@ export default async function NewWorkspacePage() {
   if (!ctx || ctx.mode === "demo") notFound();
 
   return (
-    <div className="grid max-w-xl gap-8">
+    <div className="grid max-w-xl gap-6 lg:gap-8">
       <PageHeader
         title="New workspace"
         description="A separate workspace with its own projects, people and plan. Each person gets one trial; later workspaces start on Free."

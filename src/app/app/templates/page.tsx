@@ -7,6 +7,7 @@ import { SiteThumb } from "@/components/app/site-thumb";
 import { buttonClasses } from "@/components/ui/button";
 import { APP_TEMPLATES, TEMPLATE_STARTERS } from "@/content/starters";
 import { loadAppContext } from "@/server/workspace/context";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Templates" };
 
@@ -14,7 +15,7 @@ export default async function TemplatesPage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Templates"
         description="Sites built to the Farbaek Studio standard, each with its own design, motion and a feature that works. When the agent puts your content in, it follows the template's design brief."

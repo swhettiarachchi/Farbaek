@@ -64,7 +64,7 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
         </header>
 
         <main id="main" className="overflow-x-clip px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
-          <div className="mx-auto grid max-w-[1180px] gap-8">
+          <div className="mx-auto grid max-w-[1180px] gap-6 lg:gap-8">
             <PageTransition>{children}</PageTransition>
           </div>
         </main>

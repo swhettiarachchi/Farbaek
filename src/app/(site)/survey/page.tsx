@@ -16,6 +16,7 @@ import { SheetSvg } from "@/components/survey/sheet-svg";
 import { Container } from "@/components/ui/container";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PART_TITLE, PUBLIC_TITLE, SECTION_TITLE } from "@/components/ui/titles";
+import { BEZEL } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = {
   title: "Survey Studio",
@@ -165,13 +166,13 @@ export default function SurveyStudioPage() {
           </div>
 
           <figure className="mt-12 grid gap-6 lg:mt-16 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:items-start lg:gap-12">
-            <div data-survey-draw="on" className="mx-auto w-full max-w-[28rem] rounded-lg bg-surface-raised/60 p-2 shadow-e2 ring-1 ring-line">
+            <div data-survey-draw="on" className={`mx-auto w-full max-w-[28rem] shadow-e2 ${BEZEL}`}>
               <div className="overflow-hidden rounded-md bg-surface ring-1 ring-line">
                 <SheetSvg page={plan.page} draw label="The sample land survey plan sheet in the classic Sri Lankan layout: three lots of a sub division with raised labels, a road with its width, adjoining lands, the north point, the Reference, the title, bounded as follows and the extent. Synthetic sample data." className="h-auto w-full" />
               </div>
             </div>
             <div className="grid content-start gap-5">
-              <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+              <div className={BEZEL}>
                 <div className="overflow-hidden rounded-md bg-surface ring-1 ring-line">
                   <SheetSvg page={plan.detailPage} viewBox={plan.detail} label="Close-up of the sample sheet's drawing: lots B1, B2 and B3, the road with its width in feet, and the corner marks." className="h-auto w-full" />
                 </div>
@@ -196,7 +197,7 @@ export default function SurveyStudioPage() {
         </Container>
       </section>
 
-      <section aria-labelledby="steps-title" className="border-t border-line bg-surface py-16 lg:py-24">
+      <section aria-labelledby="steps-title" className="border-t border-line bg-surface py-12 sm:py-16 lg:py-24">
         <Container>
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-16">
             <div className="lg:sticky lg:top-28 lg:self-start">
@@ -222,7 +223,7 @@ export default function SurveyStudioPage() {
         </Container>
       </section>
 
-      <section aria-labelledby="numbers-title" className="border-t border-line py-16 lg:py-24">
+      <section aria-labelledby="numbers-title" className="border-t border-line py-12 sm:py-16 lg:py-24">
         <Container>
           <h2 id="numbers-title" className={`max-w-[22ch] ${SECTION_TITLE}`}>
             The numbers come from tested code.
@@ -237,7 +238,7 @@ export default function SurveyStudioPage() {
               ))}
             </dl>
 
-            <div className="self-start rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+            <div className={`self-start ${BEZEL}`}>
               <div className="rounded-md bg-surface p-5 shadow-e1 ring-1 ring-line sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-title-4 font-medium tracking-[-0.01em] text-ink">The sample plan, worked out</h3>
@@ -288,7 +289,7 @@ export default function SurveyStudioPage() {
         </Container>
       </section>
 
-      <section aria-labelledby="sri-lanka-title" className="border-t border-line bg-canvas-2 py-16 lg:py-24">
+      <section aria-labelledby="sri-lanka-title" className="border-t border-line bg-canvas-2 py-12 sm:py-16 lg:py-24">
         <Container>
           <h2 id="sri-lanka-title" className={`max-w-[22ch] ${SECTION_TITLE}`}>
             Made for Sri Lankan plans, from the sources.
@@ -317,7 +318,7 @@ export default function SurveyStudioPage() {
         </Container>
       </section>
 
-      <section aria-labelledby="not-yet-title" className="border-t border-line py-16 lg:py-24">
+      <section aria-labelledby="not-yet-title" className="border-t border-line py-12 sm:py-16 lg:py-24">
         <Container>
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-16">
             <h2 id="not-yet-title" className={`max-w-[18ch] ${SECTION_TITLE}`}>
@@ -334,7 +335,7 @@ export default function SurveyStudioPage() {
 
       <section aria-labelledby="start-title" className="pb-20 lg:pb-28">
         <Container>
-          <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+          <div className={BEZEL}>
             <div className="grid gap-6 rounded-md bg-surface px-6 py-10 shadow-e1 ring-1 ring-line sm:px-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:py-12">
               <div className="grid gap-3">
                 <h2 id="start-title" className={`max-w-[24ch] ${PART_TITLE}`}>

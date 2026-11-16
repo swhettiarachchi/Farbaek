@@ -13,6 +13,7 @@ import { walletRisk } from "@/core/trust/approval-wallet";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { loadAppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
+import { PAGE_STACK } from "@/components/ui/surfaces";
 
 export const metadata: Metadata = { title: "Approvals" };
 
@@ -63,7 +64,7 @@ export default async function ApprovalsPage() {
   const ordered = approvalsOrder(cards, new Date(serverNow));
 
   return (
-    <div className="grid gap-8">
+    <div className={PAGE_STACK}>
       <PageHeader
         title="Approvals"
         description="Changes waiting for your yes or no. Open one to see exactly what changes, then approve it or discard it. Each one stays open for 72 hours."

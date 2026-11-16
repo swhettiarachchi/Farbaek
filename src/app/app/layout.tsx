@@ -105,7 +105,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <PromptComposer mode="app" autoResume />
         </div>
         <FirstRunTour />
-        <details className="mt-16 rounded-md border border-line bg-surface p-5 shadow-e1">
+        <details className="mt-16 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
           <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-ink-2">Or create an empty workspace</summary>
           <div className="mt-4">
             <CreateOrganizationForm />

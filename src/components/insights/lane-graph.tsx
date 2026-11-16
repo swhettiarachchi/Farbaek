@@ -3,6 +3,7 @@ import Link from "next/link";
 import { STAGES, STAGE_TITLES, type Lane, type StageNode, type StageState } from "@/core/insights/project-graph";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusGlyph, type Status } from "@/components/ui/status-badge";
+import { BEZEL } from "@/components/ui/surfaces";
 
 // Each stage is one of the shared kinds (ADR 0183), its icon beside its words: blue where it waits for a person.
 const STATE: Record<StageState, { kind: Status; words: string }> = {
@@ -75,7 +76,7 @@ function Node({ stage }: { stage: StageNode }) {
  */
 export function LaneGraph({ lanes }: { lanes: Lane[] }) {
   return (
-    <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+    <div className={BEZEL}>
       <div className="rounded-md bg-surface shadow-e1">
         <div aria-hidden className="z-20 hidden grid-cols-[minmax(12rem,1.15fr)_repeat(5,minmax(0,1fr))] gap-x-4 rounded-t-md border-b border-line bg-surface/90 px-5 py-3 text-xs font-medium text-ink-2 backdrop-blur-xl md:sticky md:top-14 md:grid lg:top-0">
           <span>Task</span>

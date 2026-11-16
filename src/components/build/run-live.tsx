@@ -175,7 +175,7 @@ function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: Run
   return (
     <section
       aria-labelledby="approval-heading"
-      className="grid gap-3 rounded-md border border-approval/30 bg-approval/[0.04] p-5 max-lg:max-h-[62dvh] max-lg:overflow-y-auto max-lg:rounded-lg max-lg:bg-surface max-lg:shadow-e3 max-lg:motion-safe:animate-[sheet-up_320ms_cubic-bezier(0.16,1,0.3,1)]"
+      className="grid gap-3 rounded-md border border-approval/30 bg-approval/[0.04] p-4 sm:p-5 max-lg:max-h-[62dvh] max-lg:overflow-y-auto max-lg:rounded-lg max-lg:bg-surface max-lg:shadow-e3 max-lg:motion-safe:animate-[sheet-up_320ms_cubic-bezier(0.16,1,0.3,1)]"
     >
       <span className="mx-auto -mt-1 h-1 w-10 rounded-full bg-line lg:hidden" aria-hidden />
       <h2 id="approval-heading" className="flex items-center gap-2.5 text-base font-medium text-ink">
@@ -494,7 +494,7 @@ export function RunLive({
 
         <div id="pane-run" className={`${panes.paneClass("run")} lg:col-start-1 lg:row-start-2`}>
           <div className="grid gap-4">
-            <section className="rounded-md border border-line bg-surface p-5 shadow-e1">
+            <section className="rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
               <div className="flex items-center justify-between gap-3">
                 <CardTitle icon={HammerIcon}>Run</CardTitle>
                 <RunStatusBadge status={run.status} />
@@ -566,7 +566,7 @@ export function RunLive({
         </div>
 
         <div id="pane-files" className={`${panes.paneClass("files")} lg:col-start-1 lg:row-start-3`}>
-          <section aria-labelledby="files-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1">
+          <section aria-labelledby="files-heading" className="rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
             <CardTitle id="files-heading" icon={FolderOpenIcon}>
               Files
             </CardTitle>
