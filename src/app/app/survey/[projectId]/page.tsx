@@ -148,6 +148,13 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           <Card>
             <CardTitle icon={FileArrowUpIcon}>Import points</CardTitle>
             <p className="mt-1 text-sm text-ink-2">Imported points are kept exactly as given and never edited. A corrected point is a new import with a new number.</p>
+            <p className="mt-1 text-sm text-ink-2">
+              Or say them: on the{" "}
+              <Link href={`${base}?step=plan`} className="font-medium text-accent underline-offset-2 hover:underline">
+                Plan step
+              </Link>
+              , the assistant takes dictated coordinates, or bearings and distances, and brings them here for you to check.
+            </p>
             <div className="mt-5">
               <ImportPanel projectId={projectId} crsId={data.project.crsId} crsName={crs?.name ?? data.project.crsId} codes={doc.codes} planHasLots={doc.lots.length > 0} known={data.points.map((p) => ({ pointId: p.pointId, e: p.e, n: p.n }))} readOnly={readOnly} />
             </div>
@@ -252,6 +259,13 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
         <Card>
           <CardTitle icon={PolygonIcon}>Lots, roads and adjoining lands</CardTitle>
           <p className="mt-1 text-sm text-ink-2">Type each lot&apos;s corner numbers in order. Areas, extents and road widths are computed from the coordinates as you type.</p>
+          <p className="mt-1 text-sm text-ink-2">
+            Or say it: on the{" "}
+            <Link href={`${base}?step=plan`} className="font-medium text-accent underline-offset-2 hover:underline">
+              Plan step
+            </Link>
+            , the assistant makes a lot from the points you pick or name, and sends divisions to the panel below.
+          </p>
           <div className="mt-5">
             {data.points.length === 0 ? <p className="text-sm text-ink-2">Import points first.</p> : <LotsEditor projectId={projectId} baseVersion={data.drawing.version} document={doc} points={data.points} readOnly={readOnly} />}
           </div>
