@@ -11,14 +11,14 @@
  * Two voice modes: push to talk (hold the microphone, or Space on the sheet, and let go to send; or tap to start and tap to send) and
  * live talk (one tap, then talk: each pause ends an instruction, and "apply", "undo" or "stop listening" answer by voice).
  */
-import { ClockCounterClockwiseIcon, MicrophoneIcon, MicrophoneSlashIcon, PaperPlaneRightIcon, SpeakerHighIcon, SpeakerSlashIcon, StopIcon, TranslateIcon } from "@phosphor-icons/react";
+import { ClockCounterClockwiseIcon, MicrophoneIcon, MicrophoneSlashIcon, PaperPlaneRightIcon, SlidersHorizontalIcon, StopIcon, TranslateIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { answer as engineAnswer } from "@/core/survey/assistant/answer";
 import type { Applied, Patch } from "@/core/survey/assistant/apply";
 import { checkTurn } from "@/core/survey/assistant/check";
 import { assistContext } from "@/core/survey/assistant/context";
 import { describeOp, readBack } from "@/core/survey/assistant/describe";
-import { LANGUAGES, browserFamily, languageOf, scriptOf, voiceAvailability, type AssistLanguage } from "@/core/survey/assistant/languages";
+import { LANGUAGES, SURVEY_PHRASES, browserFamily, languageOf, scriptOf, voiceAvailability, type AssistLanguage } from "@/core/survey/assistant/languages";
 import { tierOf, type AssistOutput, type CheckedTurn, type PlanOp } from "@/core/survey/assistant/ops";
 import { readCommand, type StepId } from "@/core/survey/assistant/reader";
 import { ambiguousNumbers } from "@/core/survey/assistant/session";
@@ -26,10 +26,11 @@ import type { SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import type { buildPlan } from "@/core/survey/view";
 import { canonicalHash } from "@/core/trust/canonical-json";
-import { decideAssistTurnAction } from "@/app/app/survey/assistant-actions";
+import { decideAssistTurnAction, recordLocalAssistTurnAction } from "@/app/app/survey/assistant-actions";
 import { buttonClasses } from "@/components/ui/button";
 import { useAssistant, type Turn } from "./assistant-context";
 import { AnswerCard, ChangeCard, HandoffCard, NoteCard, QuestionCard } from "./cards";
+import { SettingsPanel } from "./settings-panel";
 import { TurnsDrawer } from "./turns-drawer";
 import { speechErrorMessage, useSpeech } from "./use-speech";
 import { useMicLevel, useVoiceReply } from "./use-voice-io";
@@ -94,6 +95,20 @@ function decide(t: Turn, outcome: "applied" | "discarded" | "reverted", ops: rea
     .catch(() => null);
 }
 
+/**
+ * Records a change the local rules read and the surveyor applied, so the project's record (and the next visit's drawer) has every
+ * change, not only the model's. A record only: a failure never stops the work. Its id lets "Take back" be recorded too.
+ */
+function recordLocal(projectId: string, t: Pick<Turn, "id" | "words" | "lang" | "inputMethod">, ops: readonly PlanOp[], update: (id: string, change: Partial<Turn>) => void) {
+  void canonicalHash(ops)
+    // The server reads the words again itself; only the hash of what was applied goes with them.
+    .then((hash) => recordLocalAssistTurnAction({ projectId, words: t.words, lang: t.lang, inputMethod: t.inputMethod, appliedSha256: hash }))
+    .then((r) => {
+      if (r.ok && r.turnId) update(t.id, { serverId: r.turnId });
+    })
+    .catch(() => null);
+}
+
 export function AssistantDock({ bridge }: { bridge: EditorBridge }) {
   const a = useAssistant();
   if (!a) return null;
@@ -101,12 +116,14 @@ export function AssistantDock({ bridge }: { bridge: EditorBridge }) {
 }
 
 function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<typeof useAssistant>> }) {
-  const { settings, setSettings, session, dispatch, turns, addTurn, updateTurn } = a;
+  const { earlier, settings, setSettings, session, dispatch, turns, addTurn, updateTurn } = a;
   const speech = useSpeech();
   const voice = useVoiceReply();
   const level = useMicLevel(session.phase === "listening");
   const family = useSyncExternalStore(noSubscribe, () => browserFamily(navigator.userAgent), () => "other" as const);
-  const availability = voiceAvailability(settings.lang, family, speech.supported === true);
+  // English heard on this computer, when the surveyor chose it in the settings (Chrome on a computer, after its download).
+  const onDeviceTag = settings.lang === "en" ? settings.onDeviceTag : null;
+  const availability = voiceAvailability(settings.lang, family, speech.supported === true, onDeviceTag);
   // The line starts with the conversation's words, so words held for checking survive a save (the editor starts afresh).
   const [text, setText] = useState(() => (session.phase === "heard" ? session.text : ""));
   const [drawer, setDrawer] = useState(false);
@@ -228,6 +245,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         }
         bridge.setMarks(r.touched);
         addTurn({ ...base, outcome: "done", patch: r.patch, message: changes.map((o) => describeOp(o, ctx).text).join(". "), open: false });
+        if (engine === "reader") recordLocal(bridge.projectId, base, changes, updateTurn);
         dispatch({ type: "result", phase: "applied" });
         setNotice(`${changes.map((o) => describeOp(o, ctx).text).join(". ")}.`);
         say(["Done."], lang, spoken, resumeLive);
@@ -263,7 +281,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       dispatch({ type: "failed", message: why });
       say([why], lang, spoken, ended ? undefined : resumeLive);
     },
-    [addTurn, ctx, dispatch, resumeLive, say],
+    [addTurn, ctx, dispatch, resumeLive, say, updateTurn],
   );
 
   const control = useCallback(
@@ -418,6 +436,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     }
     b.setMarks(r.touched);
     decide(t, "applied", ops);
+    if (t.engine === "reader") recordLocal(b.projectId, t, ops, updateTurn);
     const skipped = r.skipped.length ? ` ${r.skipped.map((s) => `${s.what}: ${s.why}`).join(" ")}` : "";
     updateTurn(t.id, { open: false, outcome: "applied", patch: r.patch, message: `${ops.length === 1 ? "One change" : `${ops.length} changes`} applied.${skipped}` });
     setNotice(`${ops.length === 1 ? "One change" : `${ops.length} changes`} applied.${skipped}`);
@@ -430,7 +449,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     if (!t.patch) return;
     const r = bridge.revert(t.patch);
     if (r.ok) {
-      if (t.outcome === "applied") decide(t, "reverted");
+      if (t.outcome === "applied" || t.outcome === "done") decide(t, "reverted");
       updateTurn(t.id, { outcome: "reverted", message: "Taken back." });
       setNotice("Taken back.");
     } else setNotice(`It can't be taken back: ${r.changedSince.join(", ")} changed since. Undo by hand, or change it again.`);
@@ -500,6 +519,8 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     speech.start({
       lang: availability.tag,
       continuous: true,
+      processLocally: availability.where === "device" && onDeviceTag !== null,
+      phrases: SURVEY_PHRASES,
       onWords: (w) => {
         dispatch({ type: "interim", text: w });
         if (latest.current.settings.mode === "live") {
@@ -512,7 +533,11 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       onFinal: (w) => onHeard(w),
       onError: (code) => {
         // The recogniser has ended without sending anything; a live conversation ends with it.
-        const msg = speechErrorMessage(code, languageOf(latest.current.settings.lang).name);
+        // On the computer, "not supported" means Chrome no longer has English downloaded.
+        const msg =
+          code === "language-not-supported" && latest.current.settings.lang === "en" && latest.current.settings.onDeviceTag
+            ? "English isn't downloaded for this computer any more. Download it again in the assistant's settings, or switch off hearing on this computer."
+            : speechErrorMessage(code, languageOf(latest.current.settings.lang).name);
         clearTimers();
         window.clearTimeout(silenceTimer.current);
         silenceTimer.current = undefined;
@@ -521,7 +546,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         if (msg) setNotice(msg);
       },
     });
-  }, [availability, dispatch, onHeard, settings.mode, settings.privacyNoted, speech, voice]);
+  }, [availability, dispatch, onDeviceTag, onHeard, settings.mode, settings.privacyNoted, speech, voice]);
   useEffect(() => {
     startRef.current = startListening;
   }, [startListening]);
@@ -654,6 +679,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   const items = () => [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? [])];
   const openMenu = (from: HTMLButtonElement) => {
     menuOpener.current = from;
+    setSettingsOpen(false);
     setLangMenu(true);
     window.setTimeout(() => (items().find((b) => b.getAttribute("aria-checked") === "true") ?? items()[0])?.focus(), 0);
   };
@@ -703,6 +729,30 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     chooseMode(settings.mode === "push" ? "live" : "push");
     window.setTimeout(() => group.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus(), 0);
   };
+
+  // ---- The settings: a small panel above the bar; Esc, Done or a tap outside closes it, and the focus goes back to its button ---------
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const settingsOpener = useRef<HTMLButtonElement | null>(null);
+  const openSettings = (from: HTMLButtonElement) => {
+    settingsOpener.current = from;
+    setLangMenu(false);
+    setSettingsOpen(true);
+    window.setTimeout(() => settingsRef.current?.querySelector<HTMLElement>("button, [href], input")?.focus(), 0);
+  };
+  const closeSettings = (refocus: boolean) => {
+    setSettingsOpen(false);
+    if (refocus) settingsOpener.current?.focus();
+  };
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const outside = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!settingsRef.current?.contains(t) && !settingsOpener.current?.contains(t)) setSettingsOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [settingsOpen]);
 
   // ---- The drawer and the cards take turns: a new card closes the drawer, and the drawer, while open, sits where the card was ------
   const [drawerAt, setDrawerAt] = useState(0);
@@ -911,6 +961,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       {showDrawer ? (
         <TurnsDrawer
           turns={turns}
+          earlier={earlier}
           readOnly={Boolean(bridge.readOnly)}
           onClose={() => setDrawer(false)}
           onUseAgain={(w) => {
@@ -930,7 +981,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           className="pointer-events-auto w-full max-w-3xl rounded-md bg-surface p-2 shadow-e2 ring-1 ring-line"
         >
           {LANGUAGES.map((l) => {
-            const ok = voiceAvailability(l.id, family, speech.supported === true);
+            const ok = voiceAvailability(l.id, family, speech.supported === true, l.id === "en" ? settings.onDeviceTag : null);
             return (
               <button
                 key={l.id}
@@ -955,6 +1006,23 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
             );
           })}
         </div>
+      ) : null}
+
+      {settingsOpen ? (
+        <SettingsPanel
+          settings={settings}
+          setSettings={(change) => {
+            if (change.speak === false) voice.cancel();
+            // Changing how it hears drops what was being heard, so the next listen uses the new choice.
+            if ("onDeviceTag" in change && latest.current.listening) cancelAll();
+            setSettings(change);
+          }}
+          lang={settings.lang}
+          family={family}
+          speakUnavailable={voice.unavailable(settings.lang)}
+          panelRef={settingsRef}
+          onClose={closeSettings}
+        />
       ) : null}
       </div>
 
@@ -1049,16 +1117,13 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           ) : null}
           <button
             type="button"
-            aria-pressed={settings.speak}
-            aria-label="Spoken replies"
-            title={voice.unavailable(settings.lang) ?? undefined}
-            onClick={() => {
-              if (settings.speak) voice.cancel();
-              setSettings({ speak: !settings.speak });
-            }}
+            aria-haspopup="dialog"
+            aria-expanded={settingsOpen}
+            aria-label="Assistant settings"
+            onClick={(e) => (settingsOpen ? closeSettings(false) : openSettings(e.currentTarget))}
             className={buttonClasses("ghost", "sm", "size-11 !px-0")}
           >
-            {settings.speak ? <SpeakerHighIcon size={16} weight="bold" aria-hidden /> : <SpeakerSlashIcon size={16} weight="bold" aria-hidden />}
+            <SlidersHorizontalIcon size={16} weight="bold" aria-hidden />
           </button>
           <button
             type="button"

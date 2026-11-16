@@ -151,7 +151,7 @@ The drafting assistant's model turns ([ASSISTANT.md](ASSISTANT.md), ADR 0210).
 | `operations`, `dropped` | jsonb | arrays: the operations as checked by code, and what was left out with the reason; at most 64 KB and 16 KB |
 | `outcome`, `outcome_at` | text, timestamptz | `suggested`, `applied`, `discarded`, `failed` or `reverted` |
 | `applied_sha256` | text | when applied: the SHA-256 of the canonical JSON of what was applied |
-| `model` | text | the model id |
+| `model` | text | the model id, or `local` for a change the assistant's local rules read and the surveyor applied |
 
 Members of the workspace read it (RLS); nothing writes it but the functions below. A project keeps its last 500 turns. Index `survey_assistant_turns_project_idx (project_id, created_at desc)`.
 

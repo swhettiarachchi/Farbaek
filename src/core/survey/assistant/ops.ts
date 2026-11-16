@@ -127,6 +127,18 @@ export function tierOf(op: PlanOp): Tier {
   }
 }
 
+/** An instruction from an earlier visit, as the project's record keeps it (survey_assistant_turns, v96): for the drawer's history. */
+export interface EarlierTurn {
+  id: string;
+  words: string;
+  outcome: "suggested" | "applied" | "discarded" | "failed" | "reverted";
+  inputMethod: "voice" | "typed";
+  /** When it was given, ISO 8601. */
+  at: string;
+  /** Read by the local rules rather than the model. */
+  local: boolean;
+}
+
 /** A question to the surveyor, with choices to tap; choices are words, never figures. */
 export interface AssistQuestion {
   text: string;

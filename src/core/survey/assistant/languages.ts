@@ -59,10 +59,12 @@ export type VoiceAvailability = { ok: true; tag: string; where: "cloud" | "devic
 
 /**
  * Whether this browser can hear this language, and if not, why, in words the surveyor can act on. `hasApi` is whether the page found a
- * speech recogniser at all; `firefoxAndroid` covers the one Firefox without one.
+ * speech recogniser at all. `onDeviceTag` is the English tag Chrome has downloaded for this computer, when the surveyor chose to hear
+ * English here: the sound then stays on the computer (Chrome 139 and later, on a computer; research 2026-11-15).
  */
-export function voiceAvailability(lang: AssistLanguage, family: BrowserFamily, hasApi: boolean): VoiceAvailability {
+export function voiceAvailability(lang: AssistLanguage, family: BrowserFamily, hasApi: boolean, onDeviceTag: string | null = null): VoiceAvailability {
   const entry = languageOf(lang);
+  if (hasApi && onDeviceTag && lang === "en" && (family === "chrome" || family === "edge")) return { ok: true, tag: onDeviceTag, where: "device", company: null, unconfirmed: false };
   if (!entry.enabled) return { ok: false, reason: `${entry.name} isn't offered yet. Type it, or choose English or Sinhala.` };
   if (!hasApi) return { ok: false, reason: "This browser doesn't turn speech into text. Type your instruction, or open Survey Studio in Chrome, Edge or Safari." };
   const h = entry.hearing[family];
@@ -72,6 +74,20 @@ export function voiceAvailability(lang: AssistLanguage, family: BrowserFamily, h
   }
   return { ok: true, tag: entry.speech[0]!, where: h === "device" ? "device" : "cloud", company: h === "device" ? null : speechCompany(family), unconfirmed: h === "unconfirmed" };
 }
+
+/** The English tags to look for on the computer, best first: Chrome's downloadable packs may not include the nearest (en-IN). */
+export const ON_DEVICE_ENGLISH = ["en-IN", "en-GB", "en-US"] as const;
+
+/**
+ * Survey words Chrome is asked to listen for, when it hears English on the computer (contextual biasing, Chrome 142 and later; Chrome
+ * biases only on the device). They make the words more likely to be heard; they never make a value.
+ */
+export const SURVEY_PHRASES: readonly string[] = [
+  "bearing", "bearings", "distance", "northing", "easting", "perch", "perches", "rood", "roods", "hectare", "hectares", "acre",
+  "lot", "lots", "superscript", "boundary", "adjoining", "access road", "reservation", "traverse", "chainage", "station",
+  "survey point", "point number", "scale", "landscape", "portrait", "A2", "A3", "A4", "Kandawala", "SLD99", "plan number",
+  "north arrow", "title block", "undo", "redo", "apply", "discard", "stop listening",
+];
 
 /** Whether text is mostly in a language's script, for answering in the language the surveyor used. */
 export function scriptOf(text: string): AssistLanguage {

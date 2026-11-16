@@ -262,6 +262,13 @@ describe("the drafting assistant (v96)", () => {
     });
   });
 
+  it("records a change the local rules made, as 'local', then applied with its hash", async () => {
+    const [{ id }] = (await q<{ id: string }>("select public.app_survey_record_assistant_turn($1, $2, $3, 'en', 'typed', 'hide the point numbers', '', $4::jsonb, '[]'::jsonb, 'suggested', 'local') as id", [org, USERS.alice, mine, JSON.stringify([{ kind: "layer" }])])) as [{ id: string }];
+    await decide(USERS.alice, id, "applied", HASH);
+    const [t] = await su<{ model: string; outcome: string }>("select model, outcome from public.survey_assistant_turns where id = $1", [id]);
+    expect(t).toEqual({ model: "local", outcome: "applied" });
+  });
+
   it("keeps a project's last 500 turns, and they go with the project", async () => {
     await su("insert into public.survey_assistant_turns (project_id, org_id, actor_id, lang, input_method, words, outcome, model, created_at) select $1, $2, $3, 'en', 'typed', 'old ' || g, 'discarded', 'claude-haiku-5-5', now() - make_interval(secs => 1000 + g) from generate_series(1, 510) g", [mine, org, USERS.alice]);
     await record(USERS.alice);

@@ -41,7 +41,7 @@ import { buildPlan } from "@/core/survey/view";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
 import { isoDate, personName, planInputFor } from "@/server/survey/present";
-import { loadSurveyDrawing, loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
+import { loadAssistantHistory, loadSurveyDrawing, loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { SAMPLE_PROJECT_ID, sampleProject } from "@/server/survey/sample";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
@@ -103,6 +103,9 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   // The drafting assistant on the Plan step (stage 195, ADR 0210): why its AI is off here, if it is. Its local reader works regardless.
   const assistAi = step === "plan" && !readOnly && ctx.mode !== "demo" ? await loadAiAvailability(ctx, ws, "survey_assist").catch(() => null) : null;
   const assistantAiOff = ctx.mode === "demo" ? "The demo workspace is sample data, so the assistant's AI is off here." : (readOnly ?? (assistAi ? assistAi.disabledReason : "The assistant's AI isn't available right now."));
+  // Earlier visits' instructions, for the assistant's drawer (read through RLS; none for the Sample or the demo).
+  const historyClient = step === "plan" && !sample && ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const assistHistory = historyClient ? await loadAssistantHistory(historyClient, projectId) : [];
   // History's compare (stage 191): an earlier version against the latest, in words.
   const asked = step === "history" && !sample && sp.compare ? Number(sp.compare) : null;
   const compareWith = asked && Number.isInteger(asked) && asked !== data.drawing.version ? asked : null;
@@ -145,6 +148,13 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           <Card>
             <CardTitle icon={FileArrowUpIcon}>Import points</CardTitle>
             <p className="mt-1 text-sm text-ink-2">Imported points are kept exactly as given and never edited. A corrected point is a new import with a new number.</p>
+            <p className="mt-1 text-sm text-ink-2">
+              Or say them: on the{" "}
+              <Link href={`${base}?step=plan`} className="font-medium text-accent underline-offset-2 hover:underline">
+                Plan step
+              </Link>
+              , the assistant takes dictated coordinates, or bearings and distances (with its AI on), and brings them here for you to check.
+            </p>
             <div className="mt-5">
               <ImportPanel projectId={projectId} crsId={data.project.crsId} crsName={crs?.name ?? data.project.crsId} codes={doc.codes} planHasLots={doc.lots.length > 0} known={data.points.map((p) => ({ pointId: p.pointId, e: p.e, n: p.n }))} readOnly={readOnly} />
             </div>
@@ -249,6 +259,13 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
         <Card>
           <CardTitle icon={PolygonIcon}>Lots, roads and adjoining lands</CardTitle>
           <p className="mt-1 text-sm text-ink-2">Type each lot&apos;s corner numbers in order. Areas, extents and road widths are computed from the coordinates as you type.</p>
+          <p className="mt-1 text-sm text-ink-2">
+            Or say it: on the{" "}
+            <Link href={`${base}?step=plan`} className="font-medium text-accent underline-offset-2 hover:underline">
+              Plan step
+            </Link>
+            , the assistant makes a lot from the points you pick or name, and sends divisions to the panel below.
+          </p>
           <div className="mt-5">
             {data.points.length === 0 ? <p className="text-sm text-ink-2">Import points first.</p> : <LotsEditor projectId={projectId} baseVersion={data.drawing.version} document={doc} points={data.points} readOnly={readOnly} />}
           </div>
@@ -277,7 +294,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       {step === "plan" && (doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0) ? <ReviewChecklist doc={doc} findings={view.findings} base={base} approved={Boolean(approval)} /> : null}
 
       {step === "plan" ? (
-        <AssistantProvider>
+        <AssistantProvider earlier={assistHistory}>
         <PlanEditor
           key={data.drawing.version}
           projectId={projectId}

@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { emptyDocument, parseSurveyDocument, type SurveyDocument } from "@/core/survey/document";
+import type { EarlierTurn } from "@/core/survey/assistant/ops";
 import type { SurveyPoint } from "@/core/survey/parcel";
 
 /**
@@ -166,4 +167,28 @@ export async function loadSurveyProject(client: SupabaseClient, orgId: string, p
     exports: (exports.data ?? []).map((e) => exportRow.safeParse(e)).filter((r) => r.success).map((r) => r.data),
     profiles: (profiles.data ?? []).map((x) => profileRow.safeParse(x)).filter((r) => r.success).map((r) => r.data),
   };
+}
+
+const earlierTurnRow = z.object({
+  id: z.string(),
+  words: z.string(),
+  outcome: z.enum(["suggested", "applied", "discarded", "failed", "reverted"]),
+  input_method: z.enum(["voice", "typed"]),
+  model: z.string(),
+  created_at: z.string(),
+});
+
+/**
+ * The drafting assistant's latest instructions on a project (v96), oldest first, for the drawer's earlier visits. Read through RLS:
+ * members of the workspace see them. Empty when they can't be read; the drawer then shows this visit only.
+ */
+export async function loadAssistantHistory(client: SupabaseClient, projectId: string, limit = 40): Promise<EarlierTurn[]> {
+  if (!z.string().uuid().safeParse(projectId).success) return [];
+  const { data, error } = await client.from("survey_assistant_turns").select("id, words, outcome, input_method, model, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(limit);
+  if (error || !data) return [];
+  return data
+    .map((r) => earlierTurnRow.safeParse(r))
+    .filter((r) => r.success)
+    .map((r) => ({ id: r.data.id, words: r.data.words, outcome: r.data.outcome, inputMethod: r.data.input_method, at: r.data.created_at, local: r.data.model === "local" }))
+    .reverse();
 }

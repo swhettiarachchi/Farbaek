@@ -11,7 +11,7 @@ import { createContext, useCallback, useContext, useMemo, useReducer, useState, 
 import type { Answer } from "@/core/survey/assistant/answer";
 import type { Patch } from "@/core/survey/assistant/apply";
 import type { AssistLanguage } from "@/core/survey/assistant/languages";
-import type { AssistQuestion, PlanOp } from "@/core/survey/assistant/ops";
+import type { AssistQuestion, EarlierTurn, PlanOp } from "@/core/survey/assistant/ops";
 import { initialSession, sessionReducer, type SessionEvent, type SessionState, type VoiceMode } from "@/core/survey/assistant/session";
 
 export type Outcome = "suggested" | "applied" | "discarded" | "answered" | "asked" | "handed_off" | "failed" | "done" | "reverted";
@@ -51,9 +51,11 @@ export interface AssistantSettings {
   privacyNoted: boolean;
   /** Live talk's pause before an instruction ends, in milliseconds. */
   pauseMs: number;
+  /** The English tag Chrome hears on this computer, when the surveyor chose that; null hears through the browser's service. */
+  onDeviceTag: string | null;
 }
 
-const DEFAULTS: AssistantSettings = { mode: "push", lang: "en", speak: false, review: false, privacyNoted: false, pauseMs: 1200 };
+const DEFAULTS: AssistantSettings = { mode: "push", lang: "en", speak: false, review: false, privacyNoted: false, pauseMs: 1200, onDeviceTag: null };
 const KEY = "farbaek.survey.assistant";
 
 // A tiny store over localStorage, so the settings read the same in every component and never mismatch the server's render.
@@ -81,6 +83,7 @@ function readSettings(): AssistantSettings {
         review: v.review === true,
         privacyNoted: v.privacyNoted === true,
         pauseMs: typeof v.pauseMs === "number" && v.pauseMs >= 600 && v.pauseMs <= 4000 ? v.pauseMs : DEFAULTS.pauseMs,
+        onDeviceTag: typeof v.onDeviceTag === "string" && /^en-(?:IN|GB|US)$/.test(v.onDeviceTag) ? v.onDeviceTag : null,
       };
     } catch {
       cached = DEFAULTS;
@@ -104,6 +107,8 @@ const subscribe = (l: () => void) => {
 };
 
 interface AssistantValue {
+  /** Instructions from earlier visits, oldest first, from the project's record. */
+  earlier: readonly EarlierTurn[];
   settings: AssistantSettings;
   setSettings(change: Partial<AssistantSettings>): void;
   session: SessionState;
@@ -115,14 +120,16 @@ interface AssistantValue {
 
 const Ctx = createContext<AssistantValue | null>(null);
 
-export function AssistantProvider({ children }: { children: ReactNode }) {
+const NONE: readonly EarlierTurn[] = [];
+
+export function AssistantProvider({ children, earlier = NONE }: { children: ReactNode; earlier?: readonly EarlierTurn[] }) {
   const settings = useSyncExternalStore(subscribe, readSettings, () => DEFAULTS);
   const [session, dispatch] = useReducer(sessionReducer, settings.mode, initialSession);
   const [turns, setTurns] = useState<Turn[]>([]);
   const setSettings = useCallback((change: Partial<AssistantSettings>) => writeSettings({ ...readSettings(), ...change }), []);
   const addTurn = useCallback((t: Turn) => setTurns((all) => [...all.slice(-49), t]), []);
   const updateTurn = useCallback((id: string, change: Partial<Turn>) => setTurns((all) => all.map((t) => (t.id === id ? { ...t, ...change } : t))), []);
-  const value = useMemo(() => ({ settings, setSettings, session, dispatch, turns, addTurn, updateTurn }), [settings, setSettings, session, turns, addTurn, updateTurn]);
+  const value = useMemo(() => ({ earlier, settings, setSettings, session, dispatch, turns, addTurn, updateTurn }), [earlier, settings, setSettings, session, turns, addTurn, updateTurn]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
