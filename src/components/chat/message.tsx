@@ -17,7 +17,10 @@ import {
   DownloadSimpleIcon,
   FilePdfIcon,
   FileTextIcon,
+  FilmSlateIcon,
   FlagIcon,
+  HammerIcon,
+  ImageSquareIcon,
   PencilSimpleIcon,
   PlayIcon,
   ShareNetworkIcon,
@@ -30,7 +33,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { fileSizeLabel } from "@/core/chat/files";
-import type { ChatFile, ChatMessage } from "@/core/chat/protocol";
+import type { ChatFile, ChatMessage, HandOff } from "@/core/chat/protocol";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
 import { MarkdownView } from "./markdown-view";
@@ -182,6 +185,37 @@ export interface AnswerActions {
   onSwitch(id: string): void;
   onOpenImage(file: ChatFile): void;
   onEditImage(file: ChatFile): void;
+  /** Open another space with this conversation's request in its box. */
+  onHandOff?(to: HandOff): void;
+}
+
+/** Where an answer can go next (stage 202): each opens that space with the request in its box. Nothing is made until the person presses its button there. */
+const HANDOFFS: { to: HandOff; label: string; short: string; hint: string; icon: typeof HammerIcon; tone: string }[] = [
+  { to: "images", label: "Make a picture", short: "Picture", hint: "Opens Images with your request in its box", icon: ImageSquareIcon, tone: "text-spark-rose" },
+  { to: "video", label: "Make a video", short: "Video", hint: "Opens Video with your request in its box", icon: FilmSlateIcon, tone: "text-spark-aqua" },
+  { to: "build", label: "Build a website", short: "Website", hint: "Opens Build with your request in its box", icon: HammerIcon, tone: "text-spark-leaf" },
+];
+
+/**
+ * Farbaek AI beside its answer: the knight, bare (the logo takes no plate or frame). While it thinks or writes, a small orbit
+ * turns round him, the same sign the agent's mark gives for work in progress; it is still under reduced motion.
+ */
+function KnightMark({ live }: { live: boolean }) {
+  return (
+    <span aria-hidden className="relative mt-0.5 hidden size-8 shrink-0 items-center justify-center sm:inline-flex">
+      {live ? (
+        <span className="absolute -inset-2 motion-safe:animate-[chat-fade_200ms_ease-out_both]">
+          <span className="absolute inset-0 motion-safe:animate-[core-orbit_2.6s_linear_infinite]">
+            <svg viewBox="0 0 44 44" className="h-full w-full">
+              <ellipse cx="22" cy="22" rx="20.5" ry="7" fill="none" stroke="var(--color-accent)" strokeOpacity="0.55" strokeWidth="1" transform="rotate(-18 22 22)" />
+              <circle cx="2.5" cy="28.3" r="1.9" fill="var(--color-accent)" />
+            </svg>
+          </span>
+        </span>
+      ) : null}
+      <BrandLogo height={28} className="relative" />
+    </span>
+  );
 }
 
 export function AnswerMessage({
@@ -213,7 +247,9 @@ export function AnswerMessage({
   const canContinue = last && message.kind === "text" && (message.status === "stopped" || message.meta.stop === "length") && message.content.trim().length > 0;
 
   return (
-    <article className="chat-message group" aria-label="Farbaek AI said" aria-busy={streaming || undefined}>
+    <article className="chat-message group sm:grid sm:grid-cols-[2rem_minmax(0,1fr)] sm:gap-x-3 motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both]" aria-label="Farbaek AI said" aria-busy={streaming || undefined}>
+      <KnightMark live={streaming} />
+      <div className="min-w-0">
       {thinking !== undefined && thinking !== null && streaming ? (
         <div className="mb-2">
           <button
@@ -222,7 +258,7 @@ export function AnswerMessage({
             aria-expanded={showThinking}
             className="tap inline-flex min-h-10 items-center gap-2 rounded-full pr-2 text-sm text-ink-3 hover:text-ink-2"
           >
-            <span className="relative inline-flex size-6 items-center justify-center" aria-hidden>
+            <span className="relative inline-flex size-6 items-center justify-center sm:hidden" aria-hidden>
               <span className="absolute inset-0 rounded-full bg-accent/10 motion-safe:animate-pulse" />
               <BrandLogo height={20} />
             </span>
@@ -233,7 +269,7 @@ export function AnswerMessage({
         </div>
       ) : waiting ? (
         <div className="flex min-h-8 items-center gap-2 text-sm text-ink-3" role="status">
-          <span className="relative inline-flex size-6 items-center justify-center" aria-hidden>
+          <span className="relative inline-flex size-6 items-center justify-center sm:hidden" aria-hidden>
             <span className="absolute inset-0 rounded-full bg-accent/10 motion-safe:animate-pulse" />
             <BrandLogo height={20} />
           </span>
@@ -265,6 +301,27 @@ export function AnswerMessage({
       ) : null}
       {message.status === "stopped" && !streaming ? <p className="mt-2 text-sm text-ink-3">{message.content ? "Stopped. What was written is kept." : "Stopped before it started."}</p> : null}
       {message.meta.stop === "length" && message.status === "complete" ? <p className="mt-2 text-sm text-ink-3">The answer reached its length limit.</p> : null}
+
+      {last && !streaming && actions?.onHandOff && message.kind === "text" && message.status === "complete" && message.content ? (
+        <div role="group" aria-label="Take this further" className="mt-4 flex flex-wrap gap-2">
+          {HANDOFFS.map((h, i) => (
+            <button
+              key={h.to}
+              type="button"
+              title={h.hint}
+              aria-label={h.label}
+              onClick={() => actions.onHandOff?.(h.to)}
+              style={{ animationDelay: `${80 + i * 50}ms` }}
+              className="tap inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-sm text-ink-2 shadow-e1 transition-[border-color,color,transform] duration-150 hover:-translate-y-px hover:border-line-strong/60 hover:text-ink active:scale-[0.98] pointer-coarse:min-h-11 motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both]"
+            >
+              <h.icon size={14} weight="fill" className={h.tone} aria-hidden />
+              {/* One row on a phone: the short word there, the whole phrase from a tablet up. */}
+              <span className="sm:hidden">{h.short}</span>
+              <span className="max-sm:hidden">{h.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {!streaming ? (
         <div className={`mt-2 flex flex-wrap items-center gap-0.5 ${last ? "" : "sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100"} transition-opacity duration-150 pointer-coarse:opacity-100`}>
@@ -309,6 +366,7 @@ export function AnswerMessage({
           {message.modelName || message.thinkingMs ? <AnswerDetails message={message} /> : null}
         </div>
       ) : null}
+      </div>
     </article>
   );
 }

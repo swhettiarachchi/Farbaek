@@ -7,10 +7,9 @@ import { startFromPromptAction, type PromptStartState } from "@/app/app/new/acti
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import type { BuildTargets } from "@/core/workspace/build-target";
-import { PROMPT_MAX, PROMPT_MIN, isSharedBuild, promptFromShare } from "@/core/agent/prompt-start";
+import { PROMPT_MAX, PROMPT_MIN, PROMPT_STORAGE_KEY, isSharedBuild, promptFromShare } from "@/core/agent/prompt-start";
 
-/** Where a prompt waits through sign-up. Only in this browser, never in a URL. */
-export const PROMPT_STORAGE_KEY = "farbaek.prompt";
+export { PROMPT_STORAGE_KEY };
 
 const EXAMPLES = [
   "A one-page site for my bakery with the menu, opening hours and a map",

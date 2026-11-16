@@ -211,10 +211,17 @@ function Shell({ conversations: initial, projects, availability, theme: initialT
 
   return (
     <ChatContext.Provider value={value}>
-      <div ref={root} data-chat-theme={theme} className="chat-root relative flex h-[var(--chat-vh,100dvh)] overflow-hidden bg-canvas text-ink">
+      {/* On wide screens Chat is a rounded window on a pale stage, with the spectrum's light glowing from behind its edges
+          (stage 202, as the homepage draws it). The light is still; while Farbaek AI answers it travels slowly round. */}
+      <div ref={root} data-chat-theme={theme} className="chat-root relative h-[var(--chat-vh,100dvh)] overflow-hidden bg-canvas text-ink lg:bg-canvas-2 lg:p-3 xl:p-4 2xl:p-5">
+        <div aria-hidden className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block">
+          <div className="chat-halo" />
+          <div className="chat-halo-fade absolute inset-0" />
+        </div>
         <a href="#chat-composer" className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm text-on-primary focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
           Skip to the message box
         </a>
+        <div className="relative flex h-full overflow-hidden bg-canvas lg:rounded-lg lg:border lg:border-line lg:shadow-e2">
         <div className="hidden h-full shrink-0 lg:flex">{sidebar(false)}</div>
         <Drawer open={drawer} onClose={() => setDrawer(false)}>
           {sidebar(true)}
@@ -222,6 +229,7 @@ function Shell({ conversations: initial, projects, availability, theme: initialT
         <main id="main" className="relative flex h-full min-w-0 flex-1 flex-col">
           {children}
         </main>
+        </div>
 
         <ShareDialog state={dialog?.kind === "share" ? dialog : null} onClose={() => setDialog(null)} onShared={(id, shared) => upsert({ id, shared })} />
         <RenameDialog

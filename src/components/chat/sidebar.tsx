@@ -14,7 +14,11 @@ import {
   FolderSimpleIcon,
   GearSixIcon,
   HouseIcon,
+  ChatCircleTextIcon,
+  FilmSlateIcon,
+  HammerIcon,
   ImageSquareIcon,
+  ImagesIcon,
   MagnifyingGlassIcon,
   NotePencilIcon,
   PencilSimpleIcon,
@@ -34,6 +38,16 @@ import type { ConversationSummary } from "@/core/chat/protocol";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
 import { inputClasses } from "@/components/ui/field";
+
+/** Farbaek AI's spaces, each in its colour (ADR 0217), one press from any chat. */
+const SPACE_LINKS = [
+  { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon, tone: "text-accent" },
+  { href: "/app/images", label: "Images", icon: ImageSquareIcon, tone: "text-spark-rose" },
+  { href: "/app/video", label: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua" },
+  { href: "/app/new", label: "Build", icon: HammerIcon, tone: "text-spark-leaf" },
+] as const;
+
+const SPACE_ROW = "group/space flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 transition-[background-color,color,box-shadow] duration-150 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-11";
 import { listChatsAction, moveChatAction } from "@/app/app/chat/actions";
 import { useChat } from "./chat-shell";
 import { IconButton, Menu, useToast, type MenuItem } from "./primitives";
@@ -169,9 +183,11 @@ export function Sidebar({
             window.setTimeout(() => document.getElementById("chat-search")?.focus(), 0);
           }}
         />
-        <Link href="/app/chat/images" aria-label="Images" title="Images" className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink">
-          <ImageSquareIcon size={20} aria-hidden />
-        </Link>
+        {SPACE_LINKS.slice(1).map((s) => (
+          <Link key={s.href} href={s.href} aria-label={s.label} title={s.label} className="tap inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-raised">
+            <s.icon size={20} weight="fill" className={s.tone} aria-hidden />
+          </Link>
+        ))}
         <div className="mt-auto">
           <IconButton label="Settings" icon={GearSixIcon} size={20} onClick={chat.openSettings} />
         </div>
@@ -185,13 +201,13 @@ export function Sidebar({
       <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
         <Link href="/app" className="flex min-h-11 items-center gap-2 rounded-full pl-1 pr-2" aria-label="Farbaek, Home" onClick={onNavigate}>
           <BrandLogo height={30} />
-          <span className="text-base font-medium tracking-[-0.02em]">Farbaek</span>
+          <span className="text-base font-medium tracking-[-0.02em]">Farbaek AI</span>
         </Link>
         {inDrawer ? <IconButton label="Close" icon={XIcon} onClick={onNavigate} size={20} /> : <IconButton label="Fold the sidebar" icon={SidebarSimpleIcon} onClick={onFold} size={20} />}
       </div>
 
       <div className="grid gap-2 px-3">
-        <Link href="/app/chat" onClick={onNavigate} className={buttonClasses("primary", "sm", "w-full justify-start")}>
+        <Link href="/app/chat" onClick={onNavigate} className={buttonClasses("secondary", "sm", "w-full justify-start")}>
           <NotePencilIcon size={16} weight="bold" aria-hidden /> New chat
         </Link>
         <div className="relative">
@@ -222,14 +238,22 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="mt-2 grid gap-0.5 px-3">
+      <div className="mt-3 grid gap-0.5 px-3">
+        {SPACE_LINKS.map((s) => (
+          <Link key={s.href} href={s.href} onClick={onNavigate} aria-current={s.href === "/app/chat" && pathname !== "/app/chat/images" ? "page" : undefined} className={SPACE_ROW}>
+            <s.icon size={16} weight="fill" className={`${s.tone} transition-transform duration-150 group-hover/space:scale-110`} aria-hidden /> {s.label}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-3 grid gap-0.5 px-3">
         <Link
           href="/app/chat/images"
           onClick={onNavigate}
           aria-current={pathname === "/app/chat/images" ? "page" : undefined}
-          className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:text-ink pointer-coarse:min-h-11"
+          className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-11"
         >
-          <ImageSquareIcon size={16} weight="bold" aria-hidden /> Images
+          <ImagesIcon size={16} weight="bold" aria-hidden /> Pictures from chats
         </Link>
         {view === "archived" ? (
           <button type="button" onClick={() => setView("recent")} className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-left text-sm text-ink-2 hover:bg-surface hover:text-ink pointer-coarse:min-h-11">
@@ -394,7 +418,7 @@ function Item({ c, current, onNavigate, onMove, archivedView }: { c: Conversatio
         href={`/app/chat/${c.id}`}
         onClick={onNavigate}
         aria-current={current ? "page" : undefined}
-        className="flex min-h-10 items-center gap-2 rounded-full py-2 pl-3.5 pr-11 text-sm text-ink-2 transition-colors duration-100 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-11"
+        className="flex min-h-10 items-center gap-2 rounded-full py-2 pl-3.5 pr-11 text-sm text-ink-2 transition-colors duration-100 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:shadow-e1 aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-11"
       >
         {c.pinned ? <PushPinIcon size={14} weight="fill" className="shrink-0 text-ink-3" aria-label="Pinned" /> : null}
         <span className="min-w-0 flex-1 truncate">{c.title}</span>

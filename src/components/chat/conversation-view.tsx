@@ -8,12 +8,13 @@
  */
 import { ArchiveIcon, ArrowDownIcon, CodeIcon, DotsThreeIcon, FileTextIcon, ImageSquareIcon, LightbulbIcon, ListIcon, MagnifyingGlassIcon, NotePencilIcon, PenNibIcon, PencilSimpleIcon, PushPinIcon, PushPinSlashIcon, ShareNetworkIcon, TrashIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
-import { CHAT_LIMITS, HOME_QUESTION_KEY, titleFrom, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
+import { CHAT_LIMITS, HOME_QUESTION_KEY, titleFrom, type HandOff, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
 import { speakable } from "@/core/chat/markdown";
-import { BrandLogo } from "@/components/brand/brand-logo";
+import { handOffPlan } from "@/core/chat/handoff";
+import { HeroVisual } from "@/components/three/hero-visual";
 import { useSpeaker } from "./use-speaker";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
 import { branchAction, earlierMessagesAction, rateAnswerAction, switchBranchAction } from "@/app/app/chat/actions";
@@ -40,17 +41,18 @@ function placeholder(id: string, role: "user" | "assistant", over: Partial<ChatM
 }
 
 const SUGGESTIONS = [
-  { icon: CodeIcon, title: "Write code", detail: "Write, explain or fix code in any language.", prompt: "Help me write code that " },
-  { icon: MagnifyingGlassIcon, title: "Research anything", detail: "A clear explanation with the points that matter.", prompt: "Explain the key points of " },
-  { icon: ImageSquareIcon, title: "Create an image", detail: "Describe it, and Farbaek draws it.", prompt: "", mode: "image" as const },
-  { icon: FileTextIcon, title: "Analyze documents", detail: "Attach a PDF or text file to summarise or question it.", prompt: "Summarise this document and list its main points.", attach: true },
-  { icon: LightbulbIcon, title: "Brainstorm ideas", detail: "Fresh angles in a minute, ready to build on.", prompt: "Give me ten ideas for " },
-  { icon: PenNibIcon, title: "Write and improve", detail: "Draft, shorten or polish any text.", prompt: "Improve this text so it reads clearly and warmly:\n\n" },
+  { icon: CodeIcon, tone: "var(--color-accent)", title: "Write code", detail: "Write, explain or fix code in any language.", prompt: "Help me write code that " },
+  { icon: MagnifyingGlassIcon, tone: "var(--color-spark-aqua)", title: "Research anything", detail: "A clear explanation with the points that matter.", prompt: "Explain the key points of " },
+  { icon: ImageSquareIcon, tone: "var(--color-spark-rose)", title: "Create an image", detail: "Describe it, and Farbaek draws it.", prompt: "", mode: "image" as const },
+  { icon: FileTextIcon, tone: "var(--color-spark-leaf)", title: "Analyze documents", detail: "Attach a PDF or text file to summarise or question it.", prompt: "Summarise this document and list its main points.", attach: true },
+  { icon: LightbulbIcon, tone: "var(--color-spark-ember)", title: "Brainstorm ideas", detail: "Fresh angles in a minute, ready to build on.", prompt: "Give me ten ideas for " },
+  { icon: PenNibIcon, tone: "var(--color-accent)", title: "Write and improve", detail: "Draft, shorten or polish any text.", prompt: "Improve this text so it reads clearly and warmly:\n\n" },
 ];
 
 export function ConversationView({ conversation, initialMessages, initialHasEarlier, projectId = null }: { conversation: ConversationInfo | null; initialMessages: ChatMessage[]; initialHasEarlier: boolean; projectId?: string | null }) {
   const chat = useChat();
   const toast = useToast();
+  const router = useRouter();
   const reduced = useReducedMotion();
   const voice = useSpeaker();
   const prefs = useChatPrefs();
@@ -427,6 +429,18 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     if (files.length > 0) composer.current?.attach(files);
   };
 
+  // An answer's chips (stage 202): the request this conversation ends on goes to that space's box, through this browser's
+  // storage and never the address. Nothing is made or charged until the person presses the button there.
+  const handOff = (to: HandOff) => {
+    const plan = handOffPlan(to, messages);
+    try {
+      if (plan.text) window.localStorage.setItem(plan.key, plan.text);
+    } catch {
+      // Storage refused: the box there opens empty.
+    }
+    router.push(plan.href);
+  };
+
   const composerEl = (placement: "center" | "bottom") => (
     <Composer
       ref={composer}
@@ -515,7 +529,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                 }}
               />
             </div>
-            <div className="sticky bottom-0 -mx-4 bg-canvas pt-2 max-[18em]:static lg:static lg:mx-0 lg:mt-8 lg:bg-transparent lg:pt-0">{composerEl("bottom")}</div>
+            <div className="sticky bottom-0 -mx-4 bg-canvas pt-2 max-[18em]:static [@media(max-height:30rem)]:static lg:static lg:mx-0 lg:mt-8 lg:bg-transparent lg:pt-0">{composerEl("bottom")}</div>
           </div>
         </div>
       ) : (
@@ -552,6 +566,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                       onRate: (r) => void rate(m, r),
                       onSpeak: () => speak(m),
                       onShare: share,
+                      onHandOff: handOff,
                       onSwitch: (id) => void switchTo(id),
                       onOpenImage: (f: ChatFile) => setViewer({ src: fileUrl(f.id), name: f.name, prompt: m.meta.prompt ?? null, width: f.width, height: f.height }),
                       onEditImage: (f: ChatFile) => composer.current?.fill("", { mode: "image", files: [f] }),
@@ -594,11 +609,13 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
 function EmptyState({ onPick, demo }: { onPick: (s: (typeof SUGGESTIONS)[number]) => void; demo: boolean }) {
   return (
     <div className="text-center motion-safe:animate-[chat-rise_320ms_cubic-bezier(0.16,1,0.3,1)_both]">
-      <div className="relative mx-auto w-fit">
-        <span aria-hidden className="absolute -inset-10 -z-10 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-accent)_10%,transparent),transparent)]" />
-        <BrandLogo height={104} preload className="mx-auto max-sm:h-[76px] max-sm:w-auto" />
+      {/* The knight in his orbit, as on the homepage: drawn in 2D everywhere, in 3D on desktops that can afford it, still
+          under reduced motion. He leans toward the pointer and hops when pressed. Sized by the screen's height, so the
+          message box is never pushed off a short screen. */}
+      <div className="mx-auto w-[clamp(7.5rem,22svh,12.5rem)]">
+        <HeroVisual sizes="200px" />
       </div>
-      <h1 className={`mt-5 ${FOCUSED_TITLE}`}>What can I help you with?</h1>
+      <h1 className={`relative mt-1 ${FOCUSED_TITLE}`}>What can I help you with?</h1>
       <p className="mx-auto mt-2 max-w-md text-body leading-relaxed text-ink-2">Think freely. Create boldly. Get more done with Farbaek.</p>
       {demo ? <p className="mx-auto mt-3 max-w-md text-sm text-ink-3">This is the demo workspace: open the sample chat in the sidebar to see how answers look.</p> : null}
       <ul className="mx-auto mt-6 grid max-w-2xl grid-cols-2 gap-2.5 text-left sm:mt-8 sm:grid-cols-3">
@@ -607,9 +624,12 @@ function EmptyState({ onPick, demo }: { onPick: (s: (typeof SUGGESTIONS)[number]
             <button
               type="button"
               onClick={() => onPick(s)}
-              className="group flex h-full min-h-20 w-full flex-col gap-1.5 rounded-md border border-line bg-surface p-3.5 text-left shadow-e1 transition-[border-color,box-shadow,transform] duration-200 ease-standard hover:-translate-y-0.5 hover:border-line-2 hover:shadow-e2 active:scale-[0.98] sm:p-4"
+              style={{ "--tone": s.tone } as CSSProperties}
+              className="group flex h-full min-h-20 w-full flex-col gap-2 rounded-md border border-line bg-surface p-3.5 text-left shadow-e1 transition-[border-color,box-shadow,transform] duration-200 ease-standard hover:-translate-y-0.5 hover:border-[color-mix(in_oklab,var(--tone)_42%,var(--color-line))] hover:shadow-[0_14px_30px_-18px_color-mix(in_oklab,var(--tone)_60%,transparent)] active:scale-[0.98] sm:p-4"
             >
-              <s.icon size={20} className="text-ink-3 transition-colors duration-150 group-hover:text-accent" aria-hidden />
+              <span aria-hidden className="flex size-8 items-center justify-center rounded-full transition-transform duration-200 ease-standard group-hover:scale-110" style={{ background: "color-mix(in oklab, var(--tone) 11%, var(--color-surface))", color: "var(--tone)" }}>
+                <s.icon size={16} weight="fill" />
+              </span>
               <span className="text-sm font-medium text-ink">{s.title}</span>
               <span className="hidden text-xs leading-snug text-ink-3 sm:block">{s.detail}</span>
             </button>

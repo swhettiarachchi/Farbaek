@@ -135,6 +135,15 @@ export interface ConversationSummary {
  */
 export const HOME_QUESTION_KEY = "farbaek.chat-question";
 
+/**
+ * Where a request waits when Chat hands it to the Images or Video studio (stage 202): this browser's storage, never the
+ * address. The studio puts it in its box once, ready to edit, and forgets it. Nothing is made until the person presses the button.
+ */
+export const STUDIO_PROMPT_KEY = "farbaek.studio-prompt";
+
+/** The spaces an answer can hand its request to. */
+export type HandOff = "images" | "video" | "build";
+
 /** The events of one turn's stream, in order: start, then thinking and text (or an image), then done. */
 export type TurnEvent =
   /** note: why the model differs from the one chosen, when it does. */
