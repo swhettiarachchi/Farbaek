@@ -280,7 +280,7 @@ export function SettingsDialog({ open, onClose, theme, onTheme, availability, pl
         </section>
 
         <p className="text-xs leading-relaxed text-ink-3">
-          Your chats are private to you in this workspace. The models that answer are made by Anthropic and OpenAI; Farbaek sends them your messages only to answer you. Your account&apos;s data export includes every chat.
+          Your chats are private to you in this workspace. Farbaek AI answers with models made by Anthropic and OpenAI, chosen for each question; Farbaek sends them your messages only to answer you. Your account&apos;s data export includes every chat.
         </p>
       </div>
     </Dialog>

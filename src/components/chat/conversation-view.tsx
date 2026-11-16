@@ -11,7 +11,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { CHAT_LIMITS, titleFrom, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
+import { CHAT_LIMITS, HOME_QUESTION_KEY, titleFrom, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
 import { speakable } from "@/core/chat/markdown";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { useSpeaker } from "./use-speaker";
@@ -106,6 +106,20 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
 
   // Stops the answer when the person leaves the conversation.
   useEffect(() => () => controller.current?.abort(), []);
+
+  // A question asked on the homepage before signing in waits here once, ready to send: the person still presses send.
+  useEffect(() => {
+    if (conversation || !new URLSearchParams(window.location.search).has("ask")) return;
+    let question: string | null = null;
+    try {
+      question = window.localStorage.getItem(HOME_QUESTION_KEY);
+      window.localStorage.removeItem(HOME_QUESTION_KEY);
+    } catch {
+      // Storage refused: nothing waiting.
+    }
+    window.history.replaceState(null, "", projectId ? `/app/chat?project=${projectId}` : "/app/chat");
+    if (question?.trim()) composer.current?.fill(question.slice(0, 8_000));
+  }, [conversation, projectId]);
 
   // "/" goes to the message box from anywhere that isn't a field.
   useEffect(() => {
@@ -252,6 +266,12 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
             window.history.replaceState(null, "", `/app/chat/${e.conversationId}`);
           } else chat.upsert({ id: e.conversationId, updatedAt: new Date().toISOString() });
           if (e.note) toast({ text: e.note, tone: "info" });
+        } else if (e.type === "route") {
+          // Another model took the question: its thinking starts afresh, and the answer names it.
+          const id = answerRef.current;
+          setLive((l) => (l ? { ...l, thinking: null } : l));
+          setMessages((ms) => ms.map((m) => (m.id === id ? { ...m, modelName: e.modelName } : m)));
+          toast({ text: e.note, tone: "info" });
         } else if (e.type === "thinking") {
           setLive((l) => (l ? { ...l, thinking: `${l.thinking ?? ""}${e.v}` } : l));
         } else if (e.type === "text") {

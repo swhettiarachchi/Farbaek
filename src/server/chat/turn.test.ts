@@ -56,7 +56,7 @@ function fakeDeps(over: { model?: ChatModel | null; images?: ImageGenerator | nu
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
   const usage: UsageContext & AiUsageDeps = {
-    billing: async () => (over.plan === "pro" ? { state: "subscribed", planId: "pro", subscriptionStartedAt: "2026-11-01T00:00:00Z" } : { state: "free" }) as never,
+    billing: async () => (over.plan === "pro" ? { state: "active", paidPlanId: "pro" } : { state: "free" }) as never,
     now: () => new Date("2026-11-16T10:00:00Z"),
     newEventId: () => "e1",
     listUsageGrants: async () => [],
@@ -175,8 +175,38 @@ describe("a chat turn (stage 199)", () => {
     const model = fakeModel(["Hi"], () => ({ ok: true, stop: "end", usage: { model: "claude-haiku-5-5", inputTokens: 10, outputTokens: 2 } }));
     const { deps, calls } = fakeDeps({ model });
     const { events } = await run(deps, send({ model: "claude-opus-5-5" }));
-    expect(events[0]).toMatchObject({ type: "start", note: expect.stringContaining("chose one for you") });
+    expect(events[0]).toMatchObject({ type: "start", note: expect.stringContaining("chose for you") });
     expect(calls.find((c) => c.name === "beginTurn")!.input.model).toBe("claude-haiku-5-5");
+  });
+
+  it("hands a question to the other provider when the first fails before writing, and says so (stage 201)", async () => {
+    const busy = fakeModel([], () => ({ ok: false, failure: "PROVIDER_BUSY", usage: null, aborted: false }));
+    const gpt = { ...fakeModel(["From the other model."], () => ({ ok: true, stop: "end", usage: { model: "gpt-6.1-terra", inputTokens: 100, outputTokens: 5 } })), provider: "openai" as const };
+    const { deps, calls } = fakeDeps({ model: busy, plan: "pro" });
+    const health: [string, boolean][] = [];
+    const routed = { ...deps, openai: gpt, openaiConnected: true, recordHealth: (p: string, ok: boolean) => void health.push([p, ok]) };
+    const { events } = await run(routed, send());
+    expect(events.find((e) => e.type === "route")).toMatchObject({ type: "route", modelName: "GPT-6.1 Terra" });
+    expect(events.find((e) => e.type === "done")).toMatchObject({ status: "complete", modelName: "GPT-6.1 Terra" });
+    expect(health).toEqual([["anthropic", false], ["openai", true]]);
+    const last = calls.filter((c) => c.name === "writeReply").at(-1)!.input;
+    expect(last).toMatchObject({ content: "From the other model.", model: "gpt-6.1-terra", meta: { route: { fallback: true } } });
+    expect(calls.find((c) => c.name === "settle")).toBeTruthy();
+  });
+
+  it("never hands over an answer that has started, or a workspace's own Claude key (stage 201)", async () => {
+    const half = fakeModel(["Half an"], () => ({ ok: false, failure: "PROVIDER_ERROR", usage: null, aborted: false }));
+    const gpt = { ...fakeModel(["Other."], () => ({ ok: true, stop: "end", usage: { model: "gpt-6.1-terra", inputTokens: 1, outputTokens: 1 } })), provider: "openai" as const };
+    const started = fakeDeps({ model: half, plan: "pro" });
+    const a = await run({ ...started.deps, openai: gpt, openaiConnected: true }, send());
+    expect(a.events.some((e) => e.type === "route")).toBe(false);
+    expect(a.events.find((e) => e.type === "done")).toMatchObject({ status: "failed" });
+
+    const busy = fakeModel([], () => ({ ok: false, failure: "PROVIDER_BUSY", usage: null, aborted: false }));
+    const own = fakeDeps({ model: busy, plan: "pro" });
+    const b = await run({ ...own.deps, openai: gpt, openaiConnected: true, claudeOwnKey: true }, send());
+    expect(b.events.some((e) => e.type === "route")).toBe(false);
+    expect(gpt.requests).toHaveLength(0);
   });
 
   it("won't ask again under an answer that's still being written", async () => {

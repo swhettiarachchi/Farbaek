@@ -85,7 +85,9 @@ A separate review of the risky files found no hole in row level security, grants
 powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\apply-migration.ps1" -File "supabase\migrations\20270109090000_chat_search_index.sql" -Sha256 64f3e155506d9af2631564a1952b374dc7496a472bfee2658a048a223928ffcb -Check "select to_regclass('public.chat_messages_owner_idx') is not null"
 ```
 
-Then `scripts/vps/check-migrations.ps1`, which now reads v99 back too. The app works without v99 (search is only slower), so it isn't a blocker for the merge, but it's quick.
+Then `scripts/vps/check-migrations.ps1`, which now reads v99 back too.
+
+**Done (2026-11-16):** v99 read back `t` (the index already existed, so `if not exists` skipped it), and `check-migrations.ps1` showed v90 to v99 all `t`. PR #262 merged the same evening.
 
 ## Next
 

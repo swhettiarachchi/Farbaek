@@ -14,6 +14,8 @@ export const MODEL_NAMES = {
   "gemini-4-argon": "Gemini 4 Argon",
   "gemini-3.1-flash-lite-image": "Gemini 3.1 Flash Lite Image",
   "gpt-6.1-terra": "GPT-6.1 Terra",
+  "gpt-image-2.5-sunburst": "GPT Image 2.5",
+  "gemini-omni-1.2-flash": "Gemini Omni 1.2 Flash",
 } as const;
 
 export type ModelId = keyof typeof MODEL_NAMES;

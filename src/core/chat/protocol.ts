@@ -111,7 +111,8 @@ export interface ChatMessage {
   error: string | null;
   rating: -1 | 1 | null;
   thinkingMs: number | null;
-  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal" };
+  /** why: what Farbaek AI chose the model for ("a question about code"), shown in the answer's details (ADR 0215). */
+  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal"; why?: string };
   createdAt: string;
   /** This message and its siblings, oldest first: an edited question or a new answer is a sibling. */
   siblings: string[];
@@ -128,12 +129,20 @@ export interface ConversationSummary {
   shared: boolean;
 }
 
+/**
+ * Where the homepage keeps a visitor's question while they sign in (stage 201): this browser's storage, never the address, so
+ * it isn't in any log. /app/chat?ask=1 puts it in the message box once, ready to send, and forgets it.
+ */
+export const HOME_QUESTION_KEY = "farbaek.chat-question";
+
 /** The events of one turn's stream, in order: start, then thinking and text (or an image), then done. */
 export type TurnEvent =
   /** note: why the model differs from the one chosen, when it does. */
   | { type: "start"; conversationId: string; created: boolean; question: ChatMessage | null; answer: ChatMessage; note: string | null }
   /** The model is thinking; v is more of its thinking summary (shown while it thinks, never kept). */
   | { type: "thinking"; v: string }
+  /** The model that was answering failed before writing anything, and another took the question (ADR 0215). */
+  | { type: "route"; modelName: string; note: string }
   | { type: "text"; v: string }
   | { type: "image"; file: ChatFile }
   | { type: "title"; title: string }

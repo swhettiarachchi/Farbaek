@@ -94,6 +94,13 @@ const rowSchema = z.object({
 /** An answer whose server stopped writing it over two minutes ago is shown as stopped: the stream that was writing it is gone. */
 const STALE_MS = 2 * 60_000;
 
+/** The reason a route was chosen, when the answer kept one: a short sentence fragment Farbaek wrote, never model text. */
+function readWhy(route: unknown): string | undefined {
+  if (!route || typeof route !== "object") return undefined;
+  const why = (route as { why?: unknown }).why;
+  return typeof why === "string" && why.length <= 120 ? why : undefined;
+}
+
 export function toMessage(row: z.infer<typeof rowSchema>, now = Date.now()): ChatMessage {
   const meta = row.meta ?? {};
   const stale = row.status === "streaming" && now - Date.parse(row.updated_at) > STALE_MS;
@@ -112,6 +119,7 @@ export function toMessage(row: z.infer<typeof rowSchema>, now = Date.now()): Cha
       aspect: typeof meta.aspect === "string" ? meta.aspect : undefined,
       prompt: typeof meta.prompt === "string" ? meta.prompt : undefined,
       stop: meta.stop === "length" || meta.stop === "refusal" ? meta.stop : undefined,
+      why: readWhy(meta.route),
     },
     createdAt: row.created_at,
     siblings: row.siblings ?? [row.id],

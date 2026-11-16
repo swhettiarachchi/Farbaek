@@ -24,8 +24,9 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 
 ## Architecture map
 
-- `src/app/(site)/`: marketing routes (`/`, `/pricing`, `/sign-in`) with the site header. `src/app/app/`: the signed-in app (Mission Control, projects, tasks, approvals, billing, settings). Server Components by default.
+- `src/app/(site)/`: the public site with the site header: the homepage, a page for each of the four spaces (`/build`, `/chat`, `/survey`, `/proof`, ADR 0214), `/pricing` and `/sign-in`. `src/components/site/spaces.ts` names the spaces for the header, phone menu, footer, homepage and the app's Home. `src/app/app/`: the signed-in app (Mission Control, projects, tasks, approvals, billing, settings). Server Components by default.
 - `src/server/workspace/`: request context, readers (Supabase and demo), write use cases. Writes go through `use-cases.ts` (TypeScript rules) then the service-role-only `app_*` SQL functions; the browser can only read.
+- `src/core/chat/intelligence.ts`: Farbaek AI's routing between Claude and OpenAI with fallback (ADR 0215). `src/server/studio/`, `src/core/studio/`, `src/components/studio/`: the image and video studios at /app/images and /app/video (ADR 0216).
 - `src/server/chat/`, `src/core/chat/`, `src/components/chat/`: Farbaek Chat (ADR 0213): conversations with branches, answers streamed as Server-Sent Events from `/app/chat/api/turn`, files, images and read-only links. Its own Markdown, code tint and MathML; no HTML from the model.
 - `src/server/ai/`: model providers behind interfaces: Claude and Gemini for contract drafting and change proposals (ADR 0009, ADR 0014; AI_PROVIDER picks one). Server-only; output is untrusted and only prefills forms.
 - `src/config/usage.ts` and `src/core/billing/rate-card.ts`: the AI operations, and what each model costs per token (with `docs/billing/usage.md`, ADR 0020). `src/core/billing/allowance.ts` turns a price into a plan's allowance.
@@ -38,7 +39,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
   - `workspace/`: project file path rules, import screening (secrets, binaries, build folders), file tree.
 - `src/content/samples.ts`: sample data for the public site. Always label it "sample" where it's shown.
 - `src/styles/tokens.css`: colour tokens. `tests/design/contrast.test.ts` enforces WCAG AA for every pair.
-- `src/components/three/`: the hero 3D scene. `src/components/film/`: the concept film.
+- `src/components/three/`: the 3D scene on `/build`. `src/components/films/`: the recorded films.
 - `docs/adr/`: one ADR per significant decision. Add one when you change a decision.
 
 ## Non-negotiables (full list in spec section 0)
@@ -53,7 +54,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 
 ## Design rules (White Signal, ADR 0008)
 
-- One light theme. Farbaek Chat alone offers Dark as the person's choice, scoped to its own root (`src/styles/chat-theme.css`, ADR 0213). Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold.
+- One light theme. Farbaek Chat alone offers Dark as the person's choice, scoped to its own root (`src/styles/chat-theme.css`, ADR 0213). Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold. The public site and the spaces' own chrome also use the spectrum (ADR 0217): `spark-rose` for Images, `spark-aqua` for Video, `spark-leaf` for Build, `spark-ember` for playful marks, as identity and as light from behind product windows (`Halo`), never for status.
 - Dark `media` tokens are for media frames only (concept film, evidence terminal), never for whole sections.
 - Shape lock: buttons, chips and segmented controls are pills; inputs 12px (`rounded-sm`); cards 20px (`rounded-md`); large panels 28px.
 - Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono for code and data only (hashes, paths, commands, IDs, keys). No serif.

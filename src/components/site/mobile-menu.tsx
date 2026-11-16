@@ -15,7 +15,10 @@ import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { NAV_LINKS } from "./nav-links";
+import { MAIN_SPACES, MORE_LINKS, SPACES } from "./spaces";
+
+/** The rows under the cards: the specialist spaces, then the other pages. */
+const ROWS = [...SPACES.filter((s) => s.secondary).map((s) => ({ href: s.page, label: s.name })), ...MORE_LINKS];
 
 /** How long the sheet takes to fade out; it stays mounted that long. */
 const CLOSE_MS = 220;
@@ -68,23 +71,19 @@ export function MobileMenu() {
     };
   }, [open]);
 
-  // Tab stays inside the sheet and the menu button.
+  // Tab stays inside the sheet and the menu button. The sheet sits at the end of the page, apart from the button, so every
+  // step is moved by hand: letting the browser take one would land in the page behind.
   const trap = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== "Tab") return;
     const items = [...(panelRef.current?.querySelectorAll<HTMLElement>("a, button") ?? [])];
     if (buttonRef.current) items.unshift(buttonRef.current);
-    const first = items[0];
-    const last = items[items.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last?.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first?.focus();
-    }
+    if (items.length === 0) return;
+    e.preventDefault();
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    const next = at < 0 ? 0 : (at + (e.shiftKey ? -1 : 1) + items.length) % items.length;
+    items[next]?.focus();
   };
 
-  const links = [...NAV_LINKS, { href: "/#status", label: "What works today" }];
   const rise = (i: number): CSSProperties => ({ animationDelay: `${60 + i * 50}ms` });
 
   return (
@@ -122,13 +121,36 @@ export function MobileMenu() {
               }`}
             >
               <nav aria-label="Mobile" className="flex-1">
-                <ul className="grid gap-1">
-                  {links.map((link, i) => (
-                    <li key={link.href} className="motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(i)}>
+                {/* The four main spaces as cards, each with its promise (ADR 0216), then the specialist spaces and the other pages as rows. */}
+                <ul className="grid gap-2 min-[30rem]:grid-cols-2">
+                  {MAIN_SPACES.map((space, i) => {
+                    const SpaceIcon = space.icon;
+                    return (
+                      <li key={space.id} className="motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(i)}>
+                        <Link
+                          href={space.page}
+                          onClick={() => close(false)}
+                          className="flex h-full gap-3 rounded-md border border-line bg-surface p-4 shadow-e1 active:scale-[0.99]"
+                        >
+                          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-canvas-2 text-ink-2 ring-1 ring-line">
+                            <SpaceIcon size={20} aria-hidden />
+                          </span>
+                          <span className="grid gap-0.5">
+                            <span className="text-title-4 font-medium tracking-[-0.02em] text-ink">{space.name}</span>
+                            <span className="text-sm leading-snug text-ink-2">{space.promise}</span>
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <ul className="mt-4 grid">
+                  {ROWS.map((link, i) => (
+                    <li key={link.href} className="motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(MAIN_SPACES.length + i)}>
                       <Link
                         href={link.href}
                         onClick={() => close(false)}
-                        className="group flex min-h-12 items-center justify-between gap-4 border-b border-line/80 py-2 text-[1.375rem] font-medium tracking-[-0.03em] text-ink"
+                        className="group flex min-h-12 items-center justify-between gap-4 border-b border-line/80 py-2 text-title-4 font-medium tracking-[-0.02em] text-ink"
                       >
                         {link.label}
                         <span className="flex size-10 items-center justify-center rounded-full bg-surface-raised text-ink-2 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-px group-hover:translate-x-0.5">
@@ -139,13 +161,13 @@ export function MobileMenu() {
                   ))}
                 </ul>
               </nav>
-              <div className="grid gap-2 motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(links.length)}>
+              <div className="mt-6 grid gap-2 motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(MAIN_SPACES.length + ROWS.length)}>
                 <Link
-                  href="/sign-in?next=/app/new"
+                  href="/sign-in?next=/app/chat"
                   onClick={() => close(false)}
                   className="flex h-12 shrink-0 items-center justify-center rounded-full bg-primary text-body font-medium text-on-primary shadow-e2 active:scale-[0.98]"
                 >
-                  Start building
+                  Try Farbaek AI
                 </Link>
                 <Link
                   href="/sign-in"

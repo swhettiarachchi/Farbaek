@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { modelName } from "@/core/billing/model-names";
 import { imageSize } from "@/core/chat/files";
-import { chooseChatModel, type ChatSetup } from "@/core/chat/models";
+import { mayFallBack, planChatRoute, readQuestion, type ChatCandidate, type ProviderHealth, type RouteSetup } from "@/core/chat/intelligence";
 import { CHAT_LIMITS, cleanTitle, titleFrom, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
 import { sniffImage } from "@/core/workspace/images";
 import type { ProviderUsage } from "@/server/ai/contract-drafter";
@@ -45,7 +45,12 @@ export interface TurnDeps {
   /** Why images can't be made here, when they can't. */
   imagesOff: string | null;
   openaiConnected: boolean;
-  overrides?: ChatSetup["overrides"];
+  /** The workspace answers on its own Claude key (ADR 0125): its questions stay on that key. */
+  claudeOwnKey?: boolean;
+  /** Which providers are answering right now, and a way to report each answer's result (provider-health.ts). */
+  health?: () => ProviderHealth;
+  recordHealth?: (provider: ChatCandidate["provider"], ok: boolean) => void;
+  overrides?: RouteSetup["overrides"];
   now(): number;
 }
 
@@ -278,10 +283,20 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
 
   if (mode === "image") return prepareImage(deps, { orgId, actor, plan: plan.value, request, conversationId, questionParent, base, questionText, questionFiles, madeIds, newQuestion, existingQuestion, conversationTitled });
 
-  const setup: ChatSetup = { plan: plan.value.plan, claude: deps.claude !== null, openai: deps.openai !== null && deps.openaiConnected, overrides: deps.overrides };
-  const choice = chooseChatModel(setup, request.model, request.effort);
-  if (!choice) return refused(503, "AI isn't connected on this server yet. Earlier answers in your chats stay readable.");
-  const model = choice.provider === "anthropic" ? deps.claude! : deps.openai!;
+  // Farbaek AI's route (ADR 0215): the model best placed for this question, and one from the other provider standing by.
+  const setup: RouteSetup = { plan: plan.value.plan, claude: deps.claude !== null, openai: deps.openai !== null && deps.openaiConnected, overrides: deps.overrides, claudeOwnKey: deps.claudeOwnKey ?? false };
+  const asked = newQuestion ?? existingQuestion;
+  const askedFiles = newQuestion?.files ?? existingQuestion?.files ?? [];
+  const kind = readQuestion({
+    text: questionText ?? existingQuestion?.content ?? continuing?.content ?? "",
+    images: askedFiles.filter((f) => f.kind === "image").length,
+    documents: asked ? askedFiles.filter((f) => f.kind !== "image").length : 0,
+  });
+  const routed = planChatRoute(setup, request.model, request.effort, kind, deps.health?.() ?? { anthropic: true, openai: true });
+  if (!routed) return refused(503, "AI isn't connected on this server yet. Earlier answers in your chats stay readable.");
+  const choice = { ...routed.candidates[0]!, note: routed.note };
+  const modelFor = (c: ChatCandidate) => (c.provider === "anthropic" ? deps.claude! : deps.openai!);
+  // Both candidates meter the same way: a second provider only stands by on Farbaek's own keys (intelligence.ts).
   const meter = choice.provider === "anthropic" ? deps.claudeUsage : deps.usage;
 
   const contextMessages = [...base.map(asContext), ...(newQuestion ? [newQuestion] : [])];
@@ -290,7 +305,8 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const maxOutput = MAX_OUTPUT[request.effort];
   // The AI names a chat with its first answer that finishes: a first answer that failed leaves it to the next.
   const needsTitle = !conversationId || (!conversationTitled && !base.some((m) => m.role === "assistant" && m.status === "complete"));
-  const units = reserveUnits(choice.model, context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0));
+  // Enough for whichever candidate answers: the one standing by may cost more per word.
+  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
 
   const reserved = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units, manual: MANUAL, billing: plan.value });
   if (!reserved.ok) return refused(reserved.code === "QUOTA_EXCEEDED" || reserved.code === "TRIAL_CAP_REACHED" ? 402 : reserved.code === "PLATFORM_DAILY_LIMIT" ? 429 : 503, reserved.message);
@@ -321,7 +337,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
     error: null,
     rating: null,
     thinkingMs: null,
-    meta: {},
+    meta: { why: routed.reason },
     createdAt: continuing?.createdAt ?? new Date(deps.now()).toISOString(),
     siblings: continuing?.siblings ?? [answerId],
     files: [],
@@ -339,8 +355,10 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       let thoughtChars = 0;
       let lastSave = deps.now();
       let saving: Promise<unknown> = Promise.resolve();
+      let answering: ChatCandidate = routed.candidates[0]!;
+      let fellBack = false;
       const save = (status: "streaming" | "complete" | "stopped" | "failed", error: string | null, meta: Record<string, unknown> | null) =>
-        deps.writes.writeReply({ orgId, actor, messageId: answerId, content: text, status, model: null, error, thinkingMs, meta });
+        deps.writes.writeReply({ orgId, actor, messageId: answerId, content: text, status, model: fellBack ? answering.model : null, error, thinkingMs, meta });
       // Saved every few seconds while it streams and while the model thinks, so a live answer is never taken for an abandoned one.
       const heartbeat = () => {
         if (deps.now() - lastSave <= SAVE_EVERY_MS) return;
@@ -364,12 +382,38 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
           heartbeat();
         },
       };
-      const ask = async (messages: ChatInputMessage[]): Promise<ChatOutcome> => {
+      const askOnce = async (messages: ChatInputMessage[]): Promise<ChatOutcome> => {
         try {
-          return await model.stream({ model: choice.model, thinking: choice.thinking, system: CHAT_SYSTEM_PROMPT, messages, maxOutputTokens: maxOutput }, handlers, signal);
+          return await modelFor(answering).stream({ model: answering.model, thinking: answering.thinking, system: CHAT_SYSTEM_PROMPT, messages, maxOutputTokens: maxOutput }, handlers, signal);
         } catch {
           return { ok: false, failure: "PROVIDER_ERROR", usage: null, aborted: signal.aborted };
         }
+      };
+      // Each candidate in turn: when one fails before writing a word, the next takes the question, and the person is told.
+      // A workspace's own Claude key failing says nothing about Anthropic for everyone else: it isn't recorded.
+      const record = (provider: ChatCandidate["provider"], ok: boolean) => {
+        if (provider === "anthropic" && deps.claudeOwnKey) return;
+        deps.recordHealth?.(provider, ok);
+      };
+      const ask = async (messages: ChatInputMessage[]): Promise<ChatOutcome> => {
+        let result = await askOnce(messages);
+        for (const next of routed.candidates.slice(routed.candidates.indexOf(answering) + 1)) {
+          if (result.ok || !mayFallBack(result.failure, result.aborted, added.length > 0)) break;
+          record(answering.provider, false);
+          answering = next;
+          fellBack = true;
+          thinkingAt = null;
+          thoughtChars = 0;
+          try {
+            emit({ type: "route", modelName: modelName(next.model), note: "That model didn't answer, so Farbaek AI asked another." });
+          } catch {
+            // Gone.
+          }
+          result = await askOnce(messages);
+        }
+        if (result.ok) record(answering.provider, true);
+        else if (!result.aborted && (result.failure === "PROVIDER_BUSY" || result.failure === "PROVIDER_ERROR")) record(answering.provider, false);
+        return result;
       };
 
       let outcome = await ask(modelInput);
@@ -398,10 +442,11 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
         error = FAILED_TEXT[outcome.failure] ?? FAILED_TEXT.PROVIDER_ERROR!;
       }
       // The answer's own facts, written whole: a continued answer no longer says it reached its length limit.
-      const finalSave = await save(status, error, stop ? { stop } : {});
+      const route = { why: routed.reason, ...(fellBack ? { fallback: true } : {}) };
+      const finalSave = await save(status, error, stop ? { stop, route } : { route });
       if (!finalSave.ok) log("error", "chat.save_failed", { status, reason: finalSave.error.slice(0, 120) });
       try {
-        emit({ type: "done", status, error, thinkingMs, modelName: modelName(outcome.usage?.model ?? choice.model), stop });
+        emit({ type: "done", status, error, thinkingMs, modelName: modelName(outcome.usage?.model ?? answering.model), stop });
       } catch {
         // The browser has gone; what was written is saved.
       }
@@ -409,7 +454,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       // The conversation's name, from its first answer; shown only when it was used (the person may have named it meanwhile).
       let usage = outcome.usage;
       if (needsTitle && status === "complete" && added.trim()) {
-        const named = await model.title({ model: choice.model, question: questionText ?? "", answer: text }, AbortSignal.timeout(20_000));
+        const named = await modelFor(answering).title({ model: answering.model, question: questionText ?? "", answer: text }, AbortSignal.timeout(20_000));
         const title = named.title ? cleanTitle(named.title) : null;
         if (title) {
           const applied = await deps.writes.autoTitle({ orgId, actor, conversationId: convId, title });
@@ -444,7 +489,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
           const reported = usage && usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0) > 0 ? usage : null;
           const spent: ProviderUsage = reported
             ? { ...reported, outputTokens: Math.max(reported.outputTokens, wrote) }
-            : { model: usage?.model ?? choice.model, inputTokens: context.tokens + approxTokens(CHAT_SYSTEM_PROMPT), outputTokens: Math.max(usage?.outputTokens ?? 0, wrote), cacheWriteTokens: 0, cacheReadTokens: 0 };
+            : { model: usage?.model ?? answering.model, inputTokens: context.tokens + approxTokens(CHAT_SYSTEM_PROMPT), outputTokens: Math.max(usage?.outputTokens ?? 0, wrote), cacheWriteTokens: 0, cacheReadTokens: 0 };
           await settleUsage(meter, { orgId, entryId: reserved.value.entryId, usage: spent });
         } else await refund("stopped", usage);
       } else await refund("failed", usage);

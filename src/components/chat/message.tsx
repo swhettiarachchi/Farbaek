@@ -213,7 +213,7 @@ export function AnswerMessage({
   const canContinue = last && message.kind === "text" && (message.status === "stopped" || message.meta.stop === "length") && message.content.trim().length > 0;
 
   return (
-    <article className="chat-message group" aria-label="Farbaek said" aria-busy={streaming || undefined}>
+    <article className="chat-message group" aria-label="Farbaek AI said" aria-busy={streaming || undefined}>
       {thinking !== undefined && thinking !== null && streaming ? (
         <div className="mb-2">
           <button
@@ -306,15 +306,44 @@ export function AnswerMessage({
               />
             </>
           ) : null}
-          {message.modelName || message.thinkingMs ? (
-            <span className="ml-2 text-xs text-ink-3">
-              {message.modelName ?? ""}
-              {message.thinkingMs && message.thinkingMs >= 1_000 ? `${message.modelName ? ". " : ""}Thought for ${seconds(message.thinkingMs)}.` : message.modelName ? "." : ""}
-            </span>
-          ) : null}
+          {message.modelName || message.thinkingMs ? <AnswerDetails message={message} /> : null}
         </div>
       ) : null}
     </article>
+  );
+}
+
+/**
+ * Who answered (ADR 0215): every answer is Farbaek AI's, and the model behind it is one press away, with why it was chosen.
+ * Honest without making the provider the headline.
+ */
+function AnswerDetails({ message }: { message: ChatMessage }) {
+  const [open, setOpen] = useState(false);
+  const thought = message.thinkingMs && message.thinkingMs >= 1_000 ? ` Thought for ${seconds(message.thinkingMs)}.` : "";
+  return (
+    <span className="ml-2 inline-flex min-w-0 flex-wrap items-center gap-x-1 text-xs text-ink-3">
+      <span>
+        Farbaek AI.{thought}
+      </span>
+      {message.modelName ? (
+        <>
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
+            className="inline-flex min-h-10 items-center rounded-full px-1.5 font-medium text-ink-2 underline-offset-2 hover:text-ink hover:underline pointer-coarse:min-h-11"
+          >
+            {open ? "Hide details" : "Details"}
+          </button>
+          {open ? (
+            <span className="basis-full text-ink-2">
+              Answered by {message.modelName}
+              {message.meta.why ? `, chosen for ${message.meta.why}` : ""}.
+            </span>
+          ) : null}
+        </>
+      ) : null}
+    </span>
   );
 }
 

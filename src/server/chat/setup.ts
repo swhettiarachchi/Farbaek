@@ -70,14 +70,14 @@ export async function loadChatAvailability(ctx: AppContext, ws: WorkspaceSummary
 }
 
 /** The models for one turn, with the metering each one uses. */
-export async function chatModels<D extends UsageContext & AiUsageDeps>(orgId: string, deps: D): Promise<{ claude: ChatModel | null; claudeUsage: D; openai: ChatModel | null; error: string | null }> {
+export async function chatModels<D extends UsageContext & AiUsageDeps>(orgId: string, deps: D): Promise<{ claude: ChatModel | null; claudeUsage: D; claudeOwnKey: boolean; openai: ChatModel | null; error: string | null }> {
   const provider = resolveAiProvider();
   const paused = provider.provider === null && !provider.detail ? provider.reason : null;
-  if (paused) return { claude: null, claudeUsage: deps, openai: null, error: paused };
+  if (paused) return { claude: null, claudeUsage: deps, claudeOwnKey: false, openai: null, error: paused };
   const key = openAiKey();
   const openai = key ? createOpenAiChat({ key }) : null;
   const ai = await aiForWorkspace(orgId, deps, { timeout: 600_000 });
-  if ("error" in ai) return { claude: null, claudeUsage: deps, openai, error: openai ? null : ai.error };
-  if (ai.provider !== "anthropic") return { claude: null, claudeUsage: deps, openai, error: openai ? null : "Chat needs Claude or OpenAI, and this server uses Gemini." };
-  return { claude: createAnthropicChat(ai.client), claudeUsage: ai.deps, openai, error: null };
+  if ("error" in ai) return { claude: null, claudeUsage: deps, claudeOwnKey: false, openai, error: openai ? null : ai.error };
+  if (ai.provider !== "anthropic") return { claude: null, claudeUsage: deps, claudeOwnKey: false, openai, error: openai ? null : "Chat needs Claude or OpenAI, and this server uses Gemini." };
+  return { claude: createAnthropicChat(ai.client), claudeUsage: ai.deps, claudeOwnKey: ai.own, openai, error: null };
 }

@@ -6,7 +6,7 @@
 import type { TurnEvent } from "@/core/chat/protocol";
 import { SseReader } from "@/core/chat/sse";
 
-const TYPES = new Set(["start", "thinking", "text", "image", "title", "done"]);
+const TYPES = new Set(["start", "thinking", "route", "text", "image", "title", "done"]);
 
 export async function readTurnStream(body: ReadableStream<Uint8Array>, onEvent: (e: TurnEvent) => void): Promise<{ done: boolean }> {
   const reader = body.getReader();

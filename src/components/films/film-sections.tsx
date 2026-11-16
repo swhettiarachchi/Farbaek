@@ -29,9 +29,9 @@ function FilmMeta({ id }: { id: FilmId }) {
 /** Directly below the hero: the whole build, recorded from Farbaek's interface. */
 export function ProductFilmSection() {
   return (
-    <section id="film" aria-labelledby="film-title" className="scroll-mt-20 pb-14 pt-6 sm:pb-20 lg:pb-28">
+    <section id="film" aria-labelledby="film-title" className="scroll-mt-20 pb-10 pt-2 sm:pb-20 lg:pb-28">
       <Container>
-        <div className="mb-10 flex flex-col gap-4 lg:mb-14 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
+        <div className="mb-6 flex flex-col gap-3 sm:mb-10 lg:mb-14 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <SectionHeading id="film-title" title="Watch one build, start to finish.">
             A sample bakery site goes from one sentence to a checked, published and confirmed live address. Recorded from Farbaek&apos;s interface, with the waits shortened.
           </SectionHeading>
@@ -64,7 +64,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
       "The preview updates while the site takes shape.",
       "Message the agent while it runs, or stop the run.",
     ],
-    link: { href: "#film", label: "Watch the whole build" },
+    link: { href: "/#film", label: "Watch the whole build" },
   },
   {
     id: "clip-check",
@@ -75,7 +75,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
       "Packages are checked for known vulnerabilities, and an AI reviews the riskiest files.",
       "Publishing needs a check of exactly these files that found nothing critical.",
     ],
-    link: { href: "#evidence", label: "See the proof" },
+    link: { href: "/proof#evidence", label: "See the proof" },
   },
   {
     id: "clip-live",

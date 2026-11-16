@@ -11,6 +11,7 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { OtherSpaces } from "@/components/marketing/other-spaces";
 import { samplePlan } from "@/components/survey/sample-plan";
 import { SheetSvg } from "@/components/survey/sheet-svg";
 import { Container } from "@/components/ui/container";
@@ -348,6 +349,8 @@ export default function SurveyStudioPage() {
           </div>
         </Container>
       </section>
+
+      <OtherSpaces current="survey" />
     </>
   );
 }

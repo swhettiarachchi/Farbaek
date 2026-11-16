@@ -8,7 +8,7 @@ import { PUBLIC_TITLE } from "@/components/ui/titles";
 export const metadata: Metadata = { title: "Page not found" };
 
 const WAYS_IN = [
-  { href: "/#showcase", label: "See what people build", note: "The showroom" },
+  { href: "/build#showcase", label: "See what people build", note: "The showroom" },
   { href: "/pricing", label: "Compare the plans", note: "Pricing" },
   { href: "/app", label: "Open your workspace", note: "Sign in if you need to" },
 ];

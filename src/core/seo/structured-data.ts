@@ -10,11 +10,11 @@
 import { getPlan } from "@/core/billing/catalog";
 
 /** The homepage's title; the title tag adds " | Farbaek". */
-export const HOME_TITLE = "Vibe coding for verified apps and websites";
+export const HOME_TITLE = "Farbaek AI: chat, images, video and vibe coding";
 
 /** The homepage's search and sharing description, about 150 characters. */
 export const HOME_DESCRIPTION =
-  "Vibe coding with proof: describe an app or website, and Farbaek's AI agent builds it, runs the real checks and waits for your approval before it ships.";
+  "Ask Farbaek AI anything, make pictures and video, and build apps and websites by vibe coding, checked and approved by you before anything ships.";
 
 export function homeStructuredData(origin: string): Record<string, unknown> {
   const site = origin.replace(/\/+$/, "");
@@ -46,7 +46,7 @@ export function homeStructuredData(origin: string): Record<string, unknown> {
         applicationCategory: "DeveloperApplication",
         operatingSystem: "Web",
         description: HOME_DESCRIPTION,
-        keywords: "vibe coding, AI app builder, AI website builder, verified software",
+        keywords: "AI chat, AI assistant, AI image generator, AI video generator, vibe coding, AI app builder, AI website builder",
         publisher: { "@id": organization },
         offers: { "@type": "Offer", name: free.name, price: "0", priceCurrency: "USD" },
       },

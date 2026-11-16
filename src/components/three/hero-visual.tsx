@@ -42,8 +42,12 @@ const noSubscribe = () => () => {};
  * - Desktops with a mouse load the 3D scene once the browser is idle, and it
  *   cross-fades in over the drawing (ADR 0052).
  * - Under reduced motion it's one still frame; off screen it stops.
+ * - With a mouse, the whole figure leans a few degrees toward the pointer (stage 201): depth you can feel, never on touch
+ *   screens and never under reduced motion. The light around him is the spectrum (ADR 0217): blue, rose and aqua.
+ *
+ * `sizes` is the knight's width for the image loader: the homepage shows him small, /build larger.
  */
-export function HeroVisual() {
+export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640px) 440px, 92vw" }: { sizes?: string } = {}) {
   const reduce = useReducedMotion();
   const box = useRef<HTMLDivElement>(null);
   const [want3D, setWant3D] = useState(false);
@@ -76,6 +80,41 @@ export function HeroVisual() {
     };
   }, []);
 
+  // Leaning toward the pointer: two numbers from -1 to 1 on the box, read by its transform. One frame at most per move.
+  useEffect(() => {
+    const el = box.current;
+    if (!el || reduce !== false || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    let frame = 0;
+    let x = 0;
+    let y = 0;
+    // Set on the hero around him when there is one (data-lean), so the cards beside him drift with the same numbers.
+    const target = el.closest<HTMLElement>("[data-lean]") ?? el;
+    const apply = () => {
+      frame = 0;
+      target.style.setProperty("--lean-x", x.toFixed(3));
+      target.style.setProperty("--lean-y", y.toFixed(3));
+    };
+    const onMove = (e: PointerEvent) => {
+      x = Math.max(-1, Math.min(1, (e.clientX / window.innerWidth) * 2 - 1));
+      y = Math.max(-1, Math.min(1, (e.clientY / window.innerHeight) * 2 - 1));
+      if (!frame) frame = requestAnimationFrame(apply);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      cancelAnimationFrame(frame);
+    };
+  }, [reduce]);
+
+  // A tap or a click makes him hop once: the class is taken off and put back, so every tap plays it again.
+  const hop = useCallback(() => {
+    const el = box.current;
+    if (!el) return;
+    el.classList.remove("knight-hop", "knight-enter");
+    void el.offsetWidth;
+    el.classList.add("knight-hop");
+  }, []);
+
   const onReady = useCallback(() => setReady(true), []);
   const onSlow = useCallback(() => {
     setWant3D(false);
@@ -85,15 +124,21 @@ export function HeroVisual() {
   const fade = (on: boolean) => `transition-opacity duration-300 ${on ? "opacity-100" : "opacity-0"}`;
 
   return (
-    <div ref={box} data-paused={running ? undefined : ""} className="relative mx-auto aspect-[4/5] w-full max-w-[440px] lg:max-w-none">
+    <div
+      ref={box}
+      data-paused={running ? undefined : ""}
+      onClick={hop}
+      className="knight-enter relative mx-auto aspect-[4/5] w-full max-w-[440px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:max-w-none"
+      style={{ transform: "perspective(900px) rotateY(calc(var(--lean-x, 0) * 7deg)) rotateX(calc(var(--lean-y, 0) * -5deg))" }}
+    >
       {/* Soft light pool and contact shadow: page lighting around the figure, not a plate. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-[-12%]"
+        className="hero-aura pointer-events-none absolute inset-[-16%]"
         style={{
           background:
-            // Signal blue, with the aurora's cyan at its edge (ADR 0008).
-            "radial-gradient(42% 38% at 50% 42%, color-mix(in oklab, var(--color-accent) 10%, transparent) 0%, color-mix(in oklab, var(--color-accent-2) 5%, transparent) 45%, transparent 72%)",
+            // The spectrum's light (ADR 0217): blue behind him, rose low on one side, aqua high on the other. Each fades to nothing.
+            "radial-gradient(40% 36% at 50% 44%, color-mix(in oklab, var(--color-accent) 16%, transparent), transparent 70%), radial-gradient(30% 28% at 24% 66%, color-mix(in oklab, var(--color-spark-rose) 13%, transparent), transparent 70%), radial-gradient(30% 28% at 78% 26%, color-mix(in oklab, var(--color-spark-aqua) 14%, transparent), transparent 70%)",
         }}
       />
       <div
@@ -112,7 +157,7 @@ export function HeroVisual() {
             preload
             // The largest paint on phones: ahead of the scripts (ADR 0052).
             fetchPriority="high"
-            sizes="(min-width: 1024px) 44vw, (min-width: 640px) 440px, 92vw"
+            sizes={sizes}
             className={`object-contain p-[10%] ${fade(!ready)}`}
           />
         </div>

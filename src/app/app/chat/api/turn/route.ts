@@ -13,6 +13,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
+import { providerHealth, recordProviderResult } from "@/server/ai/provider-health";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +93,9 @@ export async function POST(request: Request) {
     images: images.generator,
     imagesOff: images.reason,
     openaiConnected: openAiKey() !== null,
+    claudeOwnKey: models.claudeOwnKey,
+    health: () => providerHealth(),
+    recordHealth: recordProviderResult,
     overrides: platformModels(),
     now: () => Date.now(),
   };
