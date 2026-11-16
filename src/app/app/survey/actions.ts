@@ -8,6 +8,7 @@ import { dsrCodes } from "@/core/survey/codes";
 import { crsById } from "@/core/survey/crs";
 import { emptyDocument, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
 import { IMPORT_LIMITS, type ColumnRole, type Delimiter, type ImportIssue } from "@/core/survey/import/delimited";
+import { unreadableFile } from "@/core/survey/import/detect";
 import { readPoints } from "@/core/survey/import/read";
 import { approvalHash, buildPlan } from "@/core/survey/view";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -108,6 +109,9 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
   const crsId = typeof project?.crs_id === "string" ? project.crs_id : null;
   if (!crsId) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
   if (crsId !== i.crsId) return { status: "error", message: SURVEY_MESSAGES.CRS_CHANGED };
+  // A file Farbaek can't read (a job database, a printout) is refused here too, with what to upload instead: the browser isn't the check.
+  const unreadable = unreadableFile(i.fileName, i.content);
+  if (unreadable) return { status: "error", message: unreadable };
   // A field book's legs may start from or close on points already in the project: read them first.
   const known = i.format === "fieldbook" ? ((await loadSurveyProject(g.w.user, g.w.actor.orgId, i.projectId))?.points ?? []) : [];
   const result = readPoints(i.format, i.content, { delimiter: i.delimiter as Delimiter, hasHeader: i.hasHeader, columns: i.columns as ColumnRole[], crs: crsById(crsId) ?? null, known });

@@ -8,7 +8,7 @@ import { crsById } from "@/core/survey/crs";
 import { suggestFeatures } from "@/core/survey/fieldToFinish";
 import { suggestColumns, type ColumnGuess } from "@/core/survey/import/columns";
 import { COLUMN_ORDERS, IMPORT_LIMITS, parseDelimited, previewDelimited, type ColumnOrder, type ColumnRole, type Delimiter, type ImportedPoint, type ImportIssue } from "@/core/survey/import/delimited";
-import { IMPORT_FORMATS, detectFormat, unreadableFile, type ImportFormat } from "@/core/survey/import/detect";
+import { IMPORT_FORMATS, detectFormat, printoutSource, unreadableFile, type ImportFormat } from "@/core/survey/import/detect";
 import { readPoints } from "@/core/survey/import/read";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { importSurveyPointsAction, type SurveyFormState } from "@/app/app/survey/actions";
@@ -18,6 +18,7 @@ import { useHandoff } from "@/components/survey/assistant/handoff";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PointsTable } from "@/components/survey/points-table";
 import { buttonClasses } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { LABEL_CLASSES, inputClasses, textareaClasses } from "@/components/ui/field";
 
 const ROLE_LABELS: Record<ColumnRole, string> = { point: "Point number", easting: "Easting", northing: "Northing", elevation: "Elevation", code: "Code or description", ignore: "Leave out" };
@@ -145,6 +146,8 @@ export function ImportPanel({
   };
 
   const unreadable = text ? unreadableFile(fileName, text) : null;
+  // A printout names the job file it came from (stage 198): its path is shown to copy.
+  const sourcePath = unreadable ? (printoutSource(text)?.path ?? null) : null;
   const preview = useMemo(() => {
     if (!text || unreadable) return null;
     if (format !== "delimited") {
@@ -272,6 +275,7 @@ export function ImportPanel({
           <textarea value={text} rows={5} disabled={Boolean(readOnly)} spellCheck={false} placeholder={"1,700004.210,450012.345,21.43,CP\n2,700007.884,450043.912,21.88,CP"} onChange={(e) => load("", e.target.value, firstLine(e.target.value) !== firstLine(text))} className={textareaClasses("font-mono")} />
         </label>
       </div>
+      {shownEntry === "file" ? <WhatToUpload /> : null}
 
       {encoding ? (
         <p role="status" className="flex items-start gap-2 text-sm text-ink">
@@ -280,10 +284,13 @@ export function ImportPanel({
         </p>
       ) : null}
       {unreadable ? (
-        <p role="alert" className="flex items-start gap-2 rounded-sm bg-canvas-2 p-3 text-sm text-ink ring-1 ring-line">
-          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
-          {unreadable}
-        </p>
+        <div role="alert" className="grid gap-3 rounded-sm bg-canvas-2 p-3 text-sm text-ink ring-1 ring-line">
+          <p className="flex items-start gap-2">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+            <span>{unreadable}</span>
+          </p>
+          {sourcePath ? <CopyPath path={sourcePath} /> : null}
+        </div>
       ) : null}
       {preview ? (
         <div className="grid gap-5">
@@ -540,5 +547,57 @@ function PointsMap({ points, willDraw, outline, lines, marks }: { points: Survey
       </svg>
       <figcaption className="text-sm text-ink-3">{!willDraw ? "The points as read, boundary marks larger. Nothing is drawn from them on import." : outline ? "The dashed outline is the lot Farbaek would draw. Check it after the import." : "No lot outline yet: the boundary marks don't make one, so you'll give the lot's corners after the import."}</figcaption>
     </figure>
+  );
+}
+
+/** The job file's path from a printout, to copy (stage 198): it's something people copy, so it's in mono. */
+function CopyPath({ path }: { path: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(path);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+  return (
+    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <code className="block rounded-sm border border-line bg-surface px-3 py-2 font-mono text-label break-all">{path}</code>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => void copy()} className={buttonClasses("secondary", "sm")}>
+          Copy the path
+        </button>
+        <span role="status" className="text-sm text-ink-3">
+          {copied ? "Copied" : ""}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** What to upload from each instrument family (stage 198): only formats Farbaek reads, and what won't work. */
+function WhatToUpload() {
+  return (
+    <Disclosure summary="What to upload from your instrument" icon={<FileArrowUpIcon size={20} aria-hidden />}>
+      <ul className="grid list-disc gap-2 pl-5 text-sm text-ink-2">
+        <li>
+          <span className="font-medium text-ink">Sokkia:</span> the job&apos;s <code className="font-mono text-label">.sdr</code> file, from the instrument or from the job&apos;s folder in Sokkia Link. Not Sokkia Link&apos;s printout.
+        </li>
+        <li>
+          <span className="font-medium text-ink">Leica:</span> a GSI file (<code className="font-mono text-label">.gsi</code>, GSI-8 or GSI-16) with the points&apos; coordinates.
+        </li>
+        <li>
+          <span className="font-medium text-ink">Trimble:</span> the job exported from Trimble Access as JobXML (<code className="font-mono text-label">.jxl</code>).
+        </li>
+        <li>
+          <span className="font-medium text-ink">Any other software:</span> LandXML with the points, or a CSV, TXT or DAT file with one point a line: point, northing, easting, height and code (PNEZC), as the Survey Department asks.
+        </li>
+        <li>
+          <span className="font-medium text-ink">Won&apos;t work:</span> a printout or PDF, the instrument&apos;s own job database, or a job of angles and distances only. Compute the coordinates first, on the instrument or in its software.
+        </li>
+      </ul>
+    </Disclosure>
   );
 }

@@ -29,6 +29,26 @@ Files are untrusted input (skill rule 11). Nothing is guessed: not the column or
 
 **Files Farbaek can't read.** `unreadableFile` names them with what to export instead: instrument job databases (binary), Trimble DC, and Topcon GTS-7. A GTS-7 file is known by its first line: the `GTS-7` version record, or a GTS-7 keyword (JOB, STN, XYZ, HD and the rest) padded to 8 columns with the comma in column 9. A CSV whose rows start with STN or HD has its comma right after the word, so it isn't one.
 
+**Printouts (stage 198).** A printout is laid out for printing, with headings above a table, so its lines aren't one point each. `printoutSource` recognises two kinds from the first 40 non-blank lines:
+- **Sokkia Link's printout** of an SDR job, by at least two of its marks: the `JOB NM Job ID:` line, `Theo Desc:`, a `SOKKIA Link` path, `Print Date` with `Distance Unit`, and the `Pt. … Record Type … North/Hor` table header. It reads:
+  - the job, from `Job ID:` or `Project :`;
+  - the job file, the `.sdr` it names;
+  - its folder, from `File Name :`.
+
+  The sentence says which file to upload and where it was. The panel shows the full path in mono with **Copy the path**.
+- **Any other report** that starts with three or more `Heading : value` lines among its first fifteen. A heading holds no digits, so a time isn't one. This only applies when no other reader would take the file. The sentence names the headings found and says to upload the job or points file, or to delete the heading lines.
+
+The server refuses both too (`importSurveyPointsAction` calls `unreadableFile`). Reading a printout's rows, and reducing an SDR job's observations to coordinates, wait for real files to build against: Sokkia Link's printout layout isn't published.
+
+An SDR job with only observations says so in a surveyor's words: it holds the instrument's measurements (angles and distances), not coordinates. Compute them in Sokkia Link or on the instrument and export again, or export a CSV.
+
+The import panel's **What to upload from your instrument** lists one line for each instrument family:
+- Sokkia: the job's `.sdr`, not the printout;
+- Leica: GSI;
+- Trimble: JobXML;
+- any other software: LandXML or PNEZC;
+- what won't work.
+
 **One entry point.** `readPoints` in [`read.ts`](../../src/core/survey/import/read.ts) is used by both the panel and the server, so the preview is what is imported. People can also paste rows into the panel.
 
 **Typing points in, as in CAD** ([`manual-entry.tsx`](../../src/components/survey/manual-entry.tsx), stage 194). Two tables beside the upload, for points that come from a field book, a deed or an old plan rather than a file:
