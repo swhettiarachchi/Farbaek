@@ -102,6 +102,20 @@ The phone baseline at 390px, before any change: 70 page views, every one out of 
   - dragging it then moved only the label, and the toolbar said "Unsaved changes";
   - the Check step's link asked before leaving, and declining stayed.
 - **Contact sheets** of every route at 390 and 768, before and after.
+- **The full responsive audit on the demo build:**
+  - every route on 16 screens, 1,130 page views: 320 to 1440px, two landscape phones and three touch iPads;
+  - no sideways scroll, nothing cut off, no lost taps, no crowded frames, no console errors;
+  - three touch-iPad pages had small targets in the trust map, fixed and rechecked clean on all five sizes;
+  - out of proportion on phones went from all 70 page views to under a fifth;
+  - what remains is by design: an open answer card covering part of the screen until it's dismissed, text beside its own picture, and the app's 404 using the public title.
+- **The largest text** (`--text-scale=2` at 375): no sideways scroll, small targets, lost taps or crowded frames.
+- **`pnpm qa:a11y`** at 1280 and 375: 136 page views, 0 findings.
+- **`pnpm qa:vitals`** (phone profile, lab numbers), against stage 159:
+  - `/`: LCP 2.09 s, TBT 253 ms (was 2.08 s and 241 ms);
+  - `/app`: LCP 1.31 s, TBT 121 ms (was 1.29 s and 175 ms);
+  - CLS at most 0.001.
+
+  The pass doesn't slow phones.
 
 ## Next
 
