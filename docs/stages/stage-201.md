@@ -69,7 +69,8 @@ The owner found the page too long and oversized on a phone, then asked for the k
 - `qa:a11y` on `/`, `/chat`, `/images`, `/video`, `/build`, `/proof`, `/app`, `/app/images`, `/app/video`, `/app/chat` at 1280 and 375: no findings.
 - `qa:responsive` on the studios and the redone homepage at every size: no sideways scroll, cut content, small or lost taps, or out-of-proportion elements after the fixes.
 - After the colour and phone passes: design tests 325 of 325, `qa:a11y` and `qa:responsive` clean on `/`, `/images` and `/build` from 320 px to 1280 px.
-- `qa:vitals` (phone, before the redo): `/` LCP 1.87 s, TBT 185 ms; `/images` 1.55 s; `/video` 1.52 s; `/chat` 1.24 s.
+- On the final commit: type check clean, the production build (demo) succeeds, and the full suite passes (3,700 tests, 17 skipped).
+- `qa:vitals` (phone, before the redo; not measured again after the colour and phone passes): `/` LCP 1.87 s, TBT 185 ms; `/images` 1.55 s; `/video` 1.52 s; `/chat` 1.24 s.
 - A fresh security review: no access holes; its money and abuse findings (room across workspaces, reclaiming a stopped server's renders, pictures paid for when the person stops watching, own-key routing, refine on Free, caps on provider streams, cache time) are fixed and tested.
 
 ## Not verified
