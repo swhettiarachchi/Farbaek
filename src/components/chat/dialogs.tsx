@@ -203,7 +203,7 @@ export function ConfirmDialog({ state, onClose, onConfirm }: { state: { id: stri
 const THEMES: [ChatTheme, typeof SunIcon, string][] = [
   ["light", SunIcon, "Light"],
   ["dark", MoonIcon, "Dark"],
-  ["system", DesktopIcon, "Match device"],
+  ["system", DesktopIcon, "Auto"],
 ];
 
 const SHORTCUTS: [string, string][] = [
@@ -224,7 +224,7 @@ export function SettingsDialog({ open, onClose, theme, onTheme, availability, pl
           <h3 id="chat-set-look" className={LABEL_CLASSES}>
             Appearance
           </h3>
-          <div role="radiogroup" aria-labelledby="chat-set-look" className="mt-2 inline-flex rounded-full bg-canvas-2 p-0.5 ring-1 ring-line">
+          <div role="radiogroup" aria-labelledby="chat-set-look" className="mt-2 grid grid-cols-3 rounded-full bg-canvas-2 p-0.5 ring-1 ring-line sm:inline-grid">
             {THEMES.map(([value, Glyph, label]) => (
               <button
                 key={value}
@@ -232,13 +232,13 @@ export function SettingsDialog({ open, onClose, theme, onTheme, availability, pl
                 role="radio"
                 aria-checked={theme === value}
                 onClick={() => onTheme(value)}
-                className="tap inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 text-sm text-ink-2 aria-checked:bg-surface aria-checked:font-medium aria-checked:text-ink aria-checked:shadow-e1"
+                className="tap inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full px-3.5 text-sm text-ink-2 aria-checked:bg-surface aria-checked:font-medium aria-checked:text-ink aria-checked:shadow-e1"
               >
                 <Glyph size={16} weight="bold" aria-hidden /> {label}
               </button>
             ))}
           </div>
-          <p className="mt-2 text-xs text-ink-3">Dark is for Chat; the rest of Farbaek stays light.</p>
+          <p className="mt-2 text-xs text-ink-3">Auto follows this device. Dark is for Chat; the rest of Farbaek stays light.</p>
         </section>
 
         <section aria-labelledby="chat-set-send">

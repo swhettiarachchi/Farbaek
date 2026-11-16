@@ -217,7 +217,7 @@ export function Sidebar({
             placeholder="Search chats"
             enterKeyHint="search"
             autoComplete="off"
-            className={inputClasses("w-full rounded-full bg-surface pl-10")}
+            className={inputClasses("w-full rounded-full bg-surface pl-10 lg:pointer-fine:pl-10")}
           />
         </div>
       </div>

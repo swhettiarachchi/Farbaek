@@ -61,9 +61,9 @@ export function checkChatFile(name: string, bytes: Uint8Array): FileCheck {
     if (image === "png" || image === "jpeg" || image === "gif" || image === "webp") return { ok: true, kind: "image", mime: IMAGE_MIMES[image], name: clean };
     return { ok: false, reason: `${clean} is a kind of picture the AI can't read. Save it as PNG, JPEG or WebP, then attach it again.` };
   }
-  // %PDF- within the first kilobyte, as readers accept.
-  const head = new TextDecoder("latin1").decode(bytes.subarray(0, 1024));
-  if (head.includes("%PDF-")) return { ok: true, kind: "pdf", mime: "application/pdf", name: clean };
+  // %PDF- at the very start (after a byte-order mark or a little space at most): text that merely mentions it stays text.
+  const head = new TextDecoder("latin1").decode(bytes.subarray(0, 16));
+  if (/^(?:\xEF\xBB\xBF)?\s{0,8}%PDF-/.test(head)) return { ok: true, kind: "pdf", mime: "application/pdf", name: clean };
 
   const ext = extension(clean);
   if (TEXT_EXTENSIONS.has(ext) || ext === "") {

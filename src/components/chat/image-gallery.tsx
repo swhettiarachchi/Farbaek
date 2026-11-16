@@ -27,7 +27,7 @@ export function ImageGallery({ images, demo }: { images: GalleryImage[]; demo: b
           <h1 className={FOCUSED_TITLE}>Images</h1>
           <p className="mt-2 max-w-xl text-body leading-relaxed text-ink-2">Pictures the AI made in your chats in this workspace. Each one stays with its chat; deleting the chat deletes them.</p>
           {images.length === 0 ? (
-            <div className="mt-10 flex flex-col items-start gap-4 rounded-lg border border-dashed border-line-2 p-6 sm:p-8">
+            <div className="mt-10 flex flex-col items-start gap-4 rounded-lg border border-dashed border-line-2 p-5 sm:p-8">
               <span className="inline-flex size-12 items-center justify-center rounded-full bg-surface-raised text-ink-2">
                 <ImageSquareIcon size={24} aria-hidden />
               </span>

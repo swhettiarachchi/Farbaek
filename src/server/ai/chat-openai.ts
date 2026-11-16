@@ -71,7 +71,6 @@ export function createOpenAiChat(options: { key: string; fetcher?: typeof fetch 
       const reader = response.body.getReader();
       const sse = new SseReader();
       let usage: ProviderUsage | null = null;
-      let written = 0;
       let outcome: ChatOutcome | null = null;
       let refused = false;
       try {
@@ -88,7 +87,6 @@ export function createOpenAiChat(options: { key: string; fetcher?: typeof fetch 
             }
             const type = data.type ?? e.event;
             if (type === "response.output_text.delta" && typeof data.delta === "string") {
-              written += data.delta.length;
               handlers.onText(data.delta);
             } else if (type === "response.reasoning_summary_text.delta" && typeof data.delta === "string") {
               handlers.onThinking(data.delta);
@@ -107,8 +105,8 @@ export function createOpenAiChat(options: { key: string; fetcher?: typeof fetch 
         }
       } catch {
         const aborted = signal.aborted;
-        // Stopped part-way: what was written is metered at about 4 characters a token.
-        return { ok: false, failure: aborted ? "PROVIDER_ERROR" : "PROVIDER_BUSY", usage: usage ?? (written > 0 ? { model: request.model, inputTokens: 0, outputTokens: Math.ceil(written / 4), cacheWriteTokens: 0, cacheReadTokens: 0 } : null), aborted };
+        // Stopped part-way: OpenAI reports usage only at the end, so the turn counts what was read and written itself.
+        return { ok: false, failure: aborted ? "PROVIDER_ERROR" : "PROVIDER_BUSY", usage, aborted };
       }
       if (!outcome && refused) return { ok: true, stop: "refusal", usage: usage ?? usageOf(request.model, undefined) };
       return outcome ?? { ok: false, failure: "INCOMPLETE", usage, aborted: false };

@@ -211,7 +211,7 @@ function Shell({ conversations: initial, projects, availability, theme: initialT
 
   return (
     <ChatContext.Provider value={value}>
-      <div ref={root} data-chat-theme={theme} className="chat-root fixed inset-x-0 top-0 flex h-[var(--chat-vh,100dvh)] overflow-hidden bg-canvas text-ink">
+      <div ref={root} data-chat-theme={theme} className="chat-root relative flex h-[var(--chat-vh,100dvh)] overflow-hidden bg-canvas text-ink">
         <a href="#chat-composer" className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm text-on-primary focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
           Skip to the message box
         </a>

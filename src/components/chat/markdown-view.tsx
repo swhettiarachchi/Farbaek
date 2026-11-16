@@ -5,7 +5,7 @@
  * their source, so while an answer streams only the block being written redraws. Code blocks carry their language, a copy button
  * and a download; tables scroll sideways inside their own frame; maths is the browser's own MathML.
  */
-import { CheckIcon, CopyIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
+import { CheckIcon, CheckSquareIcon, CopyIcon, DownloadSimpleIcon, SquareIcon } from "@phosphor-icons/react";
 import { createElement, memo, useMemo, useState, type ReactNode } from "react";
 import { extensionFor, highlight, languageLabel, type TokenKind } from "@/core/chat/highlight";
 import { parseMarkdown, type Block, type Inline } from "@/core/chat/markdown";
@@ -102,15 +102,15 @@ export function CodeBlock({ lang, code, open }: { lang: string; code: string; op
   };
   return (
     <figure className="my-4 overflow-hidden rounded-md border border-line bg-surface-sunken/60 first:mt-0">
-      <figcaption className="flex min-h-10 items-center justify-between gap-2 border-b border-line bg-surface/60 pl-4 pr-1.5 text-xs text-ink-3">
+      <figcaption className="flex min-h-10 items-center justify-between gap-2 border-b border-line bg-surface/60 pl-4 pr-1.5 text-xs text-ink-3 pointer-coarse:min-h-12">
         <span className="font-medium text-ink-2">{languageLabel(lang)}</span>
         <span className="flex items-center">
           {open ? null : (
-            <button type="button" onClick={download} aria-label="Download this code" title="Download" className="tap inline-flex size-8 items-center justify-center rounded-full hover:bg-surface-raised hover:text-ink">
+            <button type="button" onClick={download} aria-label="Download this code" title="Download" className="tap inline-flex size-8 items-center justify-center rounded-full hover:bg-surface-raised hover:text-ink pointer-coarse:size-11">
               <DownloadSimpleIcon size={14} weight="bold" aria-hidden />
             </button>
           )}
-          <button type="button" onClick={copy} className="tap inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 hover:bg-surface-raised hover:text-ink" aria-label={copied ? "Code copied" : "Copy code"}>
+          <button type="button" onClick={copy} className="tap inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 hover:bg-surface-raised hover:text-ink pointer-coarse:min-h-11" aria-label={copied ? "Code copied" : "Copy code"}>
             {copied ? <CheckIcon size={14} weight="bold" className="text-verified" aria-hidden /> : <CopyIcon size={14} weight="bold" aria-hidden />}
             {copied ? "Copied" : "Copy"}
           </button>
@@ -144,7 +144,7 @@ function BlockView({ block }: { block: Block }): ReactNode {
         </p>
       );
     case "h": {
-      const tag = `h${Math.min(6, block.level + 1)}` as "h2";
+      const tag = `h${Math.min(6, Math.max(2, block.level))}` as "h2";
       return createElement(tag, { className: `${HEADING[block.level]} mb-2 font-medium leading-snug tracking-[-0.02em] text-ink first:mt-0` }, <InlineView nodes={block.c} />);
     }
     case "code":
@@ -169,7 +169,11 @@ function BlockView({ block }: { block: Block }): ReactNode {
       const items = block.items.map((item, i) => (
         <li key={i} className={`${item.checked === null ? "" : "flex list-none items-start gap-2"} ${block.tight ? "my-1" : "my-2"} pl-1 marker:text-ink-3`}>
           {item.checked !== null ? (
-            <input type="checkbox" checked={item.checked} readOnly aria-label={item.checked ? "Done" : "Not done"} className="mt-1.5 size-4 shrink-0 accent-[var(--accent)]" />
+            item.checked ? (
+              <CheckSquareIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-accent" aria-label="Done" role="img" />
+            ) : (
+              <SquareIcon size={20} className="mt-0.5 shrink-0 text-ink-3" aria-label="Not done" role="img" />
+            )
           ) : null}
           <div className="min-w-0 flex-1 [&>p]:my-0">
             {item.blocks.map((b, j) => (

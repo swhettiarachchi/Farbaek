@@ -26,6 +26,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 
 - `src/app/(site)/`: marketing routes (`/`, `/pricing`, `/sign-in`) with the site header. `src/app/app/`: the signed-in app (Mission Control, projects, tasks, approvals, billing, settings). Server Components by default.
 - `src/server/workspace/`: request context, readers (Supabase and demo), write use cases. Writes go through `use-cases.ts` (TypeScript rules) then the service-role-only `app_*` SQL functions; the browser can only read.
+- `src/server/chat/`, `src/core/chat/`, `src/components/chat/`: Farbaek Chat (ADR 0213): conversations with branches, answers streamed as Server-Sent Events from `/app/chat/api/turn`, files, images and read-only links. Its own Markdown, code tint and MathML; no HTML from the model.
 - `src/server/ai/`: model providers behind interfaces: Claude and Gemini for contract drafting and change proposals (ADR 0009, ADR 0014; AI_PROVIDER picks one). Server-only; output is untrusted and only prefills forms.
 - `src/config/usage.ts` and `src/core/billing/rate-card.ts`: the AI operations, and what each model costs per token (with `docs/billing/usage.md`, ADR 0020). `src/core/billing/allowance.ts` turns a price into a plan's allowance.
 - `src/components/<area>/`: UI. Anything using Motion, state or effects is a `"use client"` leaf.
@@ -52,7 +53,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 
 ## Design rules (White Signal, ADR 0008)
 
-- One light theme. Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold.
+- One light theme. Farbaek Chat alone offers Dark as the person's choice, scoped to its own root (`src/styles/chat-theme.css`, ADR 0213). Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold.
 - Dark `media` tokens are for media frames only (concept film, evidence terminal), never for whole sections.
 - Shape lock: buttons, chips and segmented controls are pills; inputs 12px (`rounded-sm`); cards 20px (`rounded-md`); large panels 28px.
 - Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono for code and data only (hashes, paths, commands, IDs, keys). No serif.

@@ -50,11 +50,11 @@ export function BranchSwitch({ message, onSwitch, disabled }: { message: ChatMes
   const next = message.siblings[at + 1];
   return (
     <span className="inline-flex items-center text-xs text-ink-3" role="group" aria-label="Versions">
-      <IconButton label="Previous version" icon={CaretLeftIcon} disabled={disabled || !prev} onClick={() => prev && onSwitch(prev)} className="size-8" />
+      <IconButton label="Previous version" icon={CaretLeftIcon} disabled={disabled || !prev} onClick={() => prev && onSwitch(prev)} className="size-8 pointer-coarse:size-11" />
       <span className="tabular min-w-12 text-center" aria-live="polite">
         {at + 1} of {message.siblings.length}
       </span>
-      <IconButton label="Next version" icon={CaretRightIcon} disabled={disabled || !next} onClick={() => next && onSwitch(next)} className="size-8" />
+      <IconButton label="Next version" icon={CaretRightIcon} disabled={disabled || !next} onClick={() => next && onSwitch(next)} className="size-8 pointer-coarse:size-11" />
     </span>
   );
 }
@@ -152,7 +152,7 @@ export function UserMessage({
           <IconButton
             label={copied ? "Copied" : "Copy"}
             icon={copied ? CheckIcon : CopyIcon}
-            className="size-8"
+            className="size-8 pointer-coarse:size-11"
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(message.content);
@@ -167,7 +167,7 @@ export function UserMessage({
             <IconButton
               label="Edit"
               icon={PencilSimpleIcon}
-              className="size-8"
+              className="size-8 pointer-coarse:size-11"
               disabled={busy}
               onClick={() => {
                 setDraft(message.content);
@@ -217,7 +217,8 @@ export function AnswerMessage({
   const [showThinking, setShowThinking] = useState(false);
   const streaming = message.status === "streaming";
   const waiting = streaming && !message.content && message.kind === "text";
-  const canContinue = message.kind === "text" && (message.status === "stopped" || message.meta.stop === "length") && message.content.trim().length > 0;
+  // Only the end of the branch continues: an answer with questions after it doesn't change under them.
+  const canContinue = last && message.kind === "text" && (message.status === "stopped" || message.meta.stop === "length") && message.content.trim().length > 0;
 
   return (
     <article className="chat-message group" aria-label="Farbaek said" aria-busy={streaming || undefined}>
@@ -280,7 +281,7 @@ export function AnswerMessage({
             <IconButton
               label={copied ? "Copied" : "Copy"}
               icon={copied ? CheckIcon : CopyIcon}
-              className="size-8"
+              className="size-8 pointer-coarse:size-11"
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(message.content);
@@ -294,14 +295,14 @@ export function AnswerMessage({
           ) : null}
           {!readOnly && actions ? (
             <>
-              {message.kind === "text" && message.content ? <IconButton label={speaking ? "Stop reading" : "Read aloud"} icon={speaking ? SpeakerSlashIcon : SpeakerHighIcon} pressed={speaking} className="size-8" onClick={actions.onSpeak} /> : null}
+              {message.kind === "text" && message.content ? <IconButton label={speaking ? "Stop reading" : "Read aloud"} icon={speaking ? SpeakerSlashIcon : SpeakerHighIcon} pressed={speaking} className="size-8 pointer-coarse:size-11" onClick={actions.onSpeak} /> : null}
               {message.status === "complete" ? (
                 <>
-                  <IconButton label="Good answer" icon={ThumbsUpIcon} pressed={message.rating === 1} className="size-8" onClick={() => actions.onRate(message.rating === 1 ? null : 1)} />
-                  <IconButton label="Not a good answer" icon={ThumbsDownIcon} pressed={message.rating === -1} className="size-8" onClick={() => actions.onRate(message.rating === -1 ? null : -1)} />
+                  <IconButton label="Good answer" icon={ThumbsUpIcon} pressed={message.rating === 1} className="size-8 pointer-coarse:size-11" onClick={() => actions.onRate(message.rating === 1 ? null : 1)} />
+                  <IconButton label="Not a good answer" icon={ThumbsDownIcon} pressed={message.rating === -1} className="size-8 pointer-coarse:size-11" onClick={() => actions.onRate(message.rating === -1 ? null : -1)} />
                 </>
               ) : null}
-              <IconButton label={message.kind === "image" ? "Make another version" : "Answer again"} icon={ArrowClockwiseIcon} className="size-8" disabled={busy} onClick={actions.onRegenerate} />
+              <IconButton label={message.kind === "image" ? "Make another version" : "Answer again"} icon={ArrowClockwiseIcon} className="size-8 pointer-coarse:size-11" disabled={busy} onClick={actions.onRegenerate} />
               {canContinue ? (
                 <button type="button" onClick={actions.onContinue} disabled={busy} className="tap ml-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2 hover:border-line-2 hover:text-ink disabled:opacity-50">
                   <PlayIcon size={14} weight="bold" aria-hidden /> Continue

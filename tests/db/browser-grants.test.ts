@@ -34,6 +34,8 @@ describe("browsers' roles", () => {
       "app_autonomy_record",
       "app_incident_changes",
       "app_replay_history",
+      // Farbaek Chat (ADR 0213): reads a branch of the person's own conversation, under row level security (security invoker).
+      "chat_path",
       "create_organization",
       "get_project_file",
       "search_project_files",

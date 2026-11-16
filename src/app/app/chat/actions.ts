@@ -117,6 +117,15 @@ export async function switchBranchAction(conversationId: string, messageId: stri
   return path ? { ok: true, value: path } : { ok: false, message: "That conversation couldn't be read. Reload the page." };
 }
 
+/** The branch showing now, from the database: after a turn stopped before its stream began. */
+export async function branchAction(conversationId: string): Promise<ChatActionResult<ChatMessage[]>> {
+  if (!uuid.safeParse(conversationId).success) return { ok: false, message: "That conversation doesn't exist." };
+  const r = await reader();
+  if (!r.ok) return r;
+  const path = await readPath(r.user, conversationId, null, CHAT_LIMITS.page);
+  return path ? { ok: true, value: path } : { ok: false, message: "That conversation couldn't be read. Reload the page." };
+}
+
 /** Earlier messages of the branch, above the oldest one showing. */
 export async function earlierMessagesAction(conversationId: string, beforeParentId: string): Promise<ChatActionResult<ChatMessage[]>> {
   if (!uuid.safeParse(conversationId).success || !uuid.safeParse(beforeParentId).success) return { ok: false, message: "That conversation doesn't exist." };

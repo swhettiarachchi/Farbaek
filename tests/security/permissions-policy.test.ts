@@ -1,6 +1,7 @@
 /**
- * Where the microphone is allowed (stage 195, ADR 0210): Survey Studio's pages on Farbaek's own host, for the drafting assistant, and
- * nowhere else: not the rest of the app, not people's published sites, not previews.
+ * Where the microphone is allowed (stage 195, ADR 0210; stage 199, ADR 0213): Survey Studio's pages on Farbaek's own host, for the
+ * drafting assistant, and Farbaek Chat's, for speaking a message; nowhere else: not the rest of the app, not people's published sites,
+ * not previews.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -22,14 +23,16 @@ afterEach(() => {
 });
 
 describe("the microphone", () => {
-  it("is allowed only on Survey Studio's pages on Farbaek's own host", async () => {
+  it("is allowed only on Survey Studio's and Chat's pages on Farbaek's own host", async () => {
     const all = await rules("https://www.farbaek.com");
     const allowing = all.filter((r) => policy(r)?.includes("microphone=(self)"));
-    expect(allowing).toHaveLength(1);
-    expect(allowing[0]).toMatchObject({ source: "/app/survey/:path*", has: [{ type: "host", value: "www\\.farbaek\\.com" }] });
-    // The rule repeats the whole header, so payment on Farbaek's own pages stays as it was.
-    expect(policy(allowing[0]!)).toBe("camera=(), microphone=(self), geolocation=(), payment=(self)");
-    for (const r of all.filter((x) => x !== allowing[0] && policy(x))) expect(policy(r)).toContain("microphone=()");
+    expect(allowing.map((r) => r.source)).toEqual(["/app/survey/:path*", "/app/chat/:path*"]);
+    for (const r of allowing) {
+      expect(r).toMatchObject({ has: [{ type: "host", value: "www\\.farbaek\\.com" }] });
+      // The rule repeats the whole header, so payment on Farbaek's own pages stays as it was.
+      expect(policy(r)).toBe("camera=(), microphone=(self), geolocation=(), payment=(self)");
+    }
+    for (const r of all.filter((x) => !allowing.includes(x) && policy(x))) expect(policy(r)).toContain("microphone=()");
   });
 
   it("stays off everywhere without the site's address at build time", async () => {

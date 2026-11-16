@@ -27,7 +27,7 @@ import type { ChatWrites, StoredFile } from "./store";
 export interface ChatReads {
   path(conversationId: string, leaf: string | null, limit: number): Promise<ChatMessage[] | null>;
   files(ids: string[]): Promise<StoredFile[]>;
-  pendingFiles(ids: string[]): Promise<{ id: string; kind: ChatFile["kind"]; size: number; messageId: string | null; conversationId: string | null }[]>;
+  pendingFiles(ids: string[]): Promise<{ id: string; kind: ChatFile["kind"]; size: number; messageId: string | null; conversationId: string | null; generated: boolean }[]>;
   conversation(id: string): Promise<{ id: string; titled: boolean; title: string; projectId: string | null } | null>;
   projectExists(id: string): Promise<boolean>;
 }
@@ -72,8 +72,9 @@ const CHAT_ERRORS: Record<string, { status: number; message: string }> = {
   FILE_NOT_FOUND: { status: 404, message: "One of the attached files isn't available anymore. Remove it and attach it again." },
   TOO_MANY_FILES: { status: 409, message: "That's more files than a chat can hold at once. Remove some, then try again." },
   INVALID_MESSAGE: { status: 400, message: "Write a message or attach a file first." },
-  CANNOT_CONTINUE: { status: 409, message: "Only an answer that stopped part-way can be continued." },
+  CANNOT_CONTINUE: { status: 409, message: "Only the last answer, when it stopped part-way, can be continued." },
   ALREADY_ENDED: { status: 409, message: "That answer has already ended." },
+  STORAGE_FULL: { status: 409, message: "Your chat files in this workspace have reached 300 MB. Delete older chats with files to make room." },
 };
 
 /** A database refusal as the person reads it. */
@@ -89,7 +90,7 @@ const refused = (status: number, message: string): TurnFailure => ({ ok: false, 
 
 const FAILED_TEXT: Record<string, string> = {
   REFUSED: "The AI declined to answer that, so it wasn't counted.",
-  INCOMPLETE: "The answer didn't finish, so it wasn't counted. Try again.",
+  INCOMPLETE: "The answer didn't finish, so it wasn't counted. If you attached a file, try again without it.",
   PROVIDER_BUSY: "The AI is busy right now, so this wasn't counted. Try again in a minute.",
   PROVIDER_ERROR: "The answer didn't finish, so it wasn't counted. Try again.",
 };
@@ -250,6 +251,13 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const pending = await deps.reads.pendingFiles(questionFiles);
   if (pending.length !== new Set(questionFiles).size) return refused(404, "One of the attached files isn't available anymore. Remove it and attach it again.");
   if (pending.some((f) => f.messageId !== null && f.conversationId !== conversationId)) return refused(404, "One of the attached files isn't available anymore. Remove it and attach it again.");
+  // A picture the AI made in this conversation is a starting point for a new one ("Change it"), never attached to the question.
+  const made = pending.filter((f) => f.generated);
+  if (made.length > 0 && (mode !== "image" || made.some((f) => f.kind !== "image" || f.conversationId !== conversationId))) {
+    return refused(400, "A picture made here can be changed with Create an image switched on. To ask about it, download it and attach it.");
+  }
+  const madeIds = made.map((f) => f.id);
+  questionFiles = pending.filter((f) => !f.generated).map((f) => f.id);
 
   // 2. The plan, and the model or image tool that answers.
   const plan = await resolvePlan(deps.usage, orgId);
@@ -263,11 +271,11 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
           kind: "text",
           content: questionText,
           status: "complete",
-          files: pending.map((f) => ({ id: f.id, name: "file", kind: f.kind, size: f.size, generated: false })),
+          files: pending.filter((f) => !f.generated).map((f) => ({ id: f.id, name: "file", kind: f.kind, size: f.size, generated: false })),
         }
       : null;
 
-  if (mode === "image") return prepareImage(deps, { orgId, actor, plan: plan.value, request, conversationId, questionParent, base, questionText, questionFiles, newQuestion, existingQuestion, conversationTitled });
+  if (mode === "image") return prepareImage(deps, { orgId, actor, plan: plan.value, request, conversationId, questionParent, base, questionText, questionFiles, madeIds, newQuestion, existingQuestion, conversationTitled });
 
   const setup: ChatSetup = { plan: plan.value.plan, claude: deps.claude !== null, openai: deps.openai !== null && deps.openaiConnected, overrides: deps.overrides };
   const choice = chooseChatModel(setup, request.model, request.effort);
@@ -294,10 +302,9 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   }
   const { conversationId: convId, question, answerId, created } = written;
 
-  const modelInput = await toModelInput(deps.reads, {
-    kept: context.kept.map((m) => (m.id === "new" ? { ...m, id: question?.id ?? m.id, files: question?.files.map((f) => ({ id: f.id, name: f.name, kind: f.kind, size: f.size, generated: f.generated })) ?? m.files } : m)),
-    withFiles: new Set([...context.withFiles].map((id) => (id === "new" ? (question?.id ?? id) : id))),
-  });
+  const keptMessages = context.kept.map((m) => (m.id === "new" ? { ...m, id: question?.id ?? m.id, files: question?.files.map((f) => ({ id: f.id, name: f.name, kind: f.kind, size: f.size, generated: f.generated })) ?? m.files } : m));
+  const withFiles = new Set([...context.withFiles].map((id) => (id === "new" ? (question?.id ?? id) : id)));
+  const modelInput = await toModelInput(deps.reads, { kept: keptMessages, withFiles });
   const prior = continuing?.content ?? "";
   if (continuing) modelInput.push({ role: "user", parts: [{ type: "text", text: "Continue your previous answer from exactly where it stopped. Don't repeat anything you already wrote, and don't comment on continuing." }] });
 
@@ -327,37 +334,50 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       let added = "";
       let thinkingAt: number | null = null;
       let thinkingMs: number | null = null;
+      let thoughtChars = 0;
       let lastSave = deps.now();
       let saving: Promise<unknown> = Promise.resolve();
       const save = (status: "streaming" | "complete" | "stopped" | "failed", error: string | null, meta: Record<string, unknown> | null) =>
         deps.writes.writeReply({ orgId, actor, messageId: answerId, content: text, status, model: null, error, thinkingMs, meta });
+      // Saved every few seconds while it streams and while the model thinks, so a live answer is never taken for an abandoned one.
+      const heartbeat = () => {
+        if (deps.now() - lastSave <= SAVE_EVERY_MS) return;
+        lastSave = deps.now();
+        // One save at a time; a slow save never holds up the stream.
+        saving = saving.then(() => save("streaming", null, null)).catch(() => undefined);
+      };
+      const handlers = {
+        onThinking(summary: string) {
+          if (thinkingAt === null) thinkingAt = deps.now();
+          thoughtChars += summary.length;
+          emit({ type: "thinking", v: summary });
+          heartbeat();
+        },
+        onText(delta: string) {
+          if (thinkingAt !== null && thinkingMs === null) thinkingMs = deps.now() - thinkingAt;
+          if (text.length + delta.length > 190_000) return;
+          text += delta;
+          added += delta;
+          emit({ type: "text", v: delta });
+          heartbeat();
+        },
+      };
+      const ask = async (messages: ChatInputMessage[]): Promise<ChatOutcome> => {
+        try {
+          return await model.stream({ model: choice.model, thinking: choice.thinking, system: CHAT_SYSTEM_PROMPT, messages, maxOutputTokens: maxOutput }, handlers, signal);
+        } catch {
+          return { ok: false, failure: "PROVIDER_ERROR", usage: null, aborted: signal.aborted };
+        }
+      };
 
-      let outcome: ChatOutcome;
-      try {
-        outcome = await model.stream(
-          { model: choice.model, thinking: choice.thinking, system: CHAT_SYSTEM_PROMPT, messages: modelInput, maxOutputTokens: maxOutput },
-          {
-            onThinking(summary) {
-              if (thinkingAt === null) thinkingAt = deps.now();
-              emit({ type: "thinking", v: summary });
-            },
-            onText(delta) {
-              if (thinkingAt !== null && thinkingMs === null) thinkingMs = deps.now() - thinkingAt;
-              if (text.length + delta.length > 190_000) return;
-              text += delta;
-              added += delta;
-              emit({ type: "text", v: delta });
-              if (deps.now() - lastSave > SAVE_EVERY_MS) {
-                lastSave = deps.now();
-                // One save at a time; a slow save never holds up the stream.
-                saving = saving.then(() => save("streaming", null, null)).catch(() => undefined);
-              }
-            },
-          },
-          signal,
-        );
-      } catch {
-        outcome = { ok: false, failure: "PROVIDER_ERROR", usage: null, aborted: signal.aborted };
+      let outcome = await ask(modelInput);
+      // A file the provider can't read (too large, locked, damaged) would fail every later question too. Asked once more without the
+      // files of earlier questions, so one bad file doesn't break the conversation.
+      const newest = [...keptMessages].reverse().find((m) => m.role === "user")?.id;
+      const older = [...withFiles].filter((id) => id !== newest);
+      if (!outcome.ok && !outcome.aborted && outcome.failure === "INCOMPLETE" && !added && thinkingAt === null && older.length > 0) {
+        const lean = await toModelInput(deps.reads, { kept: keptMessages, withFiles: new Set(newest && withFiles.has(newest) ? [newest] : []) });
+        outcome = await ask(continuing ? [...lean, ...modelInput.slice(-1)] : lean);
       }
       await saving;
       if (thinkingAt !== null && thinkingMs === null) thinkingMs = deps.now() - thinkingAt;
@@ -375,7 +395,8 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
         status = "failed";
         error = FAILED_TEXT[outcome.failure] ?? FAILED_TEXT.PROVIDER_ERROR!;
       }
-      const finalSave = await save(status, error, stop ? { stop } : null);
+      // The answer's own facts, written whole: a continued answer no longer says it reached its length limit.
+      const finalSave = await save(status, error, stop ? { stop } : {});
       if (!finalSave.ok) log("error", "chat.save_failed", { status, reason: finalSave.error.slice(0, 120) });
       try {
         emit({ type: "done", status, error, thinkingMs, modelName: modelName(outcome.usage?.model ?? choice.model), stop });
@@ -383,17 +404,19 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
         // The browser has gone; what was written is saved.
       }
 
-      // The conversation's name, from its first answer.
+      // The conversation's name, from its first answer; shown only when it was used (the person may have named it meanwhile).
       let usage = outcome.usage;
       if (needsTitle && status === "complete" && added.trim()) {
         const named = await model.title({ model: choice.model, question: questionText ?? "", answer: text }, AbortSignal.timeout(20_000));
         const title = named.title ? cleanTitle(named.title) : null;
         if (title) {
-          await deps.writes.autoTitle({ orgId, actor, conversationId: convId, title });
-          try {
-            emit({ type: "title", title });
-          } catch {
-            // Gone.
+          const applied = await deps.writes.autoTitle({ orgId, actor, conversationId: convId, title });
+          if (applied.ok && applied.value) {
+            try {
+              emit({ type: "title", title });
+            } catch {
+              // Gone.
+            }
           }
         }
         if (usage && named.usage && named.usage.model === usage.model) {
@@ -407,15 +430,19 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
         }
       }
 
-      // Settling: what was answered is paid for, a failure isn't, and a stopped answer pays for what it wrote.
+      // Settling: what was answered is paid for, a failure isn't, and a stopped answer pays for what it read, thought and wrote. A
+      // provider reports little for a stopped call, so thinking is counted from its summary and how long it lasted.
       if (status === "complete") {
         if (usage) await settleUsage(meter, { orgId, entryId: reserved.value.entryId, usage });
         else await refund("failed");
       } else if (status === "stopped") {
-        if (added.trim()) {
-          const spent: ProviderUsage = usage
-            ? { ...usage, outputTokens: Math.max(usage.outputTokens, approxTokens(added)) }
-            : { model: choice.model, inputTokens: context.tokens, outputTokens: approxTokens(added), cacheWriteTokens: 0, cacheReadTokens: 0 };
+        const thought = thinkingAt === null ? 0 : Math.min(maxOutput, Math.max(thoughtChars, Math.round(((thinkingMs ?? 0) / 1_000) * 30)));
+        const wrote = approxTokens(added) + thought;
+        if (wrote > 0) {
+          const reported = usage && usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0) > 0 ? usage : null;
+          const spent: ProviderUsage = reported
+            ? { ...reported, outputTokens: Math.max(reported.outputTokens, wrote) }
+            : { model: usage?.model ?? choice.model, inputTokens: context.tokens + approxTokens(CHAT_SYSTEM_PROMPT), outputTokens: Math.max(usage?.outputTokens ?? 0, wrote), cacheWriteTokens: 0, cacheReadTokens: 0 };
           await settleUsage(meter, { orgId, entryId: reserved.value.entryId, usage: spent });
         } else await refund("stopped", usage);
       } else await refund("failed", usage);
@@ -447,35 +474,52 @@ async function writeQuestionAndAnswer(
     model: string;
   },
 ): Promise<Written | TurnFailure> {
-  let conversationId = i.conversationId;
-  let created = false;
-  if (!conversationId) {
-    const projectId = i.request.action === "send" ? i.request.projectId : null;
-    const started = await deps.writes.start({ orgId: i.orgId, actor: i.actor, projectId, title: titleFrom(i.questionText ?? "") });
-    if (!started.ok) return chatFailure(started.error);
-    conversationId = started.value;
-    created = true;
-  }
-
   if (i.continuing) {
     const reopened = await deps.writes.reopenReply({ orgId: i.orgId, actor: i.actor, messageId: i.continuing.id });
     if (!reopened.ok) return chatFailure(reopened.error);
-    return { ok: true, conversationId, question: null, answerId: i.continuing.id, created };
+    return { ok: true, conversationId: i.conversationId!, question: null, answerId: i.continuing.id, created: false };
   }
 
-  let question: ChatMessage | null = null;
-  let questionId: string;
+  // A question and its empty answer in one transaction (and the conversation, when it's new): a refusal part-way leaves nothing.
   if (i.questionText !== null) {
-    const added = await deps.writes.addQuestion({ orgId: i.orgId, actor: i.actor, conversationId, parentId: i.questionParent, content: i.questionText, files: i.questionFiles });
-    if (!added.ok) return chatFailure(added.error);
-    questionId = added.value;
-    const read = await deps.reads.path(conversationId, questionId, 1);
-    question = read?.[0] ?? null;
-  } else questionId = i.existingQuestion!.id;
+    const projectId = !i.conversationId && i.request.action === "send" ? i.request.projectId : null;
+    const began = await deps.writes.beginTurn({
+      orgId: i.orgId,
+      actor: i.actor,
+      conversationId: i.conversationId,
+      projectId,
+      title: titleFrom(i.questionText),
+      parentId: i.questionParent,
+      content: i.questionText,
+      files: i.questionFiles,
+      kind: i.kind,
+      model: i.model,
+    });
+    if (!began.ok) return chatFailure(began.error);
+    const { conversation, question: questionId, answer } = began.value;
+    const read = await deps.reads.path(conversation, questionId, 1);
+    const question: ChatMessage = read?.[0] ?? {
+      id: questionId,
+      parentId: i.questionParent,
+      role: "user",
+      kind: "text",
+      content: i.questionText,
+      status: "complete",
+      modelName: null,
+      error: null,
+      rating: null,
+      thinkingMs: null,
+      meta: {},
+      createdAt: new Date(deps.now()).toISOString(),
+      siblings: [questionId],
+      files: [],
+    };
+    return { ok: true, conversationId: conversation, question, answerId: answer, created: i.conversationId === null };
+  }
 
-  const began = await deps.writes.beginReply({ orgId: i.orgId, actor: i.actor, conversationId, parentId: questionId, kind: i.kind, model: i.model });
+  const began = await deps.writes.beginReply({ orgId: i.orgId, actor: i.actor, conversationId: i.conversationId!, parentId: i.existingQuestion!.id, kind: i.kind, model: i.model });
   if (!began.ok) return chatFailure(began.error);
-  return { ok: true, conversationId, question, answerId: began.value, created };
+  return { ok: true, conversationId: i.conversationId!, question: null, answerId: began.value, created: false };
 }
 
 async function prepareImage(
@@ -490,6 +534,8 @@ async function prepareImage(
     base: ChatMessage[];
     questionText: string | null;
     questionFiles: string[];
+    /** Pictures the AI made in this conversation, to start from. */
+    madeIds: string[];
     newQuestion: ContextMessage | null;
     existingQuestion: ChatMessage | null;
     conversationTitled: boolean;
@@ -505,7 +551,7 @@ async function prepareImage(
   // Pictures to work from: the ones attached to this question, or else the last picture made in this conversation (so "make it
   // brighter" edits it).
   const questionImages = i.questionText !== null ? await deps.reads.pendingFiles(i.questionFiles) : [];
-  let referenceIds = (i.questionText !== null ? i.questionFiles.filter((id) => questionImages.find((f) => f.id === id)?.kind === "image") : (i.existingQuestion?.files.filter((f) => f.kind === "image").map((f) => f.id) ?? [])).slice(0, 3);
+  let referenceIds = [...i.madeIds, ...(i.questionText !== null ? i.questionFiles.filter((id) => questionImages.find((f) => f.id === id)?.kind === "image") : (i.existingQuestion?.files.filter((f) => f.kind === "image").map((f) => f.id) ?? []))].slice(0, 3);
   if (referenceIds.length === 0) {
     const lastMade = [...i.base].reverse().find((m) => m.role === "assistant" && m.kind === "image" && m.files.some((f) => f.generated));
     if (lastMade) referenceIds = [lastMade.files.find((f) => f.generated)!.id];

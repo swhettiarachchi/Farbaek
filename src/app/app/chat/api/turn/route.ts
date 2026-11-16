@@ -103,6 +103,8 @@ export async function POST(request: Request) {
   // The model call follows the browser's request: Stop (or closing the page) aborts it.
   const abort = new AbortController();
   request.signal.addEventListener("abort", () => abort.abort(), { once: true });
+  // The browser may have gone while the turn was prepared: then the event has already fired, and the answer stops at once.
+  if (request.signal.aborted) abort.abort();
   let open = true;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {

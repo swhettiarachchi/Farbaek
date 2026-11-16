@@ -162,6 +162,35 @@ end;
 $$;
 revoke all on function private.chat_tip(uuid) from public, anon, authenticated;
 
+-- Answers a stopped server left streaming: an answer being written is saved every few seconds (while the model thinks too), so one
+-- untouched for two minutes has no stream behind it any more. It's marked stopped, keeping what it had.
+create function private.chat_sweep(p_actor uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update public.chat_messages set status = 'stopped', updated_at = now()
+  where owner_id = p_actor and status = 'streaming' and updated_at < now() - interval '2 minutes';
+$$;
+revoke all on function private.chat_sweep(uuid) from public, anon, authenticated;
+
+-- Room for more files: each person keeps up to 300 MB of chat files in a workspace, attached and made.
+create function private.chat_storage_room(p_org uuid, p_actor uuid, p_bytes bigint)
+returns void
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if (select coalesce(sum(a.size_bytes), 0) from public.chat_attachments a where a.owner_id = p_actor and a.org_id = p_org) + p_bytes > 314572800 then
+    raise exception 'STORAGE_FULL' using errcode = '22023';
+  end if;
+end;
+$$;
+revoke all on function private.chat_storage_room(uuid, uuid, bigint) from public, anon, authenticated;
+
 -- A new conversation, optionally in one of the workspace's projects.
 create function public.app_chat_start(p_org uuid, p_actor uuid, p_project uuid, p_title text)
 returns uuid
@@ -231,6 +260,7 @@ begin
     if v_row.message_id is null then
       update public.chat_attachments set message_id = v_id, conversation_id = p_conversation where id = v_file;
     else
+      perform private.chat_storage_room(p_org, p_actor, v_row.size_bytes);
       insert into public.chat_attachments (org_id, owner_id, conversation_id, message_id, name, kind, mime, size_bytes, sha256, content, width, height)
       values (p_org, p_actor, p_conversation, v_id, v_row.name, v_row.kind, v_row.mime, v_row.size_bytes, v_row.sha256, v_row.content, v_row.width, v_row.height);
     end if;
@@ -267,8 +297,7 @@ begin
   if not found or v_parent.role <> 'user' then
     raise exception 'NOT_FOUND' using errcode = 'P0002';
   end if;
-  update public.chat_messages set status = 'stopped', updated_at = now()
-  where owner_id = p_actor and status = 'streaming' and updated_at < now() - interval '10 minutes';
+  perform private.chat_sweep(p_actor);
   insert into public.chat_messages (conversation_id, org_id, owner_id, parent_id, role, kind, status, model)
   values (p_conversation, p_org, p_actor, p_parent, 'assistant', p_kind, 'streaming', p_model)
   returning id into v_id;
@@ -315,7 +344,8 @@ begin
 end;
 $$;
 
--- Continue an answer that stopped: it streams again, and what follows is added to what it has. Returns what it has.
+-- Continue an answer that stopped: it streams again, and what follows is added to what it has. Returns what it has. Only the end of a
+-- branch continues: an answer with questions after it would change under them.
 create function public.app_chat_reopen_reply(p_org uuid, p_actor uuid, p_message uuid)
 returns text
 language plpgsql
@@ -326,11 +356,15 @@ declare
   v_msg public.chat_messages%rowtype;
 begin
   perform private.require_contributor(p_org, p_actor);
+  perform private.chat_sweep(p_actor);
   select * into v_msg from public.chat_messages where id = p_message and org_id = p_org for update;
   if not found or v_msg.owner_id is distinct from p_actor or v_msg.role <> 'assistant' then
     raise exception 'NOT_FOUND' using errcode = 'P0002';
   end if;
   if v_msg.kind <> 'text' or v_msg.status not in ('stopped', 'complete') or btrim(v_msg.content) = '' then
+    raise exception 'CANNOT_CONTINUE' using errcode = '22023';
+  end if;
+  if exists (select 1 from public.chat_messages where parent_id = p_message) then
     raise exception 'CANNOT_CONTINUE' using errcode = '22023';
   end if;
   update public.chat_messages set status = 'streaming', error = null, updated_at = now() where id = p_message;
@@ -354,6 +388,7 @@ begin
   if p_content is null or p_size is null or p_size < 1 or p_size > 5242880 or octet_length(p_content) > 7000000 then
     raise exception 'FILE_TOO_LARGE' using errcode = '22023';
   end if;
+  perform private.chat_storage_room(p_org, p_actor, p_size);
   if p_message is null then
     -- Files waiting to be sent: a day at most, and not many at once.
     delete from public.chat_attachments where owner_id = p_actor and message_id is null and created_at < now() - interval '1 day';
@@ -407,9 +442,9 @@ begin
 end;
 $$;
 
--- The AI's short name for a conversation, after its first answer; never over a name the person gave it.
+-- The AI's short name for a conversation, after its first answer; never over a name the person gave it. Says whether it was used.
 create function public.app_chat_auto_title(p_org uuid, p_actor uuid, p_conversation uuid, p_title text)
-returns void
+returns boolean
 language plpgsql
 security definer
 set search_path = ''
@@ -419,9 +454,32 @@ declare
 begin
   v_conv := private.chat_own(p_org, p_actor, p_conversation);
   if p_title is null or char_length(btrim(p_title)) < 1 then
-    return;
+    return false;
   end if;
   update public.chat_conversations set title = left(btrim(p_title), 120) where id = p_conversation and not titled;
+  return found;
+end;
+$$;
+
+-- A question and its empty answer in one go (and the conversation, when it's new), so a refusal part-way leaves nothing behind.
+-- p_conversation null starts one, in p_project when given, named p_title until the AI names it. Returns the three ids.
+create function public.app_chat_begin_turn(p_org uuid, p_actor uuid, p_conversation uuid, p_project uuid, p_title text, p_parent uuid, p_content text, p_attachments uuid[], p_kind text, p_model text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_conv uuid := p_conversation;
+  v_question uuid;
+  v_answer uuid;
+begin
+  if v_conv is null then
+    v_conv := public.app_chat_start(p_org, p_actor, p_project, p_title);
+  end if;
+  v_question := public.app_chat_add_user_message(p_org, p_actor, v_conv, p_parent, p_content, p_attachments);
+  v_answer := public.app_chat_begin_reply(p_org, p_actor, v_conv, v_question, p_kind, p_model);
+  return jsonb_build_object('conversation', v_conv, 'question', v_question, 'answer', v_answer);
 end;
 $$;
 
@@ -497,6 +555,7 @@ declare
   v_id uuid;
 begin
   v_conv := private.chat_own(p_org, p_actor, p_conversation);
+  perform private.chat_sweep(p_actor);
   if v_conv.leaf_id is null then
     raise exception 'NOTHING_TO_SHARE' using errcode = '22023';
   end if;
@@ -688,6 +747,8 @@ create trigger chats_leave_with_member after delete on public.organization_membe
   for each row execute function private.close_chats_of_departed();
 
 revoke all on function public.app_chat_start(uuid, uuid, uuid, text) from public, anon, authenticated;
+revoke all on function public.app_chat_begin_turn(uuid, uuid, uuid, uuid, text, uuid, text, uuid[], text, text) from public, anon, authenticated;
+grant execute on function public.app_chat_begin_turn(uuid, uuid, uuid, uuid, text, uuid, text, uuid[], text, text) to service_role;
 revoke all on function public.app_chat_add_user_message(uuid, uuid, uuid, uuid, text, uuid[]) from public, anon, authenticated;
 revoke all on function public.app_chat_begin_reply(uuid, uuid, uuid, uuid, text, text) from public, anon, authenticated;
 revoke all on function public.app_chat_write_reply(uuid, uuid, uuid, text, text, text, text, integer, jsonb) from public, anon, authenticated;
@@ -774,16 +835,20 @@ as $$
         join public.organization_members ms on ms.org_id = s.org_id and ms.user_id = p_user
       where s.created_by = p_user
     ), '[]'::jsonb),
+    -- The 500 most recently used chats, with up to 2,000 messages each, so the export always fits in one document.
     'chats', coalesce((
-      select jsonb_agg(jsonb_build_object(
-        'title', c.title, 'workspace', o.name, 'created_at', c.created_at, 'archived_at', c.archived_at,
-        'messages', coalesce((
-          select jsonb_agg(jsonb_build_object('from', case when cm.role = 'user' then 'you' else 'Farbaek' end, 'kind', cm.kind, 'text', cm.content, 'at', cm.created_at) order by cm.created_at)
-          from public.chat_messages cm where cm.conversation_id = c.id
-        ), '[]'::jsonb)
-      ) order by c.created_at)
-      from public.chat_conversations c join public.organizations o on o.id = c.org_id
-      where c.owner_id = p_user
+      select jsonb_agg(x.row order by x.at)
+      from (
+        select jsonb_build_object(
+          'title', c.title, 'workspace', o.name, 'created_at', c.created_at, 'archived_at', c.archived_at,
+          'messages', coalesce((
+            select jsonb_agg(jsonb_build_object('from', case when m.role = 'user' then 'you' else 'Farbaek' end, 'kind', m.kind, 'text', m.content, 'at', m.created_at) order by m.created_at)
+            from (select cm.role, cm.kind, cm.content, cm.created_at from public.chat_messages cm where cm.conversation_id = c.id order by cm.created_at desc limit 2000) m
+          ), '[]'::jsonb)
+        ) as row, c.created_at as at
+        from public.chat_conversations c join public.organizations o on o.id = c.org_id
+        where c.owner_id = p_user order by c.updated_at desc limit 500
+      ) x
     ), '[]'::jsonb),
     'actions', coalesce((
       select jsonb_agg(x.row order by x.at)

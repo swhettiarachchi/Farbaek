@@ -6,8 +6,10 @@
  * polite toasts that never take focus. Motion is transform and opacity only, and stops under reduced motion.
  */
 import { CheckCircleIcon, WarningCircleIcon, XIcon, type Icon } from "@phosphor-icons/react";
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+
+const noSubscribe = () => () => {};
 
 export function IconButton({
   label,
@@ -73,7 +75,7 @@ export interface MenuItem {
  */
 export function Menu({ label, trigger, items, align = "end", children }: { label: string; trigger: (props: { ref: React.Ref<HTMLButtonElement>; open: boolean; toggle: () => void; id: string }) => ReactNode; items?: MenuItem[]; align?: "start" | "end"; children?: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const [place, setPlace] = useState<{ top: number; left: number; up: boolean } | null>(null);
+  const [place, setPlace] = useState<{ top: number | null; bottom: number | null; left: number; host: Element } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -94,7 +96,10 @@ export function Menu({ label, trigger, items, align = "end", children }: { label
     const below = window.innerHeight - r.bottom;
     const up = below < 280 && r.top > below;
     const left = align === "end" ? Math.max(8, Math.min(window.innerWidth - width - 8, r.right - width)) : Math.max(8, Math.min(window.innerWidth - width - 8, r.left));
-    setPlace({ top: up ? r.top - 6 : r.bottom + 6, left, up });
+    // Inside an open dialog (the phone drawer), the menu has to live in the dialog too: everything outside it is inert.
+    const host = button.current?.closest("dialog[open]") ?? document.querySelector(".chat-root") ?? document.body;
+    // A menu that opens upward is placed by its bottom edge (its opening animation owns the transform).
+    setPlace({ top: up ? null : r.bottom + 6, bottom: up ? window.innerHeight - r.top + 6 : null, left, host });
     setOpen(true);
   }, [open, align]);
 
@@ -147,8 +152,8 @@ export function Menu({ label, trigger, items, align = "end", children }: { label
               role="menu"
               aria-label={label}
               onKeyDown={onKeyDown}
-              style={{ top: place.top, left: place.left, transform: place.up ? "translateY(-100%)" : undefined }}
-              className="fixed z-[60] w-64 max-w-[calc(100vw-1rem)] rounded-md border border-line bg-surface p-1.5 text-ink shadow-e3 motion-safe:animate-[chat-pop_160ms_cubic-bezier(0.16,1,0.3,1)_both]"
+              style={{ top: place.top ?? undefined, bottom: place.bottom ?? undefined, left: place.left, maxHeight: `calc(100dvh - 1rem)` }}
+              className="fixed z-[60] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-md border border-line bg-surface p-1.5 text-ink shadow-e3 motion-safe:animate-[chat-pop_160ms_cubic-bezier(0.16,1,0.3,1)_both]"
             >
               {children
                 ? <MenuClose.Provider value={close}>{children}</MenuClose.Provider>
@@ -176,7 +181,7 @@ export function Menu({ label, trigger, items, align = "end", children }: { label
                     </button>
                   ))}
             </div>,
-            document.querySelector(".chat-root") ?? document.body,
+            place.host,
           )
         : null}
     </>
@@ -253,9 +258,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setToasts((list) => list.filter((x) => x.id !== id)), t.action ? 8_000 : 6_000);
   }, []);
   const value = useMemo(() => push, [push]);
-  return (
-    <ToastContext.Provider value={value}>
-      {children}
+  // Inside the chat's root, so they take its light or dark colours and sit above its composer.
+  const host = useSyncExternalStore(noSubscribe, () => document.querySelector(".chat-root"), () => null);
+  const region = (
       <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--chat-composer,7rem)+0.75rem)] z-[70] flex flex-col items-center gap-2 px-4">
         {toasts.map((t) => (
           <div key={t.id} className="pointer-events-auto flex max-w-md items-center gap-3 rounded-full border border-line bg-surface py-1.5 pl-4 pr-1.5 text-sm text-ink shadow-e3 motion-safe:animate-[chat-pop_200ms_cubic-bezier(0.16,1,0.3,1)_both]">
@@ -279,6 +284,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           </div>
         ))}
       </div>
+  );
+  return (
+    <ToastContext.Provider value={value}>
+      {children}
+      {host ? createPortal(region, host) : region}
     </ToastContext.Provider>
   );
 }

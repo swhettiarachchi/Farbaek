@@ -19,7 +19,10 @@ export interface ChatWrites {
   writeReply(i: { orgId: string; actor: string; messageId: string; content: string; status: MessageStatus; model: string | null; error: string | null; thinkingMs: number | null; meta: Record<string, unknown> | null }): Promise<RpcResult<null>>;
   reopenReply(i: { orgId: string; actor: string; messageId: string }): Promise<RpcResult<string>>;
   saveFile(i: { orgId: string; actor: string; messageId: string | null; name: string; kind: ChatFile["kind"]; mime: string; size: number; sha256: string; content: string; width: number | null; height: number | null }): Promise<RpcResult<string>>;
-  autoTitle(i: { orgId: string; actor: string; conversationId: string; title: string }): Promise<RpcResult<null>>;
+  /** Whether the name was used: never over one the person gave it. */
+  autoTitle(i: { orgId: string; actor: string; conversationId: string; title: string }): Promise<RpcResult<boolean>>;
+  /** The question and its empty answer in one transaction (and the conversation, when conversationId is null). */
+  beginTurn(i: { orgId: string; actor: string; conversationId: string | null; projectId: string | null; title: string; parentId: string | null; content: string; files: string[]; kind: "text" | "image"; model: string }): Promise<RpcResult<{ conversation: string; question: string; answer: string }>>;
 }
 
 export function createChatWrites(admin: SupabaseClient): ChatWrites {
@@ -47,7 +50,13 @@ export function createChatWrites(admin: SupabaseClient): ChatWrites {
         { p_org: i.orgId, p_actor: i.actor, p_message: i.messageId, p_name: i.name, p_kind: i.kind, p_mime: i.mime, p_size: i.size, p_sha256: i.sha256, p_content: i.content, p_width: i.width, p_height: i.height },
         z.string(),
       ),
-    autoTitle: (i) => call("app_chat_auto_title", { p_org: i.orgId, p_actor: i.actor, p_conversation: i.conversationId, p_title: i.title }, nothing),
+    autoTitle: (i) => call("app_chat_auto_title", { p_org: i.orgId, p_actor: i.actor, p_conversation: i.conversationId, p_title: i.title }, z.boolean()),
+    beginTurn: (i) =>
+      call(
+        "app_chat_begin_turn",
+        { p_org: i.orgId, p_actor: i.actor, p_conversation: i.conversationId, p_project: i.projectId, p_title: i.title, p_parent: i.parentId, p_content: i.content, p_attachments: i.files, p_kind: i.kind, p_model: i.model },
+        z.object({ conversation: z.string(), question: z.string(), answer: z.string() }),
+      ),
   };
 }
 
@@ -228,11 +237,11 @@ export async function readFiles(client: SupabaseClient, ids: string[]): Promise<
 }
 
 /** Files waiting to be sent, without their contents: so a question can be checked before it's sent. */
-export async function readPendingFiles(client: SupabaseClient, ids: string[]): Promise<{ id: string; kind: ChatFile["kind"]; size: number; messageId: string | null; conversationId: string | null }[]> {
+export async function readPendingFiles(client: SupabaseClient, ids: string[]): Promise<{ id: string; kind: ChatFile["kind"]; size: number; messageId: string | null; conversationId: string | null; generated: boolean }[]> {
   if (ids.length === 0) return [];
   const { data, error } = await client.from("chat_attachments").select("id, kind, size_bytes, message_id, conversation_id, generated").in("id", ids);
   if (error || !data) return [];
-  return data.filter((f) => !f.generated).map((f) => ({ id: f.id, kind: f.kind as ChatFile["kind"], size: f.size_bytes, messageId: f.message_id, conversationId: f.conversation_id }));
+  return data.map((f) => ({ id: f.id, kind: f.kind as ChatFile["kind"], size: f.size_bytes, messageId: f.message_id, conversationId: f.conversation_id, generated: f.generated === true }));
 }
 
 export interface GalleryImage {

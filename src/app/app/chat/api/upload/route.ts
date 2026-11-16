@@ -47,6 +47,8 @@ export async function POST(request: Request) {
   if (limited.data !== true) return refuse("That's many files in an hour. Wait a while, then attach more.", 429);
 
   const size = check.kind === "image" ? imageSize(bytes) : null;
+  // The AI reads pictures up to 8,000 pixels on a side; a larger one would fail every later question that carries it.
+  if (check.kind === "image" && (!size || size.width > 8_000 || size.height > 8_000)) return refuse(`${check.name} is over 8,000 pixels on one side, or its size can't be read. Make it smaller, then attach it again.`, 415);
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const saved = await createChatWrites(admin).saveFile({
     orgId: ctx.current.id,

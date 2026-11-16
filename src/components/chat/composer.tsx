@@ -65,9 +65,13 @@ function kindOf(file: File): ChatFile["kind"] {
 
 /** Large photos are made smaller before they leave the device: up to 2048 pixels on the long side, which the AI reads as well. */
 async function shrink(file: File): Promise<Blob> {
-  if (!file.type.startsWith("image/") || file.type === "image/gif" || file.size < 1_500_000) return file;
+  if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
   try {
     const bitmap = await createImageBitmap(file);
+    if (file.size < 1_500_000 && Math.max(bitmap.width, bitmap.height) <= 2048) {
+      bitmap.close();
+      return file;
+    }
     const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(bitmap.width * scale);
@@ -97,7 +101,7 @@ function ModelPicker({ models, compact }: { models: ChatModelOption[]; compact: 
           aria-expanded={open}
           aria-controls={open ? id : undefined}
           onClick={toggle}
-          className="tap inline-flex min-h-9 max-w-[11rem] items-center gap-1 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-raised hover:text-ink"
+          className="tap inline-flex min-h-9 max-w-[11rem] items-center gap-1 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-raised hover:text-ink pointer-coarse:min-h-11"
           title="Model and answer style"
         >
           <span className="truncate font-medium text-ink">{current.name}</span>
@@ -437,7 +441,7 @@ export function Composer({
               disabled={disabledReason !== null}
               aria-label="Attach files"
               title="Attach pictures, PDFs or text files"
-              className="tap inline-flex size-9 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink disabled:opacity-45"
+              className="tap inline-flex size-9 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink disabled:opacity-45 pointer-coarse:size-11"
             >
               <PaperclipIcon size={20} aria-hidden />
             </button>
@@ -453,7 +457,7 @@ export function Composer({
                 setMode(mode === "image" ? "text" : "image");
                 area.current?.focus();
               }}
-              className={`tap inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm transition-colors duration-150 disabled:opacity-45 ${
+              className={`tap inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full px-3 text-sm transition-colors duration-150 disabled:opacity-45 pointer-coarse:min-h-11 max-[24rem]:min-w-11 max-[24rem]:px-0 ${
                 mode === "image" ? "bg-accent/10 font-medium text-accent" : imagesOff ? "text-ink-3 hover:bg-surface-raised" : "text-ink-2 hover:bg-surface-raised hover:text-ink"
               }`}
             >
@@ -466,7 +470,7 @@ export function Composer({
                 align="start"
                 items={ASPECTS.map((a) => ({ label: `${ASPECT_LABELS[a]}, ${a}`, checked: aspect === a, onSelect: () => setAspect(a) }))}
                 trigger={({ ref: r, open, toggle, id }) => (
-                  <button ref={r} type="button" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={toggle} className="tap inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 text-sm text-ink-2 hover:bg-surface-raised hover:text-ink">
+                  <button ref={r} type="button" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={toggle} className="tap inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 text-sm text-ink-2 hover:bg-surface-raised hover:text-ink pointer-coarse:min-h-11">
                     <span className="tabular">{aspect}</span>
                     <CaretDownIcon size={14} weight="bold" className="text-ink-3" aria-hidden />
                   </button>
@@ -481,7 +485,7 @@ export function Composer({
                 aria-pressed={speech.listening}
                 aria-label={speech.listening ? "Stop listening" : "Speak your message"}
                 title={speech.listening ? "Stop listening" : "Speak your message"}
-                className={`tap relative inline-flex size-9 items-center justify-center rounded-full disabled:opacity-45 ${speech.listening ? "bg-failed/10 text-failed" : "text-ink-2 hover:bg-surface-raised hover:text-ink"}`}
+                className={`tap relative inline-flex size-9 items-center justify-center rounded-full disabled:opacity-45 pointer-coarse:size-11 ${speech.listening ? "bg-failed/10 text-failed" : "text-ink-2 hover:bg-surface-raised hover:text-ink"}`}
               >
                 {speech.listening ? <span className="absolute inset-0 rounded-full ring-2 ring-failed/40 motion-safe:animate-ping" aria-hidden /> : null}
                 <MicrophoneIcon size={20} aria-hidden />
@@ -490,7 +494,7 @@ export function Composer({
             <div className="ml-auto flex items-center gap-1">
               {mode === "text" ? <ModelPicker models={models} compact={false} /> : null}
               {busy ? (
-                <button type="button" onClick={onStop} aria-label="Stop the answer" title="Stop (Esc)" className="tap inline-flex size-9 items-center justify-center rounded-full bg-primary text-on-primary transition-transform duration-150 hover:bg-primary-hover active:scale-95">
+                <button type="button" onClick={onStop} aria-label="Stop the answer" title="Stop (Esc)" className="tap inline-flex size-9 pointer-coarse:size-11 items-center justify-center rounded-full bg-primary text-on-primary transition-transform duration-150 hover:bg-primary-hover active:scale-95">
                   <StopIcon size={16} weight="fill" aria-hidden />
                 </button>
               ) : (
@@ -500,7 +504,7 @@ export function Composer({
                   disabled={!canSend}
                   aria-label={mode === "image" ? "Create the image" : "Send"}
                   title={uploading ? "Wait for the files to attach" : mode === "image" ? "Create the image" : "Send"}
-                  className="tap inline-flex size-9 items-center justify-center rounded-full bg-primary text-on-primary transition-[transform,background-color,opacity] duration-150 hover:bg-primary-hover active:scale-95 disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-ink-3 disabled:active:scale-100"
+                  className="tap inline-flex size-9 items-center justify-center rounded-full bg-primary text-on-primary pointer-coarse:size-11 transition-[transform,background-color,opacity] duration-150 hover:bg-primary-hover active:scale-95 disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-ink-3 disabled:active:scale-100"
                 >
                   <ArrowUpIcon size={16} weight="bold" aria-hidden />
                 </button>

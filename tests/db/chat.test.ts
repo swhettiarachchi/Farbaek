@@ -223,6 +223,50 @@ describe("Farbaek Chat (v98)", () => {
     expect(texts).toContain("Exported answer");
   });
 
+  it("writes a new question and its answer in one go, or nothing at all", async () => {
+    const turn = (conv: string | null, files: string[] = []) =>
+      q<{ r: { conversation: string; question: string; answer: string } }>("select public.app_chat_begin_turn($1, $2, $3, null, 'Bakery names', null, 'Names?', $4::uuid[], 'text', 'claude-haiku-5-5') as r", [org, USERS.alice, conv, files]).then((r) => r[0]!.r);
+    const before = (await su<{ c: number }>("select count(*)::int as c from public.chat_conversations where owner_id = $1", [USERS.alice]))[0]!.c;
+    const r = await turn(null);
+    expect(await path(USERS.alice, r.conversation)).toHaveLength(2);
+    // A file that isn't hers fails the whole turn: no empty conversation is left behind.
+    const bobs = await attach("bob2.txt", USERS.bob);
+    await expect(turn(null, [bobs])).rejects.toThrow(/FILE_NOT_FOUND/);
+    expect((await su<{ c: number }>("select count(*)::int as c from public.chat_conversations where owner_id = $1", [USERS.alice]))[0]!.c).toBe(before + 1);
+  });
+
+  it("names a chat with the AI's words only when the person hasn't, and says which", async () => {
+    const conv = await start();
+    expect((await q<{ r: boolean }>("select public.app_chat_auto_title($1, $2, $3, 'From the AI') as r", [org, USERS.alice, conv]))[0]!.r).toBe(true);
+    await q("select public.app_chat_update($1, $2, $3, 'Mine', null, null, null, null)", [org, USERS.alice, conv]);
+    expect((await q<{ r: boolean }>("select public.app_chat_auto_title($1, $2, $3, 'From the AI again') as r", [org, USERS.alice, conv]))[0]!.r).toBe(false);
+  });
+
+  it("continues only the last answer of a branch", async () => {
+    const conv = await start();
+    const q1 = await ask(conv, null);
+    const a1 = await begin(conv, q1);
+    await write(a1, "Half", "stopped");
+    await ask(conv, a1, "A follow-up");
+    await expect(q("select public.app_chat_reopen_reply($1, $2, $3)", [org, USERS.alice, a1])).rejects.toThrow(/CANNOT_CONTINUE/);
+  });
+
+  it("lets an answer a stopped server left behind be continued and shared after two minutes", async () => {
+    const conv = await start();
+    const q1 = await ask(conv, null);
+    const a1 = await begin(conv, q1);
+    await write(a1, "Cut off", "streaming");
+    await su("update public.chat_messages set updated_at = now() - interval '3 minutes' where id = $1", [a1]);
+    await expect(q("select public.app_chat_share($1, $2, $3, $4, 'anyone', null)", [org, USERS.alice, conv, "9".repeat(64)])).resolves.toHaveLength(1);
+    expect((await q<{ c: string }>("select public.app_chat_reopen_reply($1, $2, $3) as c", [org, USERS.alice, a1]))[0]!.c).toBe("Cut off");
+  });
+
+  it("keeps each person's chat files under 300 MB in a workspace", async () => {
+    await su("insert into public.chat_attachments (org_id, owner_id, name, kind, mime, size_bytes, sha256, content) select $1, $2, 'big.pdf', 'pdf', 'application/pdf', 5242880, $3, 'x' from generate_series(1, 60)", [org, USERS.bob, "c".repeat(64)]);
+    await expect(attach("one-more.txt", USERS.bob)).rejects.toThrow(/STORAGE_FULL/);
+    await expect(attach("hers.txt", USERS.alice)).resolves.toBeTruthy();
+  });
+
   it("takes someone's conversations with them when they leave the workspace", async () => {
     const conv = await start(USERS.bob);
     await ask(conv, null, "Bob's question", [], USERS.bob);

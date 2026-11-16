@@ -13,17 +13,17 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { flushSync } from "react-dom";
 import { CHAT_LIMITS, titleFrom, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
 import { speakable } from "@/core/chat/markdown";
-import { SseReader } from "@/core/chat/sse";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { useVoiceReply } from "@/components/survey/assistant/use-voice-io";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
-import { earlierMessagesAction, rateAnswerAction, switchBranchAction } from "@/app/app/chat/actions";
+import { branchAction, earlierMessagesAction, rateAnswerAction, switchBranchAction } from "@/app/app/chat/actions";
 import { useChat } from "./chat-shell";
 import { Composer, type ComposerHandle, type SendInput } from "./composer";
 import { ImageViewer } from "./dialogs";
 import { AnswerMessage, fileUrl, UserMessage } from "./message";
 import { IconButton, Menu, useToast } from "./primitives";
 import { useChatPrefs, useReducedMotion } from "./prefs";
+import { readTurnStream } from "./stream";
 
 export interface ConversationInfo {
   id: string;
@@ -73,6 +73,8 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
   const prepend = useRef<number | null>(null);
   const loadingEarlier = useRef(false);
   const dragDepth = useRef(0);
+  // Set when the person goes to a new chat mid-turn: the old turn then changes nothing on screen.
+  const abandoned = useRef(false);
 
   // "New chat" from a conversation that started on this page: the page stays, so it starts afresh here.
   const pathname = usePathname();
@@ -88,7 +90,9 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     }
   }
   useEffect(() => {
-    if (pathname === "/app/chat") controller.current?.abort();
+    if (pathname !== "/app/chat" || !controller.current) return;
+    abandoned.current = true;
+    controller.current.abort();
   }, [pathname]);
 
   const info = convId ? chat.conversations.find((c) => c.id === convId) : undefined;
@@ -174,6 +178,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
       const before = messages;
       const ctrl = new AbortController();
       controller.current = ctrl;
+      abandoned.current = false;
       stick.current = true;
       const first = messages.length === 0;
       const apply = () => {
@@ -190,16 +195,27 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
       try {
         res = await fetch("/app/chat/api/turn", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: ctrl.signal });
       } catch {
-        controller.current = null;
-        setMessages(before);
+        if (controller.current === ctrl) controller.current = null;
+        // Gone to a new chat meanwhile: nothing of this one is put back.
+        if (abandoned.current) return;
         setLive(null);
+        if (ctrl.signal.aborted && convId) {
+          // Stopped while the server was getting ready: it may already have saved the question, so the branch is read again.
+          const r = await branchAction(convId);
+          if (r.ok) {
+            setMessages(r.value);
+            return;
+          }
+        }
+        setMessages(before);
         restore?.();
         if (!ctrl.signal.aborted) toast({ text: "Farbaek couldn't be reached. Check the connection, then send it again.", tone: "error" });
         return;
       }
       if (!res.ok || !res.body) {
         const reply = (await res.json().catch(() => null)) as { message?: string } | null;
-        controller.current = null;
+        if (controller.current === ctrl) controller.current = null;
+        if (abandoned.current) return;
         setMessages(before);
         setLive(null);
         restore?.();
@@ -207,8 +223,6 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
         return;
       }
 
-      const reader = res.body.getReader();
-      const sse = new SseReader();
       let ended = false;
       const convIdRef = { current: convId as string | null };
       const handle = (e: TurnEvent) => {
@@ -259,24 +273,16 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
         }
       };
       try {
-        for (;;) {
-          const { value, done } = await reader.read();
-          for (const ev of done ? sse.flush() : sse.push(value)) {
-            try {
-              const parsed = JSON.parse(ev.data) as TurnEvent;
-              if (parsed.type === "start") convIdRef.current = parsed.conversationId;
-              handle(parsed);
-            } catch {
-              // A line that isn't an event: skipped.
-            }
-          }
-          if (done) break;
-        }
+        await readTurnStream(res.body, (parsed) => {
+          if (parsed.type === "start") convIdRef.current = parsed.conversationId;
+          handle(parsed);
+        });
       } catch {
         // Stopped, or the connection dropped: what arrived is kept, and the server saved it too.
       }
-      controller.current = null;
-      if (!ended) {
+      // The stream stays open a moment after its answer ends (naming the chat); a newer turn's Stop is left alone.
+      if (controller.current === ctrl) controller.current = null;
+      if (!ended && !abandoned.current) {
         cancelAnimationFrame(frame.current);
         flush();
         const id = answerRef.current;
@@ -448,11 +454,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                 {headerTitle || "New chat"}
               </p>
             </>
-          ) : (
-            <span className="lg:hidden">
-              <BrandLogo height={28} />
-            </span>
-          )}
+          ) : null}
         </div>
         {convId && !chat.demo ? (
           <>
@@ -493,7 +495,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                 }}
               />
             </div>
-            <div className="sticky bottom-0 -mx-4 bg-canvas pt-2 lg:static lg:mx-0 lg:mt-8 lg:bg-transparent lg:pt-0">{composerEl("bottom")}</div>
+            <div className="sticky bottom-0 -mx-4 bg-canvas pt-2 max-[18em]:static lg:static lg:mx-0 lg:mt-8 lg:bg-transparent lg:pt-0">{composerEl("bottom")}</div>
           </div>
         </div>
       ) : (
@@ -574,14 +576,14 @@ function EmptyState({ onPick, demo }: { onPick: (s: (typeof SUGGESTIONS)[number]
     <div className="text-center motion-safe:animate-[chat-rise_320ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className="relative mx-auto w-fit">
         <span aria-hidden className="absolute -inset-10 -z-10 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-accent)_10%,transparent),transparent)]" />
-        <BrandLogo height={104} preload className="mx-auto max-sm:h-[84px] max-sm:w-auto" />
+        <BrandLogo height={104} preload className="mx-auto max-sm:h-[76px] max-sm:w-auto" />
       </div>
       <h1 className={`mt-5 ${FOCUSED_TITLE}`}>What can I help you with?</h1>
       <p className="mx-auto mt-2 max-w-md text-body leading-relaxed text-ink-2">Think freely. Create boldly. Get more done with Farbaek.</p>
       {demo ? <p className="mx-auto mt-3 max-w-md text-sm text-ink-3">This is the demo workspace: open the sample chat in the sidebar to see how answers look.</p> : null}
-      <ul className="mx-auto mt-8 grid max-w-2xl grid-cols-2 gap-2.5 text-left sm:grid-cols-3">
+      <ul className="mx-auto mt-6 grid max-w-2xl grid-cols-2 gap-2.5 text-left sm:mt-8 sm:grid-cols-3">
         {SUGGESTIONS.map((s, i) => (
-          <li key={s.title} className="motion-safe:animate-[chat-rise_280ms_cubic-bezier(0.16,1,0.3,1)_both]" style={{ animationDelay: `${60 + i * 40}ms` }}>
+          <li key={s.title} className={`${i >= 4 ? "max-sm:hidden " : ""}motion-safe:animate-[chat-rise_280ms_cubic-bezier(0.16,1,0.3,1)_both]`} style={{ animationDelay: `${60 + i * 40}ms` }}>
             <button
               type="button"
               onClick={() => onPick(s)}
