@@ -6,7 +6,7 @@ import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "./organizations";
 import { ORG_ROLES } from "./types";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { IMAGE_LIMITS } from "@/core/workspace/images";
-import type { AiUsageDeps } from "./ai-usage";
+import type { AiUsageDeps, FreeUsageDeps } from "./ai-usage";
 import { createUsageRpcs } from "./usage-store";
 import { IntentContractSchema } from "@/core/realityloop/contract";
 import { parsePermissions } from "@/core/workspace/permissions";
@@ -41,7 +41,7 @@ export function createSupabaseWriteDeps(
   user: SupabaseClient,
   admin: SupabaseClient,
   userId: string,
-): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps & SecondCheckDeps & TaskNoteDeps & TaskModeDeps {
+): WriteDeps & AiUsageDeps & FreeUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps & SecondCheckDeps & TaskNoteDeps & TaskModeDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);

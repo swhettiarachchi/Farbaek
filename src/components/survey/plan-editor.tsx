@@ -55,6 +55,8 @@ export interface PlanEditorProps {
   readOnly: string | null;
   /** Why the drafting assistant can't ask the model here (the demo, no AI), or null; undefined leaves the assistant out. */
   assistantAiOff?: string | null;
+  /** What the assistant's AI costs, in a sentence (ADR 0212). */
+  assistantAiCost?: string | null;
 }
 
 
@@ -414,6 +416,7 @@ export function PlanEditor(props: PlanEditorProps) {
     selection: picked.length ? picked : selected ? [selected] : [],
     readOnly: props.readOnly,
     aiOff: props.assistantAiOff ?? null,
+    aiCost: props.assistantAiCost ?? null,
     approved: Boolean(props.approval),
     dirty,
     setPreview: setPreviewOps,

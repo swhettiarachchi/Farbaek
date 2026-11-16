@@ -1,4 +1,4 @@
-import type { ButtonOperation } from "@/config/usage";
+import { isFreeWhileTesting, type ButtonOperation } from "@/config/usage";
 import { routeModel } from "@/server/ai/routing";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
 import { meterState, percentUsed, type UsageMeter } from "@/core/billing/usage-view";
@@ -73,7 +73,9 @@ const MANUAL: Record<ButtonOperation, string> = {
 export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, operation: ButtonOperation = "contract_draft", now = new Date()): Promise<AiAvailability> {
   const period = workspacePeriod(ws, now);
   const provider = resolveAiProvider();
-  const wallet = await loadWallet(ctx, ws, now);
+  // Survey Studio's AI is free while it's tested (ADR 0212): its buttons don't need a plan or the allowance.
+  const free = isFreeWhileTesting(operation);
+  const wallet = free ? null : await loadWallet(ctx, ws, now);
   // The AI mapping in the Intent Diff Lens (ADR 0044) and rule drafting (ADR 0082) run on Claude only.
   // Survey Studio's drafting assistant (ADR 0202) too.
   const claudeOnly = operation === "lens_mapping" || operation === "policy_draft" || operation === "task_note" || operation === "failure_test" || operation === "survey_draft" || operation === "survey_read" || operation === "survey_assist";
@@ -124,6 +126,7 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
     fallback: { resetsAt: period.end.toISOString(), period: period.kind },
     needs,
     manual: MANUAL[operation],
+    free,
   });
 }
 

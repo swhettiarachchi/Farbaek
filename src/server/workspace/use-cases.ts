@@ -24,6 +24,7 @@ export type WriteErrorCode =
   | "NOT_FOUND"
   | "QUOTA_EXCEEDED"
   | "PLATFORM_DAILY_LIMIT"
+  | "FREE_DAILY_LIMIT"
   | "FEATURE_NOT_IN_PLAN"
   | "TRIAL_CAP_REACHED"
   | "BILLING_SUSPENDED"
@@ -178,6 +179,7 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   NOT_FOUND: "That item doesn't exist or isn't in this workspace.",
   QUOTA_EXCEEDED: "You've reached this plan's project limit.",
   PLATFORM_DAILY_LIMIT: "Farbaek's AI is paused for a while. Try again later. Your workspace's own usage isn't affected.",
+  FREE_DAILY_LIMIT: "Survey Studio's free AI has reached today's limit while it's being tested. It's back tomorrow; everything without AI still works.",
   FEATURE_NOT_IN_PLAN: "This feature isn't included in your current plan.",
   TRIAL_CAP_REACHED: "You've reached a trial limit. Choose a plan to keep going, or continue on Free.",
   BILLING_SUSPENDED: "Paid features are paused until billing is resolved.",
@@ -287,6 +289,7 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "DUPLICATE_NAME",
     "NOT_FOUND",
     "PLATFORM_DAILY_LIMIT",
+    "FREE_DAILY_LIMIT",
     "QUOTA_EXCEEDED",
     "VERSION_CONFLICT",
     "CONTRACT_CHANGED",

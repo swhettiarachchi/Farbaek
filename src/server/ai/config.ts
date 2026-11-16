@@ -52,6 +52,23 @@ export function platformDailyAiUnits(read: (name: string) => string | null = env
   return Math.floor(safe / USD_PER_UNIT);
 }
 
+/** What Survey Studio's free AI may spend in a UTC day when SURVEY_AI_FREE_DAILY_USD isn't set (ADR 0212). */
+export const DEFAULT_SURVEY_FREE_DAILY_USD = 3;
+
+/**
+ * Today's limit in units on Survey Studio's free AI across every workspace
+ * (ADR 0212), or null when SURVEY_AI_FREE_DAILY_USD is "off". It sits inside
+ * the platform's own limit, so free use can't spend what the rest of Farbaek
+ * needs from Farbaek's own key.
+ */
+export function surveyFreeDailyUnits(read: (name: string) => string | null = env): number | null {
+  const raw = read("SURVEY_AI_FREE_DAILY_USD")?.toLowerCase() ?? null;
+  if (raw === "off") return null;
+  const usd = raw === null ? DEFAULT_SURVEY_FREE_DAILY_USD : Number(raw);
+  const safe = Number.isFinite(usd) && usd > 0 ? Math.min(usd, 100_000) : DEFAULT_SURVEY_FREE_DAILY_USD;
+  return Math.floor(safe / USD_PER_UNIT);
+}
+
 export type AiProviderResolution = { provider: AiProviderId; label: string } | { provider: null; reason: string; detail?: string };
 
 /** What people read when AI isn't set up here. Which setting is at fault is `detail`, for staff and the logs (stage 171). */

@@ -8,8 +8,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { GrantRow } from "@/core/billing/wallet";
-import { platformDailyAiUnits } from "@/server/ai/config";
-import type { AiUsageDeps } from "./ai-usage";
+import { platformDailyAiUnits, surveyFreeDailyUnits } from "@/server/ai/config";
+import type { AiUsageDeps, FreeUsageDeps } from "./ai-usage";
 import type { RpcResult } from "./use-cases";
 
 // bigint columns arrive as numbers or numeric strings depending on the client.
@@ -28,7 +28,7 @@ export function grantFromRow(g: z.infer<typeof UsageGrantRowSchema>): GrantRow {
   return { id: g.id, kind: g.kind, units: g.units, used: g.used, startsAt: g.starts_at, expiresAt: g.expires_at };
 }
 
-export function createUsageRpcs(admin: SupabaseClient): Pick<AiUsageDeps, "reserveUsage" | "settleUsage"> {
+export function createUsageRpcs(admin: SupabaseClient): Pick<AiUsageDeps, "reserveUsage" | "settleUsage"> & FreeUsageDeps {
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
     if (error) return { ok: false, error: error.message };
@@ -41,6 +41,13 @@ export function createUsageRpcs(admin: SupabaseClient): Pick<AiUsageDeps, "reser
         "app_reserve_usage",
         // The platform's daily AI limit rides on every reservation (ADR 0065).
         { p_org: i.orgId, p_actor: i.actor, p_key: i.key, p_operation: i.operation, p_task: i.taskId, p_units: i.units, p_grant: i.grant, p_platform_daily_units: platformDailyAiUnits() },
+        z.string(),
+      ),
+    reserveFreeUsage: (i) =>
+      rpc(
+        "app_reserve_free_usage",
+        // Free while it's tested (ADR 0212): the platform's limit and the free limit, nothing from the workspace.
+        { p_org: i.orgId, p_actor: i.actor, p_key: i.key, p_operation: i.operation, p_units: i.units, p_platform_daily_units: platformDailyAiUnits(), p_free_daily_units: surveyFreeDailyUnits() },
         z.string(),
       ),
     settleUsage: (i) =>
@@ -65,7 +72,7 @@ export function createUsageRpcs(admin: SupabaseClient): Pick<AiUsageDeps, "reser
 }
 
 /** Wallet calls for the server key: grants are read for one organization only. */
-export function createServerUsageDeps(admin: SupabaseClient): AiUsageDeps {
+export function createServerUsageDeps(admin: SupabaseClient): AiUsageDeps & FreeUsageDeps {
   return {
     ...createUsageRpcs(admin),
     async listUsageGrants(orgId) {

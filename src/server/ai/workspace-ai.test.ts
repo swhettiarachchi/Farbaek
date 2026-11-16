@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { AiUsageDeps } from "@/server/workspace/ai-usage";
+import type { AiUsageDeps, FreeUsageDeps } from "@/server/workspace/ai-usage";
 import { checkAnthropicKey, checkGatewayUrl, gatewayResolvesPublic, isPublicAddress, keyHint, loadWorkspaceAi, ownKeyMetering, sealModelKey, type OwnKeyRecord } from "./workspace-ai";
 
 // A test-only vault key: 32 zero bytes. Never a real secret.
@@ -119,6 +119,19 @@ describe("metering on the workspace's own key", () => {
     expect(recorded).toEqual([]);
     await own.settleUsage({ orgId: "o1", entryId: "ledger-9", status: "settled", units: 3, usage, refundReason: null, retryCap: null });
     expect(calls).toEqual(["settle"]);
+  });
+
+  it("keeps Survey Studio's free AI on the workspace's own key too, off Farbaek's free limit (ADR 0212)", async () => {
+    const { deps, calls } = base();
+    const withFree: AiUsageDeps & FreeUsageDeps = { ...deps, reserveFreeUsage: async () => (calls.push("free"), { ok: true as const, value: "ledger-2" }) };
+    const recorded: OwnKeyRecord[] = [];
+    const own = ownKeyMetering(withFree, async (r) => void recorded.push(r));
+    expect(await own.reserveFreeUsage({ orgId: "o1", actor: "u1", key: "k3", operation: "survey_assist", units: 9 })).toEqual({ ok: true, value: "own:k3" });
+    await own.settleUsage({ orgId: "o1", entryId: "own:k3", status: "settled", units: 9, usage, refundReason: null, retryCap: null });
+    expect(calls).toEqual([]);
+    expect(recorded).toEqual([{ orgId: "o1", actor: "u1", taskId: null, operation: "survey_assist", usage }]);
+    // Deps without a free reservation stay without one.
+    expect("reserveFreeUsage" in ownKeyMetering(deps, async () => undefined)).toBe(false);
   });
 });
 

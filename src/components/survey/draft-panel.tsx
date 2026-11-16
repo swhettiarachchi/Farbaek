@@ -35,6 +35,8 @@ export interface DraftPanelProps {
   readOff: string | null;
   /** The AI provider's name for the consent line, such as "Claude". */
   provider: string | null;
+  /** What the AI costs here, in a sentence (ADR 0212): free while Survey Studio is tested, or the workspace's own key. */
+  aiCost: string;
 }
 
 type Done = Extract<SurveyDraftState, { status: "done" }>;
@@ -313,7 +315,7 @@ export function DraftPanel(props: DraftPanelProps) {
             {running && which === "draft" ? <CircleNotchIcon size={16} weight="bold" className="motion-safe:animate-spin" aria-hidden /> : <PenNibIcon size={16} weight="bold" aria-hidden />}
             {running && which === "draft" ? "Drafting the plan" : "Draft the plan"}
           </button>
-          <span className="text-sm text-ink-3">{props.draftOff ?? "Uses AI usage. If it fails, it isn't counted."}</span>
+          <span className="text-sm text-ink-3">{props.draftOff ?? props.aiCost}</span>
         </div>
       </Card>
 
@@ -363,7 +365,7 @@ export function DraftPanel(props: DraftPanelProps) {
             {running && which === "read" ? <CircleNotchIcon size={16} weight="bold" className="motion-safe:animate-spin" aria-hidden /> : <CameraIcon size={16} weight="bold" aria-hidden />}
             {running && which === "read" ? "Reading the photos" : "Read the photos"}
           </button>
-          <span className="text-sm text-ink-3">{props.readOff ?? "Uses AI usage. If it fails, it isn't counted."}</span>
+          <span className="text-sm text-ink-3">{props.readOff ?? props.aiCost}</span>
         </div>
       </Card>
 
