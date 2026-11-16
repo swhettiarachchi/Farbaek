@@ -1035,7 +1035,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
 
       <div ref={barRef} className="pointer-events-auto w-full max-w-3xl shrink-0 rounded-[1.75rem] bg-surface/90 shadow-e2 ring-1 ring-line backdrop-blur-md">
         <div className="flex items-end gap-1.5 p-1.5 sm:gap-2 sm:p-2">
-          <span className="flex h-12 items-center pl-1 sm:hidden">
+          <span className="flex h-11 items-center pl-1 sm:hidden">
             <VoiceCore state={core} level={level} size="sm" />
           </span>
           <span className="hidden h-12 items-center pl-1 sm:flex">
@@ -1058,13 +1058,13 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
                   onKeyDown={onKey}
                   onFocus={keepWords}
                   onPointerDown={keepWords}
-                  placeholder="Say or type an instruction"
+                  placeholder="Say or type"
                   className="block max-h-36 min-h-11 w-full resize-none bg-transparent px-1 py-2.5 text-base text-ink placeholder:text-ink-3 focus:outline-none [field-sizing:content]"
                 />
               </label>
             )}
           </div>
-          <span className="hidden sm:block">{languageButton("h-12 px-3")}</span>
+          <span className="hidden sm:block">{languageButton("h-11 px-3")}</span>
           <button
             type="button"
             aria-label={availability.ok ? micLabel : `Talking is off: ${availability.reason}`}
@@ -1087,11 +1087,11 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
               }
             }}
             onContextMenu={(e) => e.preventDefault()}
-            className={`inline-flex size-12 shrink-0 touch-none select-none items-center justify-center rounded-full transition-[transform,background-color] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${listening ? "bg-accent text-surface shadow-e1" : availability.ok ? "bg-ink text-surface" : "bg-canvas-2 text-ink-3 ring-1 ring-line"}`}
+            className={`inline-flex size-11 shrink-0 touch-none select-none items-center justify-center rounded-full transition-[transform,background-color] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${listening ? "bg-accent text-surface shadow-e1" : availability.ok ? "bg-ink text-surface" : "bg-canvas-2 text-ink-3 ring-1 ring-line"}`}
           >
             {listening ? <StopIcon size={20} weight="fill" aria-hidden /> : availability.ok ? <MicrophoneIcon size={20} weight="fill" aria-hidden /> : <MicrophoneSlashIcon size={20} weight="bold" aria-hidden />}
           </button>
-          <button type="button" aria-label="Send" disabled={!text.trim() || phase === "working"} onClick={() => void run(text, phase === "heard" ? "voice" : "typed")} className={buttonClasses("secondary", "sm", "size-12 shrink-0 !px-0")}>
+          <button type="button" aria-label="Send" disabled={!text.trim() || phase === "working"} onClick={() => void run(text, phase === "heard" ? "voice" : "typed")} className={buttonClasses("secondary", "sm", "size-11 !min-h-11 shrink-0 !px-0")}>
             <PaperPlaneRightIcon size={20} weight="fill" aria-hidden />
           </button>
         </div>

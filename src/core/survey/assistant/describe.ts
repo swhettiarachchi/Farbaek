@@ -179,7 +179,8 @@ export function describeOp(op: PlanOp, ctx: { doc: SurveyDocument; points: reado
     case "feature_add":
       return { text: `Draw a ${op.feature.closed ? "closed " : ""}${FEATURE_WORDS[op.feature.layer] ?? "line"}${op.feature.code ? ` (${op.feature.code})` : ""}`, values: [{ role: "Through points", value: nums(op.feature.points), mono: true }] };
     case "field":
-      return { text: `Fill in the title: ${FIELD_NAMES[op.field].toLowerCase()}`, values: [{ role: FIELD_NAMES[op.field], value: typeof op.value === "boolean" ? (op.value ? "Yes" : "No") : /^\d{4}-\d{2}-\d{2}$/.test(op.value) ? dotDate(op.value) : op.value, mono: false }] };
+      // The line already names the field, so the value stands alone under it.
+      return { text: `Fill in the title: ${FIELD_NAMES[op.field].toLowerCase()}`, values: [{ role: "", value: typeof op.value === "boolean" ? (op.value ? "Yes" : "No") : /^\d{4}-\d{2}-\d{2}$/.test(op.value) ? dotDate(op.value) : op.value, mono: false }] };
     case "note_add":
       return { text: "Add a note to the plan", values: [{ role: "Note", value: op.text, mono: false }] };
     case "remove":
