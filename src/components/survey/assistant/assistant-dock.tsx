@@ -789,7 +789,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   const statusShown = listening || phase === "countdown" || phase === "working" || phase === "heard" || Boolean(notice) || (phase === "failed" && Boolean(session.message) && !failCard) || !availability.ok;
   const micLabel = listening ? (session.live ? "Stop live talk" : "Stop and send") : settings.mode === "live" ? "Start live talk" : "Hold to talk";
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[var(--tab-bar)] z-30 flex max-h-[calc(100dvh-var(--tab-bar)-4.5rem)] flex-col items-center gap-2 px-3 pb-3 lg:absolute lg:bottom-0 lg:max-h-full lg:px-4 lg:pb-4">
+    <div data-hide-for-keyboard className="pointer-events-none fixed inset-x-0 bottom-[var(--tab-bar)] z-30 flex max-h-[calc(100dvh-var(--tab-bar)-4.5rem)] flex-col items-center gap-2 px-3 pb-3 lg:absolute lg:bottom-0 lg:max-h-full lg:px-4 lg:pb-4">
       {/* Cards stack above the bar and scroll as one when the screen is short; they never reach the page's header. */}
       <div className="pointer-events-none flex min-h-0 w-full flex-col items-center gap-2 overflow-y-auto overscroll-contain">
       {privacy ? (

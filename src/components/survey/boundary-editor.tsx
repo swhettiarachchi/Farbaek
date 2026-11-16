@@ -172,7 +172,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                     <span className={LABEL_CLASSES}>Note (optional)</span>
                     <input value={l.note} maxLength={80} disabled={ro} placeholder="Res. for Access, 10ft. wide" onChange={(e) => (setLots((all) => all.map((x, j) => (j === i ? { ...x, note: e.target.value } : x))), reviewed(`lot:${l.id}`))} className={inputClasses()} />
                   </label>
-                  <button type="button" aria-label={`Remove lot ${l.label}${l.sup}`} disabled={ro} onClick={() => (setLots((all) => all.filter((_, j) => j !== i)), setAdjoining((a) => a.filter((x) => x.lot !== l.id)))} className={buttonClasses("ghost", "icon", "self-end")}>
+                  <button type="button" aria-label={`Remove lot ${l.label}${l.sup}`} disabled={ro} onClick={() => (setLots((all) => all.filter((_, j) => j !== i)), setAdjoining((a) => a.filter((x) => x.lot !== l.id)))} className={buttonClasses("ghost", "icon", "self-end max-sm:[grid-area:1/3]")}>
                     <TrashIcon size={16} weight="bold" aria-hidden />
                   </button>
                 </div>

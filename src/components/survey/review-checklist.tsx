@@ -1,4 +1,5 @@
-import { ArrowRightIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CaretDownIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { itemLabel } from "@/core/survey/compare";
 import { lotName, unreviewed, type SurveyDocument } from "@/core/survey/document";
@@ -52,7 +53,8 @@ export function ReviewChecklist({ doc, findings, base, approved }: { doc: Survey
           </Link>
         </div>
       ) : (
-        <div className="mt-3 grid gap-4">
+        <ChecklistBody count={waiting.length + needed.length}>
+        <div className="grid gap-4">
           {waiting.length > 0 ? (
             <div className="grid gap-2">
               <h3 className="text-sm font-medium text-ink">
@@ -89,7 +91,33 @@ export function ReviewChecklist({ doc, findings, base, approved }: { doc: Survey
             </div>
           ) : null}
         </div>
+        </ChecklistBody>
       )}
     </Card>
+  );
+}
+
+/**
+ * On a large screen the list shows as it is. Below that it folds to one line saying how many things are left, so the sheet isn't
+ * pushed below the fold on a phone (stage 196); a tap opens it.
+ */
+function ChecklistBody({ count, children }: { count: number; children: ReactNode }) {
+  return (
+    <>
+      <details className="group mt-2 lg:hidden">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm text-ink-2 [&::-webkit-details-marker]:hidden">
+          <span>
+            {count} {count === 1 ? "thing is" : "things are"} left before approval.
+          </span>
+          <span className="inline-flex items-center gap-1 font-medium text-ink">
+            <span className="group-open:hidden">Show</span>
+            <span className="hidden group-open:inline">Hide</span>
+            <CaretDownIcon size={14} weight="bold" className="transition-transform duration-150 group-open:rotate-180" aria-hidden />
+          </span>
+        </summary>
+        <div className="pt-2">{children}</div>
+      </details>
+      <div className="mt-3 hidden lg:block">{children}</div>
+    </>
   );
 }

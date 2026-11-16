@@ -220,16 +220,17 @@ export function ImportPanel({
 
   return (
     <div className="grid gap-5">
-      <div role="group" aria-label="How the points come in" className="flex w-fit flex-wrap gap-1 rounded-full bg-canvas-2 p-1 ring-1 ring-line">
+      <div role="group" aria-label="How the points come in" className="grid grid-cols-3 gap-1 rounded-full bg-canvas-2 p-1 ring-1 ring-line max-[18em]:grid-cols-1 max-[18em]:rounded-md sm:inline-flex sm:w-fit">
         {(
           [
-            ["file", "Upload or paste"],
-            ["coordinates", "Type coordinates"],
-            ["bearings", "Bearings and distances"],
+            ["file", "Upload or paste", "A file"],
+            ["coordinates", "Type coordinates", "Coordinates"],
+            ["bearings", "Bearings and distances", "Bearings"],
           ] as const
-        ).map(([id, label]) => (
-          <button key={id} type="button" aria-pressed={shownEntry === id} onClick={() => chooseEntry(id)} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 ${shownEntry === id ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}>
-            {label}
+        ).map(([id, label, short]) => (
+          <button key={id} type="button" aria-pressed={shownEntry === id} onClick={() => chooseEntry(id)} className={`tap inline-flex min-h-10 items-center justify-center rounded-full px-2 text-label font-medium transition-colors duration-150 sm:px-4 sm:text-sm ${shownEntry === id ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}>
+            <span className="sm:hidden">{short}</span>
+            <span className="max-sm:hidden">{label}</span>
           </button>
         ))}
       </div>
@@ -268,7 +269,7 @@ export function ImportPanel({
         </label>
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Or paste rows from a spreadsheet or file</span>
-          <textarea value={text} rows={5} disabled={Boolean(readOnly)} spellCheck={false} placeholder={"1,700004.210,450012.345,21.43,CP\n2,700007.884,450043.912,21.88,CP"} onChange={(e) => load("", e.target.value, firstLine(e.target.value) !== firstLine(text))} className={textareaClasses("font-mono text-sm")} />
+          <textarea value={text} rows={5} disabled={Boolean(readOnly)} spellCheck={false} placeholder={"1,700004.210,450012.345,21.43,CP\n2,700007.884,450043.912,21.88,CP"} onChange={(e) => load("", e.target.value, firstLine(e.target.value) !== firstLine(text))} className={textareaClasses("font-mono")} />
         </label>
       </div>
 
@@ -368,7 +369,7 @@ export function ImportPanel({
                         ) : (
                           <label className="grid gap-1">
                             <span className="text-xs text-ink-3">{preview.header?.[i] ?? `Column ${i + 1}`}</span>
-                            <select value={columns[i] ?? "ignore"} onChange={(e) => setColumns((c) => Object.assign([...c, ...Array<ColumnRole>(Math.max(0, i + 1 - c.length)).fill("ignore")], { [i]: e.target.value as ColumnRole }))} className={inputClasses("min-h-11 text-sm")}>
+                            <select value={columns[i] ?? "ignore"} onChange={(e) => setColumns((c) => Object.assign([...c, ...Array<ColumnRole>(Math.max(0, i + 1 - c.length)).fill("ignore")], { [i]: e.target.value as ColumnRole }))} className={inputClasses()}>
                               {(Object.keys(ROLE_LABELS) as ColumnRole[]).map((r) => (
                                 <option key={r} value={r}>
                                   {ROLE_LABELS[r]}
@@ -466,7 +467,7 @@ export function ImportPanel({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={submit} disabled={Boolean(readOnly) || pending || count === 0 || errors.length > 0 || !confirmUnits || latLong} className={buttonClasses("primary", "md")}>
+            <button type="button" onClick={submit} disabled={Boolean(readOnly) || pending || count === 0 || errors.length > 0 || !confirmUnits || latLong} className={buttonClasses("primary", "md", "w-full sm:w-auto")}>
               {pending ? "Importing…" : `Import ${count} ${count === 1 ? "point" : "points"}${willDraw ? " and draw the plan" : ""}`}
             </button>
             {readOnly ? <span className="text-sm text-ink-3">{readOnly}</span> : errors.length > 0 ? <span className="text-sm text-ink-3">Fix the rows that can&apos;t be read first: nothing half-imports.</span> : null}

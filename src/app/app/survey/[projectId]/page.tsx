@@ -31,6 +31,7 @@ import { DrawFromPoints } from "@/components/survey/draw-from-points";
 import { ReviewChecklist } from "@/components/survey/review-checklist";
 import { AssistantProvider } from "@/components/survey/assistant/assistant-context";
 import { PlanEditor } from "@/components/survey/plan-editor";
+import { StepNav } from "@/components/survey/step-nav";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -126,22 +127,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       </div>
       {!data.drawing.readable ? <Notice tone="warning">This version&apos;s saved settings couldn&apos;t be read, so the plan shows defaults. Save a new version to replace it.</Notice> : null}
 
-      <nav aria-label="Survey steps" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <ol className="flex w-max gap-1.5 rounded-full bg-canvas-2 p-1 ring-1 ring-line">
-          {STEPS.map((s) => (
-            <li key={s.id}>
-              <Link
-                href={`${base}?step=${s.id}`}
-                aria-current={s.id === step ? "page" : undefined}
-                className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors duration-150 ${s.id === step ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
-              >
-                <s.icon size={16} weight="bold" aria-hidden />
-                {s.label}
-              </Link>
-            </li>
-          ))}
-        </ol>
-      </nav>
+      <StepNav steps={STEPS.map(({ id, label }) => ({ id, label }))} current={step} base={base} />
 
       {step === "import" ? (
         <div className="grid gap-6">
@@ -190,11 +176,12 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           {data.points.length === 0 ? (
             <p className="mt-4 text-sm text-ink-2">No points yet. Import a file on the Import step.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto rounded-md ring-1 ring-line">
-              <table className="w-full min-w-[34rem] text-left text-sm">
-                <thead className="bg-canvas-2 text-ink-2">
+            // A long list scrolls in its own frame, the column names and point numbers staying in view (stage 196).
+            <div className="mt-4 max-h-[min(70svh,40rem)] overflow-auto overscroll-contain rounded-md ring-1 ring-line">
+              <table className="w-full min-w-[30rem] border-separate border-spacing-0 text-left text-label sm:text-sm">
+                <thead className="sticky top-0 z-10 bg-canvas-2 text-ink-2">
                   <tr>
-                    <th scope="col" className="p-2 font-medium">Point</th>
+                    <th scope="col" className="sticky left-0 bg-canvas-2 p-2 font-medium">Point</th>
                     <th scope="col" className="p-2 text-right font-medium">Easting</th>
                     <th scope="col" className="p-2 text-right font-medium">Northing</th>
                     <th scope="col" className="p-2 text-right font-medium">Elevation</th>
@@ -203,8 +190,8 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
                 </thead>
                 <tbody>
                   {data.points.slice(0, POINTS_SHOWN).map((p) => (
-                    <tr key={p.id} className="border-t border-line">
-                      <td className="p-2 font-medium text-ink">{p.pointId}</td>
+                    <tr key={p.id} className="[&>td]:border-t [&>td]:border-line">
+                      <td className="sticky left-0 bg-surface p-2 font-medium text-ink">{p.pointId}</td>
                       <td className="p-2 text-right font-mono tabular">{fmt(p.e, 3)}</td>
                       <td className="p-2 text-right font-mono tabular">{fmt(p.n, 3)}</td>
                       <td className="p-2 text-right font-mono tabular">{p.z === null ? "" : fmt(p.z, 3)}</td>
@@ -338,32 +325,32 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
             ) : (
               <div className="mt-4 grid gap-2">
                 <a href={`${base}/export/pdf?inline=1`} target="_blank" rel="noopener" className={buttonClasses("primary", "md", "justify-start")}>
-                  <PrinterIcon size={20} aria-hidden />
+                  <PrinterIcon size={16} weight="bold" aria-hidden />
                   Open the PDF to print
                 </a>
                 <a href={`${base}/export/pdf`} className={buttonClasses("secondary", "md", "justify-start")}>
-                  <DownloadSimpleIcon size={20} aria-hidden />
+                  <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                   Download the PDF
                 </a>
                 <a href={`${base}/export/dxf`} className={buttonClasses("secondary", "md", "justify-start")}>
-                  <DownloadSimpleIcon size={20} aria-hidden />
+                  <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                   DXF for CAD (R12, metres)
                 </a>
               </div>
             )}
             <div className="mt-2 grid gap-2">
               <a href={`${base}/export/csv`} className={buttonClasses("ghost", "md", "justify-start")}>
-                <DownloadSimpleIcon size={20} aria-hidden />
+                <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                 Points as CSV
               </a>
               {view.blocksData.length === 0 ? (
                 <>
                   <a href={`${base}/export/lots`} className={buttonClasses("ghost", "md", "justify-start")}>
-                    <DownloadSimpleIcon size={20} aria-hidden />
-                    Lot schedule as CSV (areas, hectares, A-R-P)
+                    <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
+                    Lot schedule as CSV<span className="font-normal text-ink-3 max-sm:hidden">(areas, hectares, A-R-P)</span>
                   </a>
                   <a href={`${base}/export/geojson`} className={buttonClasses("ghost", "md", "justify-start")}>
-                    <DownloadSimpleIcon size={20} aria-hidden />
+                    <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                     Points and lots as GeoJSON
                   </a>
                 </>

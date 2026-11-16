@@ -89,13 +89,32 @@ export function ManualEntry({
   };
 
   const cell = "min-w-0 font-mono";
+  // On a phone each row is a card, its fields in a small grid with their names above them (stage 196): a 640px table of 44px
+  // fields doesn't fit a phone even when it scrolls. From sm it's the table.
+  const TABLE = "w-full text-left text-sm max-sm:block sm:min-w-[40rem]";
+  const HEAD = "bg-canvas-2 text-ink-2 max-sm:sr-only";
+  const BODY = "max-sm:grid max-sm:gap-2 max-sm:p-2";
+  const ROW = "border-t border-line max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] max-sm:gap-2 max-sm:rounded-sm max-sm:border max-sm:bg-surface max-sm:p-2.5";
+  const CELL = "p-1 max-sm:grid max-sm:gap-1 max-sm:p-0 max-sm:before:text-xs max-sm:before:text-ink-3 max-sm:before:content-[attr(data-label)]";
+  const AREA: Record<string, string> = {
+    point: "max-sm:[grid-area:1/1]",
+    from: "max-sm:[grid-area:1/1]",
+    to: "max-sm:[grid-area:1/2]",
+    code: "max-sm:[grid-area:3/1/4/3]",
+    n: "max-sm:[grid-area:2/1]",
+    bearing: "max-sm:[grid-area:2/1]",
+    e: "max-sm:[grid-area:2/2/3/4]",
+    distance: "max-sm:[grid-area:2/2/3/4]",
+    z: "max-sm:[grid-area:1/2]",
+  };
+  const REMOVE = "p-1 max-sm:self-end max-sm:p-0 max-sm:[grid-area:1/3]";
   if (mode === "coordinates") {
     return (
       <div className="grid gap-3">
         <p className="text-sm text-ink-2">Type or paste the points: point, northing, easting, height and code, in metres in the project&apos;s grid. Enter in the last cell adds a row; rows pasted from a spreadsheet fill the table.</p>
         <div className="overflow-x-auto rounded-md ring-1 ring-line">
-          <table className="w-full min-w-[40rem] text-left text-sm">
-            <thead className="bg-canvas-2 text-ink-2">
+          <table className={TABLE}>
+            <thead className={HEAD}>
               <tr>
                 {["Point", "Northing", "Easting", "Height", "Code"].map((h) => (
                   <th key={h} scope="col" className="p-2 font-medium">
@@ -107,11 +126,11 @@ export function ManualEntry({
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className={BODY}>
               {coords.map((r, i) => (
-                <tr key={i} className="border-t border-line">
+                <tr key={i} className={ROW}>
                   {(["point", "n", "e", "z", "code"] as const).map((k) => (
-                    <td key={k} className="p-1">
+                    <td key={k} data-label={{ point: "Point", n: "Northing", e: "Easting", z: "Height", code: "Code" }[k]} className={`${CELL} ${AREA[k]}`}>
                       <input
                         aria-label={`${{ point: "Point", n: "Northing", e: "Easting", z: "Height", code: "Code" }[k]}, row ${i + 1}`}
                         value={r[k]}
@@ -124,8 +143,8 @@ export function ManualEntry({
                       />
                     </td>
                   ))}
-                  <td className="p-1">
-                    <button type="button" aria-label={`Remove row ${i + 1}`} disabled={disabled || coords.length <= 1} onClick={() => pushCoords(coords.filter((_, j) => j !== i))} className={buttonClasses("ghost", "sm")}>
+                  <td className={REMOVE}>
+                    <button type="button" aria-label={`Remove row ${i + 1}`} disabled={disabled || coords.length <= 1} onClick={() => pushCoords(coords.filter((_, j) => j !== i))} className={buttonClasses("ghost", "icon")}>
                       <TrashIcon size={16} weight="bold" aria-hidden />
                     </button>
                   </td>
@@ -173,8 +192,8 @@ export function ManualEntry({
         )}
       </div>
       <div className="overflow-x-auto rounded-md ring-1 ring-line">
-        <table className="w-full min-w-[40rem] text-left text-sm">
-          <thead className="bg-canvas-2 text-ink-2">
+        <table className={TABLE}>
+          <thead className={HEAD}>
             <tr>
               {["From", "To", "Bearing", "Distance (m)", "Code"].map((h) => (
                 <th key={h} scope="col" className="p-2 font-medium">
@@ -186,11 +205,11 @@ export function ManualEntry({
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className={BODY}>
             {legs.map((l, i) => (
-              <tr key={i} className="border-t border-line">
+              <tr key={i} className={ROW}>
                 {(["from", "to", "bearing", "distance", "code"] as const).map((k) => (
-                  <td key={k} className="p-1">
+                  <td key={k} data-label={{ from: "From", to: "To", bearing: "Bearing", distance: "Distance (m)", code: "Code" }[k]} className={`${CELL} ${AREA[k]}`}>
                     <input
                       aria-label={`${{ from: "From", to: "To", bearing: "Bearing", distance: "Distance", code: "Code" }[k]}, leg ${i + 1}`}
                       value={l[k]}
@@ -203,8 +222,8 @@ export function ManualEntry({
                     />
                   </td>
                 ))}
-                <td className="p-1">
-                  <button type="button" aria-label={`Remove leg ${i + 1}`} disabled={disabled || legs.length <= 1} onClick={() => pushLegs(start, legs.filter((_, j) => j !== i))} className={buttonClasses("ghost", "sm")}>
+                <td className={REMOVE}>
+                  <button type="button" aria-label={`Remove leg ${i + 1}`} disabled={disabled || legs.length <= 1} onClick={() => pushLegs(start, legs.filter((_, j) => j !== i))} className={buttonClasses("ghost", "icon")}>
                     <TrashIcon size={16} weight="bold" aria-hidden />
                   </button>
                 </td>

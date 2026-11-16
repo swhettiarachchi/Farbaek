@@ -246,7 +246,7 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
         </label>
         {doc.rules?.id === "own" ? (
           <>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid gap-3 @lg:grid-cols-3">
               <MinimumField label="Least area (m²)" value={doc.rules.areaM2} max={10_000_000} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.areaM2 = v)), "rules.areaM2")} />
               <MinimumField label="Frontage (m)" value={doc.rules.frontageM} max={10_000} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.frontageM = v)), "rules.frontageM")} />
               <MinimumField label="Depth (m)" value={doc.rules.depthM} max={10_000} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.depthM = v)), "rules.depthM")} />
@@ -267,11 +267,11 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
         <legend className="mb-2 text-sm font-medium text-ink">Title</legend>
         {field("Plan number", s.planNumber, "planNumber", (d, v) => void (d.sheet.planNumber = v), 40)}
         {field("Land called", s.landName, "landName", (d, v) => void (d.sheet.landName = v), 120)}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 @md:grid-cols-2">
           {field("Alias", s.alias, "alias", (d, v) => void (d.sheet.alias = v), 160, { hint: "Several joined by “and”." })}
           {field("Now called and known as", s.nowKnownAs, "nowKnownAs", (d, v) => void (d.sheet.nowKnownAs = v), 120)}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 @md:grid-cols-2">
           <div className="grid gap-1.5">
             <span className="flex flex-wrap items-center gap-2">
               <label htmlFor="sheet-operation" className={LABEL_CLASSES}>
@@ -289,7 +289,7 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
           {field(s.operation === "amalgamation" ? "Of lots" : "Of lot", s.parentLots, "parentLots", (d, v) => void (d.sheet.parentLots = v), 60)}
         </div>
         {s.operation === "custom" ? field("After “being”", s.customClause, "customClause", (d, v) => void (d.sheet.customClause = v), 800, { long: true }) : null}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 @md:grid-cols-2">
           {field("Depicted in Plan No.", s.previousPlan.number, "previousPlan.number", (d, v) => void (d.sheet.previousPlan.number = v), 40)}
           {field("Dated", s.previousPlan.date, "previousPlan.date", (d, v) => void (d.sheet.previousPlan.date = v), 20, { type: "date" })}
         </div>
@@ -298,13 +298,13 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
           <CheckMark doc={doc} field="sheet.previousPlan.mine" update={update} readOnly={readOnly} />
         </div>
         {s.previousPlan.mine && !doc.provenance["sheet.previousPlan.by"] ? null : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 @md:grid-cols-2">
             {field("Made by", s.previousPlan.by, "previousPlan.by", (d, v) => void (d.sheet.previousPlan.by = v), 80)}
             {field("Their designation", s.previousPlan.byDesignation, "previousPlan.byDesignation", (d, v) => void (d.sheet.previousPlan.byDesignation = v), 60)}
           </div>
         )}
         {field("Filed of record in (optional)", s.previousPlan.filing, "previousPlan.filing", (d, v) => void (d.sheet.previousPlan.filing = v), 160, { hint: "A court and case number, when the plan was filed." })}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 @md:grid-cols-2">
           {field("Village", s.village, "village", (d, v) => void (d.sheet.village = v), 60)}
           {field("Pattu", s.pattu, "pattu", (d, v) => void (d.sheet.pattu = v), 60, { hint: "As written, ending in “Pattu”." })}
           {field("Korale", s.korale, "korale", (d, v) => void (d.sheet.korale = v), 60, { hint: "As written, ending in “Korale”." })}
@@ -328,7 +328,7 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
 
       <fieldset className="grid gap-3">
         <legend className="mb-1 text-sm font-medium text-ink">Dates and statements</legend>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 @lg:grid-cols-3">
           {field("Surveyed on", s.surveyDate, "surveyDate", (d, v) => void (d.sheet.surveyDate = v), 20, { type: "date" })}
           {field("Partitioned on", s.partitionDate, "partitionDate", (d, v) => void (d.sheet.partitionDate = v), 20, { type: "date" })}
           {field("Signed on", s.planDate, "planDate", (d, v) => void (d.sheet.planDate = v), 20, { type: "date" })}
