@@ -14,7 +14,7 @@ pnpm lint         # eslint .
 pnpm test         # vitest run (unit, domain and design-token tests)
 pnpm check        # typecheck, lint, test in sequence
 pnpm security:eval   # run the OWASP-mapped security scenarios and record the run (/security shows it)
-pnpm qa:responsive   # every route at 320 to 1440px as phone, tablet, desktop: sideways scroll, cut-off content, small targets, console errors
+pnpm qa:responsive   # every route on phones (portrait and landscape), tablets, touch iPads and desktops: sideways scroll, cut-off content, small or lost taps, out of proportion, console errors (--strict fails on all; --shots then scripts/qa/contact-sheet.mjs to look)
 pnpm qa:vitals       # phone-profile LCP, CLS, TBT, FCP and bytes per page, median of three (lab numbers, ADR 0052)
 pnpm qa:a11y         # every route at 1280 and 375: nameless controls, alt text, headings, landmarks, hidden focusables, visible focus (ADR 0053)
 node scripts/brand-assets.mjs   # regenerate icon sizes from the logo
@@ -65,7 +65,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 - Status is one of the thirteen kinds in `StatusBadge` (ADR 0183): its words, icon, colour and border together, never a hand-drawn pill, a blank where an icon belongs, an hourglass, a flask or a dot. Blue (`approval`) means your turn, burnt orange (`caution`) is for real warnings only, steel (`info`) is information and work in progress; no gold, amber or purple. Section headings in the app use `CardTitle` with their icon. Models show their product name (`modelName()`), never an id in mono; numbers only when real, in a sentence. The `farbaek-human-made` skill has the full list of tells; `tests/design/human-made.test.ts` checks it (ADR 0180, ADR 0183).
 - Icons name the action (hammer for build, pen nib for drafting): no sparkles, robots, wands or brains, on the web or in the native apps (ADR 0153). `tests/design/plain-icons.test.ts` checks it.
 - Copy: plain sentences, no em dashes in UI text, no filler verbs.
-- Mobile first: 16px inputs, 44px targets (`buttonClasses` gives 48px on touch), no horizontal page scroll (check at 375px). A button's own `inline-flex` overrides `hidden`: control visibility with a wrapper.
+- Mobile first, sized phone first (ADR 0211): titles from `titles.ts`, page stacks and bezels from `surfaces.ts`, each starting at the phone size and stepping up. Buttons are 40px (`sm`), 44px (`md`) or a 40px icon circle, with a 48px touch area (`.tap`); fields are 44px with 16px text on touch, 40px and 14px with a mouse on a large screen. No horizontal page scroll (check at 375px). A button's own `inline-flex` overrides `hidden`: control visibility with a wrapper.
 - Text size and keyboard (ADR 0171): text is in rem, so Android's text size reaches it (`tests/design/rem-text.test.ts`; check with `pnpm qa:responsive --text-scale=2`). Anything pinned above the phone tab bar uses `bottom-[var(--tab-bar)]`, which is 0 while someone types.
 
 ## Workflow
