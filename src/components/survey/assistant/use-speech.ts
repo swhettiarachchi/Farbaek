@@ -50,9 +50,52 @@ export function recogniserClass(): RecogniserClass | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+type SpeechStatics = {
+  available?: (o: { langs: string[]; processLocally: boolean }) => Promise<string>;
+  install?: (o: { langs: string[]; processLocally: boolean }) => Promise<boolean>;
+};
+
+export type OnDeviceStatus = { state: "available" | "downloadable" | "downloading"; tag: string } | { state: "unavailable" };
+
+/**
+ * Whether this browser can hear a language on the computer, for the first of the tags it can (Chrome 139 and later, on a computer).
+ * Anything else, including a browser without the question, is "unavailable".
+ */
+export async function onDeviceStatus(tags: readonly string[]): Promise<OnDeviceStatus> {
+  const C = recogniserClass() as (RecogniserClass & SpeechStatics) | null;
+  if (!C || typeof C.available !== "function") return { state: "unavailable" };
+  let later: OnDeviceStatus | null = null;
+  for (const tag of tags) {
+    try {
+      const s = await C.available({ langs: [tag], processLocally: true });
+      if (s === "available") return { state: "available", tag };
+      if ((s === "downloadable" || s === "downloading") && !later) later = { state: s, tag };
+    } catch {
+      // This browser can't be asked about this tag.
+    }
+  }
+  return later ?? { state: "unavailable" };
+}
+
+/** Asks the browser to download a language for hearing on the computer. It needs a click (user activation); false if it didn't. */
+export async function installOnDevice(tag: string): Promise<boolean> {
+  const C = recogniserClass() as (RecogniserClass & SpeechStatics) | null;
+  if (!C || typeof C.install !== "function") return false;
+  try {
+    return (await C.install({ langs: [tag], processLocally: true })) === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Set once a browser refuses the survey-word hints, so later listens go without them. */
+let phrasesRefused = false;
+
 /** What a recogniser's error means for the surveyor, and what to do; null when it isn't one to show (a cancel, silence). */
 export function speechErrorMessage(code: string, langName: string): string | null {
   switch (code) {
+    case "phrases-not-supported":
+      return "This browser didn't take the survey-word hints, so they're off now. Try again.";
     case "not-allowed":
     case "service-not-allowed":
       return "The microphone is blocked for Farbaek in this browser. Allow it in the site settings (the icon left of the address), or type the instruction.";
@@ -74,6 +117,10 @@ export interface ListenOptions {
   lang: string;
   /** Keep going after a pause (push to talk while held; live talk until the caller's own pause timer). */
   continuous: boolean;
+  /** Hear on the computer: the sound never leaves it. Only where the language is downloaded (see onDeviceStatus). */
+  processLocally?: boolean;
+  /** Words to listen for, on the computer only (Chrome biases only there). */
+  phrases?: readonly string[];
   onWords(text: string): void;
   onFinal(text: string): void;
   onError(code: string): void;
@@ -133,6 +180,18 @@ export function useSpeech() {
     r.continuous = o.continuous;
     r.interimResults = true;
     r.maxAlternatives = 1;
+    if (o.processLocally) {
+      const local = r as Recogniser & { processLocally?: boolean; phrases?: unknown };
+      local.processLocally = true;
+      const Phrase = (window as unknown as { SpeechRecognitionPhrase?: new (phrase: string, boost: number) => unknown }).SpeechRecognitionPhrase;
+      if (Phrase && o.phrases?.length && !phrasesRefused) {
+        try {
+          local.phrases = o.phrases.map((p) => new Phrase(p, 4));
+        } catch {
+          // A browser without the hints just listens without them.
+        }
+      }
+    }
     const mine = () => session.current === id && rec.current === r;
     // Words already final from an earlier phrase of the same instruction stay at the front.
     const before = heard.current;
@@ -152,6 +211,7 @@ export function useSpeech() {
     };
     r.onerror = (e) => {
       if (!mine() || e.error === "no-speech" || e.error === "aborted") return;
+      if (e.error === "phrases-not-supported") phrasesRefused = true;
       // A real error ends the instruction: what was heard isn't sent, and it doesn't start again by itself.
       end();
       o.onError(e.error);

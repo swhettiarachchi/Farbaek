@@ -51,9 +51,11 @@ export interface AssistantSettings {
   privacyNoted: boolean;
   /** Live talk's pause before an instruction ends, in milliseconds. */
   pauseMs: number;
+  /** The English tag Chrome hears on this computer, when the surveyor chose that; null hears through the browser's service. */
+  onDeviceTag: string | null;
 }
 
-const DEFAULTS: AssistantSettings = { mode: "push", lang: "en", speak: false, review: false, privacyNoted: false, pauseMs: 1200 };
+const DEFAULTS: AssistantSettings = { mode: "push", lang: "en", speak: false, review: false, privacyNoted: false, pauseMs: 1200, onDeviceTag: null };
 const KEY = "farbaek.survey.assistant";
 
 // A tiny store over localStorage, so the settings read the same in every component and never mismatch the server's render.
@@ -81,6 +83,7 @@ function readSettings(): AssistantSettings {
         review: v.review === true,
         privacyNoted: v.privacyNoted === true,
         pauseMs: typeof v.pauseMs === "number" && v.pauseMs >= 600 && v.pauseMs <= 4000 ? v.pauseMs : DEFAULTS.pauseMs,
+        onDeviceTag: typeof v.onDeviceTag === "string" && /^en-(?:IN|GB|US)$/.test(v.onDeviceTag) ? v.onDeviceTag : null,
       };
     } catch {
       cached = DEFAULTS;
