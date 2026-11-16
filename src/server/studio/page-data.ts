@@ -10,7 +10,9 @@ import { platformPause } from "@/server/platform/state";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import type { AppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
-import { listStudioItems } from "./studio";
+import { createSupabaseAdminClient } from "@/server/supabase/admin";
+import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
+import { createStudioWrites, listStudioItems, reclaimRenders } from "./studio";
 
 export async function studioPageData(ctx: AppContext, kind: "image" | "video"): Promise<{ items: StudioItem[]; pictures: StudioItem[]; disabledReason: string | null }> {
   const orgId = ctx.current!.id;
@@ -26,6 +28,9 @@ export async function studioPageData(ctx: AppContext, kind: "image" | "video"): 
   if (ctx.mode !== "live") return { items: [], pictures: [], disabledReason };
   const client = await createSupabaseServerClient().catch(() => null);
   if (!client) return { items: [], pictures: [], disabledReason: disabledReason ?? "The studios aren't set up on this server." };
+  // Renders a stopped server left behind give their usage back before the library is read.
+  const admin = kind === "video" ? createSupabaseAdminClient() : null;
+  if (admin && !disabledReason) await reclaimRenders({ usage: createSupabaseWriteDeps(client, admin, ctx.user.id), writes: createStudioWrites(admin) }, { orgId, userId: ctx.user.id }).catch(() => undefined);
   const [items, pictures] = await Promise.all([
     listStudioItems(client, orgId, kind === "image" ? ["image", "upload"] : ["video"]).then((r) => r ?? []),
     kind === "video" ? listStudioItems(client, orgId, ["image", "upload"], 120).then((r) => r ?? []) : Promise.resolve([]),

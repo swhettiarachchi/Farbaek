@@ -390,11 +390,16 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
         }
       };
       // Each candidate in turn: when one fails before writing a word, the next takes the question, and the person is told.
+      // A workspace's own Claude key failing says nothing about Anthropic for everyone else: it isn't recorded.
+      const record = (provider: ChatCandidate["provider"], ok: boolean) => {
+        if (provider === "anthropic" && deps.claudeOwnKey) return;
+        deps.recordHealth?.(provider, ok);
+      };
       const ask = async (messages: ChatInputMessage[]): Promise<ChatOutcome> => {
         let result = await askOnce(messages);
         for (const next of routed.candidates.slice(routed.candidates.indexOf(answering) + 1)) {
           if (result.ok || !mayFallBack(result.failure, result.aborted, added.length > 0)) break;
-          deps.recordHealth?.(answering.provider, false);
+          record(answering.provider, false);
           answering = next;
           fellBack = true;
           thinkingAt = null;
@@ -406,8 +411,8 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
           }
           result = await askOnce(messages);
         }
-        if (result.ok) deps.recordHealth?.(answering.provider, true);
-        else if (!result.aborted && (result.failure === "PROVIDER_BUSY" || result.failure === "PROVIDER_ERROR")) deps.recordHealth?.(answering.provider, false);
+        if (result.ok) record(answering.provider, true);
+        else if (!result.aborted && (result.failure === "PROVIDER_BUSY" || result.failure === "PROVIDER_ERROR")) record(answering.provider, false);
         return result;
       };
 

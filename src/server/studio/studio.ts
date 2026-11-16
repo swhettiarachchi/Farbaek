@@ -31,7 +31,9 @@ type Rpc<T> = { ok: true; value: T } | { ok: false; error: string };
 
 export interface StudioWrites {
   save(i: { orgId: string; actor: string; batchId: string; kind: "image" | "upload"; prompt: string; settings: Record<string, unknown>; model: string | null; parentId: string | null; mime: string; size: number; sha256: string; content: string; width: number | null; height: number | null }): Promise<Rpc<string>>;
-  begin(i: { orgId: string; actor: string; batchId: string; prompt: string; settings: Record<string, unknown>; model: string; parentId: string | null }): Promise<Rpc<string>>;
+  begin(i: { orgId: string; actor: string; batchId: string; prompt: string; settings: Record<string, unknown>; model: string; parentId: string | null; usageEntry: string }): Promise<Rpc<string>>;
+  /** Renders a stopped server left behind: marked failed, with the usage reservations to give back. */
+  reclaim(i: { orgId: string; actor: string }): Promise<Rpc<{ id: string; usageEntry: string | null }[]>>;
   finish(i: { orgId: string; actor: string; id: string; mime: string; size: number; sha256: string; content: string; width: number | null; height: number | null; durationMs: number | null }): Promise<Rpc<null>>;
   fail(i: { orgId: string; actor: string; id: string; error: string }): Promise<Rpc<null>>;
   remove(i: { orgId: string; actor: string; id: string }): Promise<Rpc<null>>;
@@ -52,7 +54,14 @@ export function createStudioWrites(admin: SupabaseClient): StudioWrites {
         { p_org: i.orgId, p_actor: i.actor, p_batch: i.batchId, p_kind: i.kind, p_prompt: i.prompt, p_settings: i.settings, p_model: i.model, p_parent: i.parentId, p_mime: i.mime, p_size: i.size, p_sha256: i.sha256, p_content: i.content, p_width: i.width, p_height: i.height },
         z.string(),
       ),
-    begin: (i) => call("app_studio_begin", { p_org: i.orgId, p_actor: i.actor, p_batch: i.batchId, p_prompt: i.prompt, p_settings: i.settings, p_model: i.model, p_parent: i.parentId }, z.string()),
+    begin: (i) =>
+      call("app_studio_begin", { p_org: i.orgId, p_actor: i.actor, p_batch: i.batchId, p_prompt: i.prompt, p_settings: i.settings, p_model: i.model, p_parent: i.parentId, p_usage_entry: i.usageEntry }, z.string()),
+    reclaim: (i) =>
+      call(
+        "app_studio_reclaim",
+        { p_org: i.orgId, p_actor: i.actor },
+        z.array(z.object({ id: z.string(), usage_entry: z.string().nullable() })).transform((rows) => rows.map((r) => ({ id: r.id, usageEntry: r.usage_entry }))),
+      ),
     finish: (i) =>
       call(
         "app_studio_finish",
@@ -182,6 +191,16 @@ function sumUsage(model: string, parts: ProviderUsage[]): ProviderUsage | null {
 
 const toBase64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
 
+/** Pictures to work from, in base64, times the pictures asked for: kept under this so one request can't fill the server's memory. */
+const REFERENCE_BUDGET = 48_000_000;
+
+/** Gives back the usage of renders a stopped server left behind, and marks them failed. Quietly does nothing when it can't. */
+export async function reclaimRenders(deps: Pick<StudioDeps, "usage" | "writes">, i: { orgId: string; userId: string }): Promise<void> {
+  const left = await deps.writes.reclaim({ orgId: i.orgId, actor: i.userId });
+  if (!left.ok) return;
+  for (const r of left.value) if (r.usageEntry) await refundUsage(deps.usage, { orgId: i.orgId, entryId: r.usageEntry, usage: null, reason: "failed" });
+}
+
 /** Pictures: checked, reserved, then made in parallel. */
 export async function prepareImages(deps: StudioDeps, input: { orgId: string; userId: string; request: StudioImageRequest; batchId: string }): Promise<StudioFailure | PreparedStudio> {
   const { orgId, userId, request, batchId } = input;
@@ -190,6 +209,7 @@ export async function prepareImages(deps: StudioDeps, input: { orgId: string; us
 
   const references = request.references.length ? await deps.pictures(request.references) : [];
   if (references.length !== request.references.length) return refused(404, "A picture you chose to work from isn't in your library any more.");
+  if (references.reduce((n, r) => n + r.data.length, 0) * request.count > REFERENCE_BUDGET) return refused(413, "Those pictures are large: work from fewer of them, or make fewer pictures at once.");
 
   const plan = await resolvePlan(deps.usage, orgId);
   if (!plan.ok) return refused(503, plan.message);
@@ -206,6 +226,15 @@ export async function prepareImages(deps: StudioDeps, input: { orgId: string; us
   const entry = { orgId, entryId: reserved.value.entryId };
   const settings = { shape: request.shape, detail: request.detail, style: request.style, format: request.format, transparent: request.transparent, references: request.references };
 
+  // A picture the model has started is paid for, so it finishes and lands in the library even if the person stops watching.
+  const keepGoing = new AbortController().signal;
+  const estimate: ProviderUsage = {
+    model: engine.model,
+    inputTokens: approxTokens(prompt) + references.length * 1_600,
+    outputTokens: engine.kind === "openai" ? imageOutputTokens(request.shape, request.detail) : 1_120,
+    cacheWriteTokens: 0,
+    cacheReadTokens: 0,
+  };
   return {
     ok: true,
     batchId,
@@ -219,13 +248,15 @@ export async function prepareImages(deps: StudioDeps, input: { orgId: string; us
           outcome = await deps.openai!.make(
             { prompt, width: shape.width, height: shape.height, quality, format: request.format, transparent: request.transparent, references: references.map((r) => ({ mime: r.mime, data: r.data })), safetyId: deps.safetyId },
             (data, mime) => emit({ type: "partial", index, data, mime }),
-            signal,
+            keepGoing,
           );
         } else {
-          const r = await deps.gemini!.generate({ prompt, aspectRatio: GEMINI_ASPECT[request.shape] ?? "1:1", references: references.map((x) => ({ mimeType: x.mime, data: x.data })) }, signal).catch(() => ({ ok: false as const, failure: "PROVIDER_ERROR" as const, usage: null }));
+          const r = await deps.gemini!.generate({ prompt, aspectRatio: GEMINI_ASPECT[request.shape] ?? "1:1", references: references.map((x) => ({ mimeType: x.mime, data: x.data })) }, keepGoing).catch(() => ({ ok: false as const, failure: "PROVIDER_ERROR" as const, usage: null }));
           outcome = r.ok ? { ok: true, data: toBase64(r.bytes), mime: r.mimeType, usage: r.usage } : { ok: false, failure: r.failure, usage: r.usage };
         }
-        if (outcome.usage) spent.push(outcome.usage);
+        // A picture made without a usage figure is paid at the estimate, never at nothing.
+        if (outcome.ok) spent.push(outcome.usage.outputTokens > 0 ? outcome.usage : estimate);
+        else if (outcome.usage) spent.push(outcome.usage);
         if (!outcome.ok) {
           emit({ type: "failed", index, error: IMAGE_FAILED[outcome.failure] ?? IMAGE_FAILED.PROVIDER_ERROR! });
           return;
@@ -279,7 +310,8 @@ export async function prepareImages(deps: StudioDeps, input: { orgId: string; us
       const usage = sumUsage(engine.model, spent);
       // What was made is paid for; a batch that made nothing is given back whole.
       if (made > 0 && usage) await settleUsage(deps.usage, { ...entry, usage });
-      else await refundUsage(deps.usage, { ...entry, usage, reason: signal.aborted ? "stopped" : "failed" });
+      else await refundUsage(deps.usage, { ...entry, usage, reason: "failed" });
+      void signal;
       emit({ type: "done", made, error: made === 0 ? "Nothing was made, so nothing was counted." : null });
     },
   };
@@ -292,6 +324,7 @@ export async function prepareVideo(deps: StudioDeps, input: { orgId: string; use
   const still = request.still ? (await deps.pictures([request.still]))[0] : null;
   if (request.still && !still) return refused(404, "The picture you chose to start from isn't in your library any more.");
 
+  await reclaimRenders(deps, { orgId, userId });
   const plan = await resolvePlan(deps.usage, orgId);
   if (!plan.ok) return refused(503, plan.message);
   const prompt = videoPrompt(request.prompt, request.style);
@@ -301,7 +334,7 @@ export async function prepareVideo(deps: StudioDeps, input: { orgId: string; use
   const entry = { orgId, entryId: reserved.value.entryId };
   const settings = { shape: request.shape, seconds: request.seconds, resolution: request.resolution, style: request.style };
 
-  const begun = await deps.writes.begin({ orgId, actor: userId, batchId, prompt: request.prompt, settings, model: deps.video.model, parentId: request.still });
+  const begun = await deps.writes.begin({ orgId, actor: userId, batchId, prompt: request.prompt, settings, model: deps.video.model, parentId: request.still, usageEntry: reserved.value.entryId });
   if (!begun.ok) {
     await refundUsage(deps.usage, { ...entry, usage: null, reason: "failed" });
     return refused(begun.error.includes("TOO_MANY_RENDERS") ? 429 : begun.error.includes("STORAGE_FULL") ? 409 : 503, begun.error.includes("TOO_MANY_RENDERS") ? "Three videos are already rendering. Wait for one to finish." : begun.error.includes("STORAGE_FULL") ? "Your studio library is full (500 MB). Delete some pictures or videos, then try again." : "The video couldn't start. Try again.");

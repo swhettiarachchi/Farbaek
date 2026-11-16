@@ -69,6 +69,8 @@ export async function* readEvents(body: ReadableStream<Uint8Array>): AsyncGenera
   for (;;) {
     const { done, value } = await reader.read();
     if (value) buffer += decoder.decode(value, { stream: true });
+    // One event is one picture in base64: far below this. Anything larger isn't a reply to read.
+    if (buffer.length > 64_000_000) throw new Error("STREAM_TOO_LARGE");
     let cut: number;
     while ((cut = buffer.search(/\r?\n\r?\n/)) >= 0) {
       const block = buffer.slice(0, cut);

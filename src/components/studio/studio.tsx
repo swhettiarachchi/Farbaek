@@ -176,9 +176,9 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
       setTiles(null);
       toast({ text: r.message, tone: "error" });
     } else if (!r.done && !ctrl.signal.aborted) {
-      toast({ text: kind === "video" ? "The connection dropped. The video keeps rendering and will appear in your library." : "The connection dropped. Finished pictures are in your library.", tone: "info" });
+      toast({ text: kind === "video" ? "The connection dropped. The video keeps rendering and will appear in your library." : "The connection dropped. The pictures keep being made and will appear in your library.", tone: "info" });
     }
-    setTiles((all) => (all ? all.map((t) => (t.state === "making" ? { ...t, state: ctrl.signal.aborted ? "failed" : t.state, error: ctrl.signal.aborted ? "Stopped." : t.error } : t)) : all));
+    setTiles((all) => (all ? all.map((t) => (t.state === "making" && ctrl.signal.aborted ? { ...t, state: "failed", error: "Still being made: it will appear in your library." } : t)) : all));
     setRunning(false);
     controller.current = null;
   };
@@ -284,7 +284,7 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
                   key={s.href}
                   href={s.href}
                   aria-current={on ? "page" : undefined}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors duration-200 pointer-coarse:h-11 ${on ? "bg-surface text-ink shadow-e1 ring-1 ring-line" : "text-ink-2 hover:text-ink"}`}
+                  className={`inline-flex h-9 min-w-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors duration-200 pointer-coarse:h-11 ${on ? "bg-surface text-ink shadow-e1 ring-1 ring-line" : "text-ink-2 hover:text-ink"}`}
                 >
                   <SpaceIcon size={16} weight={on ? "fill" : "bold"} aria-hidden className={on ? "text-accent" : ""} />
                   <span className="hidden sm:inline">{s.label}</span>
@@ -453,7 +453,7 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
                       className="tap inline-flex min-h-10 items-center gap-1.5 rounded-full bg-surface-raised px-4 text-sm font-medium text-ink ring-1 ring-line pointer-coarse:min-h-11"
                     >
                       <StopIcon size={16} weight="fill" aria-hidden />
-                      {kind === "video" ? "Stop watching" : "Stop"}
+                      Stop watching
                     </button>
                   ) : (
                     <button
@@ -602,7 +602,7 @@ function Welcome({ kind, onExample }: { kind: Kind; onExample: (i: number) => vo
   return (
     <div className="mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center px-4 py-10 text-center sm:py-14">
       <BrandLogo height={72} className="h-16 w-auto sm:h-[4.5rem]" />
-      <h2 className="mt-5 text-balance text-[1.625rem] font-medium leading-tight tracking-[-0.035em] sm:text-[2rem]">{kind === "image" ? "What should we make?" : "What should happen on screen?"}</h2>
+      <h2 className="mt-5 text-balance text-2xl font-medium leading-tight tracking-[-0.035em] sm:text-[2rem]">{kind === "image" ? "What should we make?" : "What should happen on screen?"}</h2>
       <p className="mt-2 max-w-[34rem] text-body leading-relaxed text-ink-2">
         {kind === "image"
           ? "Describe a picture, pick a style and shape, and Farbaek AI makes it with studio light and finish. Work from your own pictures to edit them or keep a subject."
@@ -684,7 +684,7 @@ function Library({ kind, items, onOpen, onClose }: { kind: Kind; items: StudioIt
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex h-14 shrink-0 items-center gap-2 px-3">
-        <Link href="/app" className="flex min-h-10 items-center gap-2 rounded-full pr-2" aria-label="Farbaek home">
+        <Link href="/app" className="flex min-h-11 items-center gap-2 rounded-full pr-2" aria-label="Farbaek home">
           <BrandLogo height={30} />
           <span className="text-body font-semibold tracking-[-0.02em]">Farbaek AI</span>
         </Link>

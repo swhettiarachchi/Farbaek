@@ -63,7 +63,7 @@ describe("the studios (v100)", () => {
 
   it("renders a video in a working row, then keeps it or says why it failed", async () => {
     const begin = () =>
-      q<{ id: string }>("select public.app_studio_begin($1, $2, $3, 'Waves at dawn', '{\"seconds\":8}'::jsonb, 'gemini-omni-1.2-flash', null) as id", [org, USERS.alice, BATCH]).then((r) => r[0]!.id);
+      q<{ id: string }>("select public.app_studio_begin($1, $2, $3, 'Waves at dawn', '{\"seconds\":8}'::jsonb, 'gemini-omni-1.2-flash', null, 'entry-1') as id", [org, USERS.alice, BATCH]).then((r) => r[0]!.id);
     const video = await begin();
     expect(await asUser(USERS.alice, "select status, content from public.studio_media where id = $1", [video])).toEqual([{ status: "working", content: null }]);
     await q("select public.app_studio_finish($1, $2, $3, 'video/mp4', 4, $4, 'AAAA', 1280, 720, 8000)", [org, USERS.alice, video, SHA]);
@@ -75,18 +75,22 @@ describe("the studios (v100)", () => {
     expect(await asUser(USERS.alice, "select status, error from public.studio_media where id = $1", [failed])).toEqual([{ status: "failed", error: "The video service is busy." }]);
   });
 
-  it("allows three renders at once, and marks one left for 15 minutes as failed", async () => {
-    const begin = () => q("select public.app_studio_begin($1, $2, $3, 'Rain', '{}'::jsonb, 'gemini-omni-1.2-flash', null)", [org, USERS.bob, BATCH]);
-    await begin();
-    await begin();
-    await begin();
-    await expect(begin()).rejects.toThrow(/TOO_MANY_RENDERS/);
+  it("allows three renders at once, keeps a rendering video from being deleted, and reclaims what a stopped server left", async () => {
+    const begin = (entry: string) =>
+      q<{ id: string }>("select public.app_studio_begin($1, $2, $3, 'Rain', '{}'::jsonb, 'gemini-omni-1.2-flash', null, $4) as id", [org, USERS.bob, BATCH, entry]).then((r) => r[0]!.id);
+    const first = await begin("e1");
+    await begin("e2");
+    await begin("e3");
+    await expect(begin("e4")).rejects.toThrow(/TOO_MANY_RENDERS/);
+    await expect(q("select public.app_studio_delete($1, $2, $3)", [org, USERS.bob, first])).rejects.toThrow(/NOT_FOUND/);
     await su("update public.studio_media set created_at = now() - interval '20 minutes' where owner_id = $1 and status = 'working'", [USERS.bob]);
-    await expect(begin()).resolves.toHaveLength(1);
-    expect((await su<{ n: number }>("select count(*)::int as n from public.studio_media where owner_id = $1 and status = 'failed'", [USERS.bob]))[0]!.n).toBe(3);
+    const reclaimed = await q<{ usage_entry: string }>("select usage_entry from public.app_studio_reclaim($1, $2) order by usage_entry", [org, USERS.bob]);
+    expect(reclaimed.map((r) => r.usage_entry)).toEqual(["e1", "e2", "e3"]);
+    expect(await q("select * from public.app_studio_reclaim($1, $2)", [org, USERS.bob])).toEqual([]);
+    await expect(begin("e5")).resolves.toBeTruthy();
   });
 
-  it("keeps each person within their room", async () => {
+  it("keeps each person within their room, across all their workspaces", async () => {
     await su("insert into public.studio_media (org_id, owner_id, batch_id, kind, status, mime, size_bytes, sha256, content) values ($1, $2, $3, 'video', 'ready', 'video/mp4', 20971520, $4, 'AAAA')", [org, USERS.bob, BATCH, SHA]);
     for (let i = 0; i < 24; i++) {
       await su("insert into public.studio_media (org_id, owner_id, batch_id, kind, status, mime, size_bytes, sha256, content) values ($1, $2, $3, 'video', 'ready', 'video/mp4', 20971520, $4, 'AAAA')", [org, USERS.bob, BATCH, SHA]);

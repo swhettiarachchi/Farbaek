@@ -29,8 +29,11 @@ export async function POST(request: Request) {
   const minute = await studioLimit(gate.admin, `studio-image:${gate.userId}`, 60, 6);
   if (minute === null) return studioRefuse("The image studio isn't available right now. Try again in a minute.", 503);
   if (!minute) return studioRefuse("That's a lot of pictures in a minute. Wait a moment, then carry on.", 429);
-  const day = await studioLimit(gate.admin, `studio-image-day:${gate.userId}`, 86_400, 60);
-  if (!day) return studioRefuse("That's the most picture requests for one person in a day. It's back tomorrow.", 429);
+  // The day counts pictures, not requests: four at once is four.
+  for (let i = 0; i < parsed.data.count; i++) {
+    const day = await studioLimit(gate.admin, `studio-image-day:${gate.userId}`, 86_400, 120);
+    if (!day) return studioRefuse("That's the most pictures for one person in a day. It's back tomorrow.", 429);
+  }
 
   const prepared = await prepareImages(await studioDeps(gate), { orgId: gate.orgId, userId: gate.userId, request: parsed.data, batchId: crypto.randomUUID() });
   if (!prepared.ok) return studioRefuse(prepared.message, prepared.status);

@@ -37,9 +37,11 @@ describe("Farbaek AI's route (stage 201)", () => {
     expect(r.candidates[0]!.model).toBe("claude-haiku-5-5");
   });
 
-  it("keeps a workspace's own Claude key on that key", () => {
+  it("keeps a workspace's own Claude key on that key, even while Farbaek's Claude is resting", () => {
     const r = planChatRoute(both("pro", { claudeOwnKey: true }), "auto", "balanced", "everyday", healthy)!;
     expect(r.candidates.map((c) => c.provider)).toEqual(["anthropic"]);
+    const resting = planChatRoute(both("pro", { claudeOwnKey: true }), "auto", "balanced", "everyday", { anthropic: false, openai: true })!;
+    expect(resting.candidates.map((c) => c.provider)).toEqual(["anthropic"]);
   });
 
   it("honours a model picked by hand, with the other provider standing by", () => {

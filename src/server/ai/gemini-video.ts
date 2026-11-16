@@ -14,6 +14,9 @@ export const DEFAULT_VIDEO_MODEL = "gemini-omni-1.2-flash";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 
+/** The largest video the studio keeps (studio_media's limit). */
+const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+
 export interface VideoInput {
   prompt: string;
   shape: VideoShape;
@@ -113,7 +116,10 @@ export function createGeminiVideoEngine(options: Options): VideoEngine {
         }
         const download = await doFetch(`${BASE}/files/${file}:download?alt=media`, { headers, signal: all });
         if (!download.ok) return { ok: false, failure: failureOf(download.status, null), usage: null };
-        return { ok: true, bytes: new Uint8Array(await download.arrayBuffer()), mime: "video/mp4", usage };
+        if (Number(download.headers.get("content-length") ?? 0) > MAX_VIDEO_BYTES) return { ok: false, failure: "INCOMPLETE", usage };
+        const bytes = new Uint8Array(await download.arrayBuffer());
+        if (bytes.length > MAX_VIDEO_BYTES) return { ok: false, failure: "INCOMPLETE", usage };
+        return { ok: true, bytes, mime: "video/mp4", usage };
       } catch {
         return { ok: false, failure: signal.aborted ? "PROVIDER_ERROR" : "PROVIDER_BUSY", usage: null };
       }

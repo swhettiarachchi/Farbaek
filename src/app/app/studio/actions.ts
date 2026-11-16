@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { chatModels } from "@/server/chat/setup";
-import { platformPause } from "@/server/platform/state";
+import { platformModels, platformPause } from "@/server/platform/state";
 import { refinePrompt } from "@/server/studio/refine";
 import { createStudioWrites } from "@/server/studio/studio";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -49,6 +49,6 @@ export async function refineStudioPrompt(input: { prompt: string; kind: "image" 
   if (allowed.error || allowed.data !== true) return { ok: false, message: "That's a lot of refining in a minute. Wait a moment." };
   const usage = createSupabaseWriteDeps(g.user, g.admin, g.userId);
   const models = await chatModels(g.orgId, usage);
-  const r = await refinePrompt({ usage, claudeUsage: models.claudeUsage, claude: models.claude, openai: models.openai }, { orgId: g.orgId, userId: g.userId, prompt: parsed.data.prompt, kind: parsed.data.kind });
+  const r = await refinePrompt({ usage, claudeUsage: models.claudeUsage, claude: models.claude, openai: models.openai, overrides: platformModels() }, { orgId: g.orgId, userId: g.userId, prompt: parsed.data.prompt, kind: parsed.data.kind });
   return r.ok ? { ok: true, value: r.prompt } : r;
 }

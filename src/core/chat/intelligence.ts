@@ -103,9 +103,10 @@ export function planChatRoute(setup: RouteSetup, wanted: string, effort: ChatEff
   }
   const note = picked ? `${picked.name} isn't available here (${picked.unavailable!.replace(/\.$/, "").toLowerCase()}), so Farbaek AI chose for you.` : null;
 
-  // Auto: Claude first, unless it's failing right now and OpenAI isn't.
-  let order: ChatCandidate[] = [claude, openai].filter((c): c is ChatCandidate => c !== null);
-  if (claude && openai && !health.anthropic && health.openai) order = [openai, claude];
+  // Auto: Claude first, unless it's failing right now and OpenAI isn't. A workspace on its own Claude key stays on it, whatever
+  // Farbaek's own keys are doing.
+  let order: ChatCandidate[] = setup.claudeOwnKey && claude ? [claude] : [claude, openai].filter((c): c is ChatCandidate => c !== null);
+  if (!setup.claudeOwnKey && claude && openai && !health.anthropic && health.openai) order = [openai, claude];
   if (order.length === 0) return null;
   const [first, ...rest] = order;
   const candidates = crossProvider ? [first!, ...rest.filter((c) => c.provider !== first!.provider)] : [first!];

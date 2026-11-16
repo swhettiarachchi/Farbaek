@@ -4,9 +4,10 @@
 -- work from: private to that person in the workspace, gone when they leave it.
 -- Bytes are base64 in Postgres, like chat files and project images (Farbaek
 -- has no object storage yet): a picture up to 8 MB, a video up to 20 MB, and
--- 500 MB per person in a workspace. A video gets a row while it renders
--- ("working"), so the library shows it after a reload; a row left working for
--- more than 15 minutes reads as failed. Video is metered as its own AI
+-- 500 MB per person across all their workspaces. A video gets a row while it
+-- renders ("working"), with the usage it reserved, so the library shows it
+-- after a reload and a render a stopped server left behind gives its usage
+-- back (app_studio_reclaim). Video is metered as its own AI
 -- operation, video_generation. The browser only reads, through row level
 -- security; the server's functions below do every write.
 
@@ -29,6 +30,8 @@ create table public.studio_media (
   -- The picture it was made from, for an edit or a video from a still.
   parent_id   uuid references public.studio_media (id) on delete set null,
   error       text check (error is null or char_length(error) <= 300),
+  -- A rendering video's usage reservation, so one left behind by a stopped server is given back.
+  usage_entry text check (usage_entry is null or char_length(usage_entry) <= 100),
   mime        text check (mime is null or mime in ('image/png', 'image/jpeg', 'image/webp', 'video/mp4')),
   width       integer check (width is null or width between 1 and 8192),
   height      integer check (height is null or height between 1 and 8192),
@@ -52,7 +55,8 @@ grant select on public.studio_media to authenticated, service_role;
 create policy "owners read their studio media" on public.studio_media for select to authenticated
   using (owner_id = (select auth.uid()) and (select private.is_member(org_id)));
 
--- Room for more: each person keeps up to 500 MB of studio media in a workspace.
+-- Room for more: each person keeps up to 500 MB of studio media, across all their workspaces, so making more workspaces
+-- doesn't make more room.
 create function private.studio_storage_room(p_org uuid, p_actor uuid, p_bytes bigint)
 returns void
 language plpgsql
@@ -61,7 +65,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if (select coalesce(sum(m.size_bytes), 0) from public.studio_media m where m.owner_id = p_actor and m.org_id = p_org) + p_bytes > 524288000 then
+  if (select coalesce(sum(m.size_bytes), 0) from public.studio_media m where m.owner_id = p_actor) + p_bytes > 524288000 then
     raise exception 'STORAGE_FULL' using errcode = '22023';
   end if;
 end;
@@ -132,8 +136,27 @@ begin
 end;
 $$;
 
--- A video starts rendering: a working row, so the library shows it. At most three at once per person.
-create function public.app_studio_begin(p_org uuid, p_actor uuid, p_batch uuid, p_prompt text, p_settings jsonb, p_model text, p_parent uuid)
+-- Renders a stopped server left behind (working for over 15 minutes) are marked failed, and their usage reservations come back
+-- to the server, which gives them back to the workspace.
+create function public.app_studio_reclaim(p_org uuid, p_actor uuid)
+returns table (id uuid, usage_entry text)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_contributor(p_org, p_actor);
+  return query
+  update public.studio_media m
+  set status = 'failed', error = 'The video stopped rendering. It wasn''t counted.', updated_at = now()
+  where m.owner_id = p_actor and m.org_id = p_org and m.status = 'working' and m.created_at < now() - interval '15 minutes'
+  returning m.id, m.usage_entry;
+end;
+$$;
+
+-- A video starts rendering: a working row with its usage reservation, so the library shows it. At most three at once per
+-- person, counted under a lock so two requests at once can't both pass.
+create function public.app_studio_begin(p_org uuid, p_actor uuid, p_batch uuid, p_prompt text, p_settings jsonb, p_model text, p_parent uuid, p_usage_entry text)
 returns uuid
 language plpgsql
 security definer
@@ -148,14 +171,12 @@ begin
   end if;
   perform private.studio_own_parent(p_org, p_actor, p_parent);
   perform private.studio_storage_room(p_org, p_actor, 0);
-  -- A render left working for 15 minutes failed: the server that ran it stopped.
-  update public.studio_media set status = 'failed', error = 'The video stopped rendering. It wasn''t counted.', updated_at = now()
-  where owner_id = p_actor and status = 'working' and created_at < now() - interval '15 minutes';
-  if (select count(*) from public.studio_media where owner_id = p_actor and org_id = p_org and status = 'working') >= 3 then
+  perform pg_advisory_xact_lock(hashtextextended(p_actor::text, 201));
+  if (select count(*) from public.studio_media where owner_id = p_actor and status = 'working' and created_at >= now() - interval '15 minutes') >= 3 then
     raise exception 'TOO_MANY_RENDERS' using errcode = '22023';
   end if;
-  insert into public.studio_media (org_id, owner_id, batch_id, kind, status, prompt, settings, model, parent_id)
-  values (p_org, p_actor, p_batch, 'video', 'working', coalesce(left(p_prompt, 4000), ''), coalesce(p_settings, '{}'::jsonb), p_model, p_parent)
+  insert into public.studio_media (org_id, owner_id, batch_id, kind, status, prompt, settings, model, parent_id, usage_entry)
+  values (p_org, p_actor, p_batch, 'video', 'working', coalesce(left(p_prompt, 4000), ''), coalesce(p_settings, '{}'::jsonb), p_model, p_parent, left(p_usage_entry, 100))
   returning id into v_id;
   return v_id;
 end;
@@ -202,7 +223,7 @@ begin
 end;
 $$;
 
--- Gone for good: one item of the actor's own.
+-- Gone for good: one item of the actor's own. A video still rendering can't be deleted: it's paid for once it lands.
 create function public.app_studio_delete(p_org uuid, p_actor uuid, p_id uuid)
 returns void
 language plpgsql
@@ -211,7 +232,7 @@ set search_path = ''
 as $$
 begin
   perform private.require_contributor(p_org, p_actor);
-  delete from public.studio_media where id = p_id and org_id = p_org and owner_id = p_actor;
+  delete from public.studio_media where id = p_id and org_id = p_org and owner_id = p_actor and status <> 'working';
   if not found then
     raise exception 'NOT_FOUND' using errcode = 'P0002';
   end if;
@@ -235,12 +256,14 @@ create trigger studio_leaves_with_member after delete on public.organization_mem
   for each row execute function private.close_studio_of_departed();
 
 revoke all on function public.app_studio_save(uuid, uuid, uuid, text, text, jsonb, text, uuid, text, integer, text, text, integer, integer) from public, anon, authenticated;
-revoke all on function public.app_studio_begin(uuid, uuid, uuid, text, jsonb, text, uuid) from public, anon, authenticated;
+revoke all on function public.app_studio_reclaim(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.app_studio_begin(uuid, uuid, uuid, text, jsonb, text, uuid, text) from public, anon, authenticated;
 revoke all on function public.app_studio_finish(uuid, uuid, uuid, text, integer, text, text, integer, integer, integer) from public, anon, authenticated;
 revoke all on function public.app_studio_fail(uuid, uuid, uuid, text) from public, anon, authenticated;
 revoke all on function public.app_studio_delete(uuid, uuid, uuid) from public, anon, authenticated;
 grant execute on function public.app_studio_save(uuid, uuid, uuid, text, text, jsonb, text, uuid, text, integer, text, text, integer, integer) to service_role;
-grant execute on function public.app_studio_begin(uuid, uuid, uuid, text, jsonb, text, uuid) to service_role;
+grant execute on function public.app_studio_reclaim(uuid, uuid) to service_role;
+grant execute on function public.app_studio_begin(uuid, uuid, uuid, text, jsonb, text, uuid, text) to service_role;
 grant execute on function public.app_studio_finish(uuid, uuid, uuid, text, integer, text, text, integer, integer, integer) to service_role;
 grant execute on function public.app_studio_fail(uuid, uuid, uuid, text) to service_role;
 grant execute on function public.app_studio_delete(uuid, uuid, uuid) to service_role;

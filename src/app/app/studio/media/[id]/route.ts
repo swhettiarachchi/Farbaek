@@ -27,7 +27,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     "content-security-policy": "sandbox; default-src 'none'",
     "referrer-policy": "no-referrer",
     "accept-ranges": "bytes",
-    "cache-control": "private, max-age=86400, immutable",
+    // Kept briefly: a deleted picture shouldn't linger in a shared browser for a day.
+    "cache-control": "private, max-age=300",
   };
   const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get("range") ?? "");
   if (range && (range[1] || range[2])) {

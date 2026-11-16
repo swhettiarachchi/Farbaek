@@ -24,6 +24,7 @@ function fakeDeps(over: Partial<StudioDeps> = {}) {
   const writes: StudioWrites = {
     save: async (input) => (calls.push({ name: "save", input }), { ok: true, value: `img-${++n}` }),
     begin: async (input) => (calls.push({ name: "begin", input }), { ok: true, value: "vid-1" }),
+    reclaim: async (input) => (calls.push({ name: "reclaim", input }), { ok: true, value: [{ id: "old", usageEntry: "entry-old" }] }),
     finish: async (input) => (calls.push({ name: "finish", input }), { ok: true, value: null }),
     fail: async (input) => (calls.push({ name: "fail", input }), { ok: true, value: null }),
     remove: async () => ({ ok: true, value: null }),
@@ -117,6 +118,9 @@ describe("the video studio (stage 201)", () => {
     const { deps, calls } = fakeDeps({ video: video(true) });
     const events = await run(await prepareVideo(deps, { orgId: "o", userId: "u", request: videoRequest(), batchId: "b" }));
     expect(calls.find((c) => c.name === "reserve")!.input.operation).toBe("video_generation");
+    // A render a stopped server left behind was given back first, and the new one carries its reservation.
+    expect(calls.find((c) => c.name === "refund")!.input.entryId).toBe("entry-old");
+    expect(calls.find((c) => c.name === "begin")!.input.usageEntry).toBe("entry-1");
     expect(events.filter((e) => e.type === "item").map((e) => (e.type === "item" ? e.item.status : null))).toEqual(["working", "ready"]);
     expect(calls.find((c) => c.name === "finish")!.input).toMatchObject({ mime: "video/mp4", durationMs: 8_000 });
     expect(calls.find((c) => c.name === "settle")!.input.usage.outputTokens).toBe(46_336);

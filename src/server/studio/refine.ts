@@ -4,7 +4,7 @@
  * together: one writes, another renders. Metered as a chat message, settled to its real cost.
  */
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
-import { route } from "@/core/agent/routing";
+import { maxTier, route, type TierOverrides } from "@/core/agent/routing";
 import { OPENAI_CHAT_MODEL } from "@/core/chat/models";
 import type { ChatModel } from "@/server/ai/chat-model";
 import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, type UsageContext } from "@/server/workspace/ai-usage";
@@ -22,14 +22,17 @@ export interface RefineDeps {
   claudeUsage: UsageContext & AiUsageDeps;
   claude: ChatModel | null;
   openai: ChatModel | null;
+  overrides?: TierOverrides;
 }
 
 export async function refinePrompt(deps: RefineDeps, input: { orgId: string; userId: string; prompt: string; kind: "image" | "video" }): Promise<{ ok: true; prompt: string } | { ok: false; message: string }> {
   const plan = await resolvePlan(deps.usage, input.orgId);
   if (!plan.ok) return { ok: false, message: plan.message };
   const claude = deps.claude;
-  const model = claude ? route({ plan: plan.value.plan, family: "anthropic", step: "write", effort: "fast" }).model : deps.openai ? OPENAI_CHAT_MODEL : null;
-  const chat = claude ?? deps.openai;
+  // OpenAI's model only on a plan that includes it, as in chat.
+  const openai = maxTier(plan.value.plan) === "fast" ? null : deps.openai;
+  const model = claude ? route({ plan: plan.value.plan, family: "anthropic", step: "write", effort: "fast", overrides: deps.overrides }).model : openai ? OPENAI_CHAT_MODEL : null;
+  const chat = claude ?? openai;
   if (!model || !chat) return { ok: false, message: "Farbaek AI isn't connected on this server yet." };
   const meter = claude ? deps.claudeUsage : deps.usage;
   const system = SYSTEM[input.kind];
