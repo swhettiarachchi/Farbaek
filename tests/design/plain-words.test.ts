@@ -98,8 +98,9 @@ const BANNED: { word: RegExp; say: string }[] = [
 
 // Search keeps the old names on purpose, so anyone who knows them can still find the page.
 const ALSO_KNOWN_AS = /also: \[/;
-// Lines that aren't sentences for people: a rule set whose hash is its version, a database query, a raw error, a thrown bug.
-const NOT_A_SENTENCE = /node scripts|pnpm sandbox|sandbox allow-scripts|Set by contract|"Contract"|\?\? "contract"|AGENT_POLICY_RULES|checks a verified sandbox can run|contract paths and operations|proposal: Pick|\.select\(|\.from\(|error\.message|Error\.message|^\s*"?id, /;
+// Lines that aren't sentences for people: a rule set whose hash is its version, a database query, a raw error, a thrown bug, a
+// security header's directives.
+const NOT_A_SENTENCE = /node scripts|pnpm sandbox|sandbox allow-scripts|"content-security-policy": |Set by contract|"Contract"|\?\? "contract"|AGENT_POLICY_RULES|checks a verified sandbox can run|contract paths and operations|proposal: Pick|\.select\(|\.from\(|error\.message|Error\.message|^\s*"?id, /;
 
 describe("the app speaks plainly", () => {
   it("says plan, change, proof and rules, not the technical names", () => {

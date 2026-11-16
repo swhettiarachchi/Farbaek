@@ -1,0 +1,171 @@
+/*
+ * Farbaek Chat's night theme (stage 199, ADR 0213). The app stays White Signal: light is the default everywhere, and the
+ * chat alone offers Dark as the person's choice (or "Match device"). These are the same token names with night values, set on
+ * the chat's own root, so every token utility inside it follows. Deep charcoal surfaces, soft white text, signal blue as
+ * the one accent. tests/design/chat-theme.test.ts checks every text pair for WCAG AA.
+ */
+
+.chat-root[data-chat-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #0f1013;
+  --canvas-2: #131418;
+  --surface: #17191e;
+  --surface-raised: #1e2127;
+  --surface-sunken: #0b0c0f;
+  --line: #262a31;
+  --line-2: #343943;
+  --line-strong: #7b818c;
+
+  --ink: #eceef2;
+  --ink-2: #b9bec8;
+  --ink-3: #9198a4;
+
+  --accent: #8aa4ff;
+  --accent-strong: #a9bcff;
+  --accent-2: #5fd3e8;
+  --on-accent: #0b0c10;
+  --seal: #a3a9b4;
+
+  --primary: #eceef2;
+  --primary-hover: #ffffff;
+  --on-primary: #0f1013;
+
+  --verified: #4fd18b;
+  --approval: #8aa4ff;
+  --caution: #ff9466;
+  --failed: #ff7a8c;
+  --info: #a8b9d1;
+  --unverified: #a0a5ae;
+  --simulated: #a9aeb8;
+
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --elev-2: 0 1px 2px rgb(0 0 0 / 0.35), 0 16px 32px -16px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --elev-3: 0 2px 4px rgb(0 0 0 / 0.4), 0 32px 64px -24px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  .chat-root[data-chat-theme="system"] {
+    color-scheme: dark;
+
+    --canvas: #0f1013;
+    --canvas-2: #131418;
+    --surface: #17191e;
+    --surface-raised: #1e2127;
+    --surface-sunken: #0b0c0f;
+    --line: #262a31;
+    --line-2: #343943;
+    --line-strong: #7b818c;
+
+    --ink: #eceef2;
+    --ink-2: #b9bec8;
+    --ink-3: #9198a4;
+
+    --accent: #8aa4ff;
+    --accent-strong: #a9bcff;
+    --accent-2: #5fd3e8;
+    --on-accent: #0b0c10;
+    --seal: #a3a9b4;
+
+    --primary: #eceef2;
+    --primary-hover: #ffffff;
+    --on-primary: #0f1013;
+
+    --verified: #4fd18b;
+    --approval: #8aa4ff;
+    --caution: #ff9466;
+    --failed: #ff7a8c;
+    --info: #a8b9d1;
+    --unverified: #a0a5ae;
+    --simulated: #a9aeb8;
+
+    --elev-1: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.04);
+    --elev-2: 0 1px 2px rgb(0 0 0 / 0.35), 0 16px 32px -16px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06);
+    --elev-3: 0 2px 4px rgb(0 0 0 / 0.4), 0 32px 64px -24px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.08);
+  }
+}
+
+/* The answer's caret while it streams: a soft bar that breathes, still under reduced motion. */
+.chat-caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 0.125em;
+  border-radius: 2px;
+  vertical-align: -0.15em;
+  background: var(--accent);
+  opacity: 0.85;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chat-caret {
+    animation: chat-caret 1s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+  /* The composer glides from the welcome screen to the bottom when the first message is sent. */
+  ::view-transition-group(chat-composer) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+@keyframes chat-caret {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Long answers: off-screen messages skip layout and paint, which keeps a long conversation smooth. */
+.chat-message {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
+/* MathML in answers: the browser's own maths font, at the text's size. */
+.chat-prose math {
+  font-size: 1.05em;
+}
+.chat-prose math[display="block"] {
+  display: block math;
+  overflow-x: auto;
+  padding-block: 0.25rem;
+}
+
+/* Menus, dialogs and toasts open with a short rise; the drawer slides in from the side. */
+@keyframes chat-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes chat-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes chat-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes chat-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

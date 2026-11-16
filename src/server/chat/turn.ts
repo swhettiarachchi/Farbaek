@@ -1,0 +1,619 @@
+/**
+ * One turn of Farbaek Chat on the server (stage 199, ADR 0213), in two parts so the browser hears a refusal before any stream
+ * opens:
+ *
+ * - prepareTurn checks the request against the person's own conversation, picks the model the plan allows, builds what the model
+ *   will read, reserves usage for it (operation chat, or image_generation for a picture), and only then writes the question and
+ *   an empty answer. A refusal here writes nothing and costs nothing.
+ * - run streams the answer: text as it comes, saved every few seconds and at the end, so a stopped or interrupted answer keeps
+ *   what it had. Usage settles to the real cost; a failed answer is refunded, and a stopped one pays only for what was written.
+ *   The first answer of a new conversation also gets the AI's short name for it.
+ */
+import { createHash } from "node:crypto";
+import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
+import { modelName } from "@/core/billing/model-names";
+import { imageSize } from "@/core/chat/files";
+import { chooseChatModel, type ChatSetup } from "@/core/chat/models";
+import { CHAT_LIMITS, cleanTitle, titleFrom, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
+import { sniffImage } from "@/core/workspace/images";
+import type { ProviderUsage } from "@/server/ai/contract-drafter";
+import { CHAT_SYSTEM_PROMPT, type ChatInputMessage, type ChatModel, type ChatOutcome, type ChatPart } from "@/server/ai/chat-model";
+import { IMAGE_OUTPUT_TOKENS, type AspectRatio, type ImageGenerator } from "@/server/ai/gemini-image";
+import { log } from "@/server/observability/log";
+import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, type ResolvedPlan, type UsageContext } from "@/server/workspace/ai-usage";
+import { MESSAGES, codeFromDatabaseError } from "@/server/workspace/use-cases";
+import type { ChatWrites, StoredFile } from "./store";
+
+export interface ChatReads {
+  path(conversationId: string, leaf: string | null, limit: number): Promise<ChatMessage[] | null>;
+  files(ids: string[]): Promise<StoredFile[]>;
+  pendingFiles(ids: string[]): Promise<{ id: string; kind: ChatFile["kind"]; size: number; messageId: string | null; conversationId: string | null }[]>;
+  conversation(id: string): Promise<{ id: string; titled: boolean; title: string; projectId: string | null } | null>;
+  projectExists(id: string): Promise<boolean>;
+}
+
+export interface TurnDeps {
+  /** Metering for Claude: the workspace's own key's log when it has one, otherwise its allowance. */
+  claudeUsage: UsageContext & AiUsageDeps;
+  /** Metering on Farbaek's keys (OpenAI and images): always the workspace's allowance. */
+  usage: UsageContext & AiUsageDeps;
+  writes: ChatWrites;
+  reads: ChatReads;
+  claude: ChatModel | null;
+  openai: ChatModel | null;
+  images: ImageGenerator | null;
+  /** Why images can't be made here, when they can't. */
+  imagesOff: string | null;
+  openaiConnected: boolean;
+  overrides?: ChatSetup["overrides"];
+  now(): number;
+}
+
+export type TurnFailure = { ok: false; status: number; message: string };
+
+export interface PreparedTurn {
+  ok: true;
+  conversationId: string;
+  run(emit: (e: TurnEvent) => void, signal: AbortSignal): Promise<void>;
+}
+
+const MANUAL = "Earlier answers in your chats stay readable.";
+const MAX_OUTPUT = { quick: 4_096, balanced: 16_000, thorough: 32_000 } as const;
+/** What the model reads at most, estimated: older messages drop off first. */
+const CONTEXT_TOKENS = 120_000;
+/** Messages read from the branch for context. */
+const CONTEXT_MESSAGES = 80;
+/** User messages back whose files the model still reads; older files are named only. */
+const FILE_TURNS = 3;
+const SAVE_EVERY_MS = 3_000;
+
+const CHAT_ERRORS: Record<string, { status: number; message: string }> = {
+  CHAT_LIMIT: { status: 409, message: "This conversation is as long as a conversation can be. Start a new chat to carry on." },
+  FILE_NOT_FOUND: { status: 404, message: "One of the attached files isn't available anymore. Remove it and attach it again." },
+  TOO_MANY_FILES: { status: 409, message: "That's more files than a chat can hold at once. Remove some, then try again." },
+  INVALID_MESSAGE: { status: 400, message: "Write a message or attach a file first." },
+  CANNOT_CONTINUE: { status: 409, message: "Only an answer that stopped part-way can be continued." },
+  ALREADY_ENDED: { status: 409, message: "That answer has already ended." },
+};
+
+/** A database refusal as the person reads it. */
+export function chatFailure(error: string): TurnFailure {
+  const known = Object.keys(CHAT_ERRORS).find((code) => error.includes(code));
+  if (known) return { ok: false, ...CHAT_ERRORS[known]! };
+  const code = codeFromDatabaseError(error);
+  const status = code === "NOT_FOUND" ? 404 : code === "FORBIDDEN" || code === "WORKSPACE_SUSPENDED" ? 403 : code === "PAUSED_BY_FARBAEK" ? 503 : 409;
+  return { ok: false, status, message: code === "NOT_FOUND" ? "That conversation doesn't exist or isn't yours." : MESSAGES[code] };
+}
+
+const refused = (status: number, message: string): TurnFailure => ({ ok: false, status, message });
+
+const FAILED_TEXT: Record<string, string> = {
+  REFUSED: "The AI declined to answer that, so it wasn't counted.",
+  INCOMPLETE: "The answer didn't finish, so it wasn't counted. Try again.",
+  PROVIDER_BUSY: "The AI is busy right now, so this wasn't counted. Try again in a minute.",
+  PROVIDER_ERROR: "The answer didn't finish, so it wasn't counted. Try again.",
+};
+const FAILED_IMAGE: Record<string, string> = {
+  REFUSED: "The image service declined to make that picture, so it wasn't counted. Reword the description and try again.",
+  INCOMPLETE: "No picture came back, so it wasn't counted. Try again, or reword the description.",
+  PROVIDER_BUSY: "The image service is busy, so this wasn't counted. Try again in a minute.",
+  PROVIDER_ERROR: "The picture wasn't made, so it wasn't counted. Try again in a minute.",
+};
+
+function fileTokens(f: { kind: ChatFile["kind"]; size: number }): number {
+  if (f.kind === "image") return 1_600;
+  if (f.kind === "pdf") return Math.min(100_000, Math.ceil(f.size * 0.08));
+  return Math.ceil(f.size / 3);
+}
+
+function messageTokens(m: { content: string; files: { kind: ChatFile["kind"]; size: number }[] }, withFiles: boolean): number {
+  return approxTokens(m.content) + 8 + (withFiles ? m.files.reduce((n, f) => n + fileTokens(f), 0) : m.files.length * 12);
+}
+
+interface ContextMessage {
+  id: string;
+  role: "user" | "assistant";
+  kind: "text" | "image";
+  content: string;
+  status: ChatMessage["status"];
+  files: { id: string; name: string; kind: ChatFile["kind"]; size: number; generated: boolean }[];
+}
+
+/** The messages the model reads: the branch, newest last, trimmed to fit, with files for the last few questions only. */
+export function fitContext(messages: ContextMessage[]): { kept: ContextMessage[]; withFiles: Set<string>; tokens: number } {
+  const withFiles = new Set<string>();
+  let turns = 0;
+  for (let i = messages.length - 1; i >= 0 && turns < FILE_TURNS; i--) {
+    const m = messages[i]!;
+    if (m.role === "user" && m.files.length > 0) {
+      withFiles.add(m.id);
+      turns++;
+    }
+  }
+  const kept: ContextMessage[] = [];
+  let tokens = 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]!;
+    const cost = messageTokens(m, withFiles.has(m.id));
+    if (kept.length > 0 && tokens + cost > CONTEXT_TOKENS) break;
+    kept.unshift(m);
+    tokens += cost;
+  }
+  // The model's conversation starts with a question.
+  while (kept.length > 1 && kept[0]!.role !== "user") kept.shift();
+  return { kept, withFiles, tokens };
+}
+
+/** Turns the kept messages into the model's input, reading file contents for the ones that carry them. */
+async function toModelInput(reads: ChatReads, context: { kept: ContextMessage[]; withFiles: Set<string> }): Promise<ChatInputMessage[]> {
+  const ids = context.kept.filter((m) => context.withFiles.has(m.id)).flatMap((m) => m.files.map((f) => f.id));
+  const contents = new Map((await reads.files(ids)).map((f) => [f.id, f]));
+  const out: ChatInputMessage[] = [];
+  for (const m of context.kept) {
+    const parts: ChatPart[] = [];
+    if (m.role === "user") {
+      for (const f of m.files) {
+        const stored = context.withFiles.has(m.id) ? contents.get(f.id) : undefined;
+        if (!stored) {
+          parts.push({ type: "text", text: `[${f.name} was attached earlier in the conversation.]` });
+          continue;
+        }
+        if (stored.kind === "image") parts.push({ type: "image", mime: stored.mime, data: stored.content });
+        else if (stored.kind === "pdf") parts.push({ type: "pdf", name: stored.name, data: stored.content });
+        else parts.push({ type: "document", name: stored.name, text: Buffer.from(stored.content, "base64").toString("utf8") });
+      }
+      parts.push({ type: "text", text: m.content });
+    } else if (m.kind === "image") {
+      parts.push({ type: "text", text: m.status === "complete" ? "[An image was made for this request with Farbaek's image tool.]" : "[The image wasn't made.]" });
+    } else {
+      parts.push({ type: "text", text: m.content || "(no answer)" });
+    }
+    // Two messages from the same side in a row are joined, as the providers expect turns to alternate.
+    const last = out[out.length - 1];
+    if (last && last.role === m.role) last.parts.push(...parts);
+    else out.push({ role: m.role, parts });
+  }
+  return out;
+}
+
+const asContext = (m: ChatMessage): ContextMessage => ({ id: m.id, role: m.role, kind: m.kind, content: m.content, status: m.status, files: m.files.map((f) => ({ id: f.id, name: f.name, kind: f.kind, size: f.size, generated: f.generated })) });
+
+/** Checks the turn, reserves usage and writes the question and an empty answer. Nothing is written when it fails. */
+export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId: string; request: TurnRequest }): Promise<TurnFailure | PreparedTurn> {
+  const { orgId, userId, request } = input;
+  const actor = userId;
+
+  // 1. What the turn builds on.
+  const conversationId: string | null = request.conversationId;
+  let questionParent: string | null = null;
+  let base: ChatMessage[] = [];
+  let questionText: string | null = null;
+  let questionFiles: string[] = [];
+  let existingQuestion: ChatMessage | null = null;
+  let continuing: ChatMessage | null = null;
+  let conversationTitled = false;
+
+  if (conversationId) {
+    const conversation = await deps.reads.conversation(conversationId);
+    if (!conversation) return refused(404, "That conversation doesn't exist or isn't yours.");
+    conversationTitled = conversation.titled || Boolean(conversation.title);
+  }
+
+  if (request.action === "send") {
+    questionText = request.text;
+    questionFiles = request.files;
+    questionParent = request.parentId;
+    if (request.parentId) {
+      if (!conversationId) return refused(400, "That message isn't in a conversation.");
+      const path = await deps.reads.path(conversationId, request.parentId, CONTEXT_MESSAGES);
+      if (!path || path.length === 0 || path[path.length - 1]!.role !== "assistant") return refused(404, "That conversation doesn't exist or isn't yours.");
+      if (path[path.length - 1]!.status === "streaming") return refused(409, "Wait for the answer to finish, or stop it, before asking again.");
+      base = path;
+    } else if (conversationId) {
+      return refused(400, "That message isn't in this conversation.");
+    }
+    if (request.projectId && !conversationId && !(await deps.reads.projectExists(request.projectId))) return refused(404, "That project doesn't exist or isn't in this workspace.");
+  } else {
+    const path = await deps.reads.path(conversationId!, request.messageId, CONTEXT_MESSAGES);
+    const target = path?.[path.length - 1];
+    if (!path || !target || target.id !== request.messageId) return refused(404, "That message doesn't exist or isn't yours.");
+    if (request.action === "edit") {
+      if (target.role !== "user") return refused(400, "Only your own messages can be edited.");
+      questionText = request.text;
+      questionFiles = request.files;
+      questionParent = target.parentId;
+      base = path.slice(0, -1);
+    } else if (request.action === "regenerate") {
+      if (target.role !== "user") return refused(400, "Choose the question to answer again.");
+      existingQuestion = target;
+      base = path;
+    } else {
+      if (target.role !== "assistant" || target.kind !== "text" || (target.status !== "stopped" && !(target.status === "complete" && target.meta.stop === "length"))) {
+        return refused(409, "Only an answer that stopped part-way can be continued.");
+      }
+      continuing = target;
+      base = path;
+    }
+  }
+
+  const mode = request.action === "continue" ? "text" : request.mode;
+  if (questionText !== null) {
+    const trimmed = questionText.trim();
+    if (!trimmed && questionFiles.length === 0) return refused(400, "Write a message or attach a file first.");
+    if (mode === "image" && (trimmed.length < 3 || trimmed.length > CHAT_LIMITS.imagePrompt)) return refused(400, `Describe the image in 3 to ${CHAT_LIMITS.imagePrompt.toLocaleString("en-US")} characters.`);
+  }
+  if (mode === "image" && existingQuestion && (existingQuestion.content.trim().length < 3 || existingQuestion.content.length > CHAT_LIMITS.imagePrompt)) {
+    return refused(400, `Describe the image in 3 to ${CHAT_LIMITS.imagePrompt.toLocaleString("en-US")} characters.`);
+  }
+
+  // Files on a new question: the person's own, either waiting to be sent or (when editing) on this conversation's messages.
+  const pending = await deps.reads.pendingFiles(questionFiles);
+  if (pending.length !== new Set(questionFiles).size) return refused(404, "One of the attached files isn't available anymore. Remove it and attach it again.");
+  if (pending.some((f) => f.messageId !== null && f.conversationId !== conversationId)) return refused(404, "One of the attached files isn't available anymore. Remove it and attach it again.");
+
+  // 2. The plan, and the model or image tool that answers.
+  const plan = await resolvePlan(deps.usage, orgId);
+  if (!plan.ok) return refused(503, plan.message);
+
+  const newQuestion: ContextMessage | null =
+    questionText !== null
+      ? {
+          id: "new",
+          role: "user",
+          kind: "text",
+          content: questionText,
+          status: "complete",
+          files: pending.map((f) => ({ id: f.id, name: "file", kind: f.kind, size: f.size, generated: false })),
+        }
+      : null;
+
+  if (mode === "image") return prepareImage(deps, { orgId, actor, plan: plan.value, request, conversationId, questionParent, base, questionText, questionFiles, newQuestion, existingQuestion, conversationTitled });
+
+  const setup: ChatSetup = { plan: plan.value.plan, claude: deps.claude !== null, openai: deps.openai !== null && deps.openaiConnected, overrides: deps.overrides };
+  const choice = chooseChatModel(setup, request.model, request.effort);
+  if (!choice) return refused(503, "AI isn't connected on this server yet. Earlier answers in your chats stay readable.");
+  const model = choice.provider === "anthropic" ? deps.claude! : deps.openai!;
+  const meter = choice.provider === "anthropic" ? deps.claudeUsage : deps.usage;
+
+  const contextMessages = [...base.map(asContext), ...(newQuestion ? [newQuestion] : [])];
+  if (continuing) contextMessages[contextMessages.length - 1] = asContext(continuing);
+  const context = fitContext(contextMessages);
+  const maxOutput = MAX_OUTPUT[request.effort];
+  const needsTitle = !conversationId || (!conversationTitled && base.length === 0);
+  const units = reserveUnits(choice.model, context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0));
+
+  const reserved = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units, manual: MANUAL, billing: plan.value });
+  if (!reserved.ok) return refused(reserved.code === "QUOTA_EXCEEDED" || reserved.code === "TRIAL_CAP_REACHED" ? 402 : reserved.code === "PLATFORM_DAILY_LIMIT" ? 429 : 503, reserved.message);
+  const refund = (reason: "failed" | "stopped", usage: ProviderUsage | null = null) => refundUsage(meter, { orgId, entryId: reserved.value.entryId, usage, reason });
+
+  // 3. The writes: the conversation, the question and an empty answer.
+  const written = await writeQuestionAndAnswer(deps, { orgId, actor, request, conversationId, questionParent, questionText, questionFiles, existingQuestion, continuing, kind: "text", model: choice.model });
+  if (!written.ok) {
+    await refund("failed");
+    return written;
+  }
+  const { conversationId: convId, question, answerId, created } = written;
+
+  const modelInput = await toModelInput(deps.reads, {
+    kept: context.kept.map((m) => (m.id === "new" ? { ...m, id: question?.id ?? m.id, files: question?.files.map((f) => ({ id: f.id, name: f.name, kind: f.kind, size: f.size, generated: f.generated })) ?? m.files } : m)),
+    withFiles: new Set([...context.withFiles].map((id) => (id === "new" ? (question?.id ?? id) : id))),
+  });
+  const prior = continuing?.content ?? "";
+  if (continuing) modelInput.push({ role: "user", parts: [{ type: "text", text: "Continue your previous answer from exactly where it stopped. Don't repeat anything you already wrote, and don't comment on continuing." }] });
+
+  const answer: ChatMessage = {
+    id: answerId,
+    parentId: continuing ? continuing.parentId : (question?.id ?? existingQuestion!.id),
+    role: "assistant",
+    kind: "text",
+    content: prior,
+    status: "streaming",
+    modelName: modelName(choice.model),
+    error: null,
+    rating: null,
+    thinkingMs: null,
+    meta: {},
+    createdAt: continuing?.createdAt ?? new Date(deps.now()).toISOString(),
+    siblings: continuing?.siblings ?? [answerId],
+    files: [],
+  };
+
+  return {
+    ok: true,
+    conversationId: convId,
+    async run(emit, signal) {
+      emit({ type: "start", conversationId: convId, created, question, answer, note: choice.note });
+      let text = prior;
+      let added = "";
+      let thinkingAt: number | null = null;
+      let thinkingMs: number | null = null;
+      let lastSave = deps.now();
+      let saving: Promise<unknown> = Promise.resolve();
+      const save = (status: "streaming" | "complete" | "stopped" | "failed", error: string | null, meta: Record<string, unknown> | null) =>
+        deps.writes.writeReply({ orgId, actor, messageId: answerId, content: text, status, model: null, error, thinkingMs, meta });
+
+      let outcome: ChatOutcome;
+      try {
+        outcome = await model.stream(
+          { model: choice.model, thinking: choice.thinking, system: CHAT_SYSTEM_PROMPT, messages: modelInput, maxOutputTokens: maxOutput },
+          {
+            onThinking(summary) {
+              if (thinkingAt === null) thinkingAt = deps.now();
+              emit({ type: "thinking", v: summary });
+            },
+            onText(delta) {
+              if (thinkingAt !== null && thinkingMs === null) thinkingMs = deps.now() - thinkingAt;
+              if (text.length + delta.length > 190_000) return;
+              text += delta;
+              added += delta;
+              emit({ type: "text", v: delta });
+              if (deps.now() - lastSave > SAVE_EVERY_MS) {
+                lastSave = deps.now();
+                // One save at a time; a slow save never holds up the stream.
+                saving = saving.then(() => save("streaming", null, null)).catch(() => undefined);
+              }
+            },
+          },
+          signal,
+        );
+      } catch {
+        outcome = { ok: false, failure: "PROVIDER_ERROR", usage: null, aborted: signal.aborted };
+      }
+      await saving;
+      if (thinkingAt !== null && thinkingMs === null) thinkingMs = deps.now() - thinkingAt;
+
+      let status: "complete" | "stopped" | "failed";
+      let error: string | null = null;
+      let stop: "length" | "refusal" | null = null;
+      if (outcome.ok) {
+        stop = outcome.stop === "end" ? null : outcome.stop;
+        status = outcome.stop === "refusal" && !added.trim() ? "failed" : "complete";
+        if (status === "failed") error = FAILED_TEXT.REFUSED!;
+      } else if (outcome.aborted) {
+        status = "stopped";
+      } else {
+        status = "failed";
+        error = FAILED_TEXT[outcome.failure] ?? FAILED_TEXT.PROVIDER_ERROR!;
+      }
+      const finalSave = await save(status, error, stop ? { stop } : null);
+      if (!finalSave.ok) log("error", "chat.save_failed", { status, reason: finalSave.error.slice(0, 120) });
+      try {
+        emit({ type: "done", status, error, thinkingMs, modelName: modelName(outcome.usage?.model ?? choice.model), stop });
+      } catch {
+        // The browser has gone; what was written is saved.
+      }
+
+      // The conversation's name, from its first answer.
+      let usage = outcome.usage;
+      if (needsTitle && status === "complete" && added.trim()) {
+        const named = await model.title({ model: choice.model, question: questionText ?? "", answer: text }, AbortSignal.timeout(20_000));
+        const title = named.title ? cleanTitle(named.title) : null;
+        if (title) {
+          await deps.writes.autoTitle({ orgId, actor, conversationId: convId, title });
+          try {
+            emit({ type: "title", title });
+          } catch {
+            // Gone.
+          }
+        }
+        if (usage && named.usage && named.usage.model === usage.model) {
+          usage = {
+            ...usage,
+            inputTokens: usage.inputTokens + named.usage.inputTokens,
+            outputTokens: usage.outputTokens + named.usage.outputTokens,
+            cacheWriteTokens: (usage.cacheWriteTokens ?? 0) + (named.usage.cacheWriteTokens ?? 0),
+            cacheReadTokens: (usage.cacheReadTokens ?? 0) + (named.usage.cacheReadTokens ?? 0),
+          };
+        }
+      }
+
+      // Settling: what was answered is paid for, a failure isn't, and a stopped answer pays for what it wrote.
+      if (status === "complete") {
+        if (usage) await settleUsage(meter, { orgId, entryId: reserved.value.entryId, usage });
+        else await refund("failed");
+      } else if (status === "stopped") {
+        if (added.trim()) {
+          const spent: ProviderUsage = usage
+            ? { ...usage, outputTokens: Math.max(usage.outputTokens, approxTokens(added)) }
+            : { model: choice.model, inputTokens: context.tokens, outputTokens: approxTokens(added), cacheWriteTokens: 0, cacheReadTokens: 0 };
+          await settleUsage(meter, { orgId, entryId: reserved.value.entryId, usage: spent });
+        } else await refund("stopped", usage);
+      } else await refund("failed", usage);
+    },
+  };
+}
+
+interface Written {
+  ok: true;
+  conversationId: string;
+  question: ChatMessage | null;
+  answerId: string;
+  created: boolean;
+}
+
+async function writeQuestionAndAnswer(
+  deps: TurnDeps,
+  i: {
+    orgId: string;
+    actor: string;
+    request: TurnRequest;
+    conversationId: string | null;
+    questionParent: string | null;
+    questionText: string | null;
+    questionFiles: string[];
+    existingQuestion: ChatMessage | null;
+    continuing: ChatMessage | null;
+    kind: "text" | "image";
+    model: string;
+  },
+): Promise<Written | TurnFailure> {
+  let conversationId = i.conversationId;
+  let created = false;
+  if (!conversationId) {
+    const projectId = i.request.action === "send" ? i.request.projectId : null;
+    const started = await deps.writes.start({ orgId: i.orgId, actor: i.actor, projectId, title: titleFrom(i.questionText ?? "") });
+    if (!started.ok) return chatFailure(started.error);
+    conversationId = started.value;
+    created = true;
+  }
+
+  if (i.continuing) {
+    const reopened = await deps.writes.reopenReply({ orgId: i.orgId, actor: i.actor, messageId: i.continuing.id });
+    if (!reopened.ok) return chatFailure(reopened.error);
+    return { ok: true, conversationId, question: null, answerId: i.continuing.id, created };
+  }
+
+  let question: ChatMessage | null = null;
+  let questionId: string;
+  if (i.questionText !== null) {
+    const added = await deps.writes.addQuestion({ orgId: i.orgId, actor: i.actor, conversationId, parentId: i.questionParent, content: i.questionText, files: i.questionFiles });
+    if (!added.ok) return chatFailure(added.error);
+    questionId = added.value;
+    const read = await deps.reads.path(conversationId, questionId, 1);
+    question = read?.[0] ?? null;
+  } else questionId = i.existingQuestion!.id;
+
+  const began = await deps.writes.beginReply({ orgId: i.orgId, actor: i.actor, conversationId, parentId: questionId, kind: i.kind, model: i.model });
+  if (!began.ok) return chatFailure(began.error);
+  return { ok: true, conversationId, question, answerId: began.value, created };
+}
+
+async function prepareImage(
+  deps: TurnDeps,
+  i: {
+    orgId: string;
+    actor: string;
+    plan: ResolvedPlan;
+    request: TurnRequest;
+    conversationId: string | null;
+    questionParent: string | null;
+    base: ChatMessage[];
+    questionText: string | null;
+    questionFiles: string[];
+    newQuestion: ContextMessage | null;
+    existingQuestion: ChatMessage | null;
+    conversationTitled: boolean;
+  },
+): Promise<TurnFailure | PreparedTurn> {
+  if (!deps.images) return refused(503, deps.imagesOff ?? "Image generation isn't connected on this server yet.");
+  const generator = deps.images;
+  const request = i.request;
+  if (request.action === "continue") return refused(400, "Only an answer that stopped part-way can be continued.");
+  const aspect = request.aspect as AspectRatio;
+  const prompt = (i.questionText ?? i.existingQuestion?.content ?? "").trim().replace(/\s+/g, " ");
+
+  // Pictures to work from: the ones attached to this question, or else the last picture made in this conversation (so "make it
+  // brighter" edits it).
+  const questionImages = i.questionText !== null ? await deps.reads.pendingFiles(i.questionFiles) : [];
+  let referenceIds = (i.questionText !== null ? i.questionFiles.filter((id) => questionImages.find((f) => f.id === id)?.kind === "image") : (i.existingQuestion?.files.filter((f) => f.kind === "image").map((f) => f.id) ?? [])).slice(0, 3);
+  if (referenceIds.length === 0) {
+    const lastMade = [...i.base].reverse().find((m) => m.role === "assistant" && m.kind === "image" && m.files.some((f) => f.generated));
+    if (lastMade) referenceIds = [lastMade.files.find((f) => f.generated)!.id];
+  }
+
+  const units = reserveUnits(generator.model, approxTokens(prompt) + 20 + referenceIds.length * 1_300, Math.ceil(IMAGE_OUTPUT_TOKENS * 1.25));
+  const reserved = await reserveUsage(deps.usage, { orgId: i.orgId, userId: i.actor, taskId: null, operation: "image_generation", units, manual: MANUAL, billing: i.plan });
+  if (!reserved.ok) return refused(reserved.code === "QUOTA_EXCEEDED" || reserved.code === "TRIAL_CAP_REACHED" ? 402 : reserved.code === "PLATFORM_DAILY_LIMIT" ? 429 : 503, reserved.message);
+  const entry = { orgId: i.orgId, entryId: reserved.value.entryId };
+
+  const written = await writeQuestionAndAnswer(deps, {
+    orgId: i.orgId,
+    actor: i.actor,
+    request,
+    conversationId: i.conversationId,
+    questionParent: i.questionParent,
+    questionText: i.questionText,
+    questionFiles: i.questionFiles,
+    existingQuestion: i.existingQuestion,
+    continuing: null,
+    kind: "image",
+    model: generator.model,
+  });
+  if (!written.ok) {
+    await refundUsage(deps.usage, { ...entry, usage: null, reason: "failed" });
+    return written;
+  }
+  const { conversationId, question, answerId, created } = written;
+  const references = (await deps.reads.files(referenceIds)).filter((f) => f.kind === "image").map((f) => ({ mimeType: f.mime, data: f.content }));
+  const answer: ChatMessage = {
+    id: answerId,
+    parentId: question?.id ?? i.existingQuestion!.id,
+    role: "assistant",
+    kind: "image",
+    content: "",
+    status: "streaming",
+    modelName: modelName(generator.model),
+    error: null,
+    rating: null,
+    thinkingMs: null,
+    meta: { aspect, prompt: prompt.slice(0, 1_000) },
+    createdAt: new Date(deps.now()).toISOString(),
+    siblings: [answerId],
+    files: [],
+  };
+
+  return {
+    ok: true,
+    conversationId,
+    async run(emit, signal) {
+      emit({ type: "start", conversationId, created, question, answer, note: null });
+      const meta = { aspect, prompt: prompt.slice(0, 1_000) };
+      const end = async (status: "complete" | "failed" | "stopped", error: string | null) => {
+        await deps.writes.writeReply({ orgId: i.orgId, actor: i.actor, messageId: answerId, content: "", status, model: null, error, thinkingMs: null, meta });
+        try {
+          emit({ type: "done", status, error, thinkingMs: null, modelName: modelName(generator.model), stop: null });
+        } catch {
+          // Gone.
+        }
+      };
+
+      const wording = references.length > 0 ? `Use the attached picture${references.length > 1 ? "s" : ""} as the starting point. ${prompt}` : prompt;
+      let outcome;
+      try {
+        outcome = await generator.generate({ prompt: wording, aspectRatio: aspect, references }, signal);
+      } catch {
+        outcome = { ok: false as const, failure: "PROVIDER_ERROR" as const, usage: null };
+      }
+      if (!outcome.ok) {
+        await refundUsage(deps.usage, { ...entry, usage: outcome.usage, reason: signal.aborted ? "stopped" : "failed" });
+        await end(signal.aborted ? "stopped" : "failed", signal.aborted ? null : (FAILED_IMAGE[outcome.failure] ?? FAILED_IMAGE.PROVIDER_ERROR!));
+        return;
+      }
+      const kind = sniffImage(outcome.bytes);
+      const mime = kind === "png" ? "image/png" : kind === "jpeg" ? "image/jpeg" : kind === "webp" ? "image/webp" : null;
+      if (!mime || outcome.bytes.length > CHAT_LIMITS.fileBytes) {
+        await refundUsage(deps.usage, { ...entry, usage: outcome.usage, reason: "failed" });
+        await end("failed", FAILED_IMAGE.INCOMPLETE!);
+        return;
+      }
+      const size = imageSize(outcome.bytes);
+      const sha256 = createHash("sha256").update(outcome.bytes).digest("hex");
+      const name = `farbaek-image-${sha256.slice(0, 8)}.${kind === "jpeg" ? "jpg" : kind}`;
+      const saved = await deps.writes.saveFile({
+        orgId: i.orgId,
+        actor: i.actor,
+        messageId: answerId,
+        name,
+        kind: "image",
+        mime,
+        size: outcome.bytes.length,
+        sha256,
+        content: Buffer.from(outcome.bytes).toString("base64"),
+        width: size?.width ?? null,
+        height: size?.height ?? null,
+      });
+      if (!saved.ok) {
+        await refundUsage(deps.usage, { ...entry, usage: outcome.usage, reason: "failed" });
+        await end("failed", "The picture was made but couldn't be saved, so it wasn't counted. Try again.");
+        return;
+      }
+      try {
+        emit({ type: "image", file: { id: saved.value, name, kind: "image", mime, size: outcome.bytes.length, width: size?.width ?? null, height: size?.height ?? null, generated: true } });
+      } catch {
+        // Gone; it's saved.
+      }
+      await end("complete", null);
+      await settleUsage(deps.usage, { ...entry, usage: outcome.usage });
+    },
+  };
+}

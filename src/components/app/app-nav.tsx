@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChatCircleTextIcon,
   BookOpenTextIcon,
   CaretDownIcon,
   CaretRightIcon,
@@ -48,6 +49,7 @@ export interface NavItem {
 /** What most people need, always in view. */
 const CORE: NavItem[] = [
   { href: "/app", label: "Home", short: "Home", icon: HouseSimpleIcon, exact: true, about: "What's happening, and what needs you.", also: ["Mission Control"] },
+  { href: "/app/chat", label: "Chat", short: "Chat", icon: ChatCircleTextIcon, about: "Ask, write, code, research and make images with AI.", also: ["AI chat", "Assistant", "Ask AI", "Images"] },
   { href: "/app/build", label: "Build", short: "Build", icon: HammerIcon, about: "Everything the agent is building or has built." },
   { href: "/app/projects", label: "Projects", short: "Projects", icon: SquaresFourIcon, about: "Your sites and apps." },
   { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListBulletsIcon, about: "Every piece of work, and where it stands." },
@@ -81,9 +83,10 @@ const ACCOUNT: NavItem[] = [
 export const APP_PAGES: readonly NavItem[] = [...CORE, ...TOOLS, ...ACCOUNT];
 
 // The phone's five tabs: Tasks is reached through More there, with the tools and the account pages.
-const TAB_ITEMS = CORE.filter((i) => i.href !== "/app/tasks");
+// Chat has its own button in the phone header and a row on More: five tabs is the most a phone bar holds.
+const TAB_ITEMS = CORE.filter((i) => i.href !== "/app/tasks" && i.href !== "/app/chat");
 /** The rows on the phone's More page, in order. */
-export const MORE_PAGES: readonly NavItem[] = [...CORE.filter((i) => i.href === "/app/tasks"), ...TOOLS, ...ACCOUNT];
+export const MORE_PAGES: readonly NavItem[] = [...CORE.filter((i) => i.href === "/app/tasks" || i.href === "/app/chat"), ...TOOLS, ...ACCOUNT];
 
 /**
  * On the phone, a page that belongs to a tab lights that tab: a task opens from its project, and templates and checking an
