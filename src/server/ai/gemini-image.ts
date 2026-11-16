@@ -32,7 +32,8 @@ export type ImageOutcome =
 
 export interface ImageGenerator {
   model: string;
-  generate(input: { prompt: string; aspectRatio: AspectRatio }, signal?: AbortSignal): Promise<ImageOutcome>;
+  /** References are pictures to work from (an image to edit, or a style to follow): sent with the words, generateContent only. */
+  generate(input: { prompt: string; aspectRatio: AspectRatio; references?: readonly { mimeType: string; data: string }[] }, signal?: AbortSignal): Promise<ImageOutcome>;
 }
 
 interface Options {
@@ -107,7 +108,7 @@ export function createGeminiImageGenerator(options: Options): ImageGenerator {
           method: "POST",
           headers,
           body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: input.prompt }] }],
+            contents: [{ role: "user", parts: [...(input.references ?? []).map((r) => ({ inlineData: { mimeType: r.mimeType, data: r.data } })), { text: input.prompt }] }],
             generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: input.aspectRatio } },
           }),
           signal: combined,
@@ -126,7 +127,8 @@ export function createGeminiImageGenerator(options: Options): ImageGenerator {
         if (res.status === 404 || res.status === 400) {
           const text = await res.text();
           // The method or its image settings aren't accepted for this model: ask the Interactions API once.
-          if (res.status === 404 || /responseModalities|response_modalities|imageConfig|image_config|not supported|unsupported/i.test(text)) res = await viaInteractions();
+          // The Interactions API takes words only, so a request with pictures to work from doesn't go there.
+          if (!input.references?.length && (res.status === 404 || /responseModalities|response_modalities|imageConfig|image_config|not supported|unsupported/i.test(text))) res = await viaInteractions();
           else return { ok: false, failure: /safety|blocked/i.test(text) ? "REFUSED" : "PROVIDER_ERROR", usage: null };
         }
       } catch {

@@ -85,6 +85,10 @@ const nextConfig: NextConfig = {
       ...(APP_HOST
         ? [{ source: "/app/survey/:path*", has: [{ type: "host" as const, value: APP_HOST }], headers: [{ key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), payment=(self)" }] }]
         : []),
+      // Farbaek Chat listens when someone speaks a message (stage 199, ADR 0213): the microphone on the chat's own pages too.
+      ...(APP_HOST
+        ? [{ source: "/app/chat/:path*", has: [{ type: "host" as const, value: APP_HOST }], headers: [{ key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), payment=(self)" }] }]
+        : []),
       // Farbaek Scenes and the media library (ADR 0156) load into people's published sites and
       // previews, from other origins: module scripts and WebGL textures need CORS. Library files
       // never change under their versioned path; the kit may get fixes, so it's cached for a day.

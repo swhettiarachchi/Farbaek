@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CaretDownIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CaretDownIcon, ChatCircleTextIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { loadSharedWithMe } from "@/server/workspace/guest-context";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -11,7 +11,8 @@ import { CommandPalette, PaletteIconButton, PaletteTrigger } from "@/components/
 import { CspSafe } from "@/components/app/csp-safe";
 import { ServiceWorker } from "@/components/app/service-worker";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
-import { PAGE_NAV, PageTransition } from "@/components/app/page-transition";
+import { PAGE_NAV } from "@/components/app/page-transition";
+import { AppFrame } from "@/components/app/app-frame";
 import { UsagePanel } from "@/components/app/usage-meters";
 import { CreateOrganizationForm } from "@/components/app/forms";
 import { FirstRunTour } from "@/components/app/first-run";
@@ -139,10 +140,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const nonce = nonceFromCsp((await headers()).get("content-security-policy"));
 
   return (
-    <div data-signed-in className="min-h-[100dvh] bg-canvas lg:grid lg:grid-cols-[272px_minmax(0,1fr)]">
+    <>
       <AndroidEarlyMark nonce={nonce} />
       <DeviceOwner userId={ctx.user.id} />
-      {/* Children never shrink: on a short screen the sidebar scrolls instead of squeezing its controls. */}
+      {/* Farbaek Chat (stage 199) brings its own full-screen frame; every other page gets this one. In the sidebar, children never shrink: on a short screen it scrolls instead of squeezing its controls. */}
+      <AppFrame
+        sidebar={
       <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
         <div className="px-1.5">
           <Brand />
@@ -178,8 +181,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           </div>
         </div>
       </aside>
-
-      <div className="min-w-0">
+        }
+        top={
+          <>
         <AnnouncementBanner items={announcements} />
         {ctx.mode === "demo" ? (
           <p className={BAND}>
@@ -226,6 +230,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <Brand />
           <div className="flex min-w-0 items-center gap-1">
             <PaletteIconButton />
+            <Link href="/app/chat" aria-label="Chat" title="Chat" className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink">
+              <ChatCircleTextIcon size={20} aria-hidden />
+            </Link>
             {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} compact /> : null}
             {/* The pill stays small; the link around it is a full 44px target. */}
             <Link href="/app/more" aria-label={`${current.name}, switch workspace and more`} className="flex min-h-11 min-w-0 max-w-[42vw] items-center rounded-full">
@@ -236,15 +243,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             </Link>
           </div>
         </header>
-
-        <main id="main" className="overflow-x-clip px-4 pb-28 pt-5 sm:px-6 sm:pt-6 lg:px-10 lg:pb-16 lg:pt-10">
-          <div className="mx-auto max-w-[1120px]">
-            <PageTransition>{children}</PageTransition>
-          </div>
-        </main>
-      </div>
-
-      <MobileTabBar approvals={approvals} helpUnread={helpUnread} />
+          </>
+        }
+        tabBar={<MobileTabBar approvals={approvals} helpUnread={helpUnread} />}
+      >
+        {children}
+      </AppFrame>
       <CommandPalette
         projects={projects.filter((p) => !p.archivedAt).slice(0, 50).map((p) => ({ id: p.id, name: p.name }))}
         workspaces={ctx.workspaces.map((w) => ({ id: w.id, name: w.name, current: w.id === current.id }))}
@@ -255,6 +259,6 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       <ServiceWorker />
       {/* Farbaek for Android: Google Play purchases are sent again when the app opens (ADR 0154). */}
       <PlayPurchaseRecovery enabled={googlePlayReady()} />
-    </div>
+    </>
   );
 }
