@@ -17,7 +17,7 @@ import { answer as engineAnswer } from "@/core/survey/assistant/answer";
 import type { Applied, Patch } from "@/core/survey/assistant/apply";
 import { checkTurn } from "@/core/survey/assistant/check";
 import { assistContext } from "@/core/survey/assistant/context";
-import { describeOp, readBack } from "@/core/survey/assistant/describe";
+import { describeOp, describeTurn, readBack } from "@/core/survey/assistant/describe";
 import { LANGUAGES, SURVEY_PHRASES, browserFamily, languageOf, scriptOf, voiceAvailability, type AssistLanguage } from "@/core/survey/assistant/languages";
 import { tierOf, type AssistOutput, type CheckedTurn, type PlanOp } from "@/core/survey/assistant/ops";
 import { readCommand, type StepId } from "@/core/survey/assistant/reader";
@@ -249,11 +249,14 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           return;
         }
         bridge.setMarks(r.touched);
-        addTurn({ ...base, outcome: "done", patch: r.patch, message: changes.map((o) => describeOp(o, ctx).text).join(". "), open: false });
+        const did = changes.map((o) => describeOp(o, ctx).text).join(". ");
+        // What came with the change is said too: a refusal ("approve it and hide the walls") or the engine's answer in its card.
+        const refused = checked.cannot ? CANNOT[checked.cannot] : "";
+        addTurn({ ...base, outcome: "done", patch: r.patch, message: did, open: answers.length > 0 });
         if (engine === "reader") recordLocal(bridge.projectId, base, changes, updateTurn);
-        dispatch({ type: "result", phase: "applied" });
-        setNotice(`${changes.map((o) => describeOp(o, ctx).text).join(". ")}.`);
-        say(["Done."], lang, spoken, resumeLive);
+        dispatch({ type: "result", phase: answers.length ? "answered" : "applied" });
+        setNotice(`${did}.${refused ? ` ${refused}` : ""}`);
+        say(["Done.", refused, ...answers.map((x) => x.speak)].filter(Boolean), lang, spoken, resumeLive);
         return;
       }
       if (handoffs.length) {
@@ -277,7 +280,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       if (views.length) {
         // The bar says what moved, since on a phone the sheet may be out of sight.
         const shown = views.filter((v) => v.kind === "view");
-        const note = historyNote ?? (shown.length ? `${shown.map((o) => describeOp(o, ctx).text).join(". ")}.` : null);
+        const note = [historyNote ?? (shown.length ? `${shown.map((o) => describeOp(o, ctx).text).join(". ")}.` : null), checked.cannot ? CANNOT[checked.cannot] : null].filter(Boolean).join(" ") || null;
         addTurn({ ...base, outcome: "done", open: false, message: note ?? "" });
         dispatch({ type: "result", phase: "applied" });
         if (note) setNotice(note);
@@ -778,7 +781,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
                   : settings.mode === "live"
                     ? "Tap the microphone to talk hands-free, or type, such as “A3 landscape”."
                     : "Hold the microphone to talk, or type, such as “lot B4 from points 1 to 4”. Enter sends.";
-  const describedChanges = useMemo(() => changeOps.map((o) => describeOp(o, ctx)), [changeOps, ctx]);
+  const describedChanges = useMemo(() => describeTurn(changeOps, ctx), [changeOps, ctx]);
   const handoff = active && active.outcome === "suggested" && !pending ? (active.ops.find((o) => tierOf(o) === "handoff") as DivideOp | MeasureOp | undefined) : undefined;
   const failCard = !pending && !handoff && !showDrawer && active?.outcome === "failed";
   // What the bar shows in its quiet row: something happening (listening, working, a result, a reason), or nothing, and then the voice
@@ -882,7 +885,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         />
       ) : null}
 
-      {!pending && !handoff && !showDrawer && active?.outcome === "answered" ? (
+      {!pending && !handoff && !showDrawer && (active?.outcome === "answered" || (active?.outcome === "done" && active.answers.length > 0)) ? (
         <AnswerCard
           words={active.words}
           answers={active.answers}

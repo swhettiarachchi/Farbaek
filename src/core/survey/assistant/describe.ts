@@ -112,6 +112,18 @@ function lotNotes(candidate: Lot, ctx: { doc: SurveyDocument; points: readonly S
   return { values, warnings };
 }
 
+/**
+ * Each change of a turn described, with the lots the turn's other changes add counted as on the plan, so two new lots over the same
+ * corners warn about each other.
+ */
+export function describeTurn(ops: readonly PlanOp[], ctx: { doc: SurveyDocument; points: readonly SurveyPoint[] }): Described[] {
+  const added = ops.map((o) => (o.kind === "lot_add" ? o.lot : null));
+  return ops.map((op, i) => {
+    const others = added.filter((l, j): l is Lot => l !== null && j !== i);
+    return describeOp(op, others.length ? { ...ctx, doc: { ...ctx.doc, lots: [...ctx.doc.lots, ...others] } } : ctx);
+  });
+}
+
 const FEATURE_WORDS: Record<string, string> = { BUILDINGS: "building outline", WALLS: "wall", FENCES: "fence", DRAINS: "drain", ROADS: "road line", UTILITIES: "utility line" };
 
 export function describeOp(op: PlanOp, ctx: { doc: SurveyDocument; points: readonly SurveyPoint[] }): Described {

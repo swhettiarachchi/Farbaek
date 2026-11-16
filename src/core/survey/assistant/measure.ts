@@ -42,7 +42,13 @@ export function readLegs(text: string): { rows: LegRow[]; problems: string[] } {
   const parts = text
     .split(SEGMENT)
     .map((s) => s.replace(/^\s*(?:a\s+)?legs?\b/i, "").trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .reduce<string[]>((all, part) => {
+      const last = all[all.length - 1];
+      if (last !== undefined && /^from\b/i.test(last) && !/\bbearing\b/i.test(last) && /^to\b/i.test(part)) all[all.length - 1] = `${last}, ${part}`;
+      else all.push(part);
+      return all;
+    }, []);
   parts.forEach((part, i) => {
     const what = `Leg ${i + 1}`;
     const b = /\bbearing\b/i.exec(part);

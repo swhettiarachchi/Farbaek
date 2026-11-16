@@ -205,8 +205,12 @@ export function checkTurn(input: CheckInput): CheckedTurn {
     const name = readLotName(label);
     if (!name) return null;
     // In Sinhala the words for "lot" aren't all known yet, so there the card is the check.
-    // ("rename lot B3 to C" names it too: the letter follows "to" or "as".)
-    if (fold(label).length < 2 && scriptOf(instruction) === "en" && !["lot", "allotment", "to", "as"].some((w) => hasPhrase(instruction, `${w} ${label}`))) return null;
+    // ("rename lot B3 to C" names it too: the letter follows "to" or "as" and ends the words, so "as a garden" names nothing.)
+    if (fold(label).length < 2 && scriptOf(instruction) === "en") {
+      const letter = fold(label).replace(/[^a-z0-9]/g, "");
+      const after = new RegExp(`\\b(?:to|as) ${letter}(?=\\s*(?:$|[,.;!?]|\\band\\b|\\bthen\\b))`, "i");
+      if (!["lot", "allotment"].some((w) => hasPhrase(instruction, `${w} ${label}`)) && !(letter && after.test(instruction.normalize("NFKC")))) return null;
+    }
     return name;
   };
   /**
@@ -220,7 +224,7 @@ export function checkTurn(input: CheckInput): CheckedTurn {
     if (input.selection.includes(`lot:${lot.id}`) && /\b(this|that|it|selected|picked)\b/i.test(words)) return true;
     // A name written with its letter and figure ("divide B1 into four lots") names the lot on its own.
     const whole = `${lot.label}${lot.sup}`;
-    if (/[A-Za-z]/.test(whole) && /\d/.test(whole) && hasPhrase(words, whole)) return true;
+    if (/[A-Za-z]/.test(whole) && /\d/.test(whole) && !/^a[0-5]$/i.test(whole) && hasPhrase(words, whole)) return true;
     return [...words.matchAll(/\b(?:lot|allotment)s?\s+([a-z0-9]+(?:\s+(?:superscript\s+|sup\s+)?[a-z0-9]+)?)/gi)].some((m) => {
       // The whole name first ("lot B one" is B¹, never B). The first word alone when it's already whole with its figure ("lot B3 ten
       // feet"), or when the next word can't be part of a name ("lot B to").
@@ -392,7 +396,7 @@ export function checkTurn(input: CheckInput): CheckedTurn {
         }
         if (op.setting === "scale") {
           // A scale is said as one: the word scale or a written ratio. "points 1 to 500" is never a scale.
-          if (scriptOf(op.quote) === "en" && !/\bscale\b|(?<![\p{L}\p{N}.])1\s*[:/]\s*\d/iu.test(op.quote)) {
+          if (scriptOf(op.quote) === "en" && !/\bscale\b|(?<![\p{L}\p{N}.])1\s*[:/]\s*\d|^at (?:a scale of )?one (?:is )?to\b/iu.test(op.quote.trim())) {
             drop("The scale", "Say the scale as a scale, such as \"scale 1:500\".");
             return null;
           }
@@ -569,7 +573,8 @@ export function checkTurn(input: CheckInput): CheckedTurn {
         const named = op.lot ? lotOf(op.lot) : null;
         const lot = named && namesLot(named) ? named : doc.lots.length === 1 ? doc.lots[0]! : null;
         if (!lot) return dropped.push({ what: "Dividing a lot", why: "Say which lot to divide." }), null;
-        const parts = op.count && from(op.count, op.quote) ? readCount(op.count) : null;
+        const halfSize = /\bhalf[\s-]+(?:an?[\s-]+)?(?:acre|rood|perch|hectare)/i.test(instruction) && /half/i.test(op.count);
+        const parts = op.count && !halfSize && from(op.count, op.quote) ? readCount(op.count) : null;
         // The values must read whole: one that reads two ways stops the division rather than go missing.
         const read = op.values && from(op.values, op.quote) ? numbersExactly(op.values) : [];
         if (read === null) return dropped.push({ what: `Dividing lot ${lotName(lot)}`, why: `"${op.values}" doesn't read one way only. Say each value on its own.` }), null;

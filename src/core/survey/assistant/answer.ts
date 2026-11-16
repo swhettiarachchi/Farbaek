@@ -116,7 +116,8 @@ export function answer(op: Extract<PlanOp, { kind: "answer" }>, input: AnswerInp
       const blocking = input.findings.filter((f) => f.blocks.includes("approval") || f.blocks.includes("export"));
       for (const f of blocking.slice(0, 6)) rows.push([f.blocks.includes("export") ? "Stops export" : "Stops approval", f.message]);
       const more = blocking.length > 6 ? ` And ${blocking.length - 6} more checks on the Check step.` : "";
-      const n = rows.length;
+      // Said as everything, the checks past the six shown included.
+      const n = rows.length + Math.max(0, blocking.length - 6);
       return {
         title: "What's still needed",
         rows,
