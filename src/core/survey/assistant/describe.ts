@@ -11,6 +11,18 @@ import type { AssistField, PlanOp } from "./ops";
 import { speakBearing, speakDigits, speakPointNumbers } from "./spoken";
 import { parseBearing } from "../angles";
 
+/**
+ * A bearing as the table takes it ("45 30 15", "N 45 30 E"), written with its marks for the card: 45° 30′ 15″, N 45° 30′ E. The
+ * figures are the surveyor's, unchanged; only the marks are added.
+ */
+export function bearingMarks(text: string): string {
+  const t = text.trim().split(/\s+/);
+  const quadrant = /^[NS]$/.test(t[0] ?? "") && /^[EW]$/.test(t[t.length - 1] ?? "");
+  const parts = quadrant ? t.slice(1, -1) : t;
+  const marked = parts.map((p, i) => `${p}${["°", "′", "″"][i] ?? ""}`).join(" ");
+  return quadrant ? `${t[0]} ${marked} ${t[t.length - 1]}` : marked;
+}
+
 export const LAYER_NAMES: Record<LayerId, string> = {
   BOUNDARY: "Boundary",
   POINTS: "Corner points",
@@ -97,7 +109,7 @@ export function describeOp(op: PlanOp, ctx: { doc: SurveyDocument; points: reado
       return { text: op.action === "undo" ? "Undo the last change" : "Redo the change", values: [] };
     case "layer": {
       const words = [op.visible === true ? "Show" : op.visible === false ? "Hide" : "", op.locked === true ? "lock" : op.locked === false ? "unlock" : ""].filter(Boolean).join(" and ");
-      return { text: `${words.charAt(0).toUpperCase()}${words.slice(1)} the ${LAYER_NAMES[op.layer]} layer`, values: [] };
+      return { text: `${words.charAt(0).toUpperCase()}${words.slice(1)} the ${LAYER_NAMES[op.layer].toLowerCase()} layer`, values: [] };
     }
     case "label":
       return { text: `Move ${named(op.entity)}'s label ${op.dx < 0 ? "left" : op.dx > 0 ? "right" : op.dy < 0 ? "up" : "down"}, on paper only`, values: [{ role: "By", value: `${Math.abs(op.dx || op.dy)} mm`, mono: false }] };
@@ -148,7 +160,7 @@ export function describeOp(op: PlanOp, ctx: { doc: SurveyDocument; points: reado
     }
     case "measure":
       return op.mode === "bearings"
-        ? { text: `Put ${op.rows.length} ${op.rows.length === 1 ? "leg" : "legs"} in the bearings and distances table, to check and import`, values: op.rows.map((r) => ({ role: `${r.from} to ${r.to}`, value: `${r.bearing}  ${r.distance} m`, mono: true })) }
+        ? { text: `Put ${op.rows.length} ${op.rows.length === 1 ? "leg" : "legs"} in the bearings and distances table, to check and import`, values: op.rows.map((r) => ({ role: `${r.from} to ${r.to}`, value: `${bearingMarks(r.bearing)}  ${r.distance} m`, mono: true })) }
         : { text: `Put ${op.rows.length} ${op.rows.length === 1 ? "point" : "points"} in the coordinates table, to check and import`, values: op.rows.map((r) => ({ role: `Point ${r.point}`, value: `N ${r.n}  E ${r.e}${r.z ? `  H ${r.z}` : ""}`, mono: true })) };
   }
 }

@@ -58,7 +58,8 @@ export interface EditorBridge {
   apply(ops: PlanOp[]): Applied;
   revert(patch: Patch): { ok: true } | { ok: false; changedSince: string[] };
   view(op: ViewOp): void;
-  history(action: "undo" | "redo"): void;
+  /** Takes one step back or forward in the editor's history; false when there was none to take. */
+  history(action: "undo" | "redo"): boolean;
   setMarks(entities: string[]): void;
   save(): void;
   openDivide(op: DivideOp): void;
@@ -216,9 +217,14 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       const fromModelHistory = engine === "model" && raw.ops.some((o) => o.kind === "history");
       const checked: CheckedTurn = fromModelHistory ? { ...raw, ops: raw.ops.filter((o) => o.kind !== "history"), dropped: [...raw.dropped, { what: "Undo or redo", why: 'Say "undo" or "redo" on its own, or use Undo.' }] } : raw;
       const views = checked.ops.filter((o) => tierOf(o) === "view");
+      // Undo and redo say what they did, or that there was nothing to take.
+      let historyNote: string | null = null;
       for (const v of views) {
         if (v.kind === "view") bridge.view(v);
-        else if (v.kind === "history") bridge.history(v.action);
+        else if (v.kind === "history") {
+          const did = bridge.history(v.action);
+          historyNote = v.action === "undo" ? (did ? 'Undone. Say "redo" to put it back.' : "There's nothing to undo.") : did ? "Redone." : "There's nothing to redo.";
+        }
       }
       const changes = checked.ops.filter((o) => ["now", "confirm", "caution"].includes(tierOf(o)));
       // Changes from the model always wait in a card, even layers and paper: only the surveyor's own words, read by the local rules,
@@ -270,8 +276,9 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         return;
       }
       if (views.length) {
-        addTurn({ ...base, outcome: "done", open: false });
+        addTurn({ ...base, outcome: "done", open: false, message: historyNote ?? "" });
         dispatch({ type: "result", phase: "applied" });
+        if (historyNote) setNotice(historyNote);
         resumeLive();
         return;
       }

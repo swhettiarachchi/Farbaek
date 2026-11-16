@@ -396,7 +396,12 @@ export function PlanEditor(props: PlanEditorProps) {
         }
       }
     },
-    history: (action) => (action === "undo" ? undo() : redo()),
+    // Whether there was a step to take: the assistant says so either way.
+    history: (action) => {
+      const can = action === "undo" ? history.index > 0 : history.index < history.stack.length - 1;
+      if (can) (action === "undo" ? undo : redo)();
+      return can;
+    },
     setMarks,
     save: () => save(),
     openDivide: (op) => handOver({ kind: "divide", op }, "boundary"),

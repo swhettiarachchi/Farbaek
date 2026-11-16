@@ -16,7 +16,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 /** The surface every card shares: solid (content never sits on glass), a 20px card, and a short rise in. */
 export function CardShell({ children, label, live = "polite" }: { children: ReactNode; label: string; live?: "polite" | "off" }) {
   return (
-    <section aria-label={label} aria-live={live} className="pointer-events-auto w-full max-w-3xl overflow-y-auto rounded-md bg-surface p-4 shadow-e2 ring-1 ring-line max-h-[min(52vh,32rem)] sm:p-5 lg:ml-auto lg:max-h-[min(46vh,30rem)] lg:max-w-[26rem] motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
+    <section aria-label={label} aria-live={live} className="pointer-events-auto w-full max-w-3xl overflow-y-auto rounded-md bg-surface p-4 shadow-e2 ring-1 ring-line max-h-[min(60vh,34rem)] sm:p-5 lg:ml-auto lg:max-h-[min(46vh,30rem)] lg:max-w-[26rem] motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       {children}
     </section>
   );
@@ -132,20 +132,23 @@ export function ChangeCard(props: {
       </ul>
       <LeftOut dropped={props.dropped} />
       {props.approvedVersion ? <p className="mt-4 text-sm text-ink-2">This version is approved. Applying a change makes a new version that needs approving again.</p> : null}
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={props.onApply} disabled={count === 0 || Boolean(props.readOnly)} className={buttonClasses("primary", "md")}>
+      {/* The actions stay in view at the card's foot however many changes it lists, so Apply never needs a scroll to find. */}
+      {props.readOnly ? <p className="mt-4 text-sm text-ink-3">{props.readOnly}</p> : null}
+      {/* On phones one row: Apply takes the width, and the other two keep their names for screen readers as 44 px icon buttons, so
+          the values above stay in view. */}
+      <div className="sticky bottom-0 -mx-4 -mb-4 mt-5 flex items-center gap-2 border-t border-line bg-surface px-4 py-3 sm:-mx-5 sm:-mb-5 sm:flex-wrap sm:px-5">
+        <button type="button" onClick={props.onApply} disabled={count === 0 || Boolean(props.readOnly)} className={buttonClasses("primary", "md", "max-sm:flex-1")}>
           <CheckIcon size={16} weight="bold" aria-hidden />
           {count === props.ops.length ? `Apply ${count === 1 ? "the change" : `${count} changes`}` : `Apply ${count} of ${props.ops.length}`}
         </button>
-        <button type="button" onClick={props.onEdit} className={buttonClasses("secondary", "md")}>
+        <button type="button" onClick={props.onEdit} className={buttonClasses("secondary", "md", "max-sm:size-11 max-sm:shrink-0 max-sm:!px-0")}>
           <PencilSimpleIcon size={16} weight="bold" aria-hidden />
-          Change the words
+          <span className="max-sm:sr-only">Change the words</span>
         </button>
-        <button type="button" onClick={props.onDiscard} className={buttonClasses("ghost", "md")}>
+        <button type="button" onClick={props.onDiscard} className={buttonClasses("ghost", "md", "max-sm:size-11 max-sm:shrink-0 max-sm:!px-0")}>
           <XIcon size={16} weight="bold" aria-hidden />
-          Discard
+          <span className="max-sm:sr-only">Discard</span>
         </button>
-        {props.readOnly ? <span className="text-sm text-ink-3">{props.readOnly}</span> : null}
       </div>
     </CardShell>
   );
@@ -172,7 +175,7 @@ export function AnswerCard({ words, answers, onDone }: { words: string; answers:
         </div>
       ))}
       <p className="mt-3 text-xs text-ink-3">Worked out by Farbaek&apos;s survey engine from the plan, not by the AI.</p>
-      <div className="mt-4">
+      <div className="sticky bottom-0 -mx-4 -mb-4 mt-4 border-t border-line bg-surface px-4 py-3 sm:-mx-5 sm:-mb-5 sm:px-5">
         <button type="button" onClick={onDone} className={buttonClasses("secondary", "sm")}>
           <CheckIcon size={16} weight="bold" aria-hidden />
           Done
