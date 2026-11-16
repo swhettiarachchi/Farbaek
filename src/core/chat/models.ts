@@ -44,7 +44,7 @@ export interface ChatSetup {
 
 /** What the picker lists: Auto first, then each model with a reason when it can't be used. */
 export function chatModelOptions(setup: ChatSetup): ChatModelOption[] {
-  const options: ChatModelOption[] = [{ id: "auto", name: "Auto", about: "Farbaek picks the model for each question.", provider: null, unavailable: setup.claude || setup.openai ? null : "AI isn't connected on this server yet." }];
+  const options: ChatModelOption[] = [{ id: "auto", name: "Auto", about: "Farbaek AI picks the best model for each question, and another steps in if one is busy.", provider: null, unavailable: setup.claude || setup.openai ? null : "AI isn't connected on this server yet." }];
   const tiers = tierModels("anthropic", setup.overrides);
   const claudeAll = [...new Set(TIERS.map((t) => tiers[t] as string))];
   const allowed = new Set<string>(allowedModels(setup.plan, "anthropic", setup.overrides));

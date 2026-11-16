@@ -19,7 +19,7 @@ import {
   WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { Fragment, useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { fileSizeLabel } from "@/core/chat/files";
 import type { ChatModelOption } from "@/core/chat/models";
 import { ASPECTS, CHAT_LIMITS, EFFORT_ABOUT, EFFORT_LABELS, EFFORTS, type Aspect, type ChatFile } from "@/core/chat/protocol";
@@ -119,10 +119,11 @@ function ModelList({ models, current, effort }: { models: ChatModelOption[]; cur
   const close = useMenuClose();
   return (
     <div className="grid gap-1">
-      <p className="px-3 pb-1 pt-1.5 text-xs font-medium text-ink-3">Model</p>
-      {models.map((m) => (
+      <p className="px-3 pb-1 pt-1.5 text-xs font-medium text-ink-3">Who answers</p>
+      {models.map((m, i) => (
+        <Fragment key={m.id}>
+        {i === 1 ? <p className="mt-1 border-t border-line px-3 pb-1 pt-2.5 text-xs font-medium text-ink-3">Or choose a model yourself</p> : null}
         <button
-          key={m.id}
           type="button"
           role="menuitemradio"
           aria-checked={current.id === m.id}
@@ -140,6 +141,7 @@ function ModelList({ models, current, effort }: { models: ChatModelOption[]; cur
           </span>
           {current.id === m.id ? <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-accent" aria-hidden /> : null}
         </button>
+        </Fragment>
       ))}
       <p className="mt-1 border-t border-line px-3 pb-1 pt-2.5 text-xs font-medium text-ink-3">Answer style</p>
       <div role="radiogroup" aria-label="Answer style" className="mx-2 mb-1 grid grid-cols-3 rounded-full bg-canvas-2 p-0.5 ring-1 ring-line">
@@ -334,7 +336,7 @@ export function Composer({
   };
 
   const shown = heard !== null ? `${spokenBase}${heard}` : text;
-  const placeholder = disabledReason ? "Sending is off" : mode === "image" ? "Describe the image you want" : "Message Farbaek";
+  const placeholder = disabledReason ? "Sending is off" : mode === "image" ? "Describe the image you want" : "Ask Farbaek AI";
 
   return (
     <div ref={shell} className={placement === "bottom" ? "shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4" : "w-full"}>
@@ -518,7 +520,7 @@ export function Composer({
               ? "Listening. Press the microphone again when you've finished."
               : mode === "image"
                 ? `Images use your AI usage${imagePercent !== null ? `: about ${imagePercent}% of a month's each` : ""}${usagePercent !== null ? `, and ${usagePercent}% is used so far` : ""}.`
-                : "Farbaek can make mistakes. Check what matters.")}
+                : "Farbaek AI can make mistakes. Check what matters.")}
         </p>
       </div>
     </div>

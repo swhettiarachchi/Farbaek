@@ -111,7 +111,8 @@ export interface ChatMessage {
   error: string | null;
   rating: -1 | 1 | null;
   thinkingMs: number | null;
-  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal" };
+  /** why: what Farbaek AI chose the model for ("a question about code"), shown in the answer's details (ADR 0215). */
+  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal"; why?: string };
   createdAt: string;
   /** This message and its siblings, oldest first: an edited question or a new answer is a sibling. */
   siblings: string[];
@@ -134,6 +135,8 @@ export type TurnEvent =
   | { type: "start"; conversationId: string; created: boolean; question: ChatMessage | null; answer: ChatMessage; note: string | null }
   /** The model is thinking; v is more of its thinking summary (shown while it thinks, never kept). */
   | { type: "thinking"; v: string }
+  /** The model that was answering failed before writing anything, and another took the question (ADR 0215). */
+  | { type: "route"; modelName: string; note: string }
   | { type: "text"; v: string }
   | { type: "image"; file: ChatFile }
   | { type: "title"; title: string }

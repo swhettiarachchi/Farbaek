@@ -252,6 +252,12 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
             window.history.replaceState(null, "", `/app/chat/${e.conversationId}`);
           } else chat.upsert({ id: e.conversationId, updatedAt: new Date().toISOString() });
           if (e.note) toast({ text: e.note, tone: "info" });
+        } else if (e.type === "route") {
+          // Another model took the question: its thinking starts afresh, and the answer names it.
+          const id = answerRef.current;
+          setLive((l) => (l ? { ...l, thinking: null } : l));
+          setMessages((ms) => ms.map((m) => (m.id === id ? { ...m, modelName: e.modelName } : m)));
+          toast({ text: e.note, tone: "info" });
         } else if (e.type === "thinking") {
           setLive((l) => (l ? { ...l, thinking: `${l.thinking ?? ""}${e.v}` } : l));
         } else if (e.type === "text") {
