@@ -266,6 +266,17 @@ function readOne(original: string): ReadResult {
       { op: "set_field", field: "previousPlanNumber", value: asSaid(original, earlier[1]!), quote: original },
       { op: "set_field", field: "previousPlanDate", value: asSaid(original, earlier[2]!), quote: original },
     ]);
+  // A lot's corners corrected: "change lot B1's corners to 1 2 3 8 7", "the corners of lot B1 are 1, 2, 3, 8 and 7".
+  const corners = /^(?:(?:change|set|make|correct) )?(?:the )?(?:corners (?:of|for) (lot [a-z0-9]+(?: [a-z0-9]+)??)|(lot [a-z0-9]+(?: [a-z0-9]+)??)(?:'s)? corners)(?: to| as| are|:) ((?:points? )?\d.+)$/.exec(t);
+  if (corners) return out([{ op: "edit_lot", target: asSaid(original, corners[1] ?? corners[2]!), change: "corners", label: "", note: "", corners: { from: "words", quote: asSaid(original, corners[3]!) }, quote: original }]);
+  // Lines through points: walls, fences, drains, buildings. "Through", "along" or "joining" a list, or "between" two points; never
+  // "from 4 to 6", which in a list of points means 4, 5 and 6.
+  const line = /^(?:add|draw|put|show) (?:a |an |the )?(wall|fence|drain|building|house|road edge|road line|line)(?: outline)? (?:through|along|joining|on|around|between) ((?:points? )?\d.+)$/.exec(t);
+  if (line && !/\bto\b/.test(line[2]!)) {
+    const kind = line[1]!;
+    const layer = kind === "wall" ? "WALLS" : kind === "fence" ? "FENCES" : kind === "drain" ? "DRAINS" : kind === "building" || kind === "house" ? "BUILDINGS" : "ROADS";
+    return out([{ op: "add_feature", layer, code: "", closed: layer === "BUILDINGS", points: { from: "words", quote: asSaid(original, line[2]!) }, quote: original }]);
+  }
   // The title block: "village Udugampola", "plan number 1234", "survey date 12.11.2026". The value is the surveyor's own words.
   for (const [re, field] of FIELD_RULES) {
     const m = re.exec(t);
@@ -315,6 +326,12 @@ function readOne(original: string): ReadResult {
   }
 
   // Questions the engine answers.
+  // What the assistant never does, said at once with where it's done: approving and signing (the surveyor's alone), exports, the
+  // coordinate system, and surveyed points.
+  if (/^(?:approve|sign|certify|stamp)(?: it| this| the plan| this plan| the sheet)?(?: for me)?$/.test(t)) return out([{ op: "cannot", reason: "approval" }]);
+  if (/^(?:export|download|make|create|save)(?: it| the plan| this plan)?(?: (?:as|to) )?(?: ?(?:a |the )?(?:pdf|dxf|cad file|geojson))$|^export(?: it| the plan)?$/.test(t)) return out([{ op: "cannot", reason: "export" }]);
+  if (/^(?:change|set|switch|use) (?:the )?(?:coordinate system|crs|grid|datum)\b/.test(t)) return out([{ op: "cannot", reason: "crs" }]);
+  if (/^(?:move|shift|change|edit|delete|remove) (?:the )?(?:coordinates? of )?points? [a-z0-9]+/.test(t) && !/label/.test(t)) return out([{ op: "cannot", reason: "points" }]);
   // "Extent" is what Sri Lankan plans call the area; the answer gives hectares, acres, roods and perches, and square metres.
   if (
     /^(?:what(?:'s| is) (?:the )?(?:total )?(?:land )?(?:area|extent)(?: of (?:the|this) land)?(?: in (?:perches|acres|roods|hectares|square met(?:re|er)s))?|calculate (?:the )?(?:total )?(?:land )?(?:area|extent)|how big is (?:the|this) land|how many (?:perches|acres) (?:is it|is the land)|(?:the )?total (?:area|extent)|area|extent)$/.test(t)

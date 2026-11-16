@@ -73,6 +73,16 @@ describe("lots, adjoining lands and notes", () => {
     expect(local("note: the drain is outside the land").ops[0]).toMatchObject({ kind: "note_add", text: "the drain is outside the land" });
   });
 
+  it("corrects a lot's corners, and draws walls, fences and buildings through points", () => {
+    expect(local("change lot B1's corners to 1 2 3 8 7").ops[0]).toMatchObject({ kind: "lot_edit", id: "lot-b1", points: [id(1), id(2), id(3), id(8), id(7)] });
+    expect(local("the corners of lot B2 are 7, 8, 5 and 6").ops[0]).toMatchObject({ kind: "lot_edit", id: "lot-b2", points: [id(7), id(8), id(5), id(6)] });
+    expect(local("draw a wall through points 4, 5, 6").ops[0]).toMatchObject({ kind: "feature_add", feature: { layer: "WALLS", closed: false, points: [id(4), id(5), id(6)] } });
+    expect(local("add a fence between 9 and 10").ops[0]).toMatchObject({ kind: "feature_add", feature: { layer: "FENCES", points: [id(9), id(10)] } });
+    expect(local("draw a building outline through points 13 14 15 16").ops[0]).toMatchObject({ kind: "feature_add", feature: { layer: "BUILDINGS", closed: true } });
+    // "from 4 to 6" would mean 4, 5 and 6 in a list of points: that wall goes to the model, which asks.
+    expect(readCommand("draw a wall from 4 to 6")).toBeNull();
+  });
+
   it("shows a new lot's computed extent, and warns before applying when it overlaps a lot or its legs cross", () => {
     const doc = sampleDocument();
     const ctx = { doc, points: SAMPLE_POINTS };
@@ -147,6 +157,25 @@ describe("questions about the plan", () => {
     expect(a.rows).toContainEqual(["Stops approval", "No surveyor is responsible for this plan yet."]);
     expect(a.speak).toMatch(/^(One thing is|[a-z]+ things are) still needed/);
     expect(ask("what scale is it").title).toBe("The scale");
+  });
+});
+
+describe("what the assistant never does", () => {
+  it("says so at once, with where it's done", () => {
+    for (const [words, reason] of [
+      ["approve the plan", "approval"],
+      ["sign it", "approval"],
+      ["export the PDF", "export"],
+      ["make a DXF", "export"],
+      ["change the coordinate system to Kandawala", "crs"],
+      ["move point 5", "points"],
+      ["change the coordinates of point 12", "points"],
+    ] as const) {
+      const r = readCommand(words);
+      expect(r, words).toMatchObject({ output: { ops: [{ op: "cannot", reason }] } });
+      const ctx = assistContext({ doc: sampleDocument(), points: SAMPLE_POINTS, selection: [], recent: [], step: "plan" });
+      expect(checkTurn({ instruction: words, output: r?.kind === "output" ? r.output : { say: "", ops: [] }, doc: sampleDocument(), points: SAMPLE_POINTS, selection: [], refs: ctx.refs, inputMethod: "typed" }).cannot, words).toBe(reason);
+    }
   });
 });
 
