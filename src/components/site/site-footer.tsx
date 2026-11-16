@@ -34,10 +34,13 @@ export function SiteFooter() {
                   </Link>
                 </li>
               ))}
-        <address className="grid gap-3 text-sm not-italic">
+            </ul>
+          </nav>
+        ))}
+        <address className="grid content-start gap-1 text-sm not-italic">
           <p className="font-medium text-ink">Contact</p>
           <p>
-            <span className="block text-ink-3">General</span>
+            <span className="block pt-2 text-ink-3">General</span>
             <a href={`mailto:${CONTACT.hello}`} className="inline-flex min-h-11 items-center text-ink-2 hover:text-ink">
               {CONTACT.hello}
             </a>
@@ -49,9 +52,6 @@ export function SiteFooter() {
             </a>
           </p>
         </address>
-            </ul>
-          </nav>
-        ))}
       </Container>
       {/* The footer ends with the legal links (the oversized wordmark under them went at the owner's request, 2026-11-14). */}
       <Container className="pb-6">

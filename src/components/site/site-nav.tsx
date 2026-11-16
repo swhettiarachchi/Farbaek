@@ -8,7 +8,7 @@ import { NAV_LINKS } from "./nav-links";
 export function SiteNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Main" className="hidden lg:block">
+    <nav aria-label="Main" className="col-start-2 hidden lg:block">
       <ul className="flex items-center gap-0.5">
         {NAV_LINKS.map((link) => {
           const here = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -17,9 +17,7 @@ export function SiteNav() {
               <Link
                 href={link.href}
                 aria-current={here ? "page" : undefined}
-                className={`block rounded-full px-3.5 py-2 text-sm transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] pointer-coarse:py-3 ${
-                  here ? "bg-surface-raised font-medium text-ink" : "text-ink-2 hover:bg-surface-raised hover:text-ink"
-                }`}
+                className={`block rounded-full px-3 py-2 text-sm transition-colors duration-200 pointer-coarse:py-3 ${here ? "font-medium text-ink" : "text-ink-2 hover:text-ink"}`}
               >
                 {link.label}
               </Link>

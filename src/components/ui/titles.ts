@@ -16,11 +16,11 @@ export const PUBLIC_TITLE = "text-balance text-[2rem] font-medium leading-[1.05]
 /** A public page that does one job: sign in, an invitation, offline. 26px, 32px. */
 export const FOCUSED_TITLE = "text-balance text-[1.625rem] font-medium leading-[1.1] tracking-[-0.035em] sm:text-[2rem]";
 
-/** The home page's headline. 36px, 56px, 83px. */
-export const HERO_TITLE = "text-balance text-4xl font-medium leading-[1.02] tracking-[-0.045em] sm:text-[3.5rem] lg:text-[5.2rem]";
+/** The home page's headline: 36px, 52px, 64px. Confident, never shouting (stage 201, measured against ChatGPT, Antigravity and Claude). */
+export const HERO_TITLE = "text-balance text-4xl font-medium leading-[1.03] tracking-[-0.045em] sm:text-[3.25rem] lg:text-[4rem]";
 
-/** A public page's section title, under its h1. 26px, 36px, 44px. */
-export const SECTION_TITLE = "text-balance text-[1.625rem] font-medium leading-[1.08] tracking-[-0.035em] sm:text-4xl lg:text-[2.75rem]";
+/** A public page's section title, under its h1. 26px, 34px, 40px. */
+export const SECTION_TITLE = "text-balance text-[1.625rem] font-medium leading-[1.1] tracking-[-0.032em] sm:text-[2.125rem] lg:text-[2.5rem]";
 
 /** A part of a public document (the ProofPack format, security, verify): smaller than a section of a landing page. 22px, 28px. */
 export const PART_TITLE = "text-balance text-[1.375rem] font-medium leading-tight tracking-[-0.03em] sm:text-[1.75rem]";

@@ -3,9 +3,8 @@ import type { ReactNode } from "react";
 import { ProductFilmSection } from "@/components/films/film-sections";
 import { AnchorLayout } from "@/components/marketing/anchor-layout";
 import { HomeFaq } from "@/components/marketing/faq";
-import { AlsoSection, Hero, IntelligenceSection, SpacesSection } from "@/components/marketing/hero";
-import { FinalCall, SafeguardsSection } from "@/components/marketing/home-sections";
-import { PricingTeaser } from "@/components/marketing/pricing-teaser";
+import { AlsoSection, Hero, IntelligenceSection, TourSection } from "@/components/marketing/hero";
+import { FinalCall, PricingBand, RailSection, SafeguardsSection } from "@/components/marketing/home-sections";
 import { HOME_DESCRIPTION, HOME_TITLE, homeStructuredData, jsonLdText } from "@/core/seo/structured-data";
 import { siteUrl } from "@/server/supabase/config";
 
@@ -28,9 +27,10 @@ function Later({ children }: { children: ReactNode }) {
 }
 
 /**
- * The homepage (ADR 0216): Farbaek AI first, with a message box to ask it something; then the four main spaces (Chat, Images,
- * Video, Build) in one window; how one assistant uses many models; the recorded build; the safeguards every space shares; the
- * specialist spaces; pricing and questions.
+ * The homepage (ADR 0216; measured against ChatGPT, Antigravity and Claude in docs/research/homepage-references-2026-11.md):
+ * Farbaek AI with a message box, then Farbaek AI itself in a window; the tour of the four main spaces; one assistant over many
+ * models; the rail of jobs; the recorded build; the safeguards; the specialist spaces in a line; pricing as a band; questions;
+ * and the last word, a message box again.
  */
 export default function HomePage() {
   return (
@@ -39,9 +39,12 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdText(homeStructuredData(siteUrl())) }} />
       <AnchorLayout />
       <Hero />
-      <SpacesSection />
+      <TourSection />
       <Later>
         <IntelligenceSection />
+      </Later>
+      <Later>
+        <RailSection />
       </Later>
       <Later>
         <ProductFilmSection />
@@ -53,7 +56,7 @@ export default function HomePage() {
         <AlsoSection />
       </Later>
       <Later>
-        <PricingTeaser />
+        <PricingBand />
       </Later>
       <Later>
         <HomeFaq />

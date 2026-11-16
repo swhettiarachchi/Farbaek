@@ -21,7 +21,7 @@ import { Container } from "@/components/ui/container";
 import { BEZEL } from "@/components/ui/surfaces";
 import { LEAD, PART_TITLE, PUBLIC_TITLE, SECTION_TITLE } from "@/components/ui/titles";
 import { IMAGE_STYLES, VIDEO_STYLES } from "@/core/studio/studio";
-import { ImagesGlimpse, VideoGlimpse } from "./glimpses";
+import { ImagesWindow, VideoWindow } from "./tour-windows";
 import { OtherSpaces } from "./other-spaces";
 
 type Feature = { icon: Icon; title: string; body: string };
@@ -90,10 +90,7 @@ export function StudioPage({ kind }: { kind: "images" | "video" }) {
             </div>
           </Reveal>
           <Reveal delay={0.12} className="mx-auto mt-14 max-w-[64rem] sm:mt-20">
-            <div className={`${BEZEL} shadow-e3`}>
-              <div className="min-h-[22rem] overflow-hidden rounded-md bg-surface ring-1 ring-line sm:min-h-[24rem]">{image ? <ImagesGlimpse /> : <VideoGlimpse />}</div>
-            </div>
-            <p className="mt-4 text-center text-sm text-ink-3">The studio, with a sample description.</p>
+            <div className="aspect-[16/11] w-full sm:aspect-[16/10]">{image ? <ImagesWindow /> : <VideoWindow />}</div>
           </Reveal>
         </Container>
       </section>

@@ -38,9 +38,26 @@ Then `scripts/vps/check-migrations.ps1`, which now reads v100 back too.
 - `OPENAI_API_KEY` is what makes pictures with OpenAI's model; without it the image studio uses Gemini, and without either it says it isn't connected. OpenAI may ask the organisation to verify itself before its image models answer.
 - `GEMINI_API_KEY` on a paid Gemini account makes video (Omni has no free tier).
 
+## The homepage, redone after the owner's review
+
+The owner found the first pass oversized, unbalanced and cheap-looking, and asked for the references to be studied properly. They were measured in Chrome (`docs/research/homepage-references-2026-11.md`): ChatGPT's overview first (restraint, product first, a sticky tour, a rail of flat cards, flat grey bands), Antigravity second (lighter weight, very large media panels, motion that writes), Claude third (calm, small controls, a message box as the last word). The homepage was rebuilt from those measurements:
+
+- Type down to size: the headline is 36, 52 and 64 px (was 83), section titles 26, 34 and 40 px (was 44).
+- Flat white throughout: the dot grid, the pools of light and the gradient bands are gone. Depth only in the product windows and flat grey bands.
+- A flat 64 px header with plain grey links and one dark pill, "Try Farbaek AI".
+- The hero is two lines, one sentence and a quiet message box; under it, Farbaek AI itself in a window, with its sidebar and a sample conversation that writes itself as it comes into view, settling from a gentle 3D tilt as you scroll.
+- A sticky tour of Chat, Images, Video and Build with one window crossfading between them (the Build window is a frame of the real recording); one band with a drawing of how a question finds its model; a rail of flat cards with a piece of each space; the recorded build; the safeguards as hairline cards; Survey Studio and Proof in one line; pricing as one band; the questions; and "Not sure where to start? Ask Farbaek AI." with the message box again.
+- Fixed on the way: the footer's contact block had landed inside each link column in stage 200 and showed twice.
+
 ## Verified
 
-To be filled in with the results below.
+- Type check and lint clean. The full suite: 3,679 tests pass; the one failure (`tests/db/project-images.test.ts` used `video_generation` as its example of an unknown operation) was fixed to use one that still doesn't exist.
+- Studio and chat tests: 1,804 tests across core, chat, studio, components and design; `tests/db/studio.test.ts` 8 of 8 after the review fixes.
+- Production build (demo) succeeds. Next.js 16.4.2 now stops each build once to recommend a security upgrade; re-running continues. The upgrade is a dependency change for the owner to approve.
+- `qa:a11y` on `/`, `/chat`, `/images`, `/video`, `/build`, `/proof`, `/app`, `/app/images`, `/app/video`, `/app/chat` at 1280 and 375: no findings.
+- `qa:responsive` on the studios and the redone homepage at every size: no sideways scroll, cut content, small or lost taps, or out-of-proportion elements after the fixes.
+- `qa:vitals` (phone, before the redo): `/` LCP 1.87 s, TBT 185 ms; `/images` 1.55 s; `/video` 1.52 s; `/chat` 1.24 s.
+- A fresh security review: no access holes; its money and abuse findings (room across workspaces, reclaiming a stopped server's renders, pictures paid for when the person stops watching, own-key routing, refine on Free, caps on provider streams, cache time) are fixed and tested.
 
 ## Not verified
 
