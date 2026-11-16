@@ -205,7 +205,8 @@ export function checkTurn(input: CheckInput): CheckedTurn {
     const name = readLotName(label);
     if (!name) return null;
     // In Sinhala the words for "lot" aren't all known yet, so there the card is the check.
-    if (fold(label).length < 2 && scriptOf(instruction) === "en" && !hasPhrase(instruction, `lot ${label}`) && !hasPhrase(instruction, `allotment ${label}`)) return null;
+    // ("rename lot B3 to C" names it too: the letter follows "to" or "as".)
+    if (fold(label).length < 2 && scriptOf(instruction) === "en" && !["lot", "allotment", "to", "as"].some((w) => hasPhrase(instruction, `${w} ${label}`))) return null;
     return name;
   };
   /**
@@ -217,6 +218,9 @@ export function checkTurn(input: CheckInput): CheckedTurn {
     const words = instruction.normalize("NFKC");
     if (scriptOf(words) !== "en") return true;
     if (input.selection.includes(`lot:${lot.id}`) && /\b(this|that|it|selected|picked)\b/i.test(words)) return true;
+    // A name written with its letter and figure ("divide B1 into four lots") names the lot on its own.
+    const whole = `${lot.label}${lot.sup}`;
+    if (/[A-Za-z]/.test(whole) && /\d/.test(whole) && hasPhrase(words, whole)) return true;
     return [...words.matchAll(/\b(?:lot|allotment)s?\s+([a-z0-9]+(?:\s+(?:superscript\s+|sup\s+)?[a-z0-9]+)?)/gi)].some((m) => {
       // The whole name first ("lot B one" is B¹, never B). The first word alone when it's already whole with its figure ("lot B3 ten
       // feet"), or when the next word can't be part of a name ("lot B to").
@@ -361,7 +365,9 @@ export function checkTurn(input: CheckInput): CheckedTurn {
           const paper = v === "auto" || v === "automatic" ? "auto" : (["A4", "A3", "A2"] as const).find((p) => p.toLowerCase() === v);
           if (!paper) return dropped.push({ what: "The paper", why: "Farbaek prints on A4, A3 or A2, or picks the paper itself." }), null;
           // The paper's name must be in the words: "zoom in" never changes it.
-          if (paper === "auto" ? !/\b(auto|automatic|automatically|best)\b/i.test(op.quote) : !new RegExp(`(?<![\\p{L}\\p{N}])${paper}(?![\\p{N}])`, "iu").test(op.quote))
+          // ("a three", as a recogniser writes A3 said aloud, names it too.)
+          const spokenPaper = { A2: "two", A3: "three", A4: "four" }[paper as "A2"];
+          if (paper === "auto" ? !/\b(auto|automatic|automatically|best)\b/i.test(op.quote) : !new RegExp(`(?<![\\p{L}\\p{N}])(?:${paper}(?![\\p{N}])|a ${spokenPaper}\\b)`, "iu").test(op.quote))
             return dropped.push({ what: "The paper", why: `The words don't name ${paper === "auto" ? "automatic paper" : paper}.` }), null;
           return { kind: "sheet", setting: "paper", value: paper, quote: op.quote };
         }
@@ -489,7 +495,8 @@ export function checkTurn(input: CheckInput): CheckedTurn {
           const f = ring.length === lot.points.length ? legFacing(ring, op.side) : null;
           if (!f) return dropped.push({ what: `"${text}"`, why: `No leg of lot ${lotName(lot)} faces ${op.side}.` }), null;
           if ("candidates" in f) {
-            const name = (i: number) => `from ${ring[i]!.pointId} to ${ring[(i + 1) % ring.length]!.pointId}`;
+            // "between 3 and 8", never "from 3 to 8": a tapped answer is read back as the leg's two points, not a range.
+            const name = (i: number) => `between ${ring[i]!.pointId} and ${ring[(i + 1) % ring.length]!.pointId}`;
             question = { text: `Two legs of lot ${lotName(lot)} face ${op.side} about equally. Which one does "${text}" adjoin?`, choices: f.candidates.slice(0, 4).map(name) };
             return null;
           }

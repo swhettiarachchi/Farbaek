@@ -13,7 +13,7 @@ import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
 import { toArp } from "../units";
 import type { PlanOp } from "./ops";
-import { speakDigits } from "./spoken";
+import { cardinalWords, speakDigits } from "./spoken";
 
 export interface AnswerInput {
   doc: SurveyDocument;
@@ -36,6 +36,21 @@ export interface Answer {
 }
 
 const m2Text = (m2: number) => `${m2.toFixed(2)} m²`;
+
+/**
+ * An area as a Sri Lankan surveyor says it: acres, roods and perches, the perches digit by digit after the point ("two roods,
+ * nine decimal six five perches"), then hectares. The figures on the screen are the record; this is an aid.
+ */
+function speakArea(m2: number, perchDecimals: number): string {
+  const a = toArp(m2, perchDecimals);
+  const parts: string[] = [];
+  if (a.acres > 0) parts.push(`${cardinalWords(a.acres)} ${a.acres === 1 ? "acre" : "acres"}`);
+  if (a.roods > 0) parts.push(`${cardinalWords(a.roods)} ${a.roods === 1 ? "rood" : "roods"}`);
+  const [whole, frac] = a.perches.toFixed(a.perchDecimals).split(".");
+  const perches = `${cardinalWords(Number(whole))}${frac && Number(frac) > 0 ? ` decimal ${speakDigits(frac)}` : ""}`;
+  parts.push(`${perches} ${perches === "one" ? "perch" : "perches"}`);
+  return `${parts.join(", ")}; that's ${speakDigits(hectares(m2))} hectares`;
+}
 const areaRow = (m2: number, perchDecimals: number): string => `${hectares(m2)} ha (${arpClassic(toArp(m2, perchDecimals))}), ${m2Text(m2)}`;
 
 /** Key title fields a finished plan needs, and their names. */
@@ -62,7 +77,7 @@ export function answer(op: Extract<PlanOp, { kind: "answer" }>, input: AnswerInp
         title: "The land's area",
         rows,
         note: `The grid area by the coordinate method, from the corner points${plan.outlineAreaM2 === null && doc.lots.length > 1 ? " (the sum of the lots: they don't join into one outline)" : ""}.${rows.length > 1 ? " A stated extent never replaces the computed one." : ""}`,
-        speak: `The land is ${speakDigits(hectares(m2))} hectares.`,
+        speak: `The land is ${speakArea(m2, decimals)}.`,
       };
     }
     case "lot_area":
@@ -77,7 +92,7 @@ export function answer(op: Extract<PlanOp, { kind: "answer" }>, input: AnswerInp
         title: area ? (usable.length === 1 ? `Lot ${lotName(first.lot)}'s area` : "Lot areas") : usable.length === 1 ? `Lot ${lotName(first.lot)}'s perimeter` : "Perimeters",
         rows,
         note: area ? "Grid areas by the coordinate method." : "The sum of each lot's legs, in grid metres.",
-        speak: usable.length === 1 ? (area ? `Lot ${lotName(first.lot)} is ${speakDigits(hectares(first.parcel!.areaM2))} hectares.` : `Lot ${lotName(first.lot)}'s perimeter is ${speakDigits(first.parcel!.perimeterM.toFixed(2))} metres.`) : `${usable.length} lots; the figures are on the screen.`,
+        speak: usable.length === 1 ? (area ? `Lot ${lotName(first.lot)} is ${speakArea(first.parcel!.areaM2, decimals)}.` : `Lot ${lotName(first.lot)}'s perimeter is ${speakDigits(first.parcel!.perimeterM.toFixed(2))} metres.`) : `${usable.length} lots; the figures are on the screen.`,
       };
     }
     case "checks": {
@@ -96,10 +111,18 @@ export function answer(op: Extract<PlanOp, { kind: "answer" }>, input: AnswerInp
       if (empty.length) rows.push(["Title fields still empty", empty.join(", ")]);
       const waiting = unreviewed(doc).length;
       if (waiting) rows.push(["Waiting for your check", `${waiting} ${waiting === 1 ? "item" : "items"}`]);
-      const blocking = input.findings.filter((f) => f.blocks.includes("approval") || f.blocks.includes("export")).length;
-      if (blocking) rows.push(["Checks that stop approval or export", String(blocking)]);
       if (doc.lots.length === 0) rows.push(["Lots", "None yet"]);
-      return { title: "What's still needed", rows, note: rows.length ? "" : "Nothing obvious is missing. Look over the sheet, then approve it on the Export step.", speak: rows.length ? `${rows.length} things are still needed; they're on the screen.` : "Nothing obvious is missing." };
+      // Each check that stops approval or export, by what it says, so the surveyor knows what to do, not just how many.
+      const blocking = input.findings.filter((f) => f.blocks.includes("approval") || f.blocks.includes("export"));
+      for (const f of blocking.slice(0, 6)) rows.push([f.blocks.includes("export") ? "Stops export" : "Stops approval", f.message]);
+      const more = blocking.length > 6 ? ` And ${blocking.length - 6} more checks on the Check step.` : "";
+      const n = rows.length;
+      return {
+        title: "What's still needed",
+        rows,
+        note: n ? (blocking.length ? `Each check is on the Check step with what to do.${more}` : "") : "Nothing obvious is missing. Look over the sheet, then approve it on the Export step.",
+        speak: n ? `${n === 1 ? "One thing is" : `${cardinalWords(Math.min(n, 999))} things are`} still needed; they're on the screen.` : "Nothing obvious is missing.",
+      };
     }
     case "always_printed":
       return { title: "On every sheet", rows: [], note: "The north point, the scale bar and the title block always print: they're already on the sheet.", speak: "The north point, scale bar and title block are always on the sheet." };

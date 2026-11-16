@@ -10,7 +10,7 @@
  * review by surveyors who work in Sinhala (docs/survey/ASSISTANT.md).
  */
 import type { LayerId } from "../document";
-import type { AssistOp, AssistOutput } from "./ops";
+import type { AssistField, AssistOp, AssistOutput } from "./ops";
 
 export type Control = "apply" | "discard" | "stop" | "save" | "readback" | "goto";
 export const STEP_IDS = ["import", "points", "draft", "boundary", "plan", "check", "export", "history", "settings"] as const;
@@ -85,6 +85,84 @@ const SINHALA: [RegExp, (quote: string) => ReadResult][] = [
 export function readCommand(original: string): ReadResult {
   const t = plainCommand(original);
   if (!t) return null;
+  // Dictated measurements first: their commas and "then"s belong to the field book, not to separate instructions.
+  const measured = readMeasurements(original, t);
+  if (measured) return measured;
+  return readClauses(original) ?? readOne(original);
+}
+
+/**
+ * Several instructions in one ("village Udugampola, district Gampaha"; "A3 landscape and hide the point numbers"): read only when
+ * every part reads by the rules on its own, so "north by land of A and B" or "points 1, 2 and 3" stay whole.
+ */
+function readClauses(original: string): ReadResult {
+  const kept = original.normalize("NFKC").toLowerCase().replace(/[.!?]+/g, " ").replace(/\s+/g, " ").trim();
+  // "Then" and ";" part instructions first, so "add lot B4 from points 1, 2, 3 and 8, then hide the point numbers" keeps its
+  // point list whole; each part may itself be several ("village X, district Y").
+  const strong = split(kept, /\s*,?\s*(?:;|\band then\b|\bthen\b)\s*/);
+  if (strong.length >= 2) {
+    const ops: AssistOp[] = [];
+    for (const p of strong) {
+      const said = asSaid(original, p);
+      const r = readClauses(said) ?? readOne(said);
+      if (r?.kind !== "output" || r.output.ops.some((o) => o.op === "ask")) return null;
+      ops.push(...r.output.ops);
+    }
+    return out(ops);
+  }
+  const parts = split(kept, /\s*(?:,|\band\b|&)\s*/);
+  if (parts.length < 2) return null;
+  const ops: AssistOp[] = [];
+  for (const p of parts) {
+    const r = readOne(asSaid(original, p));
+    if (r?.kind !== "output" || r.output.ops.some((o) => o.op === "ask")) return null;
+    ops.push(...r.output.ops);
+  }
+  return out(ops);
+}
+
+/** Parts of an instruction, between the separators; none when there are more than eight. */
+function split(text: string, by: RegExp): string[] {
+  const parts = text
+    .split(by)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.length > 8 ? [] : parts;
+}
+
+/** Legs ("from 101 to 102 bearing … distance …, then to 103 …") or coordinates ("point 215 northing … easting …"), read by code. */
+function readMeasurements(original: string, t: string): ReadResult {
+  if (/^(?:from|to|leg|legs|traverse)\b/.test(t) && /\bbearing\b/.test(t) && /\bdistance\b/.test(t)) return out([{ op: "enter_measurements", mode: "bearings", quote: original }]);
+  if (/^(?:point|points|station|pt)\b/.test(t) && /\bnorthing\b/.test(t) && /\beasting\b/.test(t)) return out([{ op: "enter_measurements", mode: "coordinates", quote: original }]);
+  return null;
+}
+
+/** The title fields a surveyor fills in by saying them, as "village Udugampola" or "the plan number is 1234". */
+const FIELD_RULES: [RegExp, AssistField][] = [
+  [/^(?:(?:set|change|put) )?(?:the )?(?:land(?:'s)? name|name of the land)(?: (?:is|to|as))? (.+)$/, "landName"],
+  [/^(?:the )?land is (?:called|named) (.+)$/, "landName"],
+  [/^(?:call|name) the land (.+)$/, "landName"],
+  [/^(?:(?:set|change|put) )?(?:the )?(?:previous|earlier|old) plan (?:number|no|num)(?: (?:is|to|as))? (.+)$/, "previousPlanNumber"],
+  [/^(?:(?:set|change|put) )?(?:the )?plan (?:number|no|num)(?: (?:is|to|as))? (.+)$/, "planNumber"],
+  [/^(?:(?:set|change|put) )?(?:the )?village(?: name)?(?: (?:is|to|as))? (.+)$/, "village"],
+  [/^(?:(?:set|change|put) )?(?:the )?district(?: (?:is|to|as))? (.+)$/, "district"],
+  [/^(?:(?:set|change|put) )?(?:the )?province(?: (?:is|to|as))? (.+)$/, "province"],
+  [/^(?:(?:set|change|put) )?(?:the )?pattu(?: (?:is|to|as))? (.+)$/, "pattu"],
+  [/^(?:(?:set|change|put) )?(?:the )?korale(?: (?:is|to|as))? (.+)$/, "korale"],
+  [/^(?:(?:set|change|put) )?(?:the )?(?:gn|g n|grama niladhari|grama niladari) division(?: (?:is|to|as))? (.+)$/, "gnDivision"],
+  [/^(?:(?:set|change|put) )?(?:the )?(?:ds|d s|divisional secretariat|divisional secretary(?:'s)?) division(?: (?:is|to|as))? (.+)$/, "dsDivision"],
+  [/^(?:(?:set|change|put) )?(?:the )?(?:survey(?:ed)? date|date of (?:the )?survey)(?: (?:is|to|as))? (.+)$/, "surveyDate"],
+  [/^surveyed on (.+)$/, "surveyDate"],
+  [/^(?:(?:set|change|put) )?(?:the )?plan date(?: (?:is|to|as))? (.+)$/, "planDate"],
+  [/^(?:(?:set|change|put) )?(?:the )?(?:stated extent|deed extent|extent in the deed|extent (?:in|on) the title)(?: (?:is|to|as))? (.+)$/, "statedExtent"],
+  [/^(?:the land is )?(?:also called|also known as|alias) (.+)$/, "alias"],
+  [/^(?:the land is )?now known as (.+)$/, "nowKnownAs"],
+];
+
+/** The instruction read as one, by the rules. */
+function readOne(original: string): ReadResult {
+  const t = plainCommand(original);
+  if (!t) return null;
   for (const [re, make] of SINHALA) if (re.test(t)) return make(original);
 
   // Conversation controls.
@@ -103,7 +181,7 @@ export function readCommand(original: string): ReadResult {
   if (/^(?:zoom out|further out|smaller|zoom further)$/.test(t)) return out([{ op: "view", action: "zoom_out", target: "", points: none, quote: original }]);
   if (/^(?:(?:show )?(?:the )?whole (?:sheet|plan|page)|fit|zoom to fit|fit (?:the )?(?:sheet|plan)|show everything|zoom all)$/.test(t)) return out([{ op: "view", action: "whole_sheet", target: "", points: none, quote: original }]);
   if (/^(?:clear (?:the )?selection|deselect(?: all)?|select nothing|unselect(?: all)?)$/.test(t)) return out([{ op: "view", action: "clear_selection", target: "", points: none, quote: original }]);
-  const focus = /^(?:zoom to|zoom in on|show me|focus on|go to|find) (lot .+|points? .+)$/.exec(t);
+  const focus = /^(?:zoom to|zoom in on|show me|focus on|go to|find|where is|where are|locate) (lot .+|points? .+)$/.exec(t);
   if (focus) {
     const what = asSaid(original, focus[1]!);
     return /^points? /.test(what) ? out([{ op: "view", action: "focus", target: "", points: { from: "words", quote: what }, quote: what }]) : out([{ op: "view", action: "focus", target: what, points: none, quote: what }]);
@@ -114,43 +192,62 @@ export function readCommand(original: string): ReadResult {
     return /^points? /.test(what) ? out([{ op: "view", action: "select", target: "", points: { from: "words", quote: what }, quote: what }]) : out([{ op: "view", action: "select", target: what, points: none, quote: what }]);
   }
 
-  // Layers.
-  const layer = /^(hide|show|lock|unlock|turn off|turn on|switch off|switch on) (.+?)(?: layer)?$/.exec(t);
+  // Bearings and distances on the face of the plan.
+  if (/^(?:show|put|write) (?:the )?(?:dimensions|bearings and distances|bearings|distances)(?: (?:of|on|along) (?:every|each|all(?: the)?|the) (?:boundary )?(?:lines?|legs?|boundaries|plan|sheet))?$/.test(t)) return out([{ op: "set_sheet", setting: "faceDimensions", value: "on", quote: original }]);
+  // Layers, one or several ("hide the walls and fences").
+  const layer = /^(hide|show|lock|unlock|turn off|turn on|switch off|switch on) (.+?)(?: layers?)?$/.exec(t);
   if (layer) {
-    const which = LAYERS.find(([re]) => re.test(layer[2]!))?.[1];
-    // "Show the dimensions" means on the sheet's face too.
-    if (which === "DIMENSIONS" && /^(show|turn on|switch on)$/.test(layer[1]!)) return out([{ op: "set_sheet", setting: "faceDimensions", value: "on", quote: original }]);
-    if (which) {
+    const names = layer[2]!.split(/,? and |, | & /).map((n) => n.trim());
+    const which = names.map((n) => LAYERS.find(([re]) => re.test(n))?.[1]);
+    if (which.every((w): w is LayerId => Boolean(w))) {
       const verb = layer[1]!;
       const visible = /^(show|turn on|switch on)$/.test(verb) ? "on" : /^(hide|turn off|switch off)$/.test(verb) ? "off" : "keep";
       const locked = verb === "lock" ? "on" : verb === "unlock" ? "off" : "keep";
-      return out([{ op: "set_layer", layer: which, visible, locked, quote: original }]);
+      return out(which.map((w): AssistOp => ({ op: "set_layer", layer: w, visible, locked, quote: original })));
     }
   }
-  if (/^show (?:the )?dimensions (?:of|on) (?:every|each|all(?: the)?) (?:boundary )?(?:lines?|legs?)$/.test(t)) return out([{ op: "set_sheet", setting: "faceDimensions", value: "on", quote: original }]);
+  // "Show lot B1": after the layers, so "show lot labels" stays a layer.
+  const showLot = /^show (lot [a-z0-9]+(?: [a-z0-9]+)?)$/.exec(t);
+  if (showLot) return out([{ op: "view", action: "focus", target: asSaid(original, showLot[1]!), points: none, quote: asSaid(original, showLot[1]!) }]);
+  // The schedule of boundaries on the back of the sheet.
+  const overleaf = /^(show|turn on|include|add|hide|turn off|remove|drop) (?:the )?(?:overleaf|overleaf schedule|boundary schedule|schedule of boundaries|schedule)(?: overleaf| on the back)?$/.exec(t);
+  if (overleaf) return out([{ op: "set_sheet", setting: "overleaf", value: /^(show|turn on|include|add)$/.test(overleaf[1]!) ? "on" : "off", quote: original }]);
 
   // The sheet.
-  const paper = /^(?:(?:prepare|set up|set|make|get|ready) (?:it|this|the plan|the sheet|this plan)? ?(?:up )?for |print on |use |)(a[234])(?: paper| printing| sheet| size)?(?: (portrait|landscape))?$/.exec(t);
+  // Paper sizes as written or as a recogniser writes them said aloud ("a three" for A3).
+  const paper = /^(?:(?:prepare|set up|set|make|get|ready) (?:it|this|the plan|the sheet|this plan)? ?(?:up )?for |print (?:it )?on |use |)(a[234]|a (?:two|three|four))(?: paper| printing| sheet| size)?(?: (portrait|landscape))?(?: (?:at|at a scale of|at scale|scale) (1 ?: ?\d[\d,]*|one (?:is )?to .+))?$/.exec(t);
   if (paper) {
-    const ops: AssistOp[] = [{ op: "set_sheet", setting: "paper", value: paper[1]!.toUpperCase(), quote: original }];
+    const size = ({ "a two": "A2", "a three": "A3", "a four": "A4" } as Record<string, string>)[paper[1]!] ?? paper[1]!.toUpperCase();
+    const ops: AssistOp[] = [{ op: "set_sheet", setting: "paper", value: size, quote: original }];
     if (paper[2]) ops.push({ op: "set_sheet", setting: "orientation", value: paper[2], quote: original });
+    if (paper[3]) ops.push({ op: "set_number", setting: "scale", quote: asSaid(original, paper[3]) });
     return out(ops);
   }
-  const orient = /^(?:make it |turn it |set it to |)(portrait|landscape)$/.exec(t);
+  const orient = /^(?:make it |turn it |set it to |turn the sheet |make the sheet |)(portrait|landscape)$/.exec(t);
   if (orient) return out([{ op: "set_sheet", setting: "orientation", value: orient[1]!, quote: original }]);
+  if (/^(?:(?:use (?:an? )?|set (?:the )?scale to )?(?:automatic|auto) scale|let (?:farbaek|it) (?:choose|pick) the scale|(?:set (?:the )?)?scale (?:to )?(?:automatic|auto))$/.test(t)) return out([{ op: "set_number", setting: "scale", quote: original }]);
   const scale = /\bscale (?:to |of |at )?(.+)$/.exec(t);
   if (scale && /^(?:set (?:the )?|change (?:the )?|make (?:the )?|use (?:a )?|)scale\b/.test(t)) return out([{ op: "set_number", setting: "scale", quote: asSaid(original, t.slice(t.indexOf("scale"))) }]);
   const template = /^(?:use (?:the )?|switch to (?:the )?|)(classic|panel) (?:layout|template|sheet)$/.exec(t);
   if (template) return out([{ op: "set_sheet", setting: "template", value: template[1]!, quote: original }]);
 
   // Labels: the picked item's.
-  const nudge = /^move (?:this|the|that) (?:label|text) (?:(slightly|a little|a bit|a touch|a lot|far|well|more) )?(?:to the |)(left|right|up|down)(?: (slightly|a little|a bit|a lot))?$/.exec(t);
+  const nudge = /^(?:move|nudge|shift|push) (?:(?:this|the|that) (?:label|text)|it|this|that) (?:(slightly|a little|a bit|a touch|a lot|far|well|more) )?(?:to the |)(left|right|up|down)(?: (slightly|a little|a bit|a touch|a lot|more))?$/.exec(t);
   if (nudge) {
     const how = nudge[1] ?? nudge[3] ?? "";
     const amount = /a lot|far|well/.test(how) ? "far" : /more/.test(how) ? "some" : how ? "slight" : "some";
     return out([{ op: "move_label", target: "selection", direction: nudge[2] as "left", amount, quote: original }]);
   }
-  if (/^(?:put (?:the|this|that) (?:label|text) back|reset (?:the |this )?(?:label|text)|move (?:the|this) label back)$/.test(t)) return out([{ op: "move_label", target: "selection", direction: "back", amount: "some", quote: original }]);
+  if (/^(?:put (?:the|this|that|it) (?:label |text )?back|reset (?:the |this )?(?:label|text)|move (?:the|this) label back|move it back)$/.test(t)) return out([{ op: "move_label", target: "selection", direction: "back", amount: "some", quote: original }]);
+
+  // Lots: renamed, removed, or given a note. Removing is named in full in its card before anything goes.
+  const rename = /^(?:rename|relabel|call|change) (lot [a-z0-9]+(?: [a-z0-9]+)?) (?:to|as|into) (?:lot )?([a-z0-9]+(?: [a-z0-9]+)?)$/.exec(t);
+  if (rename) return out([{ op: "edit_lot", target: asSaid(original, rename[1]!), change: "label", label: asSaid(original, rename[2]!), note: "", corners: none, quote: original }]);
+  const removeLot = /^(?:delete|remove|erase|take out|get rid of) (lot [a-z0-9]+(?: [a-z0-9]+)?)$/.exec(t);
+  if (removeLot) return out([{ op: "remove", target: asSaid(original, removeLot[1]!), quote: original }]);
+  // The word before the note ("saying", ":") ends the lot's name, so "lot B1 saying garden" is lot B1, and "lot B one saying" B¹.
+  const lotNote = /^(?:add a note to|note on|put a note on|add the note|add note to) (lot [a-z0-9]+(?: [a-z0-9]+)??)(?: saying| that says| reading|:) ?(.+)$/.exec(t);
+  if (lotNote) return out([{ op: "edit_lot", target: asSaid(original, lotNote[1]!), change: "note", label: "", note: asSaid(original, lotNote[2]!), corners: none, quote: original }]);
 
   // Lots from points: said, or picked on the sheet. A lot's name is never made up: without one, the reader asks.
   const picked = /^(?:create|make|add|draw|form) (?:(lot [a-z0-9]+(?: [a-z0-9]+)?)|(?:the |a |an )?(?:new )?(?:boundary|lot|outline|land|parcel)(?: (?:of |for )?(lot [a-z0-9]+(?: [a-z0-9]+)?))?) (?:using|from|through|with|by|joining) (?:these|those|the selected|the picked|the chosen|selected|picked) (?:survey |boundary )?(?:points|marks|corners)(?: (?:as |called |named |call it |name it )?(lot [a-z0-9]+(?: [a-z0-9]+)?))?$/.exec(t);
@@ -159,32 +256,77 @@ export function readCommand(original: string): ReadResult {
     if (!name) return out([{ op: "ask", question: "What should the new lot be called? Say its name, such as lot B.", choices: [] }]);
     return out([{ op: "add_lot", label: asSaid(original, name), corners: { from: "selection", quote: "" }, note: "", quote: original }]);
   }
-  const named = /^(?:create|make|add|draw|form) (lot [a-z0-9]+(?: [a-z0-9]+)?) (?:using|from|through|with|by|joining) ((?:survey |boundary )?(?:points?|marks|corners) .+)$/.exec(t);
+  const named = /^(?:(?:create|make|add|draw|form) )?(?:a |the )?(?:new )?(lot [a-z0-9]+(?: [a-z0-9]+)?) (?:using|from|through|with|by|joining|on|is) ((?:survey |boundary )?(?:points?|marks|corners) .+|\d[\d ,]*(?:(?:and|to|through) \d+)?)$/.exec(t);
   if (named) return out([{ op: "add_lot", label: asSaid(original, named[1]!), corners: { from: "words", quote: asSaid(original, named[2]!) }, note: "", quote: original }]);
 
+  // An earlier plan with its date: "previous plan number 567 dated 01.02.2019" fills both.
+  const earlier = /^(?:the )?(?:previous|earlier|old) plan (?:number |no |num )?(?:is )?(.+?) dated (.+)$/.exec(t);
+  if (earlier)
+    return out([
+      { op: "set_field", field: "previousPlanNumber", value: asSaid(original, earlier[1]!), quote: original },
+      { op: "set_field", field: "previousPlanDate", value: asSaid(original, earlier[2]!), quote: original },
+    ]);
+  // The title block: "village Udugampola", "plan number 1234", "survey date 12.11.2026". The value is the surveyor's own words.
+  for (const [re, field] of FIELD_RULES) {
+    const m = re.exec(t);
+    if (m) return out([{ op: "set_field", field, value: asSaid(original, m[1]!), quote: original }]);
+  }
+  // The boundaries in the title: "north by Lot 4 in Plan 1234", "the eastern boundary is a road".
+  const bounded = /^(?:the )?(?:bounded )?(?:on the )?(north|east|south|west)(?:ern)?(?:(?: boundary| side)? (?:is )?by|(?: boundary| side) is) (.+)$/.exec(t);
+  if (bounded) {
+    const field = `boundary${bounded[1]![0]!.toUpperCase()}${bounded[1]!.slice(1)}` as AssistField;
+    return out([{ op: "set_field", field, value: asSaid(original, bounded[2]!), quote: original }]);
+  }
+  // A land beside one lot, written along the leg facing that side: "the land on the north of lot B1 is Lot 4 in Plan 1234",
+  // "lot B1 is bounded on the east by a road". The leg is chosen by code from the side.
+  // An answer to "which leg?" follows as "between 3 and 8", and names the leg itself.
+  const beside =
+    /^(?:the )?(?:land|adjoining land|neighbour|neighbor|neighbouring land|neighboring land)(?: on the| to the)? (north|east|south|west) of (lot [a-z0-9]+(?: [a-z0-9]+)??) is (.+?)(?: between (?:points? )?([a-z0-9]+) and ([a-z0-9]+))?$/.exec(t) ??
+    null;
+  const besideLot = /^(lot [a-z0-9]+(?: [a-z0-9]+)??) is bounded on the (north|east|south|west) by (.+?)(?: between (?:points? )?([a-z0-9]+) and ([a-z0-9]+))?$/.exec(t);
+  if (beside || besideLot) {
+    const [side, lot, text, a, b] = beside ? [beside[1]!, beside[2]!, beside[3]!, beside[4], beside[5]] : [besideLot![2]!, besideLot![1]!, besideLot![3]!, besideLot![4], besideLot![5]];
+    const leg = a && b ? { from: "words" as const, quote: asSaid(original, `between ${a} and ${b}`) } : none;
+    return out([{ op: "add_adjoining", text: asSaid(original, text), lot: asSaid(original, lot), side: leg === none ? (side as "north") : "", leg, quote: original }]);
+  }
+  // A note on the plan: "add a note saying …", "note: …".
+  const planNote = /^(?:add (?:a |the )?note|note|put (?:a )?note)(?: on the plan)?(?: saying| that says| reading|:)? (.+)$/.exec(t);
+  if (planNote) return out([{ op: "add_note", text: asSaid(original, planNote[1]!), quote: original }]);
+
   // Dividing: equal lots, or an access strip along one side. The divide panel shows the lines before anything is kept.
-  const divide = /^divide (lot [a-z0-9]+(?: [a-z0-9]+)?|the land|this land|it|the lot|this lot) into (\S+(?: \S+)?) (?:equal )?(?:lots|parts|shares|plots|blocks)$/.exec(t);
-  if (divide) return out([{ op: "divide", lot: /^lot /.test(divide[1]!) ? asSaid(original, divide[1]!) : "", by: "area", count: asSaid(original, divide[2]!), values: "", unit: "", lines: "", side: "", quote: original }]);
+  const divide = /^(?:divide|subdivide|split|cut) (lot [a-z0-9]+(?: [a-z0-9]+)?|[a-z]{1,2}\d{1,3}|the land|this land|it|the lot|this lot) (?:into|in) (\S+(?: \S+)??)(?: (?:equal )?(?:lots|parts|shares|plots|blocks|pieces))?$/.exec(t);
+  if (divide && divide[2] !== "lots") {
+    const lot = /^lot /.test(divide[1]!) ? divide[1]! : /^[a-z]{1,2}\d/.test(divide[1]!) ? divide[1]! : "";
+    return out([{ op: "divide", lot: lot ? asSaid(original, lot) : "", by: "area", count: asSaid(original, divide[2]!), values: "", unit: "", lines: "", side: "", quote: original }]);
+  }
   // Commas matter here: in "of lot B one, ten feet wide" the comma ends the lot's name. Without one, only a name written with
   // its figure (B3) is taken before a width, so "lot B one ten feet wide" is never read as lot B and a width of "one ten".
   const tc = original.normalize("NFKC").toLowerCase().replace(/[.!?;]+/g, " ").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim().replace(/,$/, "");
-  const access = /^(?:add|make|leave|reserve) (?:an? )?(?:access )?(?:road|strip|reservation|lane|path)(?: ([^,]+?) wide)?,? (?:along|on|by) the (north|east|south|west)(?:ern)? (?:boundary|side|edge)(?: of (?:(lot [a-z0-9]+(?: [a-z0-9]+)?)(?=,|$)|(lot [a-z]*\d[a-z0-9]*)(?= [^,]+ wide$)))?(?:,? (?!of )([^,]+?) wide)?(?: (?:in )?(feet|foot|ft|metres?|meters?))?$/.exec(tc);
+  // The width may come first ("a 10 ft access road along …"), after the road ("a road 3 m wide along …") or last (", ten feet wide").
+  const access =
+    /^(?:add|make|leave|reserve|provide|keep|give|create|put) (?:an? )?(?:((?:\d[\d.]*|[a-z]+(?: [a-z]+)?) ?(?:ft|feet|foot|m|metres?|meters?)) (?:wide )?)?(?:access )?(?:road|strip|reservation|lane|path|way)(?: ([^,]+?) wide)?,? (?:along|on|by|beside) the (north|east|south|west)(?:ern)?(?: (?:boundary|side|edge))?(?: of (?:(lot [a-z0-9]+(?: [a-z0-9]+)?)(?=,|$)|(lot [a-z]*\d[a-z0-9]*)(?= [^,]+ wide$)))?(?:,? (?!of |boundary\b|side\b|edge\b)([^,]+?) wide)?(?: (?:in )?(feet|foot|ft|metres?|meters?))?$/.exec(
+      tc,
+    );
   if (access) {
     // The unit is read from the words by the check; an answer to "feet or metres?" may follow the width.
-    const width = access[1] ?? access[5] ?? "";
-    const lot = access[3] ?? access[4] ?? "";
-    return out([{ op: "divide", lot: lot ? asSaid(original, lot) : "", by: "width", count: "", values: width ? asSaid(original, width) : "", unit: "", lines: "parallel", side: access[2] as "east", quote: original }]);
+    const width = access[1] ?? access[2] ?? access[6] ?? "";
+    const lot = access[4] ?? access[5] ?? "";
+    return out([{ op: "divide", lot: lot ? asSaid(original, lot) : "", by: "width", count: "", values: width ? asSaid(original, width) : "", unit: "", lines: "parallel", side: access[3] as "east", quote: original }]);
   }
 
   // Questions the engine answers.
-  if (/^(?:what(?:'s| is) (?:the )?(?:total )?(?:land )?area|calculate (?:the )?(?:total )?(?:land )?area|how big is (?:the|this) land|(?:the )?total area|area)$/.test(t)) return out([{ op: "answer", topic: "total_area", target: "" }]);
-  const lotArea = /^(?:what(?:'s| is) )?(?:the )?area of (lot .+)$/.exec(t);
+  // "Extent" is what Sri Lankan plans call the area; the answer gives hectares, acres, roods and perches, and square metres.
+  if (
+    /^(?:what(?:'s| is) (?:the )?(?:total )?(?:land )?(?:area|extent)(?: of (?:the|this) land)?(?: in (?:perches|acres|roods|hectares|square met(?:re|er)s))?|calculate (?:the )?(?:total )?(?:land )?(?:area|extent)|how big is (?:the|this) land|how many (?:perches|acres) (?:is it|is the land)|(?:the )?total (?:area|extent)|area|extent)$/.test(t)
+  )
+    return out([{ op: "answer", topic: "total_area", target: "" }]);
+  const lotArea = /^(?:what(?:'s| is) )?(?:the )?(?:area|extent) of (lot .+)$/.exec(t);
   if (lotArea) return out([{ op: "answer", topic: "lot_area", target: lotArea[1]! }]);
-  if (/^(?:what(?:'s| are) )?(?:the )?(?:lot areas|areas of (?:the|each|every) lots?)$/.test(t)) return out([{ op: "answer", topic: "lot_area", target: "" }]);
+  if (/^(?:what(?:'s| are) )?(?:the )?(?:lot areas|lot extents|(?:areas|extents) of (?:the|each|every) lots?)$/.test(t)) return out([{ op: "answer", topic: "lot_area", target: "" }]);
   if (/^(?:what(?:'s| is) )?(?:the )?perimeter$/.test(t)) return out([{ op: "answer", topic: "perimeter", target: "" }]);
-  if (/^(?:what(?:'s| is) (?:missing|left|still needed)|what else (?:is needed|do i need)|is (?:it|the plan) (?:finished|complete|ready))$/.test(t)) return out([{ op: "answer", topic: "missing", target: "" }]);
-  if (/^(?:what (?:stops|blocks) (?:approval|export|it)|any problems|what do the checks say|(?:run|show) (?:the )?checks)$/.test(t)) return out([{ op: "answer", topic: "checks", target: "" }]);
-  if (/^(?:add|show|put in|draw) (?:the |a )?north (?:arrow|point)$/.test(t)) return out([{ op: "answer", topic: "always_printed", target: "" }]);
-  if (/^(?:what(?:'s| is) the scale|which scale)$/.test(t)) return out([{ op: "answer", topic: "scale", target: "" }]);
+  if (/^(?:what(?:'s| is) (?:missing|left|still needed)|what else (?:is needed|do i need)|is (?:it|the plan) (?:finished|complete|ready)(?: for approval| to approve)?|can i approve (?:it|the plan|this)|ready for approval)$/.test(t)) return out([{ op: "answer", topic: "missing", target: "" }]);
+  if (/^(?:what (?:stops|blocks) (?:approval|export|it)|any (?:problems|errors|issues)|are there any (?:problems|errors|issues)|what do the checks say|(?:run|show) (?:the )?checks|check (?:the plan|it|this))$/.test(t)) return out([{ op: "answer", topic: "checks", target: "" }]);
+  if (/^(?:(?:add|show|put in|draw|insert|where is) )?(?:the |a )?north (?:arrow|point)$/.test(t)) return out([{ op: "answer", topic: "always_printed", target: "" }]);
+  if (/^(?:what(?:'s| is) the scale(?: of (?:the|this) (?:plan|sheet))?|which scale(?: is it)?|what scale is (?:it|the plan|this|the sheet))$/.test(t)) return out([{ op: "answer", topic: "scale", target: "" }]);
   return null;
 }

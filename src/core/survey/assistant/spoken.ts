@@ -234,12 +234,14 @@ export function readNumber(text: string): ReadNumber | null {
 
 /** A count from 1 to `max` ("four lots", "4"). */
 export function readCount(text: string, max = 50): number | null {
+  // "Split it in half": two, said without a figure.
+  if (/^\s*(?:in |into )?(?:two )?(?:half|halves)\s*$/i.test(text)) return 2;
   const n = readNumber(text);
   return n && Number.isInteger(n.value) && n.value >= 1 && n.value <= max ? n.value : null;
 }
 
 const RANGE_WORDS = new Set(["to", "through", "thru", "till", "until", "-"]);
-const LIST_FILLER = new Set(["point", "points", "corner", "corners", "number", "numbers", "no", "no.", "nos", "from", "and", "then", "with", "using", "the", "at", "via", "pt", "pts", "station", "stations"]);
+const LIST_FILLER = new Set(["point", "points", "corner", "corners", "number", "numbers", "no", "no.", "nos", "from", "and", "then", "with", "using", "the", "at", "via", "pt", "pts", "station", "stations", "between"]);
 
 export interface PointList {
   /** The point numbers, in the order said. */
@@ -474,8 +476,9 @@ export function readBearing(text: string): ParsedBearing | null {
 export function readScale(text: string): { scale: number | null } | null {
   if (/\b(auto|automatic|automatically|best)\b/i.test(text)) return { scale: null };
   const t = joinThousands(text.normalize("NFKC"));
-  const RATIO = /(?:^|[^\p{L}\p{N}.])(?:1|one)\s*(?::|\/|\bto\b|\bin\b)\s*/giu;
-  const ratio = /(?:^|[^\p{L}\p{N}.])(?:1|one)\s*(?::|\/|\bto\b|\bin\b)\s*(.+)$/iu.exec(t);
+  // "One is to five hundred" is how a scale is often said in Sri Lanka and India.
+  const RATIO = /(?:^|[^\p{L}\p{N}.])(?:1|one)\s*(?::|\/|\bis to\b|\bto\b|\bin\b)\s*/giu;
+  const ratio = /(?:^|[^\p{L}\p{N}.])(?:1|one)\s*(?::|\/|\bis to\b|\bto\b|\bin\b)\s*(.+)$/iu.exec(t);
   let n: number | null = null;
   if (ratio) {
     // One scale only: "from 1:500 to 1:1000" says two, so it isn't read, rather than read as the old one. Figures that stand alone
