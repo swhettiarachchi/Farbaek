@@ -1,7 +1,7 @@
 # Stage 195: Survey Studio, talk or type to the plan
 
 - **Branch:** `feat/survey-195`, from main after stage 194 went live.
-- **Migration:** v96 (`20270106090000_survey_assistant.sql`), applied by the owner before the merge.
+- **Migration:** v96 (`20270106090000_survey_assistant.sql`). The owner applied it on 2026-11-16, before the merge; see "Production's database" below.
 - **Why:** the owner asked for an AI drafting partner. Talk to the plan while looking at it, have it understand the project and the selection, see the result at once, and carry on. Voice, typing and direct editing should mix freely. Push to talk and live talk should be separate modes, and written prompts should work as well as speech. English and Sinhala now, Tamil later. Numbers must never be invented, every change must be undoable, and the engine must do every calculation.
 - **Decision:** [ADR 0210](../adr/0210-survey-drafting-assistant.md). How it works: [ASSISTANT.md](../survey/ASSISTANT.md).
 
@@ -79,13 +79,43 @@ Two fresh reviewers read the finished stage: one on the core, server and migrati
   - the card stack could go off the top of a phone screen.
 - **Smaller:** a slow point-list reader on the server, the turn record's size, 402 for usage, typed Tamil, the iOS version check, "Clear them".
 
+**The re-check.** Two more fresh reviewers read the fixes and found 23 more (13 on the core, 10 on the bar), all fixed:
+- **The core:**
+  - a hyphen ("points 1-4") made the local reader throw, from an escape the u flag refuses;
+  - a one-figure value ("4 lots") never matched;
+  - "from 1:500 to 1:1000" read the old scale, and "ten and a half" read as ten;
+  - "lot M" and "lot P" read as units, and "remove lot B one" could name lot B;
+  - "Plan No. 1234 is my own" read as not mine.
+- **The bar:**
+  - a card button pressed while push to talk listened left the microphone open;
+  - "apply" with nothing waiting stuck on working;
+  - holding Space scrolled the page;
+  - the speech hook could restart without end;
+  - a save during a model call lost the answer without saying so.
+
+## Production's database
+
+v95 and v96 were refused on 2026-11-16 (`relation "public.survey_projects" does not exist`), and nothing changed. It turned out that Survey Studio's v93 and v94 had never reached production. They had been noted as applied when stages 190 and 191 merged, with no read-back, so the signed-in Survey Studio had no database behind it from stage 190 on.
+- **The check:** a new read-only script, `scripts/vps/check-migrations.ps1`, looks for what each of v90 to v96 makes. Production's self-hosted database has no migration ledger. It showed v90 to v92 present, and v93 to v96 missing.
+- **Applied:** the owner applied the four in order the same morning, each in one transaction with its hash checked on both ends. The read-backs:
+
+| Migration | Read-back |
+| --- | --- |
+| v93 `20270103090000_survey_studio` | `check\|t` (`survey_projects` exists) |
+| v94 `20270104090000_survey_autodraft` | `check\|1` (`app_survey_record_ai_draft`) |
+| v95 `20270105090000_survey_instrument_files` | `check\|t` (the source formats include the instrument files) |
+| v96 `20270106090000_survey_assistant` | `check\|t` (`survey_assistant_turns` exists) |
+
+  The check afterwards showed all seven as `t`.
+- **From now on:** a migration counts as applied only once its read-back is written in the stage's notes.
+
 ## Verified
 
 - **Unit tests:**
   - spoken reading: 11;
   - the assistant's core: 21, including the owner's example instructions read without AI;
-  - the reviews' fixes: 15;
-  - the server turn with a fake model, and the record's size: 4;
+  - the reviews' and the re-check's fixes: 21;
+  - the server turn with a fake model, and the record's size in bytes: 4;
   - where the microphone is allowed: 2.
 - **DB tests:** v96's constraint, grants, roles, decisions, retention and cascade (19 in the file).
 - **Gates:** typecheck, lint and the design tests passed. The design tests caught one banned word and one off-scale icon, both fixed.

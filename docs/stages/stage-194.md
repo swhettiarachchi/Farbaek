@@ -1,7 +1,7 @@
 # Stage 194: Survey Studio, upload the field data and the plan draws itself
 
 - **Branch:** `feat/survey-194`, from main after stage 193 went live.
-- **Migration:** v95 (`20270105090000_survey_instrument_files.sql`), applied by the owner before the merge.
+- **Migration:** v95 (`20270105090000_survey_instrument_files.sql`). It was applied on 2026-11-16, after the merge, together with v93 and v94, which had never reached production. The read-backs are in [stage 195](stage-195.md#productions-database).
 - **Why:** the owner asked for the simplest path. Upload the data from the instrument, let Farbaek draw the plan, then review, verify and approve. They also asked whether drawing should happen on upload or on a separate instruction. The decision and the reasons are in ADR 0209.
 
 ## Plan
