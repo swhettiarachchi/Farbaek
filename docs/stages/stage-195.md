@@ -146,6 +146,38 @@ Checked against the plan before the merge, the stage still lacked these, now don
 
   The pages were the projects page, the Plan, Lots and Import steps, the public page and the Privacy page. Then `pnpm check` (3,516 tests) and `pnpm build`.
 
+## The field test (2026-11-16)
+
+The owner asked for the feature to be tested as a professional land surveyor would use it, and fixed.
+- **How it was tested:**
+  - about 170 real instructions, typed and as Chrome writes speech, through the real reader, checks, apply, card and answer code against the sample plan;
+  - then the screen itself on a local copy of the Sample unlocked for editing (never committed): applying with items unticked, undo and redo, removing a lot, dictating a field book through to the Import table, and the cards at 1280 and 375 px.
+- **What a surveyor would have hit:**
+  - **Needed the AI** (failing with it off, slower and paid with it on): most of the title block, the boundaries ("north by Lot 4 in Plan 1234"), "what is the extent", renaming, removing and noting lots, dictated field books, and common ways of saying divisions, access roads and scales ("one is to five hundred"). About 60 of the 170 needed it; now 2 do.
+  - **Misreadings,** each refused safely before but unhelpful:
+    - "… then hide the point numbers" swallowed into a point list;
+    - legs separated only by commas run together;
+    - "lot B1 saying garden" taken as the lot's name;
+    - an earlier plan's date put into its number;
+    - a tapped "from 3 to 8" for a leg read as the range 3 to 8.
+  - **On screen:**
+    - Apply below the fold of a card with several values;
+    - on phones, the buttons taking the room the values needed;
+    - undo silent;
+    - bearings shown without their marks;
+    - "what's missing" giving a count instead of what's missing;
+    - areas spoken in hectares only.
+  - **A safety gap:** a new lot that overlapped another, or whose legs crossed, was applied without a word. The card now shows the engine's computed extent and warns, and the read-back says "Careful: it overlaps lot B1".
+- **Tests:** `fieldwork.test.ts` (13) keeps the surveyor's instructions working.
+- **The owner's look at the screen:** the cards' letters and icons were too large, then the bar. Both are smaller now: compact cards with sticky Apply, and a bar of one command row over a quiet row, with the language moved into the settings (where it says how this browser hears it) and Send shown only with words to send. At Android's largest text (Chrome's default font at 32 px, as `qa:responsive --text-scale=2` sets it), the words had squeezed to one a line and the microphone and Apply fell onto rows of their own; now both rows hold, with 44 px buttons.
+- **A fresh review of the changes** (a separate agent, every finding reproduced) found 11 real misreadings and ten smaller faults (one, the sticky Apply, already fixed), all fixed with `fieldreview.test.ts` (18):
+  - **Values swallowing the next instruction** when a recogniser leaves out the commas ("village Udugampola district Gampaha", four boundaries in one breath, "plan number 1234 dated …", "Plan No. 1234 is my own"); and the opposite, "and village road" in a boundary taken as a village.
+  - **Rules catching too much:** notes on a lot becoming plan notes; "change lot B1 into two lots" renaming it "2"; the surveyed-points refusal catching "remove the point numbers" and a lot's corners; "show lot areas"; a plain "line" put on the roads layer; "show the wall …" drawing one.
+  - **Legs and names:** "between points 3 and 8" dropped, "point 3 and point 8" kept in the text, "between Kandy and Galle" read as points; "as a garden" naming lot A from a model's reply; "print on A3" naming a lot A³.
+  - **Smaller:** "half acre lots" read as halves; a scale said with the paper dropped; layers listed with commas; a leg's "from 101," before its "to"; two new lots over the same corners not warned about each other; a refusal or answer said with an instant change lost; "undo, undo" with one step saying "Undone" twice; blocking checks past six left out of the count said aloud.
+  - Still only 2 of the battery's instructions need the AI.
+- **Testing note:** the app's service worker caches script files in the local dev browser, so after edits, clear it there (or the page runs old code). Production file names change with every release.
+
 ## Next
 
 - **The owner's check after deploy,** in English: speak a few instructions on a computer and an Android phone, and make one real model call.

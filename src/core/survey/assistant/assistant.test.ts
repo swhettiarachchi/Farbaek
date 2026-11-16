@@ -83,7 +83,7 @@ describe("checking a turn", () => {
     const east = turn('write "Land of A. Perera" on the east of lot B1', [{ op: "add_adjoining", text: "Land of A. Perera", lot: "L1", side: "east", leg: none, quote: 'write "Land of A. Perera" on the east of lot B1' }]);
     expect(east.checked.ops[0]).toMatchObject({ kind: "adjoining_add", adjoining: { lot: "lot-b1", from: id(2), to: id(3) } });
     const north = turn('write "Temple land" on the north of lot B1', [{ op: "add_adjoining", text: "Temple land", lot: "L1", side: "north", leg: none, quote: 'write "Temple land" on the north of lot B1' }]);
-    expect(north.checked.question?.choices).toEqual(["from 3 to 8", "from 8 to 7"]);
+    expect(north.checked.question?.choices).toEqual(["between 3 and 8", "between 8 and 7"]);
   });
 
   it("never removes a surveyed point, and caps the steps of one instruction", () => {
@@ -162,7 +162,7 @@ describe("answers from the engine", () => {
     expect(m2).toBeCloseTo(SAMPLE_AREA_M2, 2);
     expect(a.rows[0]![1]).toBe(`0.22674 ha (0 A. 2 R. 09.65 P.), ${m2.toFixed(2)} m²`);
     expect(a.rows[1]).toEqual(["Stated in the title", "0 A. 2 R. 10 P."]);
-    expect(a.speak).toBe("The land is zero decimal two two six seven four hectares.");
+    expect(a.speak).toBe("The land is two roods, nine decimal six five perches; that's zero decimal two two six seven four hectares.");
     expect(answer({ kind: "answer", topic: "total_area", lotId: null, quote: "" }, { doc: emptyDocument(), points: SAMPLE_POINTS, findings: [], scale: null, suggestedScale: null }).rows).toEqual([]);
   });
 });
@@ -199,8 +199,16 @@ describe("words for the screen and for speech", () => {
   it("describes changes with their values, and reads figures back digit by digit", () => {
     const doc = sampleDocument();
     const op = { kind: "lot_add" as const, lot: { id: "lot-a1", label: "B", sup: "4", points: [id(1), id(2), id(3), id(8)], note: "" }, quote: "" };
-    expect(describeOp(op, { doc, points: SAMPLE_POINTS })).toEqual({ text: "Add lot B4", values: [{ role: "Corners, in order", value: "1, 2, 3, 8", mono: true }] });
-    expect(readBack([op, { kind: "number", setting: "scale", value: 500, quote: "" }], { doc, points: SAMPLE_POINTS })).toEqual(["Lot B four, corners one, two, three, eight.", "Scale one to five zero zero."]);
+    // With the engine's extent, and its warning: these corners lie inside lot B1.
+    expect(describeOp(op, { doc, points: SAMPLE_POINTS })).toEqual({
+      text: "Add lot B4",
+      values: [
+        { role: "Corners, in order", value: "1, 2, 3, 8", mono: true },
+        { role: "Extent, computed", value: "0.07859 ha (0 A. 0 R. 31.07 P.)", mono: false },
+      ],
+      warnings: ["It overlaps lot B1. Check the corners before applying."],
+    });
+    expect(readBack([op, { kind: "number", setting: "scale", value: 500, quote: "" }], { doc, points: SAMPLE_POINTS })).toEqual(["Lot B four, corners one, two, three, eight.", "Careful: it overlaps lot B1.", "Scale one to five zero zero."]);
   });
 });
 

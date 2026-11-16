@@ -4,12 +4,26 @@
  * to say aloud. Code writes these from the checked changes; the model's words
  * never carry the figures.
  */
-import { lotName, type LayerId, type SurveyDocument } from "../document";
-import { dotDate } from "../formats";
+import { lotName, type LayerId, type Lot, type SurveyDocument } from "../document";
+import { arpClassic, dotDate, hectares } from "../formats";
+import { computeLots } from "../lots";
+import { toArp } from "../units";
 import type { SurveyPoint } from "../parcel";
 import type { AssistField, PlanOp } from "./ops";
 import { speakBearing, speakDigits, speakPointNumbers } from "./spoken";
 import { parseBearing } from "../angles";
+
+/**
+ * A bearing as the table takes it ("45 30 15", "N 45 30 E"), written with its marks for the card: 45° 30′ 15″, N 45° 30′ E. The
+ * figures are the surveyor's, unchanged; only the marks are added.
+ */
+export function bearingMarks(text: string): string {
+  const t = text.trim().split(/\s+/);
+  const quadrant = /^[NS]$/.test(t[0] ?? "") && /^[EW]$/.test(t[t.length - 1] ?? "");
+  const parts = quadrant ? t.slice(1, -1) : t;
+  const marked = parts.map((p, i) => `${p}${["°", "′", "″"][i] ?? ""}`).join(" ");
+  return quadrant ? `${t[0]} ${marked} ${t[t.length - 1]}` : marked;
+}
 
 export const LAYER_NAMES: Record<LayerId, string> = {
   BOUNDARY: "Boundary",
@@ -69,6 +83,45 @@ export interface Value {
 export interface Described {
   text: string;
   values: Value[];
+  /** What the engine found that the surveyor should see before applying: an overlap, legs that cross. */
+  warnings?: string[];
+}
+
+/**
+ * What the survey engine says about a lot as it would be after the change: its computed extent, and whether it overlaps another lot
+ * or its legs cross (computeLots, the same checks as the Check step). Never repaired, only reported.
+ */
+export function lotFacts(candidate: Lot, ctx: { doc: SurveyDocument; points: readonly SurveyPoint[] }): { areaM2: number | null; overlaps: string[]; crossing: boolean } {
+  const plan = computeLots(ctx.points, [...ctx.doc.lots.filter((l) => l.id !== candidate.id), candidate]);
+  const last = plan.lots.length - 1;
+  const mine = plan.lots[last]!;
+  const crossing = Boolean(mine.parcel && mine.parcel.crossings.length > 0);
+  const overlaps = plan.overlaps.filter(([a, b]) => a === last || b === last).map(([a, b]) => lotName(plan.lots[a === last ? b : a]!.lot));
+  return { areaM2: mine.parcel && !crossing ? mine.parcel.areaM2 : null, overlaps, crossing };
+}
+
+/** "lot B1", "lots B2 and B3", "lots B1, B2 and B3". */
+const lotList = (names: readonly string[]) => (names.length === 1 ? `lot ${names[0]}` : `lots ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
+
+function lotNotes(candidate: Lot, ctx: { doc: SurveyDocument; points: readonly SurveyPoint[] }): { values: Value[]; warnings: string[] } {
+  const f = lotFacts(candidate, ctx);
+  const values: Value[] = f.areaM2 === null ? [] : [{ role: "Extent, computed", value: `${hectares(f.areaM2)} ha (${arpClassic(toArp(f.areaM2, ctx.doc.settings.perchDecimals))})`, mono: false }];
+  const warnings: string[] = [];
+  if (f.crossing) warnings.push("Its legs cross each other. Check the order of the corners.");
+  if (f.overlaps.length) warnings.push(`It overlaps ${lotList(f.overlaps)}. Check the corners before applying.`);
+  return { values, warnings };
+}
+
+/**
+ * Each change of a turn described, with the lots the turn's other changes add counted as on the plan, so two new lots over the same
+ * corners warn about each other.
+ */
+export function describeTurn(ops: readonly PlanOp[], ctx: { doc: SurveyDocument; points: readonly SurveyPoint[] }): Described[] {
+  const added = ops.map((o) => (o.kind === "lot_add" ? o.lot : null));
+  return ops.map((op, i) => {
+    const others = added.filter((l, j): l is Lot => l !== null && j !== i);
+    return describeOp(op, others.length ? { ...ctx, doc: { ...ctx.doc, lots: [...ctx.doc.lots, ...others] } } : ctx);
+  });
 }
 
 const FEATURE_WORDS: Record<string, string> = { BUILDINGS: "building outline", WALLS: "wall", FENCES: "fence", DRAINS: "drain", ROADS: "road line", UTILITIES: "utility line" };
@@ -97,7 +150,7 @@ export function describeOp(op: PlanOp, ctx: { doc: SurveyDocument; points: reado
       return { text: op.action === "undo" ? "Undo the last change" : "Redo the change", values: [] };
     case "layer": {
       const words = [op.visible === true ? "Show" : op.visible === false ? "Hide" : "", op.locked === true ? "lock" : op.locked === false ? "unlock" : ""].filter(Boolean).join(" and ");
-      return { text: `${words.charAt(0).toUpperCase()}${words.slice(1)} the ${LAYER_NAMES[op.layer]} layer`, values: [] };
+      return { text: `${words.charAt(0).toUpperCase()}${words.slice(1)} the ${LAYER_NAMES[op.layer].toLowerCase()} layer`, values: [] };
     }
     case "label":
       return { text: `Move ${named(op.entity)}'s label ${op.dx < 0 ? "left" : op.dx > 0 ? "right" : op.dy < 0 ? "up" : "down"}, on paper only`, values: [{ role: "By", value: `${Math.abs(op.dx || op.dy)} mm`, mono: false }] };
@@ -111,12 +164,17 @@ export function describeOp(op: PlanOp, ctx: { doc: SurveyDocument; points: reado
     case "number":
       if (op.setting === "scale") return { text: op.value === null ? "Let Farbaek choose the scale for the paper" : "Set the scale", values: op.value === null ? [] : [{ role: "Scale", value: `1:${op.value}`, mono: false }] };
       return { text: `Show ${op.setting === "perchDecimals" ? "perches" : op.setting === "secondDecimals" ? "seconds of bearings" : "distances"} to a set number of decimals`, values: [{ role: "Decimals", value: String(op.value), mono: false }] };
-    case "lot_add":
-      return { text: `Add lot ${lotName(op.lot)}${op.lot.note ? `, noted "${op.lot.note}"` : ""}`, values: [{ role: "Corners, in order", value: nums(op.lot.points), mono: true }] };
+    case "lot_add": {
+      const n = lotNotes(op.lot, ctx);
+      return { text: `Add lot ${lotName(op.lot)}${op.lot.note ? `, noted "${op.lot.note}"` : ""}`, values: [{ role: "Corners, in order", value: nums(op.lot.points), mono: true }, ...n.values], warnings: n.warnings };
+    }
     case "lot_edit": {
       const lot = lotById(op.id);
       const name = lot ? lotName(lot) : "?";
-      if (op.points) return { text: `Give lot ${name} new corners`, values: [{ role: "Corners, in order", value: nums(op.points), mono: true }] };
+      if (op.points) {
+        const n = lot ? lotNotes({ ...lot, points: op.points }, ctx) : { values: [], warnings: [] };
+        return { text: `Give lot ${name} new corners`, values: [{ role: "Corners, in order", value: nums(op.points), mono: true }, ...n.values], warnings: n.warnings };
+      }
       if (op.label !== undefined) return { text: `Rename lot ${name}`, values: [{ role: "New name", value: `${op.label}${op.sup ?? ""}`, mono: false }] };
       return { text: `Change lot ${name}'s note`, values: [{ role: "Note", value: op.note ?? "", mono: false }] };
     }
@@ -133,7 +191,8 @@ export function describeOp(op: PlanOp, ctx: { doc: SurveyDocument; points: reado
     case "feature_add":
       return { text: `Draw a ${op.feature.closed ? "closed " : ""}${FEATURE_WORDS[op.feature.layer] ?? "line"}${op.feature.code ? ` (${op.feature.code})` : ""}`, values: [{ role: "Through points", value: nums(op.feature.points), mono: true }] };
     case "field":
-      return { text: `Fill in the title: ${FIELD_NAMES[op.field].toLowerCase()}`, values: [{ role: FIELD_NAMES[op.field], value: typeof op.value === "boolean" ? (op.value ? "Yes" : "No") : /^\d{4}-\d{2}-\d{2}$/.test(op.value) ? dotDate(op.value) : op.value, mono: false }] };
+      // The line already names the field, so the value stands alone under it.
+      return { text: `Fill in the title: ${FIELD_NAMES[op.field].toLowerCase()}`, values: [{ role: "", value: typeof op.value === "boolean" ? (op.value ? "Yes" : "No") : /^\d{4}-\d{2}-\d{2}$/.test(op.value) ? dotDate(op.value) : op.value, mono: false }] };
     case "note_add":
       return { text: "Add a note to the plan", values: [{ role: "Note", value: op.text, mono: false }] };
     case "remove":
@@ -148,7 +207,7 @@ export function describeOp(op: PlanOp, ctx: { doc: SurveyDocument; points: reado
     }
     case "measure":
       return op.mode === "bearings"
-        ? { text: `Put ${op.rows.length} ${op.rows.length === 1 ? "leg" : "legs"} in the bearings and distances table, to check and import`, values: op.rows.map((r) => ({ role: `${r.from} to ${r.to}`, value: `${r.bearing}  ${r.distance} m`, mono: true })) }
+        ? { text: `Put ${op.rows.length} ${op.rows.length === 1 ? "leg" : "legs"} in the bearings and distances table, to check and import`, values: op.rows.map((r) => ({ role: `${r.from} to ${r.to}`, value: `${bearingMarks(r.bearing)}  ${r.distance} m`, mono: true })) }
         : { text: `Put ${op.rows.length} ${op.rows.length === 1 ? "point" : "points"} in the coordinates table, to check and import`, values: op.rows.map((r) => ({ role: `Point ${r.point}`, value: `N ${r.n}  E ${r.e}${r.z ? `  H ${r.z}` : ""}`, mono: true })) };
   }
 }
@@ -159,7 +218,11 @@ export function readBack(ops: readonly PlanOp[], ctx: { doc: SurveyDocument; poi
   const ids = (list: readonly string[]) => speakPointNumbers(list.map((id) => number.get(id) ?? "?"));
   const out: string[] = [];
   for (const op of ops) {
-    if (op.kind === "lot_add") out.push(`Lot ${spellLot(op.lot.label, op.lot.sup)}, corners ${ids(op.lot.points)}.`);
+    if (op.kind === "lot_add") {
+      out.push(`Lot ${spellLot(op.lot.label, op.lot.sup)}, corners ${ids(op.lot.points)}.`);
+      const f = lotFacts(op.lot, ctx);
+      if (f.crossing || f.overlaps.length) out.push(`Careful: ${f.crossing ? "its legs cross" : `it overlaps ${lotList(f.overlaps)}`}.`);
+    }
     else if (op.kind === "lot_edit" && op.points) out.push(`New corners ${ids(op.points)}.`);
     else if (op.kind === "number" && op.setting === "scale" && op.value !== null) out.push(`Scale one to ${speakDigits(String(op.value))}.`);
     else if (op.kind === "road_add") out.push(`Road edges ${ids(op.road.edgeA)}, and ${ids(op.road.edgeB)}.`);

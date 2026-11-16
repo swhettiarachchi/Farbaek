@@ -236,7 +236,8 @@ describe("the re-check of the fixes", () => {
     const lotB = Object.entries(ctx.refs).find(([, v]) => v === "lot:lot-b")![0];
     expect(turn("remove lot B one", [{ op: "remove", target: lotB, quote: "remove lot B one" }], { doc: both }).ops).toEqual([]);
     expect(turn("remove lot B¹", [{ op: "remove", target: "L1", quote: "remove lot B¹" }]).ops[0]).toMatchObject({ kind: "remove", id: "lot-b1" });
-    expect(turn("rename lot B to C", [{ op: "edit_lot", target: lotB, change: "label", label: "C", note: "", corners: none, quote: "rename lot B to C" }], { doc: both }).ops).toEqual([]);
+    // "rename lot B to C" names lot B (not B¹) and the new name after "to".
+    expect(turn("rename lot B to C", [{ op: "edit_lot", target: lotB, change: "label", label: "C", note: "", corners: none, quote: "rename lot B to C" }], { doc: both }).ops).toMatchObject([{ kind: "lot_edit", id: "lot-b", label: "C" }]);
   });
 
   it("reads 'Plan No. 1234 is my own' as mine, and takes a one-letter lot name in Sinhala", () => {

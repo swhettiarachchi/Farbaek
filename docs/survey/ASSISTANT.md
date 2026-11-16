@@ -6,16 +6,25 @@ Talk or type to the plan (stage 195, [ADR 0210](../adr/0210-survey-drafting-assi
 
 1. **Words.** Spoken words become text in the browser, or the surveyor types. The live caption shows their own words.
    - The words are held for review when the surveyor asks for that, or when a number could be read two ways ("2 to 4", "for", "to").
-2. **The local reader** ([`reader.ts`](../../src/core/survey/assistant/reader.ts)) reads frequent instructions by fixed rules, instantly and without AI:
-   - undo and redo, zoom, the whole sheet;
-   - showing, hiding and locking layers;
-   - paper, orientation, layout and scale;
-   - moving the picked label or putting it back;
-   - the area, the perimeter, the checks, what's missing and the scale;
-   - "add the north arrow" (it always prints);
-   - a lot from the points picked on the sheet ("create the boundary using these survey points") or from points said ("add lot B4 from points 1 to 4"); without a name it asks for one, and never makes one up;
-   - dividing a lot into equal lots, and an access road or strip along a side, handed to the divide panel (the width is asked for when it isn't said);
-   - conversation words: apply, discard, stop listening, save, read it back, go to a step.
+2. **The local reader** ([`reader.ts`](../../src/core/survey/assistant/reader.ts)) reads what a surveyor says routinely by fixed rules, instantly, free and without AI (the field test of 2026-11-16 put about 170 real instructions through it; all but two read locally):
+   - **The view and history:** undo and redo (saying what was undone, or that there was nothing), zoom, the whole sheet, "where is point 12", "show lot B1".
+   - **The sheet:** layers, one or several ("hide the walls and fences"); paper, orientation, layout and scale ("A3 landscape at 1:500", "one is to five hundred", "a three" as recognisers write A3, "automatic scale"); the overleaf schedule; bearings and distances on the face.
+   - **The picked label:** moved or put back ("nudge it right", "put it back").
+   - **The title block:** land name, plan number (with its date), village, district, province, pattu, korale, GN and DS divisions, survey and plan dates, the stated extent, the earlier plan with its date and author, "also called", "now known as". The value is the surveyor's own words, and may come first ("Gampaha district").
+   - **Boundaries in the title:** "north by Lot 4 in Plan 1234", or the land first ("a stream on the west"). Never "north arrow", a sentence ("the well is on the west") or a part of the sheet.
+   - **Said without commas,** as recognisers usually write speech: a value ends where the next field starts ("village Udugampola district Gampaha"), and the rest must read on its own, or the turn goes to the model. A boundary keeps its own words ("east by a stream and village road"), "and" after a value or a note carries it on, and a plan number that isn't one ("Plan No. 1234 is my own") goes to the model.
+   - **Lots:**
+     - from picked points ("create the boundary using these survey points"; without a name it asks for one, and never makes one up) or from points said ("lot A from 1, 2, 3, 4");
+     - renamed, removed, given a note, or new corners ("change lot B1's corners to 1 2 3 8 7");
+     - an adjoining land by side ("the land on the north of lot B1 is …"), asking which leg when two face it ("between 3 and 8").
+   - **Lines:** walls, fences, drains and buildings through points, or between two. Never "from 4 to 6", which in a list of points means 4, 5 and 6, and never a plain "line": its layer isn't guessed.
+   - **Notes on the plan.**
+   - **Divisions:** equal lots ("split lot B1 in half", "subdivide B1 into three"), and an access road or strip along a side ("a 10 ft access road along the eastern boundary of lot B2"). They're handed to the divide panel, and the width or its unit is asked for when it isn't said.
+   - **Dictated legs and coordinates,** read by code and handed to the Import step's tables.
+   - **Questions the engine answers:** the extent ("what is the extent", in hectares and acres, roods and perches), lot extents, perimeters, the checks, what's missing ("can I approve it", which lists each blocking check), the scale.
+   - **Refusals, at once with where each is done:** approving or signing, exports, the coordinate system, moving surveyed points.
+   - **Conversation words:** apply, discard, stop listening, save, read it back, go to a step.
+   - **Several at once** ("village Udugampola, district Gampaha"; "… then hide the point numbers"): read only when every part reads by the rules on its own, so "north by land of A and B" and "points 1, 2, 3 and 8" stay whole.
 
    English, plus Sinhala command words awaiting review by Sinhala-speaking surveyors.
 3. **The model** ([`survey-assistant.ts`](../../src/server/ai/survey-assistant.ts)), for anything else: Claude's fast tier at low effort, one request, structured output against the operation set ([`ops.ts`](../../src/core/survey/assistant/ops.ts)). It is told the plan as refs (L1, R1, A1, F1, N1, P:12), names and point numbers ([`context.ts`](../../src/core/survey/assistant/context.ts)): never a coordinate or an area. It writes the surveyor's own words for every value, never a value.
@@ -33,7 +42,7 @@ Talk or type to the plan (stage 195, [ADR 0210](../adr/0210-survey-drafting-assi
 | --- | --- | --- |
 | View | zoom, focus, select, undo, redo | At once |
 | Now | layers, labels, paper, orientation, layout, sheet switches | Read by the local reader: at once, one undo step, Undo beside it. From the model, or on a read-only plan: in a card. The model's undo and redo never run |
-| Confirm | lots, roads, adjoining lands, lines, title fields, notes, scale and decimals | A card: the change marked on the sheet, each value large with its role, a tick to leave any out; Apply is one undo step |
+| Confirm | lots, roads, adjoining lands, lines, title fields, notes, scale and decimals | A card: the change marked on the sheet, each value large with its role, a tick to leave any out; Apply is one undo step and stays at the card's foot. A new or reshaped lot also shows the engine's computed extent, and a warning when it overlaps another lot or its legs cross; the read-back says so too. Dictated bearings show their marks (45° 30′ 15″) |
 | Caution | removing a lot, road, adjoining land, line or note | As confirm, named in full; a lot goes with the adjoining lands written beside it |
 | Answer | total area, lot areas, perimeters, checks, what's missing, the scale | Computed by the engine ([`answer.ts`](../../src/core/survey/assistant/answer.ts)); the computed area beside, never instead of, a stated extent |
 | Hand-over | divide a lot; dictated legs or coordinates | The divide panel, or the Import step's typed tables, filled in for checking there; the plan is saved first |
@@ -90,7 +99,9 @@ Read-backs go the other way: digit by digit, "decimal" for the point, degrees, m
 - **The level** shown while listening is the microphone's real level, on computers only. Phones show the growing caption instead.
 - **Spoken replies** are opt-in and use local voices only, so plan text doesn't go to a network voice. They're never spoken over the microphone, and they're off on iOS 27.0 to 27.2. Where there's no voice for a language, the reply stays text and says so.
 - **First use:** before the first listen, the bar says who turns speech into text in this browser and that Farbaek gets only the text.
+- **The bar:** one command row (the mark, the words, Send once there are words to send, and the microphone) over a quiet row. The quiet row shows the voice mode as two text tabs, or what's happening while something is (listening, working, what was done, a reason), then Undo, the settings and earlier instructions. A notice clears after seven seconds; a failure's reason shows once, in its card. A refusal or answer said with an instant change ("approve it and hide the walls") is shown with it.
 - **The settings** (the sliders button on the bar; [`settings-panel.tsx`](../../src/components/survey/assistant/settings-panel.tsx)), kept on this device:
+  - the language, with how this browser hears it (on the device, by which company, or type only);
   - spoken replies;
   - "Check my words before sending": what's heard waits in the line to be checked, changed and sent (numbers that read two ways are always held);
   - live talk's pause;
@@ -127,6 +138,8 @@ Shift, Ctrl or Cmd plus a tap, or "Select several" on phones, picks items in ord
 - [`spoken.test.ts`](../../src/core/survey/assistant/spoken.test.ts): every spoken form and refusal.
 - [`assistant.test.ts`](../../src/core/survey/assistant/assistant.test.ts): checks, applying, patches, answers, the reader, the conversation states and the languages.
 - [`review195.test.ts`](../../src/core/survey/assistant/review195.test.ts): what the stage's reviews found, each as a test of its fix.
+- [`fieldwork.test.ts`](../../src/core/survey/assistant/fieldwork.test.ts): the assistant used as a surveyor uses it, from the title block to dictated field books, typed or as recognisers write speech.
+- [`fieldreview.test.ts`](../../src/core/survey/assistant/fieldreview.test.ts): what the field test's review found: values said without commas, notes on lots, refusals that caught too much, legs, layers and scales.
 - [`assistant.test.ts`](../../src/server/survey/assistant.test.ts) (server): metering, refunds, roles and what the model is sent, with a labelled fake model.
 - [`survey-studio.test.ts`](../../tests/db/survey-studio.test.ts): v96's constraint, grants, roles, decisions, retention and cascade, and a local change recorded as `local`.
 - [`compare.test.ts`](../../src/core/survey/compare.test.ts): History naming the assistant's changes.

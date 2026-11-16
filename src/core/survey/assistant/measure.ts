@@ -31,7 +31,9 @@ function pointName(text: string): string | null {
   return n && Number.isInteger(n.value) && n.value >= 0 ? n.text : null;
 }
 
-const SEGMENT = /\s*(?:;|\bthen\b|\bnext\b|\band then\b)\s*/i;
+// A leg ends at "then", "next" or ";", or at a comma before the next "to" or "from" ("… distance 25.40 m, to 103 …"): speech
+// recognisers often write only the comma.
+const SEGMENT = /\s*(?:;|\band then\b|\bthen\b|\bnext\b|,(?=\s*(?:from|to)\b))\s*/i;
 
 /** Legs from the words. A leg without "from" starts where the last one ended. Each problem names the leg. */
 export function readLegs(text: string): { rows: LegRow[]; problems: string[] } {
@@ -40,7 +42,13 @@ export function readLegs(text: string): { rows: LegRow[]; problems: string[] } {
   const parts = text
     .split(SEGMENT)
     .map((s) => s.replace(/^\s*(?:a\s+)?legs?\b/i, "").trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .reduce<string[]>((all, part) => {
+      const last = all[all.length - 1];
+      if (last !== undefined && /^from\b/i.test(last) && !/\bbearing\b/i.test(last) && /^to\b/i.test(part)) all[all.length - 1] = `${last}, ${part}`;
+      else all.push(part);
+      return all;
+    }, []);
   parts.forEach((part, i) => {
     const what = `Leg ${i + 1}`;
     const b = /\bbearing\b/i.exec(part);

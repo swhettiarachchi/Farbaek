@@ -73,8 +73,11 @@ export function PlanEditor(props: PlanEditorProps) {
   const doc = history.stack[history.index]!;
   // The plan as it stands now, for the assistant's changes, which can arrive after the render that sent them.
   const docRef = useRef(doc);
+  // Where the history stands, moved at once by the assistant's undo and redo, so "undo, undo" in one turn sees the first.
+  const historyAt = useRef({ index: history.index, length: history.stack.length });
   useLayoutEffect(() => {
     docRef.current = doc;
+    historyAt.current = { index: history.index, length: history.stack.length };
   });
   const dirty = history.index !== history.saved;
   const [baseVersion, setBaseVersion] = useState(props.baseVersion);
@@ -396,7 +399,16 @@ export function PlanEditor(props: PlanEditorProps) {
         }
       }
     },
-    history: (action) => (action === "undo" ? undo() : redo()),
+    // Whether there was a step to take: the assistant says so either way.
+    history: (action) => {
+      const h = historyAt.current;
+      const can = action === "undo" ? h.index > 0 : h.index < h.length - 1;
+      if (can) {
+        historyAt.current = { ...h, index: h.index + (action === "undo" ? -1 : 1) };
+        (action === "undo" ? undo : redo)();
+      }
+      return can;
+    },
     setMarks,
     save: () => save(),
     openDivide: (op) => handOver({ kind: "divide", op }, "boundary"),
