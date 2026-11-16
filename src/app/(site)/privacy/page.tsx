@@ -105,6 +105,12 @@ const SECTIONS: LegalSection[] = [
           If an owner or admin gives your workspace its own Anthropic key, those requests go to Anthropic, or through their company&apos;s own server, under that account&apos;s own terms. Farbaek
           keeps the key encrypted and never shows it again.
         </p>
+        <p>
+          When you talk to Survey Studio&apos;s drafting assistant, your own browser turns your speech into text: Chrome sends the sound to Google for that, Edge to Microsoft, and Safari uses Apple&apos;s dictation, while Firefox
+          does it on your device. Farbaek never receives the sound, only the text. Instructions that need the AI go to Anthropic like any other request, with the plan described by its lot names and point numbers, not its
+          coordinates. The assistant&apos;s instructions and what came of them are kept with the project, for the people in your workspace, so you can find them again; a project keeps its last 500. You can type instead of
+          talking, and spoken replies use your device&apos;s own voices.
+        </p>
         <p>Farbaek labels AI-drafted work, records which model drafted each change, and asks you to review it before it&apos;s applied. AI output can be wrong; see our Terms.</p>
       </>
     ),

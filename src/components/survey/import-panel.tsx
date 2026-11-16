@@ -14,6 +14,8 @@ import type { SurveyPoint } from "@/core/survey/parcel";
 import { importSurveyPointsAction, type SurveyFormState } from "@/app/app/survey/actions";
 import { DrawnSummary } from "@/components/survey/draw-from-points";
 import { ManualEntry } from "@/components/survey/manual-entry";
+import { useHandoff } from "@/components/survey/assistant/handoff";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { PointsTable } from "@/components/survey/points-table";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses, textareaClasses } from "@/components/ui/field";
@@ -75,6 +77,10 @@ export function ImportPanel({
   const [encoding, setEncoding] = useState<string | null>(null);
   const [result, setResult] = useState<SurveyFormState & { issues?: ImportIssue[] }>({ status: "idle" });
   const [pending, start] = useTransition();
+  // Rows the drafting assistant read from what was said (stage 195): shown in the typed table for checking, never imported unseen.
+  const { handoff, clear: clearHandoff } = useHandoff(projectId);
+  const handed = handoff?.kind === "entry" ? handoff.op : null;
+  const shownEntry = handed ? (handed.mode === "bearings" ? "bearings" : "coordinates") : entry;
 
   // Farbaek reads the columns itself; the surveyor can change any of them below.
   const guessColumns = (content: string) => {
@@ -189,6 +195,7 @@ export function ImportPanel({
       const r = await importSurveyPointsAction({ projectId, fileName: fileName || "pasted-points.txt", content: text, format, delimiter, hasHeader, columns, units: "metre", crsId, drawPlan: willDraw, codeList: dsrOn ? "dsr" : "project" });
       setResult(r);
       if (r.status === "done") {
+        clearHandoff();
         setText("");
         setFileName("");
         setGuess(null);
@@ -198,6 +205,7 @@ export function ImportPanel({
 
   // Another way in starts over: nothing chosen or confirmed for one carries to the next.
   const chooseEntry = (next: typeof entry) => {
+    clearHandoff();
     setEntry(next);
     setText("");
     setFileName("");
@@ -220,13 +228,35 @@ export function ImportPanel({
             ["bearings", "Bearings and distances"],
           ] as const
         ).map(([id, label]) => (
-          <button key={id} type="button" aria-pressed={entry === id} onClick={() => chooseEntry(id)} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 ${entry === id ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}>
+          <button key={id} type="button" aria-pressed={shownEntry === id} onClick={() => chooseEntry(id)} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 ${shownEntry === id ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}>
             {label}
           </button>
         ))}
       </div>
-      {entry !== "file" ? <ManualEntry key={entry} mode={entry} onText={(name, t) => load(name, t, false)} knownIds={known.map((p) => p.pointId)} disabled={Boolean(readOnly)} /> : null}
-      <div className={entry === "file" ? "grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "hidden"}>
+      {handed ? (
+        <div className="flex flex-wrap items-start gap-3 rounded-sm bg-canvas-2 p-3 ring-1 ring-line">
+          <StatusBadge status="approval" label="From the assistant" />
+          <p className="min-w-0 flex-1 text-sm text-ink-2">
+            {handed.rows.length} {handed.rows.length === 1 ? "row" : "rows"} read from what you said. Check every value against your field book, then confirm the units and grid and import, as for anything typed.
+          </p>
+          {/* Starts the same table afresh: the dictated rows go, from the table and from what would be imported. */}
+          <button type="button" onClick={() => chooseEntry(shownEntry)} className={buttonClasses("ghost", "sm")}>
+            Clear them
+          </button>
+        </div>
+      ) : null}
+      {shownEntry !== "file" ? (
+        <ManualEntry
+          key={handed ? "assistant" : shownEntry}
+          mode={shownEntry}
+          onText={(name, t) => load(name, t, false)}
+          knownIds={known.map((p) => p.pointId)}
+          disabled={Boolean(readOnly)}
+          initialCoords={handed?.mode === "coordinates" ? handed.rows : undefined}
+          initialLegs={handed?.mode === "bearings" ? handed.rows : undefined}
+        />
+      ) : null}
+      <div className={shownEntry === "file" ? "grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "hidden"}>
         <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-canvas-2 p-5 text-center text-sm text-ink-2 has-focus-visible:outline-2 has-focus-visible:outline-accent">
           <FileArrowUpIcon size={24} aria-hidden className="text-ink-3" />
           <span>

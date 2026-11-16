@@ -89,7 +89,7 @@ export default async function SurveyStudioPage() {
             title="No survey projects yet"
             action={readOnly ? undefined : <ButtonLink href="/app/survey/new">New survey project</ButtonLink>}
           >
-            Start one, import your points as CSV or TXT, choose the boundary, and Survey Studio draws the plan to scale.
+            Start one, bring in your points (a file from your instrument, a CSV, or typed in), and Survey Studio draws the plan to scale.
           </EmptyState>
         )}
       </section>
@@ -97,11 +97,13 @@ export default async function SurveyStudioPage() {
       <Card>
         <CardTitle icon={CompassToolIcon}>In this version</CardTitle>
         <ul className="mt-4 grid list-disc gap-1.5 pl-5 text-sm text-ink-2">
-          <li>Land survey (cadastral boundary) plans, on the SLD99 or Kandawala grid, UTM zone 44N, or local coordinates.</li>
-          <li>Point files in any column order (PNEZD, PENZD and others), and GeoJSON with a named grid.</li>
+          <li>Land survey (cadastral boundary) plans with several lots, roads and adjoining lands, on the SLD99 or Kandawala grid, UTM zone 44N, or local coordinates.</li>
+          <li>Points from files in any column order, GeoJSON, Leica GSI, Sokkia SDR, LandXML and Trimble JobXML, or typed in as coordinates or bearings and distances.</li>
           <li>Bearings, distances, area in m², hectares and acres, roods and perches, and checks on every step.</li>
-          <li>A plan sheet with title, extent, boundaries, references, north point, scale bar and an overleaf schedule; vector PDF at exact scale, and DXF for CAD.</li>
-          <li>Coming next, each with its own engine: subdivision and blocking out, topographic plans and contours, engineering and road plans, and an assistant that turns your instructions into a plan.</li>
+          <li>Dividing a lot into shares by area or width, and block-out plans checked against planning minimums you choose.</li>
+          <li>A draft from your description or a photo of an old plan, and a drafting assistant you talk or type to on the Plan step. You check every change before it&apos;s applied.</li>
+          <li>The classic Sri Lankan plan sheet with title, extent, boundaries, references, north point, scale bar and an overleaf schedule; vector PDF at exact scale, and DXF for CAD.</li>
+          <li>Coming next, each with its own engine: topographic plans and contours, and engineering and road plans.</li>
         </ul>
       </Card>
     </div>

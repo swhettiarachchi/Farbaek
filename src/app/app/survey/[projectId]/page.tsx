@@ -29,6 +29,7 @@ import { InverseTool } from "@/components/survey/inverse-tool";
 import { PartitionPanel } from "@/components/survey/partition-panel";
 import { DrawFromPoints } from "@/components/survey/draw-from-points";
 import { ReviewChecklist } from "@/components/survey/review-checklist";
+import { AssistantProvider } from "@/components/survey/assistant/assistant-context";
 import { PlanEditor } from "@/components/survey/plan-editor";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
@@ -99,6 +100,9 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   const ws = ctx.current;
   const [draftAi, readAi] = step === "draft" && !readOnly ? await Promise.all([loadAiAvailability(ctx, ws, "survey_draft").catch(() => null), loadAiAvailability(ctx, ws, "survey_read").catch(() => null)]) : [null, null];
   const aiOff = (a: typeof draftAi) => readOnly ?? (a ? a.disabledReason : "AI isn't available right now. Try again in a minute, or fill in the plan yourself on the Lots and Plan steps.");
+  // The drafting assistant on the Plan step (stage 195, ADR 0210): why its AI is off here, if it is. Its local reader works regardless.
+  const assistAi = step === "plan" && !readOnly && ctx.mode !== "demo" ? await loadAiAvailability(ctx, ws, "survey_assist").catch(() => null) : null;
+  const assistantAiOff = ctx.mode === "demo" ? "The demo workspace is sample data, so the assistant's AI is off here." : (readOnly ?? (assistAi ? assistAi.disabledReason : "The assistant's AI isn't available right now."));
   // History's compare (stage 191): an earlier version against the latest, in words.
   const asked = step === "history" && !sample && sp.compare ? Number(sp.compare) : null;
   const compareWith = asked && Number.isInteger(asked) && asked !== data.drawing.version ? asked : null;
@@ -257,6 +261,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           <div className="mt-5">
             <PartitionPanel
               key={JSON.stringify(doc.rules)}
+              projectId={projectId}
               lots={doc.lots}
               points={data.points}
               features={doc.features}
@@ -272,6 +277,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       {step === "plan" && (doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0) ? <ReviewChecklist doc={doc} findings={view.findings} base={base} approved={Boolean(approval)} /> : null}
 
       {step === "plan" ? (
+        <AssistantProvider>
         <PlanEditor
           key={data.drawing.version}
           projectId={projectId}
@@ -284,7 +290,9 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           approval={input.approval}
           approvedSurveyor={input.approval ? input.surveyor : null}
           readOnly={readOnly}
+          assistantAiOff={assistantAiOff}
         />
+        </AssistantProvider>
       ) : null}
 
       {step === "check" ? (

@@ -136,6 +136,25 @@ Constraint `survey_approvals_withdrawn`: `withdrawn_at` and `withdrawn_reason` a
 
 Index `survey_exports_project_idx (project_id, created_at desc)`. The file itself isn't stored: it can be rebuilt from the same version.
 
+### `survey_assistant_turns` (v96)
+
+The drafting assistant's model turns ([ASSISTANT.md](ASSISTANT.md), ADR 0210).
+
+| Column | Type | Rules |
+| --- | --- | --- |
+| `id` | uuid | primary key |
+| `project_id`, `org_id` | uuid | not null, cascade delete |
+| `actor_id` | uuid | the surveyor who gave the instruction; set null if their account goes |
+| `lang`, `input_method` | text | `en`, `si` or `ta`; `voice` or `typed` |
+| `words` | text | the instruction, 1 to 2,000 characters |
+| `reply` | text | the assistant's sentence, at most 400 characters, never figures |
+| `operations`, `dropped` | jsonb | arrays: the operations as checked by code, and what was left out with the reason; at most 64 KB and 16 KB |
+| `outcome`, `outcome_at` | text, timestamptz | `suggested`, `applied`, `discarded`, `failed` or `reverted` |
+| `applied_sha256` | text | when applied: the SHA-256 of the canonical JSON of what was applied |
+| `model` | text | the model id |
+
+Members of the workspace read it (RLS); nothing writes it but the functions below. A project keeps its last 500 turns. Index `survey_assistant_turns_project_idx (project_id, created_at desc)`.
+
 ## The drawing document
 
 Defined in [`document.ts`](../../src/core/survey/document.ts) with zod. It never holds a coordinate: lots, roads and lines name points by id. Schema 2 came with stage 191 (ADR 0203); `parseSurveyDocument` reads schema 1 documents and upgrades them (the boundary becomes lot 1, the legend becomes the code library, the panel layout is kept).
@@ -178,6 +197,8 @@ Helpers:
 | `app_survey_approve(org, actor, project, version, crs, content_sha256)` returns uuid | Approves the latest version. `crs` must still be the project's CRS: the hash covers the grid the server read, and the function holds the project row (`for update`) so the grid can't change before it commits. The document's `surveyorUserId` must be the actor, who must have a profile. Copies the profile into `surveyor` | `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `NOT_FOUND`, `CRS_CHANGED` (P0001), `VERSION_CONFLICT` when `version` isn't the latest, `NOT_THE_SURVEYOR` (42501), `NO_SURVEYOR_PROFILE` (42501), `ALREADY_APPROVED` (23505) when a standing approval exists | `survey.approved` (version, SHA-256) |
 | `app_survey_record_export(org, actor, project, version, kind, sha256, size, options)` returns uuid | Records a file made for a version. Any member may export what they can read, viewers included: it checks membership, not role. Like every other write here, a suspended workspace and an archived project make no new files | `FORBIDDEN` (not a member), `WORKSPACE_SUSPENDED`, `NOT_FOUND` (an archived project, or no such version in the workspace) | `survey.exported` (version, kind, SHA-256, bytes) |
 | `app_survey_archive_project(org, actor, project)` | Sets `archived_at`; the project leaves the list and takes no more edits. Its data and history stay | `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `NOT_FOUND` | `survey.project_archived` |
+| `app_survey_record_assistant_turn(org, actor, project, lang, input, words, reply, operations, dropped, outcome, model)` (v96) | Records one model turn of the drafting assistant on an open project (outcome `suggested` or `failed`) and keeps the project's last 500 | `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `NOT_FOUND`, `INVALID_OUTCOME`, `INVALID_MODEL` (22023) | `survey.assistant_turn` (model, input, language, counts, outcome) |
+| `app_survey_decide_assistant_turn(org, actor, turn, outcome, applied_sha256)` (v96) | What became of a turn: suggested to applied (with the hash) or discarded; applied to reverted. Only the turn's author | `FORBIDDEN`, `NOT_FOUND`, `INVALID_OUTCOME`, `INVALID_HASH` | `survey.assistant_decided` (turn, outcome) |
 | `app_survey_record_ai_draft(org, actor, project, operation, model, accepted, dropped, questions)` (v94) | Records that the drafting assistant ran on an open project: `survey_draft` or `survey_read`, the model id, and how many items it offered, left out and asked about. Nothing the person typed or photographed is stored | `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `NOT_FOUND`, `INVALID_OPERATION`, `INVALID_MODEL`, `INVALID_COUNTS` (22023) | `survey.ai_drafted` (operation, model, counts) |
 
 A check constraint failing inside a function (for example a point number with a control character) raises a Postgres error that names no code above; `surveyErrorFrom` turns it into `UNKNOWN` ("That didn't work, and nothing was changed. Try again in a moment.").

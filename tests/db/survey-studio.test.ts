@@ -218,3 +218,57 @@ describe("exports and reading", () => {
     await expect(q("select public.app_survey_record_export($1, $2, $3, 1, 'pdf', $4, 1234, '{}'::jsonb)", [org, USERS.alice, project, "b".repeat(64)])).rejects.toThrow(/NOT_FOUND/);
   });
 });
+
+describe("the drafting assistant (v96)", () => {
+  // Its own project: an earlier test archives the shared one.
+  let mine: string;
+  beforeAll(async () => {
+    mine = await create(USERS.alice);
+  });
+  const record = (actor: string, outcome = "suggested", projectId = mine, orgId = org) =>
+    q<{ id: string }>("select public.app_survey_record_assistant_turn($1, $2, $3, 'en', 'voice', 'add lot B4 from points 1 to 4', 'One change to check.', $4::jsonb, '[]'::jsonb, $5, 'claude-haiku-5-5') as id", [orgId, actor, projectId, JSON.stringify([{ kind: "lot_add" }]), outcome]).then((r) => r[0]!.id);
+  const decide = (actor: string, turn: string, outcome: string, hash: string | null = null) => q("select public.app_survey_decide_assistant_turn($1, $2, $3, $4, $5)", [org, actor, turn, outcome, hash]);
+  const HASH = "a".repeat(64);
+
+  it("meters the assistant as its own operation", async () => {
+    const from = new Date(Date.now() - 86_400_000).toISOString();
+    const to = new Date(Date.now() + 86_400_000).toISOString();
+    const grant = JSON.stringify({ kind: "plan", units: 1_000, starts_at: from, expires_at: to, source_key: "plan:survey-assist" });
+    await expect(q("select public.app_reserve_usage($1, $2, 'k-survey-assist', 'survey_assist', null, 5, $3)", [org, USERS.alice, grant])).resolves.toHaveLength(1);
+  });
+
+  it("records a turn with counts in its audit event, for members to read and only its author to decide", async () => {
+    const id = await record(USERS.alice);
+    const [e] = await su<{ metadata: Record<string, unknown> }>("select metadata from public.audit_events where org_id = $1 and action = 'survey.assistant_turn' order by id desc limit 1", [org]);
+    expect(e!.metadata).toEqual({ model: "claude-haiku-5-5", input: "voice", lang: "en", operations: 1, dropped: 0, outcome: "suggested" });
+    await as(db, "authenticated", USERS.alice, async () => {
+      expect((await db.query("select words from public.survey_assistant_turns where id = $1", [id])).rows).toHaveLength(1);
+    });
+    await as(db, "authenticated", USERS.bob, async () => {
+      expect((await db.query("select words from public.survey_assistant_turns where id = $1", [id])).rows).toHaveLength(0);
+    });
+    await expect(record(USERS.bob)).rejects.toThrow(/FORBIDDEN/);
+    await expect(record(USERS.alice, "applied")).rejects.toThrow(/INVALID_OUTCOME/);
+    await expect(decide(USERS.bob, id, "applied", HASH)).rejects.toThrow(/FORBIDDEN|NOT_FOUND/);
+    await expect(decide(USERS.alice, id, "applied")).rejects.toThrow(/INVALID_HASH/);
+    await decide(USERS.alice, id, "applied", HASH);
+    await expect(decide(USERS.alice, id, "discarded")).rejects.toThrow(/INVALID_OUTCOME/);
+    await decide(USERS.alice, id, "reverted");
+    const [t] = await su<{ outcome: string; applied_sha256: string }>("select outcome, applied_sha256 from public.survey_assistant_turns where id = $1", [id]);
+    expect(t).toEqual({ outcome: "reverted", applied_sha256: HASH });
+    await as(db, "authenticated", USERS.alice, async () => {
+      await expect(db.query("select public.app_survey_record_assistant_turn($1, $2, $3, 'en', 'voice', 'zoom in', '', '[]'::jsonb, '[]'::jsonb, 'suggested', 'claude-haiku-5-5')", [org, USERS.alice, project])).rejects.toThrow(/permission denied/);
+      await expect(db.query("insert into public.survey_assistant_turns (project_id, org_id, lang, input_method, words, outcome, model) values ($1, $2, 'en', 'typed', 'x', 'suggested', 'm')", [project, org])).rejects.toThrow(/permission denied/);
+    });
+  });
+
+  it("keeps a project's last 500 turns, and they go with the project", async () => {
+    await su("insert into public.survey_assistant_turns (project_id, org_id, actor_id, lang, input_method, words, outcome, model, created_at) select $1, $2, $3, 'en', 'typed', 'old ' || g, 'discarded', 'claude-haiku-5-5', now() - make_interval(secs => 1000 + g) from generate_series(1, 510) g", [mine, org, USERS.alice]);
+    await record(USERS.alice);
+    expect(await su("select count(*)::int as c from public.survey_assistant_turns where project_id = $1", [mine])).toEqual([{ c: 500 }]);
+    const extra = await create(USERS.alice);
+    await record(USERS.alice, "suggested", extra);
+    await su("delete from public.survey_projects where id = $1", [extra]);
+    expect(await su("select count(*)::int as c from public.survey_assistant_turns where project_id = $1", [extra])).toEqual([{ c: 0 }]);
+  });
+});

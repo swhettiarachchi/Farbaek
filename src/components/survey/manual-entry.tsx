@@ -1,7 +1,7 @@
 "use client";
 
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
-import { useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import { useEffect, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { fieldBookText } from "@/core/survey/import/fieldbook";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
@@ -26,10 +26,25 @@ export function coordinatesText(rows: readonly CoordRow[]): string {
  * - Bearings and distances: from a starting point (new, or one already in the project), each leg's bearing and horizontal distance,
  *   like CAD's polar input. Enter on a leg's last cell starts the next leg from where this one ended.
  */
-export function ManualEntry({ mode, onText, knownIds, disabled }: { mode: "coordinates" | "bearings"; onText: (name: string, text: string) => void; knownIds: readonly string[]; disabled: boolean }) {
-  const [coords, setCoords] = useState<CoordRow[]>([emptyCoord(), emptyCoord(), emptyCoord()]);
+export function ManualEntry({
+  mode,
+  onText,
+  knownIds,
+  disabled,
+  initialCoords,
+  initialLegs,
+}: {
+  mode: "coordinates" | "bearings";
+  onText: (name: string, text: string) => void;
+  knownIds: readonly string[];
+  disabled: boolean;
+  /** Rows the drafting assistant read from what was said (stage 195), to check here before importing. */
+  initialCoords?: CoordRow[];
+  initialLegs?: LegRow[];
+}) {
+  const [coords, setCoords] = useState<CoordRow[]>(initialCoords?.length ? [...initialCoords, emptyCoord()] : [emptyCoord(), emptyCoord(), emptyCoord()]);
   const [start, setStart] = useState({ pointId: "", n: "", e: "" });
-  const [legs, setLegs] = useState<LegRow[]>([{ from: "", to: "", bearing: "", distance: "", code: "" }]);
+  const [legs, setLegs] = useState<LegRow[]>(initialLegs?.length ? initialLegs : [{ from: "", to: "", bearing: "", distance: "", code: "" }]);
 
   const pushCoords = (next: CoordRow[]) => {
     setCoords(next);
@@ -40,6 +55,14 @@ export function ManualEntry({ mode, onText, knownIds, disabled }: { mode: "coord
     setLegs(next);
     onText("field-book.txt", fieldBookText(s.pointId.trim() && !knownIds.includes(s.pointId.trim()) ? s : null, next.map((l, i) => ({ ...l, from: l.from.trim() || (i === 0 ? s.pointId : next[i - 1]!.to) }))));
   };
+
+  // Rows handed over by the assistant go to the preview at once, as if typed.
+  useEffect(() => {
+    if (mode === "coordinates" && initialCoords?.length) onText("typed-points.csv", coordinatesText(coords));
+    if (mode === "bearings" && initialLegs?.length) onText("field-book.txt", fieldBookText(null, legs.map((l, i) => ({ ...l, from: l.from.trim() || (i === 0 ? "" : legs[i - 1]!.to) }))));
+    // Once, when the handed-over rows arrive; the table's own edits push from then on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Several rows pasted into one cell (from a spreadsheet or a text file) fill the table from there.
   const onPaste = (i: number) => (e: ClipboardEvent<HTMLInputElement>) => {
