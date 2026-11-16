@@ -24,7 +24,7 @@ export default async function MorePage() {
 
   const client = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const [meters, helpUnread] = await Promise.all([loadUsageMeters(ctx, ctx.current), client ? unreadSupportCount(client) : Promise.resolve(0)]);
-  const row = "flex h-14 items-center gap-3 px-4 text-body";
+  const row = "flex min-h-12 items-center gap-3 px-4 py-2.5 text-body";
   return (
     <div className="grid gap-6">
       <PageHeader title="More" />
@@ -69,12 +69,12 @@ export default async function MorePage() {
 
       {ctx.mode === "live" ? (
         <SignOutForm action={signOut}>
-          <button type="submit" className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-line bg-surface text-body text-ink shadow-e1">
-            <SignOutIcon size={20} aria-hidden /> Sign out of {ctx.user.email}
+          <button type="submit" className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-4 text-body text-ink shadow-e1">
+            <SignOutIcon size={16} weight="bold" className="shrink-0" aria-hidden /> <span className="min-w-0 truncate">Sign out of {ctx.user.email}</span>
           </button>
         </SignOutForm>
       ) : (
-        <Link href="/" className="flex h-12 items-center justify-center rounded-full border border-line bg-surface text-body shadow-e1">
+        <Link href="/" className="flex min-h-11 items-center justify-center rounded-full border border-line bg-surface text-body shadow-e1">
           Leave the demo
         </Link>
       )}

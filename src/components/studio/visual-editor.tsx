@@ -467,7 +467,7 @@ export function VisualEditor({
                   win?.postMessage({ type: DESIGN_SECTIONS_MESSAGE, items: sectionItems.map((s) => [s.n, s.label]) }, "*");
                   if (selected) win?.postMessage({ type: DESIGN_SELECT_MESSAGE, n: selected.n }, "*");
                 }}
-                className="block h-[min(62dvh,640px)] w-full bg-white"
+                className="block h-[min(48dvh,640px)] w-full bg-white sm:h-[min(62dvh,640px)]"
               />
             </div>
           )}

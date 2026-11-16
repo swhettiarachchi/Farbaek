@@ -62,7 +62,7 @@ export default async function HelpRequestPage({ params }: { params: Promise<{ id
         ) : null}
 
         {/* Sits above the phone tab bar while writing, so the reply box is always in reach. */}
-        <section aria-label="Reply" className="sticky bottom-[calc(var(--tab-bar)+0.5rem)] z-10 rounded-lg border border-line bg-surface/95 p-4 shadow-e2 backdrop-blur-xl lg:bottom-6">
+        <section aria-label="Reply" className="sticky bottom-[calc(var(--tab-bar)+0.5rem)] z-10 rounded-md border border-line bg-surface/95 p-3 shadow-e2 backdrop-blur-xl sm:rounded-lg sm:p-4 lg:bottom-6">
           <ReplyForm threadId={request.id} closed={closed} />
         </section>
 
