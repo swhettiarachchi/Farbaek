@@ -10,6 +10,7 @@ import { NeedsYouCard } from "@/components/app/needs-you-card";
 import { ProjectCard } from "@/components/app/project-card";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { PromptComposer } from "@/components/build/prompt-composer";
+import { SpaceDoors } from "@/components/app/space-doors";
 import { buildTargets } from "@/core/workspace/build-target";
 import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
@@ -148,6 +149,8 @@ export default async function MissionControl() {
       )}
 
       {showSteps ? <FirstStepsPanel data={steps} composer={composerInSteps ? composer : undefined} /> : null}
+
+      <SpaceDoors />
 
       {ws.billingUnknown ? <Notice tone="warning">We couldn&apos;t read this workspace&apos;s plan, so some things are paused for safety. Please contact support.</Notice> : null}
 

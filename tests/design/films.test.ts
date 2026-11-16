@@ -89,8 +89,8 @@ describe("product films", () => {
     expect(FILM_LABEL).toMatch(/recorded from Farbaek's interface/);
   });
 
-  it("links each chapter's Try it to a place on the homepage", () => {
+  it("links each chapter's Try it to a place on the site: its own page, or another page's section", () => {
     const hrefs = films.flatMap((f) => f.chapters.map((c) => c.tryIt?.href).filter(Boolean));
-    for (const h of hrefs) expect(h).toMatch(/^#[a-z-]+$/);
+    for (const h of hrefs) expect(h).toMatch(/^(\/[a-z-]+)?#[a-z-]+$/);
   });
 });

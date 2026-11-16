@@ -2,13 +2,14 @@ import { ArrowUpRightIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { MobileMenu } from "./mobile-menu";
-import { NAV_LINKS } from "./nav-links";
+import { SiteNav } from "./site-nav";
 
 /**
  * The public site's header: a frosted island floating just below the top
  * edge, 64px tall in all (8px of air plus the 56px bar), so the hero's
- * full-screen sizing stays the same. The link row shows from 1024px; below
- * that, the menu opens as a full-screen sheet under the island.
+ * full-screen sizing stays the same. The link row (the four spaces and
+ * pricing, ADR 0214) shows from 1024px; below that, the menu opens as a
+ * full-screen sheet under the island.
  */
 export function SiteHeader() {
   return (
@@ -22,20 +23,7 @@ export function SiteHeader() {
           <span className="flex h-11 items-center whitespace-nowrap text-title-4 font-semibold tracking-[-0.02em]">Farbaek</span>
         </Link>
 
-        <nav aria-label="Main" className="hidden lg:block">
-          <ul className="flex items-center gap-0.5">
-            {NAV_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="block rounded-full px-3.5 py-2 text-sm text-ink-2 pointer-coarse:py-3 transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-surface-raised hover:text-ink"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <SiteNav />
 
         <div className="flex shrink-0 items-center gap-1.5">
           {/* Wrapper controls visibility: the link's own display class would override "hidden". */}

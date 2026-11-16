@@ -28,7 +28,7 @@ export function ShowcaseSection() {
         <div className="mt-16 border-t border-line pt-10">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <h3 className="max-w-[24ch] text-balance text-[1.6rem] font-medium leading-tight tracking-[-0.03em] sm:text-[1.9rem]">What every build comes with.</h3>
-            <Link href="#status" className="inline-flex min-h-11 items-center text-sm font-medium text-ink-2 hover:text-ink">
+            <Link href="/proof#status" className="inline-flex min-h-11 items-center text-sm font-medium text-ink-2 hover:text-ink">
               See what works today
             </Link>
           </div>

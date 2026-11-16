@@ -64,7 +64,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
       "The preview updates while the site takes shape.",
       "Message the agent while it runs, or stop the run.",
     ],
-    link: { href: "#film", label: "Watch the whole build" },
+    link: { href: "/#film", label: "Watch the whole build" },
   },
   {
     id: "clip-check",
@@ -75,7 +75,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
       "Packages are checked for known vulnerabilities, and an AI reviews the riskiest files.",
       "Publishing needs a check of exactly these files that found nothing critical.",
     ],
-    link: { href: "#evidence", label: "See the proof" },
+    link: { href: "/proof#evidence", label: "See the proof" },
   },
   {
     id: "clip-live",

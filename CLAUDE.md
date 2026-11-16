@@ -24,7 +24,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 
 ## Architecture map
 
-- `src/app/(site)/`: marketing routes (`/`, `/pricing`, `/sign-in`) with the site header. `src/app/app/`: the signed-in app (Mission Control, projects, tasks, approvals, billing, settings). Server Components by default.
+- `src/app/(site)/`: the public site with the site header: the homepage, a page for each of the four spaces (`/build`, `/chat`, `/survey`, `/proof`, ADR 0214), `/pricing` and `/sign-in`. `src/components/site/spaces.ts` names the spaces for the header, phone menu, footer, homepage and the app's Home. `src/app/app/`: the signed-in app (Mission Control, projects, tasks, approvals, billing, settings). Server Components by default.
 - `src/server/workspace/`: request context, readers (Supabase and demo), write use cases. Writes go through `use-cases.ts` (TypeScript rules) then the service-role-only `app_*` SQL functions; the browser can only read.
 - `src/server/chat/`, `src/core/chat/`, `src/components/chat/`: Farbaek Chat (ADR 0213): conversations with branches, answers streamed as Server-Sent Events from `/app/chat/api/turn`, files, images and read-only links. Its own Markdown, code tint and MathML; no HTML from the model.
 - `src/server/ai/`: model providers behind interfaces: Claude and Gemini for contract drafting and change proposals (ADR 0009, ADR 0014; AI_PROVIDER picks one). Server-only; output is untrusted and only prefills forms.
@@ -38,7 +38,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
   - `workspace/`: project file path rules, import screening (secrets, binaries, build folders), file tree.
 - `src/content/samples.ts`: sample data for the public site. Always label it "sample" where it's shown.
 - `src/styles/tokens.css`: colour tokens. `tests/design/contrast.test.ts` enforces WCAG AA for every pair.
-- `src/components/three/`: the hero 3D scene. `src/components/film/`: the concept film.
+- `src/components/three/`: the 3D scene on `/build`. `src/components/films/`: the recorded films.
 - `docs/adr/`: one ADR per significant decision. Add one when you change a decision.
 
 ## Non-negotiables (full list in spec section 0)

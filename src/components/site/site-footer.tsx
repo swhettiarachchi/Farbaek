@@ -4,12 +4,17 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
 import { LEGAL_DOCS } from "@/config/legal";
-import { NAV_LINKS } from "./nav-links";
+import { MORE_LINKS, SPACES } from "./spaces";
+
+const COLUMNS = [
+  { title: "Spaces", links: SPACES.map((s) => ({ href: s.page, label: s.name })) },
+  { title: "More", links: [...MORE_LINKS, { href: "/proofpack/v1", label: "ProofPack format" }, { href: "/sign-in", label: "Sign in" }] },
+];
 
 export function SiteFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-line bg-surface">
-      <Container className="grid gap-8 pb-8 pt-12 sm:gap-10 sm:pb-10 sm:pt-16 md:grid-cols-[1.4fr_auto_1fr] md:items-start">
+      <Container className="grid gap-8 pb-8 pt-12 sm:gap-10 sm:pb-10 sm:pt-16 sm:grid-cols-2 lg:grid-cols-[1.4fr_auto_auto_auto] lg:gap-14 lg:items-start">
         <div className="flex items-start gap-4">
           <BrandLogo height={56} className="h-10 w-auto sm:h-14" />
           <div>
@@ -18,6 +23,17 @@ export function SiteFooter() {
             <p className="mt-4 text-sm text-ink-3">Start free, no card.</p>
           </div>
         </div>
+        {COLUMNS.map((col) => (
+          <nav key={col.title} aria-label={col.title} className="grid content-start gap-1 text-sm">
+            <p className="font-medium text-ink">{col.title}</p>
+            <ul>
+              {col.links.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className="inline-flex min-h-11 min-w-11 items-center text-ink-2 hover:text-ink">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
         <address className="grid gap-3 text-sm not-italic">
           <p className="font-medium text-ink">Contact</p>
           <p>
@@ -33,17 +49,9 @@ export function SiteFooter() {
             </a>
           </p>
         </address>
-        <nav aria-label="Footer" className="md:justify-self-end">
-          <ul className="grid grid-cols-2 gap-x-10 text-sm">
-            {[...NAV_LINKS, { href: "/verify", label: "Check a ProofPack" }, { href: "/security", label: "Security tests" }, { href: "/sign-in", label: "Sign in" }].map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className="inline-flex min-h-11 min-w-11 items-center text-ink-2 hover:text-ink">
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        ))}
       </Container>
       {/* The footer ends with the legal links (the oversized wordmark under them went at the owner's request, 2026-11-14). */}
       <Container className="pb-6">

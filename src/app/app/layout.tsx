@@ -228,9 +228,10 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-canvas/85 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] backdrop-blur-xl sm:pl-[max(1.5rem,env(safe-area-inset-left))] lg:hidden">
           <Brand />
-          <div className="flex min-w-0 items-center gap-1">
+          {/* 12px between the 40px buttons, so their 48px touch areas never overlap, even on a 320px phone. */}
+          <div className="flex min-w-0 items-center gap-3">
             <PaletteIconButton />
-            <Link href="/app/chat" aria-label="Chat" title="Chat" className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink">
+            <Link href="/app/chat" aria-label="Chat" title="Chat" className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink">
               <ChatCircleTextIcon size={20} aria-hidden />
             </Link>
             {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} compact /> : null}

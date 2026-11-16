@@ -46,11 +46,12 @@ export interface NavItem {
   exact?: boolean;
 }
 
-/** What most people need, always in view. */
+/** What most people need, always in view: the spaces (ADR 0214) and the work in them. */
 const CORE: NavItem[] = [
   { href: "/app", label: "Home", short: "Home", icon: HouseSimpleIcon, exact: true, about: "What's happening, and what needs you.", also: ["Mission Control"] },
   { href: "/app/chat", label: "Chat", short: "Chat", icon: ChatCircleTextIcon, about: "Ask, write, code, research and make images with AI.", also: ["AI chat", "Assistant", "Ask AI", "Images"] },
   { href: "/app/build", label: "Build", short: "Build", icon: HammerIcon, about: "Everything the agent is building or has built." },
+  { href: "/app/survey", label: "Survey Studio", short: "Survey", icon: CompassToolIcon, about: "Land survey plans from field data, drawn to scale as PDF and DXF.", also: ["Survey", "Land survey", "Cadastral", "Survey plan", "DXF"] },
   { href: "/app/projects", label: "Projects", short: "Projects", icon: SquaresFourIcon, about: "Your sites and apps." },
   { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListBulletsIcon, about: "Every piece of work, and where it stands." },
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckSquareOffsetIcon, about: "Changes waiting for your yes or no." },
@@ -58,7 +59,6 @@ const CORE: NavItem[] = [
 
 /** Useful, not needed every day: one labelled group, opened when wanted. */
 const TOOLS: NavItem[] = [
-  { href: "/app/survey", label: "Survey Studio", short: "Survey", icon: CompassToolIcon, about: "Land survey plans from field data, drawn to scale as PDF and DXF.", also: ["Survey", "Land survey", "Cadastral", "Survey plan", "DXF"] },
   { href: "/app/sandbox", label: "Test space", short: "Test space", icon: TerminalWindowIcon, about: "Run an app and try it, safely apart from everything else.", also: ["Sandbox", "Terminal"] },
   { href: "/app/skills", label: "Skills", short: "Skills", icon: BookOpenTextIcon, about: "Teach the agent how to design and build, from a library or your own.", also: ["SKILL.md", "Claude Skills", "Design skills"] },
   { href: "/app/agents", label: "Desktop app", short: "Desktop app", icon: DesktopIcon, about: "Let the agent work on your own computer.", also: ["Agents", "Farbaek Agent"] },
@@ -82,11 +82,12 @@ const ACCOUNT: NavItem[] = [
 /** Every page in the app's navigation, for the command palette. */
 export const APP_PAGES: readonly NavItem[] = [...CORE, ...TOOLS, ...ACCOUNT];
 
-// The phone's five tabs: Tasks is reached through More there, with the tools and the account pages.
-// Chat has its own button in the phone header and a row on More: five tabs is the most a phone bar holds.
-const TAB_ITEMS = CORE.filter((i) => i.href !== "/app/tasks" && i.href !== "/app/chat");
+// The phone's five tabs: Tasks, Chat and Survey Studio are reached through More there, with the tools and the account pages.
+// Chat also has its own button in the phone header: five tabs is the most a phone bar holds.
+const PHONE_EXTRAS = new Set(["/app/tasks", "/app/chat", "/app/survey"]);
+const TAB_ITEMS = CORE.filter((i) => !PHONE_EXTRAS.has(i.href));
 /** The rows on the phone's More page, in order. */
-export const MORE_PAGES: readonly NavItem[] = [...CORE.filter((i) => i.href === "/app/tasks" || i.href === "/app/chat"), ...TOOLS, ...ACCOUNT];
+export const MORE_PAGES: readonly NavItem[] = [...CORE.filter((i) => PHONE_EXTRAS.has(i.href)), ...TOOLS, ...ACCOUNT];
 
 /**
  * On the phone, a page that belongs to a tab lights that tab: a task opens from its project, and templates and checking an

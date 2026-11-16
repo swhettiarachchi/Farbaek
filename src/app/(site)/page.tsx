@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { FeatureFilmsSection, ProductFilmSection, ProofFilmSection } from "@/components/films/film-sections";
+import { ProductFilmSection } from "@/components/films/film-sections";
 import { AnchorLayout } from "@/components/marketing/anchor-layout";
-import { DemoSection } from "@/components/marketing/demo-section";
-import { EvidenceSection } from "@/components/marketing/evidence-section";
 import { HomeFaq } from "@/components/marketing/faq";
-import { Hero } from "@/components/marketing/hero";
-import { ModulesBento } from "@/components/marketing/modules-bento";
+import { Hero, SpacesSection } from "@/components/marketing/hero";
+import { FinalCall, JobsSection, SafeguardsSection } from "@/components/marketing/home-sections";
 import { PricingTeaser } from "@/components/marketing/pricing-teaser";
 import { StatementSection } from "@/components/marketing/statement-section";
-import { StatusSection } from "@/components/marketing/status-section";
-import { SurveySection } from "@/components/marketing/survey-section";
-import { ShowcaseSection } from "@/components/showcase/showcase-section";
 import { HOME_DESCRIPTION, HOME_TITLE, homeStructuredData, jsonLdText } from "@/core/seo/structured-data";
 import { siteUrl } from "@/server/supabase/config";
 
@@ -26,15 +21,18 @@ export const metadata: Metadata = {
 
 /**
  * Below the first screen, each section is laid out only as it nears the
- * screen (content-visibility), so a phone paints the hero sooner: about
- * 350 ms on a mid-range phone profile (ADR 0052). AnchorLayout lays them
- * all out before an in-page jump, so anchors land exactly; find-in-page and
- * the films' visibility checks work as before.
+ * screen (content-visibility), so a phone paints the hero sooner (ADR 0052).
+ * AnchorLayout lays them all out before an in-page jump, so anchors land
+ * exactly; find-in-page and the film's visibility checks work as before.
  */
 function Later({ children }: { children: ReactNode }) {
   return <div className="home-later">{children}</div>;
 }
 
+/**
+ * The homepage opens onto Farbaek's four spaces (ADR 0214): say what Farbaek is, show each space, then show it's real.
+ * The showroom and feature films live on /build, the proof film, the approval demo and the ProofPack on /proof.
+ */
 export default function HomePage() {
   return (
     <>
@@ -42,39 +40,27 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdText(homeStructuredData(siteUrl())) }} />
       <AnchorLayout />
       <Hero />
-      <ProductFilmSection />
+      <SpacesSection />
+      <Later>
+        <ProductFilmSection />
+      </Later>
       <Later>
         <StatementSection />
       </Later>
       <Later>
-        <FeatureFilmsSection />
+        <JobsSection />
       </Later>
       <Later>
-        <ShowcaseSection />
-      </Later>
-      <Later>
-        <SurveySection />
-      </Later>
-      <Later>
-        <ProofFilmSection />
-      </Later>
-      <Later>
-        <DemoSection />
-      </Later>
-      <Later>
-        <ModulesBento />
-      </Later>
-      <Later>
-        <EvidenceSection />
-      </Later>
-      <Later>
-        <StatusSection />
+        <SafeguardsSection />
       </Later>
       <Later>
         <PricingTeaser />
       </Later>
       <Later>
         <HomeFaq />
+      </Later>
+      <Later>
+        <FinalCall />
       </Later>
     </>
   );
