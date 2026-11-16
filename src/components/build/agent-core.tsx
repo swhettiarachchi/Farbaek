@@ -111,7 +111,7 @@ export function AgentCore({ phase, activity = null, kind, children }: { phase: C
           ) : null}
         </div>
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-lg font-medium tracking-[-0.02em] sm:text-2xl" role="status" aria-live="polite">
+          <p className="flex items-center gap-2 text-base font-medium tracking-[-0.02em] sm:text-2xl" role="status" aria-live="polite">
             <StatusGlyph status={kind ?? style.kind} size={24} className="size-5 sm:size-6" />
             {CORE_PHASE_LABELS[phase]}
           </p>

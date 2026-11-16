@@ -152,7 +152,7 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
         {opts.long ? (
           <textarea id={id} value={value} maxLength={max} rows={3} disabled={readOnly} onChange={(e) => update((d) => (set(d, e.target.value), touched(d, `sheet.${key}`)), key)} className={textareaClasses()} />
         ) : (
-          <input id={id} type={opts.type ?? "text"} value={value} maxLength={max} disabled={readOnly} onChange={(e) => update((d) => (set(d, e.target.value), touched(d, `sheet.${key}`)), key)} className={inputClasses()} />
+          <input id={id} type={opts.type ?? "text"} value={value} maxLength={max} disabled={readOnly} onChange={(e) => update((d) => (set(d, e.target.value), touched(d, `sheet.${key}`)), key)} className={inputClasses(opts.type === "date" ? "h-11 lg:pointer-fine:h-10" : "")} />
         )}
         {opts.hint ? <span className="text-sm text-ink-3">{opts.hint}</span> : null}
       </div>

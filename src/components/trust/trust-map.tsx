@@ -17,9 +17,9 @@ const TOP = 44;
  * The trust graph drawn in 2D (ADR 0132, ADR 0146): five columns, an edge for every
  * record that connects two of them. A limited edge is dashed and an
  * inactive node faded, always with words in the lists beside it, never by
- * colour alone. Selecting a node highlights its edges. On a touch screen
- * it is drawn at full size, so each node is a 44px target, and scrolls
- * sideways inside its own frame.
+ * colour alone. Selecting a node highlights its edges. On a touch screen,
+ * a touch iPad's desktop layout too, it is drawn at full size, so each
+ * node is a 44px target, and scrolls sideways inside its own frame.
  */
 export function TrustMap({ graph, focus }: { graph: TrustGraph; focus: string | null }) {
   // Only columns with something in them, so a workspace without tools or rules keeps four.
@@ -37,7 +37,7 @@ export function TrustMap({ graph, focus }: { graph: TrustGraph; focus: string | 
 
   return (
     <div className="overflow-x-auto rounded-md border border-line bg-surface">
-      <svg viewBox={`0 0 ${W} ${height}`} className="min-w-[1080px] lg:min-w-0" role="img" aria-label="Map of who and what can act on each project">
+      <svg viewBox={`0 0 ${W} ${height}`} className="min-w-[1080px] lg:pointer-fine:min-w-0" role="img" aria-label="Map of who and what can act on each project">
         {columns.map((c, col) => (
           <text key={c.title} x={x(col)} y={22} className="fill-[var(--color-ink-3)] text-label font-medium">
             {c.title}

@@ -52,7 +52,7 @@ export default async function SurveyStudioPage() {
             <StatusBadge status="simulated" label="Sample" />
             <span className="text-sm text-ink-3">Synthetic data, read-only</span>
           </div>
-          <p className="mt-3 text-lg font-medium tracking-[-0.01em] text-ink">Sample land survey</p>
+          <p className="mt-3 text-title-4 font-medium tracking-[-0.01em] text-ink sm:text-lg">Sample land survey</p>
           <p className="mt-1 max-w-[60ch] text-sm text-ink-2">A five-sided parcel with a building and a wall, on the SLD99 grid: open it to see the boundary, the plan sheet, the checks and the exports before importing your own points.</p>
         </div>
       </Link>
