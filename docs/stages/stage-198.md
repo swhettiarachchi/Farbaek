@@ -36,7 +36,8 @@
   - a report of headings is named, with its headings;
   - CSV (with and without a header row, with colons in codes and times), GSI, SDR, LandXML, JobXML, GeoJSON, a field book, and a CSV mentioning SOKKIA Link once are never taken for a printout;
   - 62 import tests pass.
-- **`pnpm typecheck`** and lint pass.
+- **`pnpm typecheck`**, lint and `pnpm build` pass.
+- **The full suite:** 3,578 tests pass.
 - **The browser, on the dev demo** with a local unlock of the Sample's import (never committed):
   - a pasted synthetic printout shows one sentence, the path and **Copy the path**, with no "can't be read";
   - **What to upload** opens with its five lines;
