@@ -26,7 +26,7 @@ import type { SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import type { buildPlan } from "@/core/survey/view";
 import { canonicalHash } from "@/core/trust/canonical-json";
-import { decideAssistTurnAction } from "@/app/app/survey/assistant-actions";
+import { decideAssistTurnAction, recordLocalAssistTurnAction } from "@/app/app/survey/assistant-actions";
 import { buttonClasses } from "@/components/ui/button";
 import { useAssistant, type Turn } from "./assistant-context";
 import { AnswerCard, ChangeCard, HandoffCard, NoteCard, QuestionCard } from "./cards";
@@ -95,6 +95,19 @@ function decide(t: Turn, outcome: "applied" | "discarded" | "reverted", ops: rea
     .catch(() => null);
 }
 
+/**
+ * Records a change the local rules read and the surveyor applied, so the project's record (and the next visit's drawer) has every
+ * change, not only the model's. A record only: a failure never stops the work. Its id lets "Take back" be recorded too.
+ */
+function recordLocal(projectId: string, t: Pick<Turn, "id" | "words" | "lang" | "inputMethod">, ops: readonly PlanOp[], update: (id: string, change: Partial<Turn>) => void) {
+  void canonicalHash(ops)
+    .then((hash) => recordLocalAssistTurnAction({ projectId, words: t.words, lang: t.lang, inputMethod: t.inputMethod, operations: ops as unknown as { kind: string }[], appliedSha256: hash }))
+    .then((r) => {
+      if (r.ok && r.turnId) update(t.id, { serverId: r.turnId });
+    })
+    .catch(() => null);
+}
+
 export function AssistantDock({ bridge }: { bridge: EditorBridge }) {
   const a = useAssistant();
   if (!a) return null;
@@ -102,7 +115,7 @@ export function AssistantDock({ bridge }: { bridge: EditorBridge }) {
 }
 
 function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<typeof useAssistant>> }) {
-  const { settings, setSettings, session, dispatch, turns, addTurn, updateTurn } = a;
+  const { earlier, settings, setSettings, session, dispatch, turns, addTurn, updateTurn } = a;
   const speech = useSpeech();
   const voice = useVoiceReply();
   const level = useMicLevel(session.phase === "listening");
@@ -231,6 +244,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         }
         bridge.setMarks(r.touched);
         addTurn({ ...base, outcome: "done", patch: r.patch, message: changes.map((o) => describeOp(o, ctx).text).join(". "), open: false });
+        if (engine === "reader") recordLocal(bridge.projectId, base, changes, updateTurn);
         dispatch({ type: "result", phase: "applied" });
         setNotice(`${changes.map((o) => describeOp(o, ctx).text).join(". ")}.`);
         say(["Done."], lang, spoken, resumeLive);
@@ -266,7 +280,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       dispatch({ type: "failed", message: why });
       say([why], lang, spoken, ended ? undefined : resumeLive);
     },
-    [addTurn, ctx, dispatch, resumeLive, say],
+    [addTurn, ctx, dispatch, resumeLive, say, updateTurn],
   );
 
   const control = useCallback(
@@ -421,6 +435,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     }
     b.setMarks(r.touched);
     decide(t, "applied", ops);
+    if (t.engine === "reader") recordLocal(b.projectId, t, ops, updateTurn);
     const skipped = r.skipped.length ? ` ${r.skipped.map((s) => `${s.what}: ${s.why}`).join(" ")}` : "";
     updateTurn(t.id, { open: false, outcome: "applied", patch: r.patch, message: `${ops.length === 1 ? "One change" : `${ops.length} changes`} applied.${skipped}` });
     setNotice(`${ops.length === 1 ? "One change" : `${ops.length} changes`} applied.${skipped}`);
@@ -433,7 +448,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     if (!t.patch) return;
     const r = bridge.revert(t.patch);
     if (r.ok) {
-      if (t.outcome === "applied") decide(t, "reverted");
+      if (t.outcome === "applied" || t.outcome === "done") decide(t, "reverted");
       updateTurn(t.id, { outcome: "reverted", message: "Taken back." });
       setNotice("Taken back.");
     } else setNotice(`It can't be taken back: ${r.changedSince.join(", ")} changed since. Undo by hand, or change it again.`);
@@ -945,6 +960,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       {showDrawer ? (
         <TurnsDrawer
           turns={turns}
+          earlier={earlier}
           readOnly={Boolean(bridge.readOnly)}
           onClose={() => setDrawer(false)}
           onUseAgain={(w) => {

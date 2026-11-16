@@ -226,5 +226,8 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   if (checkedNow > 0) add("Checks", `${checkedNow} ${checkedNow === 1 ? "item filled in by the AI was" : "items filled in by the AI were"} checked.`);
   if (autoChecked > 0) add("Checks", `${autoChecked} ${autoChecked === 1 ? "item drawn from the field data was" : "items drawn from the field data were"} checked.`);
   if (again > 0) add("Checks", `${again} ${again === 1 ? "item needs" : "items need"} checking again.`);
+  // What the drafting assistant added or changed (stage 195): each was applied by the surveyor after seeing it on the sheet.
+  const assisted = Object.entries(after.provenance).filter(([k, p]) => p.source === "ai_assist" && before.provenance[k]?.source !== "ai_assist").length;
+  if (assisted > 0) add("Checks", `${assisted} ${assisted === 1 ? "item was" : "items were"} added or changed with the drafting assistant, each applied after you saw it.`);
   return out;
 }

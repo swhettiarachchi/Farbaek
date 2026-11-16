@@ -1,15 +1,16 @@
 "use client";
 
 /**
- * Earlier instructions (stage 195): each turn of the conversation with what came of it, newest at the bottom like a log. "Use again" puts
- * the words back in the instruction line; a turn that changed the plan can be taken back while the parts it changed are still as it left
- * them.
+ * Earlier instructions (stage 195): each turn of the conversation with what came of it, newest at the bottom like a log, after the
+ * latest from earlier visits (the project's record). "Use again" puts the words back in the instruction line; a turn of this visit that
+ * changed the plan can be taken back while the parts it changed are still as it left them.
  */
 import { ArrowCounterClockwiseIcon, ArrowUUpLeftIcon, MicrophoneIcon, TextAaIcon, XIcon } from "@phosphor-icons/react";
 import type { Status } from "@/components/ui/status-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LocalTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
+import type { EarlierTurn } from "@/core/survey/assistant/ops";
 import type { Outcome, Turn } from "./assistant-context";
 
 const OUTCOME: Record<Outcome, { status: Status; label: string }> = {
@@ -24,7 +25,33 @@ const OUTCOME: Record<Outcome, { status: Status; label: string }> = {
   reverted: { status: "off", label: "Taken back" },
 };
 
-export function TurnsDrawer({ turns, onClose, onUseAgain, onTakeBack, readOnly }: { turns: readonly Turn[]; onClose(): void; onUseAgain(words: string): void; onTakeBack(t: Turn): void; readOnly: boolean }) {
+/** What came of an earlier visit's instruction, as the record says. One never decided was left when the page closed. */
+const EARLIER: Record<EarlierTurn["outcome"], { status: Status; label: string }> = {
+  suggested: { status: "off", label: "Left undecided" },
+  applied: { status: "done", label: "Applied" },
+  discarded: { status: "off", label: "Discarded" },
+  failed: { status: "attention", label: "Couldn't" },
+  reverted: { status: "off", label: "Taken back" },
+};
+
+export function TurnsDrawer({
+  turns,
+  earlier = [],
+  onClose,
+  onUseAgain,
+  onTakeBack,
+  readOnly,
+}: {
+  turns: readonly Turn[];
+  earlier?: readonly EarlierTurn[];
+  onClose(): void;
+  onUseAgain(words: string): void;
+  onTakeBack(t: Turn): void;
+  readOnly: boolean;
+}) {
+  // This visit's own turns are already listed below, so the record's copies of them are left out.
+  const mine = new Set(turns.map((t) => t.serverId).filter(Boolean));
+  const before = earlier.filter((e) => !mine.has(e.id));
   return (
     <section aria-label="Earlier instructions" className="pointer-events-auto w-full max-w-3xl rounded-md bg-surface shadow-e2 ring-1 ring-line motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2">
@@ -33,10 +60,36 @@ export function TurnsDrawer({ turns, onClose, onUseAgain, onTakeBack, readOnly }
           <XIcon size={16} weight="bold" aria-hidden />
         </button>
       </div>
+      <div className="max-h-[min(44vh,26rem)] overflow-y-auto">
+      {before.length > 0 ? (
+        <section aria-label="Earlier visits" className="border-b border-line">
+          <h4 className="px-4 pt-3 text-xs font-medium text-ink-3">Earlier visits</h4>
+          <ol className="grid gap-1 p-2">
+            {before.map((e) => (
+              <li key={e.id} className="grid gap-2 rounded-sm px-3 py-2.5 hover:bg-canvas-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge status={EARLIER[e.outcome].status} label={EARLIER[e.outcome].label} />
+                  <span className="flex items-center gap-1 text-xs text-ink-3">
+                    {e.inputMethod === "voice" ? <MicrophoneIcon size={14} weight="bold" aria-hidden /> : <TextAaIcon size={14} weight="bold" aria-hidden />}
+                    {e.inputMethod === "voice" ? "Spoken" : "Typed"}, <LocalTime iso={e.at} />
+                  </span>
+                </div>
+                <p className="break-words text-sm text-ink">{e.words}</p>
+                <div className="flex flex-wrap gap-1">
+                  <button type="button" onClick={() => onUseAgain(e.words)} className={buttonClasses("ghost", "sm")}>
+                    <ArrowUUpLeftIcon size={16} weight="bold" aria-hidden />
+                    Use again
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
       {turns.length === 0 ? (
-        <p className="px-4 py-4 text-sm text-ink-2">Nothing yet. Each instruction you give, spoken or typed, is listed here with what came of it, for this visit.</p>
+        <p className="px-4 py-4 text-sm text-ink-2">{before.length > 0 ? "Nothing yet this visit." : "Nothing yet. Each instruction you give, spoken or typed, is listed here with what came of it."}</p>
       ) : (
-        <ol role="log" aria-label="Instructions and what came of them" className="grid max-h-[min(44vh,26rem)] gap-1 overflow-y-auto p-2">
+        <ol role="log" aria-label="Instructions and what came of them" className="grid gap-1 p-2">
           {turns.map((t) => (
             <li key={t.id} className="grid gap-2 rounded-sm px-3 py-2.5 hover:bg-canvas-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -64,6 +117,7 @@ export function TurnsDrawer({ turns, onClose, onUseAgain, onTakeBack, readOnly }
           ))}
         </ol>
       )}
+      </div>
     </section>
   );
 }

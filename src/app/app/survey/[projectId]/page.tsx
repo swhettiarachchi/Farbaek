@@ -41,7 +41,7 @@ import { buildPlan } from "@/core/survey/view";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
 import { isoDate, personName, planInputFor } from "@/server/survey/present";
-import { loadSurveyDrawing, loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
+import { loadAssistantHistory, loadSurveyDrawing, loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { SAMPLE_PROJECT_ID, sampleProject } from "@/server/survey/sample";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
@@ -103,6 +103,9 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   // The drafting assistant on the Plan step (stage 195, ADR 0210): why its AI is off here, if it is. Its local reader works regardless.
   const assistAi = step === "plan" && !readOnly && ctx.mode !== "demo" ? await loadAiAvailability(ctx, ws, "survey_assist").catch(() => null) : null;
   const assistantAiOff = ctx.mode === "demo" ? "The demo workspace is sample data, so the assistant's AI is off here." : (readOnly ?? (assistAi ? assistAi.disabledReason : "The assistant's AI isn't available right now."));
+  // Earlier visits' instructions, for the assistant's drawer (read through RLS; none for the Sample or the demo).
+  const historyClient = step === "plan" && !sample && ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const assistHistory = historyClient ? await loadAssistantHistory(historyClient, projectId) : [];
   // History's compare (stage 191): an earlier version against the latest, in words.
   const asked = step === "history" && !sample && sp.compare ? Number(sp.compare) : null;
   const compareWith = asked && Number.isInteger(asked) && asked !== data.drawing.version ? asked : null;
@@ -277,7 +280,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       {step === "plan" && (doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0) ? <ReviewChecklist doc={doc} findings={view.findings} base={base} approved={Boolean(approval)} /> : null}
 
       {step === "plan" ? (
-        <AssistantProvider>
+        <AssistantProvider earlier={assistHistory}>
         <PlanEditor
           key={data.drawing.version}
           projectId={projectId}

@@ -68,4 +68,13 @@ describe("comparing two versions", () => {
     after.provenance["sheet.village"] = { source: "ai_photo", reviewed: true };
     expect(compareDocuments(before, after, SAMPLE_POINTS).map((c) => c.text)).toEqual(["Road removed.", "1 item was filled in by the AI, all checked.", "1 item needs checking again."]);
   });
+
+  it("names what the drafting assistant added, applied after the surveyor saw it", () => {
+    const before = sampleDocument();
+    const after = structuredClone(before);
+    after.notes.push("Boundary walls are the owner's.");
+    after.lots.push({ id: "lot-a1", label: "B", sup: "4", points: [id(1), id(2), id(3)], note: "" });
+    after.provenance["lot:lot-a1"] = { source: "ai_assist", reviewed: true };
+    expect(compareDocuments(before, after, SAMPLE_POINTS).map((c) => c.text)).toContain("1 item was added or changed with the drafting assistant, each applied after you saw it.");
+  });
 });
