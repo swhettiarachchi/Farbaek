@@ -504,6 +504,32 @@
   }
 }
 
+/*
+ * The studios' placeholder while a picture or video is being made (stage 201, ADR 0216): a soft signal-blue light sweeping
+ * across, only while the work is live. Under reduced motion it's a still tint.
+ */
+.studio-sheen {
+  overflow: hidden;
+  background: radial-gradient(70% 60% at 50% 55%, color-mix(in oklab, var(--color-accent) 8%, var(--color-canvas-2)), var(--color-canvas-2));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .studio-sheen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 30%, color-mix(in oklab, var(--color-accent) 12%, transparent) 50%, transparent 70%);
+    transform: translateX(-100%);
+    animation: studio-sheen 1800ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+}
+
+@keyframes studio-sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 @keyframes glimpse-rise {
   from {
     opacity: 0;

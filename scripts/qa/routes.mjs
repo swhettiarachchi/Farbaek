@@ -7,11 +7,11 @@ const SURVEY_STEPS = ["import", "points", "draft", "boundary", "plan", "check", 
 /** Routes with fixed paths. */
 export const STATIC_ROUTES = [
   // Public pages.
-  "/", "/build", "/chat", "/proof", "/pricing", "/survey", "/security", "/sign-in", "/verify", "/this-page-does-not-exist",
+  "/", "/chat", "/images", "/video", "/build", "/proof", "/pricing", "/survey", "/security", "/sign-in", "/verify", "/this-page-does-not-exist",
   "/terms", "/privacy", "/acceptable-use", "/delete-account", "/proofpack/v1", "/account-deleted", "/offline",
   "/auth/connect", "/auth/connect/done", "/device",
   // The signed-in app.
-  "/app", "/app/agents", "/app/approvals", "/app/billing", "/app/build", "/app/help", "/app/help/new", "/app/mesh",
+  "/app", "/app/chat", "/app/images", "/app/video", "/app/agents", "/app/approvals", "/app/billing", "/app/build", "/app/help", "/app/help/new", "/app/mesh",
   "/app/more", "/app/new", "/app/projects", "/app/rescue", "/app/sandbox", "/app/sandbox/new", "/app/settings",
   "/app/tasks", "/app/templates", "/app/workspaces/new", "/app/skills",
   "/app/activity", "/app/incidents", "/app/integrations", "/app/policies", "/app/trust", "/app/workflows", "/app/workflows/new",

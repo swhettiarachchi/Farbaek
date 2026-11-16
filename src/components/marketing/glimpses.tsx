@@ -5,6 +5,7 @@ import {
   FilePdfIcon,
   MagnifyingGlassIcon,
   MicrophoneIcon,
+  PaintBrushIcon,
   PaperclipIcon,
   PencilSimpleIcon,
   PushPinIcon,
@@ -16,7 +17,6 @@ import { samplePlan } from "@/components/survey/sample-plan";
 import { SheetSvg } from "@/components/survey/sheet-svg";
 import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { SAMPLE_CHANGED_FILE, SAMPLE_DIFF, buildSampleProofPack } from "@/content/samples";
-import { modelName } from "@/core/billing/model-names";
 import { canonicalHash } from "@/core/trust/canonical-json";
 
 /**
@@ -142,12 +142,12 @@ export function ChatGlimpse() {
               <li>Rent is reviewed once a year.</li>
               <li className="glimpse-caret">Unusual: you pay for repairs to the roof</li>
             </ol>
-            <p className="mt-2 text-xs text-ink-3">{modelName("claude-sonnet-5-5")}</p>
+            <p className="mt-2 text-xs text-ink-3">Farbaek AI. Thought for 3 seconds.</p>
           </div>
         </Rise>
         <Rise i={3} className="mt-auto">
           <div className="flex items-center gap-2 rounded-[1.5rem] border border-line bg-surface p-2 pl-4 shadow-e1">
-            <span className="min-w-0 flex-1 truncate text-sm text-ink-3">Ask anything</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-ink-3">Ask Farbaek AI</span>
             <span className="hidden h-8 items-center rounded-full bg-canvas-2 px-3 text-xs text-ink-2 sm:inline-flex">Auto</span>
             <span className="flex size-8 items-center justify-center rounded-full text-ink-2">
               <PaperclipIcon size={16} weight="bold" aria-hidden />
@@ -235,6 +235,91 @@ export async function ProofGlimpse() {
         <ul className="grid w-full gap-1 text-sm text-ink-2">
           <Step status="verified">Checks ran in a test space</Step>
           <Step status="done">Approved by you, exactly as shown</Step>
+        </ul>
+      </Rise>
+    </div>
+  );
+}
+
+const SHAPES_DRAWN = [
+  { label: "Square", w: 1, h: 1 },
+  { label: "Portrait", w: 4, h: 5 },
+  { label: "Wide", w: 16, h: 9 },
+  { label: "Cinema", w: 21, h: 9 },
+];
+
+/** Images: the studio's description, its styles and shapes, and a picture being made. */
+export function ImagesGlimpse() {
+  return (
+    <div className="grid h-full gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-6">
+      <Rise i={0} className="flex flex-col gap-4 self-start rounded-md border border-line bg-surface p-4 shadow-e1">
+        <p className="text-sm leading-relaxed text-ink">A ceramic coffee cup on a sunlit oak table, morning light through a window</p>
+        <div className="flex flex-wrap gap-1.5">
+          {["Product shot", "Portrait", "High detail", "2 pictures"].map((c, i) => (
+            <span key={c} className={`rounded-full px-3 py-1 text-xs font-medium ${i === 0 ? "bg-accent/10 text-accent ring-1 ring-accent/25" : "bg-canvas-2 text-ink-2 ring-1 ring-line"}`}>
+              {c}
+            </span>
+          ))}
+        </div>
+        <div aria-hidden className="flex items-end gap-2">
+          {SHAPES_DRAWN.map((s) => (
+            <span key={s.label} className="grid justify-items-center gap-1">
+              <span className="rounded-[0.375rem] border border-line-strong bg-canvas-2" style={{ width: `${(s.w / Math.max(s.w, s.h)) * 2.25}rem`, height: `${(s.h / Math.max(s.w, s.h)) * 2.25}rem` }} />
+              <span className="text-xs text-ink-3">{s.label}</span>
+            </span>
+          ))}
+        </div>
+        <span className="inline-flex h-10 items-center gap-2 self-start rounded-full bg-primary px-4 text-sm font-medium text-on-primary">
+          <PaintBrushIcon size={16} weight="bold" aria-hidden />
+          Make
+        </span>
+      </Rise>
+      <Rise i={1} className="hidden grid-cols-2 gap-3 sm:grid">
+        {[0, 1].map((i) => (
+          <div key={i} className="relative overflow-hidden rounded-md border border-line bg-surface shadow-e1" style={{ aspectRatio: "4 / 5" }}>
+            <div aria-hidden className="studio-sheen absolute inset-0" />
+            <p className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-surface/85 px-3 py-2 text-xs text-ink-2">
+              <StatusGlyph status="working" size={14} />
+              {i === 0 ? "Adding detail" : "Making the picture"}
+            </p>
+          </div>
+        ))}
+      </Rise>
+    </div>
+  );
+}
+
+/** Video: a film being rendered, with its length, shape and style. */
+export function VideoGlimpse() {
+  return (
+    <div className="grid h-full gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-6">
+      <Rise i={0} className="self-start">
+        <div className="relative overflow-hidden rounded-md border border-line bg-media shadow-e2" style={{ aspectRatio: "16 / 9" }}>
+        <div aria-hidden className="absolute inset-0" style={{ background: "radial-gradient(70% 80% at 30% 70%, color-mix(in oklab, var(--color-accent) 30%, transparent), transparent 70%)" }} />
+        <p className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-media/80 px-4 py-2.5 text-sm text-media-ink-2">
+          <StatusGlyph status="working" size={16} />
+          Rendering, 0:42
+        </p>
+        </div>
+        <ol aria-label="The shots Farbaek AI wrote" className="mt-3 grid grid-cols-3 gap-2">
+          {["Wide on the lighthouse", "A slow push in", "Waves on the rocks"].map((shot, i) => (
+            <li key={shot} className="grid gap-1.5">
+              <span
+                aria-hidden
+                className="block rounded-sm ring-1 ring-line"
+                style={{ aspectRatio: "16 / 9", background: `linear-gradient(${150 + i * 25}deg, color-mix(in oklab, var(--color-accent) ${14 + i * 8}%, var(--color-media)), var(--color-media))` }}
+              />
+              <span className="text-xs text-ink-3">{shot}</span>
+            </li>
+          ))}
+        </ol>
+      </Rise>
+      <Rise i={1} className="flex flex-col gap-3 self-start rounded-md border border-line bg-surface p-4 shadow-e1">
+        <p className="text-sm leading-relaxed text-ink">A slow push-in on a lighthouse at dawn as waves roll against the rocks</p>
+        <ul className="grid gap-1 text-sm text-ink-2">
+          <li>Wide, 8 seconds, with sound</li>
+          <li>Cinematic style</li>
+          <li>Or start from one of your pictures</li>
         </ul>
       </Rise>
     </div>

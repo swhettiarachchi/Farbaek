@@ -3,16 +3,14 @@ import type { ReactNode } from "react";
 import { ProductFilmSection } from "@/components/films/film-sections";
 import { AnchorLayout } from "@/components/marketing/anchor-layout";
 import { HomeFaq } from "@/components/marketing/faq";
-import { Hero, SpacesSection } from "@/components/marketing/hero";
-import { FinalCall, JobsSection, SafeguardsSection } from "@/components/marketing/home-sections";
+import { AlsoSection, Hero, IntelligenceSection, SpacesSection } from "@/components/marketing/hero";
+import { FinalCall, SafeguardsSection } from "@/components/marketing/home-sections";
 import { PricingTeaser } from "@/components/marketing/pricing-teaser";
-import { StatementSection } from "@/components/marketing/statement-section";
 import { HOME_DESCRIPTION, HOME_TITLE, homeStructuredData, jsonLdText } from "@/core/seo/structured-data";
 import { siteUrl } from "@/server/supabase/config";
 
-/** Search and sharing lead with "vibe coding", what people search for (stage 186, src/core/seo/structured-data.ts). */
 export const metadata: Metadata = {
-  title: { absolute: `${HOME_TITLE} | Farbaek` },
+  title: { absolute: HOME_TITLE },
   description: HOME_DESCRIPTION,
   alternates: { canonical: "/" },
   openGraph: { type: "website", url: "/", siteName: "Farbaek", title: HOME_TITLE, description: HOME_DESCRIPTION },
@@ -30,8 +28,9 @@ function Later({ children }: { children: ReactNode }) {
 }
 
 /**
- * The homepage opens onto Farbaek's four spaces (ADR 0214): say what Farbaek is, show each space, then show it's real.
- * The showroom and feature films live on /build, the proof film, the approval demo and the ProofPack on /proof.
+ * The homepage (ADR 0216): Farbaek AI first, with a message box to ask it something; then the four main spaces (Chat, Images,
+ * Video, Build) in one window; how one assistant uses many models; the recorded build; the safeguards every space shares; the
+ * specialist spaces; pricing and questions.
  */
 export default function HomePage() {
   return (
@@ -42,16 +41,16 @@ export default function HomePage() {
       <Hero />
       <SpacesSection />
       <Later>
+        <IntelligenceSection />
+      </Later>
+      <Later>
         <ProductFilmSection />
       </Later>
       <Later>
-        <StatementSection />
-      </Later>
-      <Later>
-        <JobsSection />
-      </Later>
-      <Later>
         <SafeguardsSection />
+      </Later>
+      <Later>
+        <AlsoSection />
       </Later>
       <Later>
         <PricingTeaser />

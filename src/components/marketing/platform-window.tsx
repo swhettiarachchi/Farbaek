@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { LOGO } from "@/components/brand/brand-logo";
-import { SPACES, spaceStart, type Space } from "@/components/site/spaces";
+import { MAIN_SPACES as SPACES, spaceStart, type Space } from "@/components/site/spaces";
 
 /**
  * The homepage's platform window (ADR 0214): one tab per space, each showing a glimpse of that space's interface, with
@@ -17,8 +17,10 @@ import { SPACES, spaceStart, type Space } from "@/components/site/spaces";
  * tab rises as it arrives; "still" when it was already on screen as the page opened, so what was painted stays put and
  * only the knight peeks. A tab picked after that always rises in.
  */
-export function PlatformWindow({ glimpses }: { glimpses: Record<Space["id"], ReactNode> }) {
-  const [active, setActive] = useState<Space["id"]>("build");
+type MainId = "chat" | "images" | "video" | "build";
+
+export function PlatformWindow({ glimpses }: { glimpses: Record<MainId, ReactNode> }) {
+  const [active, setActive] = useState<Space["id"]>("chat");
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const root = useRef<HTMLDivElement>(null);
   const [seen, setSeen] = useState<"no" | "yes" | "still">("no");
@@ -127,7 +129,7 @@ export function PlatformWindow({ glimpses }: { glimpses: Record<Space["id"], Rea
                   data-active={on ? "" : undefined}
                   className={`col-start-1 row-start-1 flex min-h-0 flex-col ${on ? "visible" : "invisible"}`}
                 >
-                  <div className="min-h-[22rem] flex-1 sm:min-h-[24rem]">{glimpses[s.id]}</div>
+                  <div className="min-h-[22rem] flex-1 sm:min-h-[24rem]">{glimpses[s.id as MainId]}</div>
                   <div className="flex flex-col gap-3 border-t border-line bg-canvas-2/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <p className="max-w-[46ch] text-sm leading-relaxed text-ink-2">
                       <span className="font-medium text-ink">{s.name}.</span> {s.promise}

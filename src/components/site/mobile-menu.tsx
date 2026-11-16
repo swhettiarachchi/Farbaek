@@ -15,7 +15,10 @@ import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { MORE_LINKS, SPACES } from "./spaces";
+import { MAIN_SPACES, MORE_LINKS, SPACES } from "./spaces";
+
+/** The rows under the cards: the specialist spaces, then the other pages. */
+const ROWS = [...SPACES.filter((s) => s.secondary).map((s) => ({ href: s.page, label: s.name })), ...MORE_LINKS];
 
 /** How long the sheet takes to fade out; it stays mounted that long. */
 const CLOSE_MS = 220;
@@ -118,9 +121,9 @@ export function MobileMenu() {
               }`}
             >
               <nav aria-label="Mobile" className="flex-1">
-                {/* The four spaces as cards, each with its promise (ADR 0214), then the other pages as plain rows. */}
+                {/* The four main spaces as cards, each with its promise (ADR 0216), then the specialist spaces and the other pages as rows. */}
                 <ul className="grid gap-2 min-[30rem]:grid-cols-2">
-                  {SPACES.map((space, i) => {
+                  {MAIN_SPACES.map((space, i) => {
                     const SpaceIcon = space.icon;
                     return (
                       <li key={space.id} className="motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(i)}>
@@ -142,8 +145,8 @@ export function MobileMenu() {
                   })}
                 </ul>
                 <ul className="mt-4 grid">
-                  {MORE_LINKS.map((link, i) => (
-                    <li key={link.href} className="motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(SPACES.length + i)}>
+                  {ROWS.map((link, i) => (
+                    <li key={link.href} className="motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(MAIN_SPACES.length + i)}>
                       <Link
                         href={link.href}
                         onClick={() => close(false)}
@@ -158,13 +161,13 @@ export function MobileMenu() {
                   ))}
                 </ul>
               </nav>
-              <div className="mt-6 grid gap-2 motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(SPACES.length + MORE_LINKS.length)}>
+              <div className="mt-6 grid gap-2 motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(MAIN_SPACES.length + ROWS.length)}>
                 <Link
-                  href="/sign-in?next=/app/new"
+                  href="/sign-in?next=/app/chat"
                   onClick={() => close(false)}
                   className="flex h-12 shrink-0 items-center justify-center rounded-full bg-primary text-body font-medium text-on-primary shadow-e2 active:scale-[0.98]"
                 >
-                  Start building
+                  Try Farbaek AI
                 </Link>
                 <Link
                   href="/sign-in"

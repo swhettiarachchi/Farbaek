@@ -102,6 +102,9 @@ const SECTIONS: LegalSection[] = [
           requires it or to protect people from harm, and we ask it not to store the answers.
         </p>
         <p>
+          When you use Farbaek AI&apos;s chat, your messages and the files you attach go to Anthropic (Claude) or OpenAI, whichever model Farbaek AI chooses for the question; if one can&apos;t answer, the other may take the same question. Pictures you make in the chat or the image studio go to OpenAI or Google (Gemini), with any of your own pictures you chose to work from; videos go to Google (Gemini). Each provider receives only that request, under the API terms above. What you make is kept in your workspace, private to you, until you delete it or leave the workspace.
+        </p>
+        <p>
           If an owner or admin gives your workspace its own Anthropic key, those requests go to Anthropic, or through their company&apos;s own server, under that account&apos;s own terms. Farbaek
           keeps the key encrypted and never shows it again.
         </p>

@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { HOME_DESCRIPTION, HOME_TITLE, homeStructuredData, jsonLdText } from "./structured-data";
 
 describe("the homepage's search listing", () => {
-  it("leads with vibe coding and fits a search result", () => {
-    expect(HOME_TITLE.toLowerCase().startsWith("vibe coding")).toBe(true);
-    // The title tag adds " | Farbaek"; Google shows about 60 characters.
-    expect(`${HOME_TITLE} | Farbaek`.length).toBeLessThanOrEqual(60);
+  it("leads with Farbaek AI, keeps vibe coding, and fits a search result (stage 201)", () => {
+    expect(HOME_TITLE.startsWith("Farbaek AI")).toBe(true);
+    expect(HOME_TITLE.toLowerCase()).toContain("vibe coding");
+    // The homepage's title tag is this alone (it names Farbaek already); Google shows about 60 characters.
+    expect(HOME_TITLE.length).toBeLessThanOrEqual(60);
     expect(HOME_DESCRIPTION.toLowerCase()).toContain("vibe coding");
     expect(HOME_DESCRIPTION.length).toBeGreaterThanOrEqual(120);
     expect(HOME_DESCRIPTION.length).toBeLessThanOrEqual(160);

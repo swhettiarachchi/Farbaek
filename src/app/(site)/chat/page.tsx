@@ -24,7 +24,7 @@ import { BEZEL } from "@/components/ui/surfaces";
 import { LEAD, PUBLIC_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = {
-  title: "Farbaek Chat",
+  title: "Farbaek AI Chat",
   description:
     "Ask, write and code with AI in a private chat: answers as they're written, your PDFs and pictures in the question, every version kept, read-only links you control, and a model you choose or Farbaek picks.",
   alternates: { canonical: "/chat" },
@@ -34,8 +34,8 @@ const FEATURES: { icon: Icon; title: string; body: string }[] = [
   { icon: PenNibIcon, title: "Answers as they're written", body: "Read along as the answer arrives, and stop it whenever you like. What was written so far is kept." },
   { icon: PaperclipIcon, title: "Your files in the question", body: "Pictures, PDFs and text files, up to six at a time. Each is checked by what's inside it, not by its name." },
   { icon: GitBranchIcon, title: "Every version kept", body: "Edit a question or ask for another answer. The earlier versions stay, one tap away." },
-  { icon: SlidersHorizontalIcon, title: "Pick the model, or let Farbaek", body: "Auto picks a model for each question. Or choose one your plan includes, always shown by its name." },
-  { icon: ImageIcon, title: "Pictures, made or changed", body: "Ask for a picture, or for a change to the last one, where picture making is available on your plan." },
+  { icon: SlidersHorizontalIcon, title: "The right model for each question", body: "Farbaek AI picks the model best placed to answer, and another steps in if one is busy. You can choose one yourself too." },
+  { icon: ImageIcon, title: "Pictures, made or changed", body: "Ask for a picture right in the chat, or open the image studio for styles, shapes and edits." },
   { icon: MicrophoneIcon, title: "Talk instead of typing", body: "Speak your question where your browser can hear it, and have any answer read aloud." },
   { icon: LinkSimpleIcon, title: "Read-only links", body: "Share a conversation with your workspace or with anyone, for 7 or 30 days, and turn the link off any time." },
   { icon: PushPinIcon, title: "Pin, search and archive", body: "Keep the chats you need at the top, and find any other by its name or by what was said." },
@@ -66,7 +66,7 @@ export default function ChatPage() {
               Ask, write and code, in a chat that&apos;s yours.
             </h1>
             <p className={`mt-5 max-w-[38rem] text-ink-2 sm:mt-6 ${LEAD}`}>
-              Farbaek Chat answers as it writes, reads the files you add, and keeps every conversation private to you until you choose to share a read-only link.
+              Farbaek AI answers as it writes, reads the files you add, and keeps every conversation private to you until you choose to share a read-only link.
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-2 sm:mt-9">
               <Link

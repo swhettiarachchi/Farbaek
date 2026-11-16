@@ -129,6 +129,12 @@ export interface ConversationSummary {
   shared: boolean;
 }
 
+/**
+ * Where the homepage keeps a visitor's question while they sign in (stage 201): this browser's storage, never the address, so
+ * it isn't in any log. /app/chat?ask=1 puts it in the message box once, ready to send, and forgets it.
+ */
+export const HOME_QUESTION_KEY = "farbaek.chat-question";
+
 /** The events of one turn's stream, in order: start, then thinking and text (or an image), then done. */
 export type TurnEvent =
   /** note: why the model differs from the one chosen, when it does. */

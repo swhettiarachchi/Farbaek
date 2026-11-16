@@ -1,158 +1,12 @@
-import { ArrowRightIcon, ArrowUpRightIcon, CheckSquareOffsetIcon, FilePdfIcon, SealCheckIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, ArrowUpRightIcon, CheckSquareOffsetIcon, SealCheckIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { SPACES, spaceStart, type Space } from "@/components/site/spaces";
+import { space, spaceStart } from "@/components/site/spaces";
 import { Container } from "@/components/ui/container";
 import { BEZEL } from "@/components/ui/surfaces";
 import { LEAD, SECTION_TITLE } from "@/components/ui/titles";
 import { SectionHeading } from "./section-heading";
 
-const space = (id: Space["id"]) => SPACES.find((s) => s.id === id)!;
-
-/* The jobs, each drawn as a small piece of its space: blocks and lines in tokens, never a picture of a real product. */
-
-function SiteArt() {
-  return (
-    <div className="grid w-[78%] gap-2.5 rounded-sm border border-line bg-surface p-3.5 shadow-e2">
-      <span className="h-1.5 w-1/3 rounded-full bg-line-strong" />
-      <span className="h-3 w-3/4 rounded-full bg-ink/80" />
-      <span className="h-3 w-1/2 rounded-full bg-ink/80" />
-      <span className="mt-1 h-6 w-20 rounded-full bg-primary" />
-    </div>
-  );
-}
-
-function FileArt() {
-  return (
-    <div className="grid w-[82%] justify-items-end gap-2">
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-2 shadow-e1">
-        <FilePdfIcon size={14} weight="bold" aria-hidden className="text-ink-3" />
-        Report, PDF
-      </span>
-      <span className="h-9 w-3/4 rounded-[1rem] rounded-br-md bg-surface shadow-e1" />
-      <span className="h-14 w-full justify-self-start rounded-[1rem] rounded-bl-md border border-line bg-surface/70" />
-    </div>
-  );
-}
-
-function PlotArt() {
-  return (
-    <svg viewBox="0 0 160 110" className="h-auto w-[70%]" aria-hidden>
-      <path d="M22 86 L40 18 L118 12 L142 70 L84 98 Z" fill="color-mix(in oklab, var(--color-accent) 7%, var(--color-surface))" stroke="var(--color-ink)" strokeWidth="1.4" />
-      <path d="M40 18 L84 98" stroke="var(--color-ink-3)" strokeWidth="1" strokeDasharray="3 3" />
-      {[
-        [22, 86],
-        [40, 18],
-        [118, 12],
-        [142, 70],
-        [84, 98],
-      ].map(([x, y]) => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="3.2" fill="var(--color-surface)" stroke="var(--color-accent)" strokeWidth="1.6" />
-      ))}
-    </svg>
-  );
-}
-
-function DiffArt() {
-  return (
-    <div className="grid w-[82%] gap-1 rounded-sm border border-line bg-surface p-3 shadow-e2">
-      <span className="h-2 rounded-full w-2/3 bg-line-strong" />
-      <span className="h-2 rounded-full w-3/4" style={{ background: "color-mix(in oklab, var(--color-failed) 30%, var(--color-surface))" }} />
-      <span className="h-2 rounded-full w-5/6" style={{ background: "color-mix(in oklab, var(--color-verified) 34%, var(--color-surface))" }} />
-      <span className="h-2 rounded-full w-1/2" style={{ background: "color-mix(in oklab, var(--color-verified) 34%, var(--color-surface))" }} />
-      <span className="h-2 rounded-full w-2/5 bg-line-strong" />
-    </div>
-  );
-}
-
-function CodeArt() {
-  return (
-    <div className="grid w-[82%] gap-1.5 rounded-sm bg-media p-3.5 shadow-e2">
-      {[
-        ["w-1/4", "w-1/3"],
-        ["w-1/6", "w-1/2"],
-        ["w-1/3", "w-1/4"],
-        ["w-1/5", "w-2/5"],
-      ].map(([a, b], i) => (
-        <span key={i} className="flex gap-1.5" style={{ paddingLeft: `${(i % 2) * 12}px` }}>
-          <span className={`h-2 rounded-full bg-media-cyan/80 ${a}`} />
-          <span className={`h-2 rounded-full bg-media-ink-3/70 ${b}`} />
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function SealArt() {
-  return (
-    <div className="flex items-center gap-3 rounded-full border border-line bg-surface py-2 pl-2 pr-4 shadow-e2">
-      <span className="flex size-9 items-center justify-center rounded-full bg-verified/12 text-verified">
-        <SealCheckIcon size={20} weight="fill" aria-hidden />
-      </span>
-      <span className="grid gap-1.5">
-        <span className="h-2 rounded-full w-28 bg-ink/70" />
-        <span className="h-2 rounded-full w-16 bg-line-strong" />
-      </span>
-    </div>
-  );
-}
-
-const JOBS: { space: Space["id"]; title: string; body: string; art: ReactNode }[] = [
-  { space: "build", title: "A website for your shop", body: "Say what you sell and how it should feel. Approve the plan, watch it built, and publish once the check is clean.", art: <SiteArt /> },
-  { space: "chat", title: "Questions about a long document", body: "Add a PDF and ask what it says, in plain words. Your chats are private to you.", art: <FileArt /> },
-  { space: "survey", title: "A land plan from a field book", body: "Type the bearings and distances, see how the traverse closes, and print the sheet at true scale.", art: <PlotArt /> },
-  { space: "build", title: "A change to a site you already have", body: "Bring a project from GitHub and ask for the change. Every edit is shown line by line before it lands.", art: <DiffArt /> },
-  { space: "chat", title: "Code, explained or written", body: "Paste code and ask what it does, or ask for it. Code comes back tinted and ready to copy.", art: <CodeArt /> },
-  { space: "proof", title: "A change you can sign off", body: "Your approval covers exactly the change you saw, and the ProofPack keeps the record.", art: <SealArt /> },
-];
-
-/** What people come to do, each tagged with its space. A swipeable rail on phones, a grid from tablets up. */
-export function JobsSection() {
-  return (
-    <section aria-labelledby="jobs-title" className="py-14 sm:py-20 lg:py-28">
-      <Container>
-        <SectionHeading id="jobs-title" title="Start with something you need.">
-          A few of the jobs people bring to Farbaek, and the space each one starts in.
-        </SectionHeading>
-        <ul className="-mx-4 mt-10 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:mt-12 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
-          {JOBS.map((job) => {
-            const s = space(job.space);
-            const SpaceIcon = s.icon;
-            return (
-              <li key={job.title} className="w-[82%] shrink-0 snap-start sm:w-auto">
-                <Link
-                  href={s.page}
-                  className="group flex h-full flex-col overflow-hidden rounded-md border border-line bg-surface shadow-e1 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 hover:shadow-e2"
-                >
-                  <div
-                    aria-hidden
-                    className="flex h-40 items-center justify-center border-b border-line transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] sm:h-44"
-                    style={{ background: "radial-gradient(80% 90% at 50% 100%, color-mix(in oklab, var(--color-accent) 7%, var(--color-canvas-2)), var(--color-canvas-2))" }}
-                  >
-                    <div className="flex w-full justify-center transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1">{job.art}</div>
-                  </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <span className="inline-flex items-center gap-1.5 text-sm text-ink-3">
-                      <SpaceIcon size={16} weight="bold" aria-hidden />
-                      {s.name}
-                    </span>
-                    <h3 className="mt-2 text-title-4 font-medium tracking-[-0.01em] text-ink">{job.title}</h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink-2">{job.body}</p>
-                    <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-sm font-medium text-accent">
-                      Explore {s.name}
-                      <ArrowRightIcon size={14} weight="bold" aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5" />
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </Container>
-    </section>
-  );
-}
 
 const SAFEGUARDS: { icon: Icon; title: string; body: string; href: string; link: string }[] = [
   {
@@ -224,24 +78,24 @@ export function FinalCall() {
             />
             <div className="relative mx-auto max-w-[36rem]">
               <h2 id="final-title" className={SECTION_TITLE}>
-                Start with one sentence.
+                Start with a question.
               </h2>
-              <p className={`mt-3 text-ink-2 ${LEAD}`}>Start free, no card. Every space is in the same workspace from the first day.</p>
+              <p className={`mt-3 text-ink-2 ${LEAD}`}>Start free, no card. Chat, the studios and the build box are in the same workspace from the first day.</p>
               <div className="mt-7 flex flex-wrap justify-center gap-2">
                 <Link
-                  href={spaceStart(space("build"))}
+                  href={spaceStart(space("chat"))}
                   className="group inline-flex h-11 items-center gap-2 rounded-full bg-primary pl-5 pr-1.5 text-sm font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary-hover active:scale-[0.98]"
                 >
-                  Start building
+                  Ask Farbaek AI
                   <span className="flex size-8 items-center justify-center rounded-full bg-on-primary/15 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-0.5">
                     <ArrowUpRightIcon size={16} weight="bold" aria-hidden />
                   </span>
                 </Link>
                 <Link
-                  href={spaceStart(space("chat"))}
+                  href={spaceStart(space("build"))}
                   className="inline-flex h-11 items-center rounded-full border border-line bg-surface px-5 text-sm font-medium text-ink transition-colors duration-200 hover:bg-surface-raised"
                 >
-                  Open Chat
+                  Start building
                 </Link>
               </div>
             </div>
