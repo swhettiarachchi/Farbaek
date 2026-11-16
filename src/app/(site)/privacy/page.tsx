@@ -106,7 +106,7 @@ const SECTIONS: LegalSection[] = [
           keeps the key encrypted and never shows it again.
         </p>
         <p>
-          When you talk to Survey Studio&apos;s drafting assistant, your own browser turns your speech into text: Chrome sends the sound to Google for that, Edge to Microsoft, and Safari uses Apple&apos;s dictation, while Firefox
+          When you talk to Survey Studio&apos;s drafting assistant, your own browser turns your speech into text: Chrome sends the sound to Google for that (unless you choose to hear English on your computer in the assistant&apos;s settings, which keeps it there), Edge to Microsoft, and Safari uses Apple&apos;s dictation, while Firefox
           does it on your device. Farbaek never receives the sound, only the text. Instructions that need the AI go to Anthropic like any other request, with the plan described by its lot names and point numbers, not its
           coordinates. The assistant&apos;s instructions and what came of them are kept with the project, for the people in your workspace, so you can find them again; a project keeps its last 500. You can type instead of
           talking, and spoken replies use your device&apos;s own voices.

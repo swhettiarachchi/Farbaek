@@ -124,9 +124,18 @@ v95 and v96 were refused on 2026-11-16 (`relation "public.survey_projects" does 
   - **Controls:** the mode switch, the first-use privacy note, and no sideways scroll at 375 px.
 - **Not checkable here:** real speech (no microphone in this setup) and a real model call (the owner's key).
 
+## Completing it
+
+Checked against the plan before the merge, the stage still lacked these, now done:
+- **The settings:** a panel on the bar with spoken replies, "Check my words before sending" (asked for in the brief, and until then without a switch), and live talk's pause.
+- **English on this computer:** Chrome's one-click download, then the sound stays on the computer and Chrome listens for survey words. Read-only check of the owner's Chrome 157: it offers en-IN, en-GB and en-US for download, with survey-word hints. The download itself is the owner's click.
+- **History's compare** names what the assistant added or changed (the docs said so before it did).
+- **The record:** changes the local rules made are recorded too, as `local`. The drawer lists earlier visits' instructions.
+- **A way in:** the Import and Lots steps say the assistant is on the Plan step.
+- **A decision:** divisions stay on the Lots step's divide panel (ASSISTANT.md says why).
+
 ## Next
 
-- **The owner's checks after deploy:** speak a few instructions in English and Sinhala on a phone and a computer, and make one real model call.
-- **Recordings** from surveyors, 100 to 200 a language, to measure exact-match accuracy per value. They decide whether to self-host a Sinhala recogniser.
-- **Language:** Sinhala number words, and a review of the Sinhala command words by Sinhala-speaking surveyors.
-- **Tamil**, and the native apps' microphone permissions.
+- **The owner's check after deploy,** in English: speak a few instructions on a computer and an Android phone, and make one real model call.
+- **Sinhala and Tamil:** the owner decided on 2026-11-16 that Sinhala isn't a priority. It stays as built, with no number words, recordings or own recogniser planned. Tamil stays off.
+- **The native apps' microphone permissions,** with the apps' next releases.

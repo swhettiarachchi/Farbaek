@@ -74,11 +74,12 @@ Read-backs go the other way: digit by digit, "decimal" for the point, degrees, m
 | Firefox 160, on a computer | Yes, on the device | No | Nowhere |
 | Firefox for Android | No | No | |
 
+- **English on this computer** (Chrome 139 and later, on a computer): the settings offer "Download English for this computer", a one-time download by Chrome (it needs the click). After it, "Hear English on this computer" keeps the sound on the computer. Chrome then also listens for survey words such as bearing, perch and lot (contextual biasing, Chrome 142 and later, which Chrome does only on the device; [`languages.ts`](../../src/core/survey/assistant/languages.ts) has the list). The words only make hearing them likelier; they never make a value. Where the browser doesn't offer it, the choice isn't shown.
 - **Push to talk** (the default):
   - hold the microphone, or Space while the sheet has focus, and let go to send (400 ms more is heard after letting go);
   - or tap to start and tap again to send.
 - **Live talk:**
-  - one tap opens a conversation, and each pause (1.2 s, a setting) ends an instruction, sent after a short countdown that typing or a tap stops;
+  - one tap opens a conversation, and each pause (0.8, 1.2 or 2 s, in the settings) ends an instruction, sent after a short countdown that typing or a tap on the words stops;
   - it listens again after each reply;
   - "apply", "discard", "undo" and "stop listening" work by voice;
   - a minute of silence closes it, and so does a recogniser that keeps ending with nothing heard;
@@ -89,6 +90,11 @@ Read-backs go the other way: digit by digit, "decimal" for the point, degrees, m
 - **The level** shown while listening is the microphone's real level, on computers only. Phones show the growing caption instead.
 - **Spoken replies** are opt-in and use local voices only, so plan text doesn't go to a network voice. They're never spoken over the microphone, and they're off on iOS 27.0 to 27.2. Where there's no voice for a language, the reply stays text and says so.
 - **First use:** before the first listen, the bar says who turns speech into text in this browser and that Farbaek gets only the text.
+- **The settings** (the sliders button on the bar; [`settings-panel.tsx`](../../src/components/survey/assistant/settings-panel.tsx)), kept on this device:
+  - spoken replies;
+  - "Check my words before sending": what's heard waits in the line to be checked, changed and sent (numbers that read two ways are always held);
+  - live talk's pause;
+  - English on this computer, where offered.
 
 ## Questions
 
@@ -101,8 +107,12 @@ Shift, Ctrl or Cmd plus a tap, or "Select several" on phones, picks items in ord
 ## Records and undo
 
 - **Applying:** an applied turn is one step in the editor's history, and keeps a patch of the parts it changed. "Take back" restores those parts after a save too, if nothing has changed them since.
-- **The record:** model turns are recorded in `survey_assistant_turns` (migration v96; [DATA_MODEL.md](DATA_MODEL.md)) with the words, the reply, the operations as checked, what was left out, the outcome and, when applied, the SHA-256 of what was applied. The drawer lists this visit's turns, with "Use again" and "Take back".
-- **Marks:** what the assistant adds is marked `ai_assist` (checked: the surveyor applied it after seeing it), and History names it.
+- **The record:** every turn that reaches the model is recorded in `survey_assistant_turns` (migration v96; [DATA_MODEL.md](DATA_MODEL.md)) with the words, the reply, the operations as checked, what was left out, the outcome and, when applied, the SHA-256 of what was applied.
+  - Changes the local rules read and the surveyor applied are recorded too, as model `local` (`recordLocalAssistTurnAction`), so the record has every change the assistant made.
+  - Views and answers change nothing and aren't recorded.
+- **The drawer:** the latest 20 instructions from earlier visits (from the record, with what came of them and "Use again"), then this visit's, with "Use again" and "Take back".
+- **Marks:** what the assistant adds is marked `ai_assist` (checked: the surveyor applied it after seeing it). History's compare names it: "added or changed with the drafting assistant, each applied after you saw it".
+- **Divisions stay on the Lots step:** a division is handed to the divide panel there, after the plan is saved, so nothing is lost. The panel needs that step's room, with the lots editor and the block-out plan beside it, so it isn't repeated on the Plan step. The Import and Lots steps say the assistant is on the Plan step.
 
 ## Cost and limits
 
@@ -117,13 +127,12 @@ Shift, Ctrl or Cmd plus a tap, or "Select several" on phones, picks items in ord
 - [`assistant.test.ts`](../../src/core/survey/assistant/assistant.test.ts): checks, applying, patches, answers, the reader, the conversation states and the languages.
 - [`review195.test.ts`](../../src/core/survey/assistant/review195.test.ts): what the stage's reviews found, each as a test of its fix.
 - [`assistant.test.ts`](../../src/server/survey/assistant.test.ts) (server): metering, refunds, roles and what the model is sent, with a labelled fake model.
-- [`survey-studio.test.ts`](../../tests/db/survey-studio.test.ts): v96's constraint, grants, roles, decisions, retention and cascade.
+- [`survey-studio.test.ts`](../../tests/db/survey-studio.test.ts): v96's constraint, grants, roles, decisions, retention and cascade, and a local change recorded as `local`.
+- [`compare.test.ts`](../../src/core/survey/compare.test.ts): History naming the assistant's changes.
 - [`permissions-policy.test.ts`](../../tests/security/permissions-policy.test.ts): where the microphone is allowed.
 
 ## Not yet
 
-- **Measured accuracy:** recordings from surveyors, 100 to 200 per language, to measure exact-match accuracy per value. That decides whether a self-hosted recogniser (a Sinhala Whisper fine-tune on the server) is worth running.
-- **Sinhala number words**, once recordings show how Chrome writes them.
-- **Tamil**, which is in the registry but off.
-- **The iPhone and Android apps' microphone permissions.**
-- **A real model call on production.** It's the owner's check, shared with stage 191.
+- **A real model call and real speech on production** (English): the owner's check after the merge.
+- **The iPhone and Android apps' microphone permissions:** the apps' own release, not this web feature.
+- **Sinhala and Tamil beyond what's here:** the owner decided on 2026-11-16 that Sinhala isn't a priority. Sinhala stays as built (Chrome's recogniser, the command words); Sinhala number words, Sinhala recordings and a self-hosted Sinhala recogniser aren't planned. Tamil stays off.

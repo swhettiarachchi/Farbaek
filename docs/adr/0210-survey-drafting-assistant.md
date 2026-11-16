@@ -35,6 +35,7 @@ Research (`reports/Voice drafting assistant technology.md`, five researchers, 20
 **Voice is the browser's own; typing is first-class.**
 - Push to talk (hold, or Space on the sheet; or tap and tap again) is the default for the field.
 - Live talk (pauses end an instruction, answers by voice) is for the office.
+- On a computer, Chrome can hear English on the device after a one-click download; the sound then stays there, and Chrome listens for survey words. It's the surveyor's choice in the bar's settings.
 - Both show the surveyor's own words live; numbers that could be read two ways hold the words for review.
 - Typing takes whole instructions, up to 30 operations a turn (12 spoken).
 - Each browser says honestly which languages it hears and who processes the sound, and the first use says so before listening.
