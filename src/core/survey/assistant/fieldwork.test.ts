@@ -8,6 +8,7 @@ import { SAMPLE_POINTS, sampleDocument } from "../fixtures";
 import { answer } from "./answer";
 import { checkTurn } from "./check";
 import { assistContext } from "./context";
+import { describeOp, readBack } from "./describe";
 import { readLegs } from "./measure";
 import type { PlanOp } from "./ops";
 import { readCommand } from "./reader";
@@ -70,6 +71,21 @@ describe("lots, adjoining lands and notes", () => {
     expect(local("add a note to lot B1 saying garden").ops[0]).toMatchObject({ kind: "lot_edit", id: "lot-b1", note: "garden" });
     expect(local("remove lot B3").ops[0]).toMatchObject({ kind: "remove", target: "lot", id: "lot-b3" });
     expect(local("note: the drain is outside the land").ops[0]).toMatchObject({ kind: "note_add", text: "the drain is outside the land" });
+  });
+
+  it("shows a new lot's computed extent, and warns before applying when it overlaps a lot or its legs cross", () => {
+    const doc = sampleDocument();
+    const ctx = { doc, points: SAMPLE_POINTS };
+    const op = local("make lot B4 from points 1 2 3 8").ops[0]!;
+    const d = describeOp(op, ctx);
+    expect(d.values.find((v) => v.role === "Extent, computed")?.value).toBe("0.07859 ha (0 A. 0 R. 31.07 P.)");
+    expect(d.warnings).toEqual(["It overlaps lot B1. Check the corners before applying."]);
+    expect(readBack([op], ctx)).toContain("Careful: it overlaps lot B1.");
+    expect(describeOp(local("create lot C using points 4 to 7").ops[0]!, ctx).warnings).toEqual(["It overlaps lots B2 and B3. Check the corners before applying."]);
+    // Corners in the wrong order: the legs cross, and no area is given for a ring that crosses itself.
+    const crossed = describeOp(local("make lot D from points 1 3 2 8").ops[0]!, { doc: { ...doc, lots: [] }, points: SAMPLE_POINTS });
+    expect(crossed.warnings).toEqual(["Its legs cross each other. Check the order of the corners."]);
+    expect(crossed.values.some((v) => v.role === "Extent, computed")).toBe(false);
   });
 
   it("asks which leg when two face the side, and takes the answer as the leg's two points", () => {

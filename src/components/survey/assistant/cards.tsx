@@ -124,6 +124,16 @@ export function ChangeCard(props: {
                     {d.text}
                   </span>
                   <Values values={d.values} />
+                  {d.warnings?.length ? (
+                    <span className="mt-2 grid gap-1">
+                      {d.warnings.map((w, k) => (
+                        <span key={k} className="flex items-start gap-2 text-sm text-ink">
+                          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+                          {w}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
                 </span>
               </label>
             </li>

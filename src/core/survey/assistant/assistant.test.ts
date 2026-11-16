@@ -199,8 +199,16 @@ describe("words for the screen and for speech", () => {
   it("describes changes with their values, and reads figures back digit by digit", () => {
     const doc = sampleDocument();
     const op = { kind: "lot_add" as const, lot: { id: "lot-a1", label: "B", sup: "4", points: [id(1), id(2), id(3), id(8)], note: "" }, quote: "" };
-    expect(describeOp(op, { doc, points: SAMPLE_POINTS })).toEqual({ text: "Add lot B4", values: [{ role: "Corners, in order", value: "1, 2, 3, 8", mono: true }] });
-    expect(readBack([op, { kind: "number", setting: "scale", value: 500, quote: "" }], { doc, points: SAMPLE_POINTS })).toEqual(["Lot B four, corners one, two, three, eight.", "Scale one to five zero zero."]);
+    // With the engine's extent, and its warning: these corners lie inside lot B1.
+    expect(describeOp(op, { doc, points: SAMPLE_POINTS })).toEqual({
+      text: "Add lot B4",
+      values: [
+        { role: "Corners, in order", value: "1, 2, 3, 8", mono: true },
+        { role: "Extent, computed", value: "0.07859 ha (0 A. 0 R. 31.07 P.)", mono: false },
+      ],
+      warnings: ["It overlaps lot B1. Check the corners before applying."],
+    });
+    expect(readBack([op, { kind: "number", setting: "scale", value: 500, quote: "" }], { doc, points: SAMPLE_POINTS })).toEqual(["Lot B four, corners one, two, three, eight.", "Careful: it overlaps lot B1.", "Scale one to five zero zero."]);
   });
 });
 
