@@ -32,6 +32,6 @@ Constraints: no new paid services (the owner's budget), no new dependencies with
 
 ## Consequences
 
-- Production needs migration v98 applied (and read back with `check-migrations.ps1`) before the merge.
+- Production has v98 (applied and read back 2026-11-16); v99 adds the index the sidebar's message search uses.
 - OpenAI answers only where `OPENAI_API_KEY` is set; Gemini images only where `GEMINI_API_KEY` is. Otherwise the picker and the image switch say so.
 - Not done here: web search inside answers, tool use, voice conversations in real time, editing images by painting a region, and message search beyond names and plain text matches.

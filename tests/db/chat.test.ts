@@ -267,6 +267,10 @@ describe("Farbaek Chat (v98)", () => {
     await expect(attach("hers.txt", USERS.alice)).resolves.toBeTruthy();
   });
 
+  it("indexes each person's messages for the sidebar's search (v99)", async () => {
+    expect((await su<{ r: boolean }>("select to_regclass('public.chat_messages_owner_idx') is not null as r"))[0]!.r).toBe(true);
+  });
+
   it("takes someone's conversations with them when they leave the workspace", async () => {
     const conv = await start(USERS.bob);
     await ask(conv, null, "Bob's question", [], USERS.bob);

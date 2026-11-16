@@ -24,7 +24,8 @@ union all select 'v94 survey drafting', exists (select 1 from pg_catalog.pg_proc
 union all select 'v95 instrument files', exists (select 1 from pg_catalog.pg_constraint where conname = 'survey_sources_format_check' and pg_catalog.pg_get_constraintdef(oid) like '%gsi%')
 union all select 'v96 survey assistant', to_regclass('public.survey_assistant_turns') is not null
 union all select 'v97 survey free ai', exists (select 1 from pg_catalog.pg_proc where proname = 'app_reserve_free_usage')
-union all select 'v98 chat workspace', to_regclass('public.chat_conversations') is not null;
+union all select 'v98 chat workspace', to_regclass('public.chat_conversations') is not null
+union all select 'v99 chat search index', to_regclass('public.chat_messages_owner_idx') is not null;
 rollback;
 SQL
 '@

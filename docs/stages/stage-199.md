@@ -1,7 +1,7 @@
 # Stage 199: Farbaek Chat
 
 - **Branch:** `feat/stage-199-chat-workspace`, from main after #261 (stage 198).
-- **Migration:** v98, `supabase/migrations/20270108090000_chat_workspace.sql`. Apply and read back before the merge (below).
+- **Migrations:** v98 (`20270108090000_chat_workspace.sql`, applied and read back 2026-11-16) and v99 (`20270109090000_chat_search_index.sql`, the search index), below.
 - **Decision:** ADR 0213.
 - **Why:** the owner asked for a ChatGPT-class AI chat inside Farbaek: premium, calm and complete, with real streaming, history, branches, files, images, voice, sharing, OpenAI and Claude, phone first, and dark mode, as its own module that fits the platform.
 
@@ -62,7 +62,7 @@ A separate review of the risky files found no hole in row level security, grants
 
 1. **A chat shared with the workspace** couldn't see a teammate whose sign-in had timed out: `/share/chat/` now refreshes the session like the app.
 2. **Buttons** now follow the system sizes: 40px with a mouse, 44px on touch (message actions, code blocks, the composer, toasts, the gallery).
-3. **Searching messages** read every row in the database: an index on each person's messages.
+3. **Searching messages** read every row in the database: an index on each person's messages (v99, since v98 was already applied).
 4. **Naming a chat:** the AI gets room to think before naming it, and a chat whose first answer failed is named by the first one that finishes.
 5. **Streaming long answers:** Markdown re-reads can skip a frame under load (a deferred value) instead of every frame.
 6. **Menus** open in the right place while the iPhone keyboard has moved the chat.
@@ -76,13 +76,16 @@ A separate review of the risky files found no hole in row level security, grants
 - iPhone Safari's keyboard with the visual-viewport handling, on a real phone.
 - OpenAI chat with a real key (only the request and event shapes are tested).
 
-## Apply v98 before the merge
+## Migrations
+
+- **v98 is applied** (2026-11-16, `20270108090000_chat_workspace.sql`, SHA-256 `36593dd5…64ed`): the owner's apply line read back `t`, and `check-migrations.ps1` showed `v98 chat workspace|t` (and v90 to v97 all `t`, so Survey Studio's v97 is on production too).
+- The PR review then added a search index to v98 (`fc0b37bd…3dff`); that line was refused, correctly, because v98 was already there, and nothing changed. So v98 in the repo is back to exactly what production has, and the index is its own migration, **v99** (`20270109090000_chat_search_index.sql`). Apply it, then read it back:
 
 ```
-powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\apply-migration.ps1" -File "supabase\migrations\20270108090000_chat_workspace.sql" -Sha256 fc0b37bd369a63659d34585f9c51b9f9a9431220718864ab765ac3cf61f43dff -Check "select to_regclass('public.chat_conversations') is not null"
+powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\apply-migration.ps1" -File "supabase\migrations\20270109090000_chat_search_index.sql" -Sha256 64f3e155506d9af2631564a1952b374dc7496a472bfee2658a048a223928ffcb -Check "select to_regclass('public.chat_messages_owner_idx') is not null"
 ```
 
-Then `scripts/vps/check-migrations.ps1`, which now reads v98 back.
+Then `scripts/vps/check-migrations.ps1`, which now reads v99 back too. The app works without v99 (search is only slower), so it isn't a blocker for the merge, but it's quick.
 
 ## Next
 
