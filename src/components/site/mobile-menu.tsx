@@ -117,7 +117,7 @@ export function MobileMenu() {
               aria-modal="true"
               aria-label="Menu"
               inert={phase === "closing"}
-              className={`fixed inset-0 z-30 flex flex-col bg-canvas/90 px-5 pb-8 pt-24 backdrop-blur-2xl supports-[not(backdrop-filter:blur(0))]:bg-canvas ${
+              className={`fixed inset-0 z-30 flex flex-col overflow-y-auto overscroll-contain bg-canvas/90 pb-[max(2rem,env(safe-area-inset-bottom))] pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))] pt-24 backdrop-blur-2xl supports-[not(backdrop-filter:blur(0))]:bg-canvas ${
                 phase === "closing" ? "motion-safe:animate-[sheet-out_220ms_cubic-bezier(0.32,0.72,0,1)_both]" : "motion-safe:animate-[sheet-in_300ms_cubic-bezier(0.32,0.72,0,1)_both]"
               }`}
             >
@@ -143,14 +143,14 @@ export function MobileMenu() {
                 <Link
                   href="/sign-in?next=/app/new"
                   onClick={() => close(false)}
-                  className="flex h-14 items-center justify-center rounded-full bg-primary text-base font-medium text-on-primary shadow-e2 active:scale-[0.98]"
+                  className="flex h-12 shrink-0 items-center justify-center rounded-full bg-primary text-body font-medium text-on-primary shadow-e2 active:scale-[0.98]"
                 >
                   Start building
                 </Link>
                 <Link
                   href="/sign-in"
                   onClick={() => close(false)}
-                  className="flex h-14 items-center justify-center rounded-full border border-line bg-surface text-base font-medium text-ink active:scale-[0.98]"
+                  className="flex h-12 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-body font-medium text-ink active:scale-[0.98]"
                 >
                   Sign in
                 </Link>

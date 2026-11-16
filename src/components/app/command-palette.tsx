@@ -51,6 +51,21 @@ export function PaletteTrigger() {
   );
 }
 
+/** The palette's button on a phone's header: touch screens have no Ctrl+K (ADR 0211). */
+export function PaletteIconButton() {
+  return (
+    <button
+      type="button"
+      data-open-palette
+      aria-label="Search or jump to"
+      onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
+      className="tap inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-surface hover:text-ink"
+    >
+      <MagnifyingGlassIcon size={20} aria-hidden />
+    </button>
+  );
+}
+
 /**
  * The command palette (Phase C): Ctrl or Cmd+K anywhere in the app. Go to a
  * page or project, start a build from what you type, or switch workspace.

@@ -140,14 +140,29 @@ function inspect(touch) {
       const r = el.getBoundingClientRect();
       // An absolutely placed ::before or ::after reaching past the edges widens the tap area without changing the look.
       let { top, bottom, left, right } = r;
+      const own = getComputedStyle(el);
+      const v = (x) => parseFloat(x) || 0;
       for (const pseudo of ["::before", "::after"]) {
         const ps = getComputedStyle(el, pseudo);
         if (ps.content === "none" || ps.position !== "absolute") continue;
-        const v = (x) => parseFloat(x) || 0;
-        top = Math.min(top, r.top + v(ps.top));
-        bottom = Math.max(bottom, r.bottom - v(ps.bottom));
-        left = Math.min(left, r.left + v(ps.left));
-        right = Math.max(right, r.right - v(ps.right));
+        // A link that isn't positioned stretches its ::after over its nearest positioned ancestor (a whole card is the link).
+        if (own.position === "static") {
+          let cb = el.parentElement;
+          while (cb && cb !== document.body && getComputedStyle(cb).position === "static") cb = cb.parentElement;
+          if (cb && cb !== document.body && [ps.top, ps.right, ps.bottom, ps.left].every((x) => v(x) === 0)) {
+            const c = cb.getBoundingClientRect();
+            top = Math.min(top, c.top);
+            bottom = Math.max(bottom, c.bottom);
+            left = Math.min(left, c.left);
+            right = Math.max(right, c.right);
+          }
+          continue;
+        }
+        // Its offsets start inside the control's border (the padding box).
+        top = Math.min(top, r.top + v(own.borderTopWidth) + v(ps.top));
+        bottom = Math.max(bottom, r.bottom - v(own.borderBottomWidth) - v(ps.bottom));
+        left = Math.min(left, r.left + v(own.borderLeftWidth) + v(ps.left));
+        right = Math.max(right, r.right - v(own.borderRightWidth) - v(ps.right));
       }
       const w = right - left;
       const h = bottom - top;
@@ -163,19 +178,28 @@ function inspect(touch) {
       // The tap probe: where the area reaches past the box, a tap just inside its edge must still reach this control. Only for
       // controls in view and not covered at their centre (a pinned bar over them at this scroll isn't a fault of theirs).
       if (r.top < 0 || r.bottom > vh || r.left < 0 || r.right > vw) continue;
-      const own = (hit) => hit && (hit === el || el.contains(hit));
-      if (!own(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))) continue;
+      const reaches = (hit) => hit && (hit === el || el.contains(hit));
+      if (!reaches(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))) continue;
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
+      // 1.5px inside the widened edge, clear of the sub-pixel boundary.
       const probes = [
-        top < r.top - 1 ? [cx, top + 1] : null,
-        bottom > r.bottom + 1 ? [cx, bottom - 1] : null,
-        left < r.left - 1 ? [left + 1, cy] : null,
-        right > r.right + 1 ? [right - 1, cy] : null,
+        top < r.top - 2 ? [cx, top + 1.5] : null,
+        bottom > r.bottom + 2 ? [cx, bottom - 1.5] : null,
+        left < r.left - 2 ? [left + 1.5, cy] : null,
+        right > r.right + 2 ? [right - 1.5, cy] : null,
       ].filter((p) => p && p[0] >= 0 && p[0] <= vw && p[1] >= 0 && p[1] <= vh);
+      // A pinned bar (the tab bar, a sticky header) passing over the edge at this scroll isn't the control's fault.
+      const pinned = (hit) => {
+        for (let n = hit; n && n !== document.body; n = n.parentElement) {
+          const pos = getComputedStyle(n).position;
+          if ((pos === "fixed" || pos === "sticky") && !n.contains(el)) return true;
+        }
+        return false;
+      };
       for (const [x, y] of probes) {
         const hit = document.elementFromPoint(x, y);
-        if (!own(hit)) {
+        if (!reaches(hit) && !pinned(hit)) {
           lost.push({ el: describe(el), at: describe(hit), x: Math.round(x), y: Math.round(y) });
           break;
         }
@@ -268,7 +292,12 @@ function proportions(opts) {
       const s = getComputedStyle(el);
       const pill = px(s.borderTopLeftRadius) >= r.height / 2 - 1;
       if (el.tagName === "A" && !pill) continue;
-      if (r.height > 48 + 0.5 && r.height < 200) add("control", el, r.height, 48);
+      if (!(r.height > 48 + 0.5 && r.height < 200)) continue;
+      // Words that wrap make a control taller on purpose; only a one-line control that's still tall is out of proportion.
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const lines = new Set([...range.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top / 4))).size;
+      if (lines <= 1) add("control", el, r.height, 48);
     }
   }
   // Card padding, and how far nested frames push text from the screen's edge.
@@ -286,7 +315,8 @@ function proportions(opts) {
   for (const el of document.querySelectorAll("p, h2, h3, li, dd")) {
     if (!shown(el) || exempt(el)) continue;
     const r = el.getBoundingClientRect();
-    if (r.width < vw * 0.4) continue;
+    // The left-hand column of what's on the screen: a second column, or a card in a sideways rail, starts further in on purpose.
+    if (r.width < vw * 0.4 || r.left > vw * 0.5 || r.right > vw + 1) continue;
     if (r.left > inset.value) inset = { value: r.left, el };
   }
   if (inset.el && inset.value > 48 * scale) add("inset", inset.el, inset.value, 48 * scale);

@@ -24,7 +24,7 @@ export function WorkspaceSwitcher({ workspaces, current, canCreate }: { workspac
         <CaretUpDownIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
         <span className="sr-only">Switch workspace</span>
       </summary>
-      <div className="absolute inset-x-0 top-[calc(100%+6px)] z-30 rounded-sm border border-line bg-surface p-1.5 shadow-e3">
+      <div className="absolute inset-x-0 top-[calc(100%+6px)] z-30 max-h-[min(22rem,60dvh)] overflow-y-auto overscroll-contain rounded-sm border border-line bg-surface p-1.5 shadow-e3">
         <ul>
           {workspaces.map((ws) => (
             <li key={ws.id}>

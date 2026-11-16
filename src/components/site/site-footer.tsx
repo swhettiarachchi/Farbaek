@@ -9,9 +9,9 @@ import { NAV_LINKS } from "./nav-links";
 export function SiteFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-line bg-surface">
-      <Container className="grid gap-10 pb-10 pt-16 md:grid-cols-[1.4fr_auto_1fr] md:items-start">
+      <Container className="grid gap-8 pb-8 pt-12 sm:gap-10 sm:pb-10 sm:pt-16 md:grid-cols-[1.4fr_auto_1fr] md:items-start">
         <div className="flex items-start gap-4">
-          <BrandLogo height={56} />
+          <BrandLogo height={56} className="h-10 w-auto sm:h-14" />
           <div>
             <p className="text-title-4 font-semibold tracking-[-0.02em]">Farbaek</p>
             <p className="mt-1 max-w-[38ch] text-sm text-ink-2">From idea to verified software, with control at every step.</p>

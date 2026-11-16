@@ -1029,7 +1029,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           </button>
         </div>
         {/* The quiet row: what's happening, or the voice mode; then undo, settings and earlier instructions. */}
-        <div className="flex min-h-11 items-center gap-1 border-t border-line/60 pl-1.5 pr-1 max-[18em]:flex-wrap max-[18em]:justify-end">
+        <div className="flex min-h-11 items-center gap-1 border-t border-line/60 pb-1 pl-1.5 pr-1 max-[18em]:flex-wrap max-[18em]:justify-end">
           {statusShown ? (
             <p aria-hidden className="min-w-0 flex-1 px-1.5 py-1.5 text-xs leading-snug text-ink-2 max-[18em]:basis-full">
               {status}

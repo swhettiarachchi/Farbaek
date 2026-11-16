@@ -50,16 +50,19 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur-xl sm:px-6 lg:px-10">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur-xl sm:h-16 sm:px-6 lg:px-10">
           <Link href="/" className="flex min-h-11 items-center gap-2 lg:hidden" aria-label="Office Space, overview">
             <BrandLogo height={26} />
             <span className="text-label font-medium text-ink-2">Office</span>
           </Link>
           <p className="hidden text-sm text-ink-3 lg:block">Office Space</p>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
             <OfficeSearchTrigger />
             <EnvPill label={env} />
-            <RoleBadge role={staff.role} />
+            {/* On the narrowest phones the role steps aside for the environment, which says where a change lands. */}
+            <span className="contents max-[25em]:hidden">
+              <RoleBadge role={staff.role} />
+            </span>
           </div>
         </header>
 
