@@ -409,12 +409,13 @@
   }
 }
 
+/* He floats with a gentle sway, like something weightless (stage 201). */
 @keyframes hero-float {
   from {
-    transform: translateY(0);
+    transform: translateY(0.5%) rotate(-1.2deg);
   }
   to {
-    transform: translateY(-2.5%);
+    transform: translateY(-3%) rotate(1.2deg);
   }
 }
 

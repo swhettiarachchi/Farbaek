@@ -40,8 +40,8 @@ export function Hero() {
       <HeroProps />
       <Container>
         <Reveal className="relative mx-auto flex max-w-[46rem] flex-col items-center text-center">
-          <div className="w-[10.5rem] sm:w-[11.5rem] lg:w-[12.5rem]">
-            <HeroVisual sizes="(min-width: 1024px) 200px, 170px" />
+          <div className="w-[13rem] sm:w-[12.5rem] lg:w-[12.5rem]">
+            <HeroVisual sizes="210px" />
           </div>
           <h1 id="hero-title" className={`mt-2 ${HERO_TITLE}`}>
             <span className="text-accent">Ask</span>, <span className="text-spark-rose">create</span> and <span className="text-spark-leaf">build</span> with Farbaek AI.

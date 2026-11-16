@@ -59,7 +59,7 @@ The owner wanted the compact proportions kept but the page colourful and playful
 
 ## Compact on phones
 
-The owner found the page too long and oversized on a phone, then asked for the knight to be larger there. On phones now: the knight is 168 px wide (springs in, his light breathes, and he hops when tapped); the headline is 32 px and section titles 24 px; Farbaek AI's window has a two-column table that never scrolls sideways and one row of short offers; the four-space tour is one row to swipe instead of four tall blocks; the rail's cards are shorter; and every section's spacing is tighter. The hero, knight included, fits one phone screen.
+The owner found the page too long and oversized on a phone, then asked for the knight to be larger there. On phones now: the knight is 208 px wide (springs in, sways as he floats, his light breathes, and he hops when tapped); the headline is 32 px and section titles 24 px; Farbaek AI's window has a two-column table that never scrolls sideways and one row of short offers; the four-space tour is one row to swipe instead of four tall blocks; the rail's cards are shorter; and every section's spacing is tighter. The hero, knight included, fits one phone screen.
 
 ## Verified
 

@@ -18,7 +18,7 @@ A second look at the references for colour: ChatGPT colours one word of its head
 
 **Light, not paint.** Interfaces stay neutral. Colour comes from behind them: `Halo` draws the spectrum from behind a product window's edges with gradients that fade to nothing (no filters, ADR 0055), on a pale stage, as Antigravity does.
 
-**The knight leads the hero again.** `HeroVisual` (the knight inside the Loom, in 3D on capable desktops and drawn in 2D everywhere else) sits centred above the headline at a compact size: 152 px wide on a phone, 200 px on a desktop. New: his light is the spectrum, and with a mouse the whole figure leans a few degrees toward the pointer. Four small cards, one per space in its colour, float beside the hero on wide screens, tilted like things on a desk; each is a link to its space, drifts slightly against the pointer and straightens when hovered. Below 1280 px they're hidden, and the chips under the message box do the same job.
+**The knight leads the hero again.** `HeroVisual` (the knight inside the Loom, in 3D on capable desktops and drawn in 2D everywhere else) sits centred above the headline at a size that suits each screen: 208 px wide on a phone, where he is the star, and 200 px on a desktop. New: his light is the spectrum, and with a mouse the whole figure leans a few degrees toward the pointer. Four small cards, one per space in its colour, float beside the hero on wide screens, tilted like things on a desk; each is a link to its space, drifts slightly against the pointer and straightens when hovered. Below 1280 px they're hidden, and the chips under the message box do the same job.
 
 **The headline** names the three verbs in the spaces' colours: Ask (blue), create (rose), build (leaf).
 
