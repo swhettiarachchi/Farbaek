@@ -8,6 +8,7 @@ import { EffortPicker } from "@/components/app/effort-picker";
 import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 import { buttonClasses } from "@/components/ui/button";
 import { CAP_CHOICES, CAP_LABELS, type CapChoice } from "@/core/agent/cap-choices";
+import type { BuildSurface } from "@/core/agent/build-surface";
 import type { Effort } from "@/core/agent/effort";
 import type { SiteTheme } from "@/core/media/studio-kit";
 import type { RunEstimates } from "@/server/workspace/plan-card-data";
@@ -34,6 +35,7 @@ export function ApproveBuild({
   defaultCap = "double",
   firstBuildNote = null,
   defaultTheme = "light",
+  surface = "page",
 }: {
   taskId: string;
   version: number;
@@ -59,6 +61,8 @@ export function ApproveBuild({
   firstBuildNote?: string | null;
   /** The colour theme offered first: light, unless the person asked for dark (ADR 0158). Never dark by default. */
   defaultTheme?: SiteTheme;
+  /** Where the run opens once it starts: its own page, or Build's workspace when the plan was approved there (stage 202). */
+  surface?: BuildSurface;
 }) {
   const [state, action, pending] = useActionState(approveAndBuildAction, IDLE);
   const [effort, setEffort] = useState<Effort>("balanced");
@@ -70,6 +74,7 @@ export function ApproveBuild({
   return (
     <form action={action} className="grid gap-4">
       <input type="hidden" name="taskId" value={taskId} />
+      <input type="hidden" name="surface" value={surface} />
       <input type="hidden" name="version" value={version} />
       <input type="hidden" name="expectedTaskVersion" value={expectedTaskVersion} />
       <input type="hidden" name="sha256" value={sha256} />

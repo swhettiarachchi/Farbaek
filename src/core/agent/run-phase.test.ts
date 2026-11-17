@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { latestActivity, runFiles, runPhase, workspacePhase, type PhaseEvent } from "./run-phase";
+import { latestActivity, runCommands, runFiles, runPhase, workspacePhase, type PhaseEvent } from "./run-phase";
 
 const tool = (name: string, target: string, status = "done"): PhaseEvent => ({ kind: "tool", payload: { tool: name, target, status, detail: "" } });
 
@@ -70,5 +70,29 @@ describe("workspacePhase", () => {
     expect(workspacePhase(["working"])).toBe("working");
     expect(workspacePhase(["finished", "cancelled", "interrupted"])).toBe("idle");
     expect(workspacePhase([])).toBe("idle");
+  });
+});
+
+describe("runCommands", () => {
+  it("lists only what the run reported running, oldest first", () => {
+    const ran = runCommands([
+      { kind: "model", payload: { text: "I'll run the tests." } },
+      { kind: "command", payload: { command: "pnpm test", exitCode: 0, output: "2 passed" } },
+      { kind: "tool", payload: { tool: "run_command", target: "pnpm lint", status: "done" } },
+      { kind: "command", payload: { command: " pnpm lint ", exitCode: 1, output: "1 problem" } },
+    ]);
+    expect(ran).toEqual([
+      { command: "pnpm test", exitCode: 0, output: "2 passed" },
+      { command: "pnpm lint", exitCode: 1, output: "1 problem" },
+    ]);
+  });
+
+  it("keeps a command that never reported how it ended, without making up a result", () => {
+    expect(runCommands([{ kind: "command", payload: { command: "pnpm build", exitCode: null, output: "" } }])).toEqual([{ command: "pnpm build", exitCode: null, output: "" }]);
+    expect(runCommands([{ kind: "command", payload: { command: "pnpm build", exitCode: "0" } }])[0]!.exitCode).toBeNull();
+  });
+
+  it("is empty for a run that ran nothing", () => {
+    expect(runCommands([{ kind: "note", payload: { text: "hello" } }, { kind: "command", payload: { command: "  " } }])).toEqual([]);
   });
 });

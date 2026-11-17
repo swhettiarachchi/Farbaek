@@ -35,6 +35,7 @@ import { useState } from "react";
 import { fileSizeLabel } from "@/core/chat/files";
 import type { ChatFile, ChatMessage, HandOff } from "@/core/chat/protocol";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { KnightMark } from "@/components/brand/knight-mark";
 import { buttonClasses } from "@/components/ui/button";
 import { MarkdownView } from "./markdown-view";
 import { IconButton, Menu, useCopy } from "./primitives";
@@ -196,28 +197,6 @@ const HANDOFFS: { to: HandOff; label: string; short: string; hint: string; icon:
   { to: "build", label: "Build a website", short: "Website", hint: "Opens Build with your request in its box", icon: HammerIcon, tone: "text-spark-leaf" },
 ];
 
-/**
- * Farbaek AI beside its answer: the knight, bare (the logo takes no plate or frame). While it thinks or writes, a small orbit
- * turns round him, the same sign the agent's mark gives for work in progress; it is still under reduced motion.
- */
-function KnightMark({ live }: { live: boolean }) {
-  return (
-    <span aria-hidden className="relative mt-0.5 hidden size-8 shrink-0 items-center justify-center sm:inline-flex">
-      {live ? (
-        <span className="absolute -inset-2 motion-safe:animate-[chat-fade_200ms_ease-out_both]">
-          <span className="absolute inset-0 motion-safe:animate-[core-orbit_2.6s_linear_infinite]">
-            <svg viewBox="0 0 44 44" className="h-full w-full">
-              <ellipse cx="22" cy="22" rx="20.5" ry="7" fill="none" stroke="var(--color-accent)" strokeOpacity="0.55" strokeWidth="1" transform="rotate(-18 22 22)" />
-              <circle cx="2.5" cy="28.3" r="1.9" fill="var(--color-accent)" />
-            </svg>
-          </span>
-        </span>
-      ) : null}
-      <BrandLogo height={28} className="relative" />
-    </span>
-  );
-}
-
 export function AnswerMessage({
   message,
   thinking,
@@ -248,7 +227,7 @@ export function AnswerMessage({
 
   return (
     <article className="chat-message group sm:grid sm:grid-cols-[2rem_minmax(0,1fr)] sm:gap-x-3 motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both]" aria-label="Farbaek AI said" aria-busy={streaming || undefined}>
-      <KnightMark live={streaming} />
+      <KnightMark live={streaming} className="hidden sm:inline-flex" />
       <div className="min-w-0">
       {thinking !== undefined && thinking !== null && streaming ? (
         <div className="mb-2">

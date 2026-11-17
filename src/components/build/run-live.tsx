@@ -41,8 +41,7 @@ import type { RunPreview } from "@/server/workspace/run-preview";
 import { AgentCore } from "./agent-core";
 import { PromptComposer } from "./prompt-composer";
 import { RUN_STATUS_KIND, RunStatusBadge } from "./run-status";
-
-const POLL_MS = 1_500;
+import { useRunFeed } from "./use-run-feed";
 
 /** A step's result in its kind's colour, with the kind's icon beside the words (ADR 0183). */
 function StepResult({ kind, children }: { kind: Status; children: React.ReactNode }) {
@@ -161,7 +160,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
   );
 }
 
-function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: RunEventView; onAnswered: () => void }) {
+export function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: RunEventView; onAnswered: () => void }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const p = request.payload;
@@ -213,7 +212,7 @@ function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: Run
 }
 
 /** Talk to the running agent. It reads the message at its next step, as guidance within the plan. */
-function MessageBar({ runId }: { runId: string }) {
+export function MessageBar({ runId }: { runId: string }) {
   const [text, setText] = useState("");
   const [pending, start] = useTransition();
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
@@ -330,13 +329,9 @@ export function RunLive({
   canAnswer: boolean;
 }) {
   const router = useRouter();
-  const [run, setRun] = useState(initialRun);
-  const [usage, setUsage] = useState(initialUsage);
-  const [events, setEvents] = useState(initialEvents);
+  const { run, setRun, usage, events, live } = useRunFeed({ initialRun, initialEvents, initialUsage });
   const [cancelling, startCancel] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const cursor = useRef(initialEvents.at(-1)?.id ?? 0);
-  const live = isLive(run.status);
   const [startedLive] = useState(() => isLive(initialRun.status));
   // Once, when it's first seen: on a phone the result can be in a pane that isn't showing yet.
   const [risen, setRisen] = useState(false);
@@ -349,36 +344,6 @@ export function RunLive({
     if (wasLive.current && !live) router.refresh();
     wasLive.current = live;
   }, [live, router]);
-
-  useEffect(() => {
-    if (!live) return;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        const res = await fetch(`/app/build/${run.id}/events?after=${cursor.current}`, { cache: "no-store" });
-        if (res.ok) {
-          const body = (await res.json()) as { data: { run: RunView; events: RunEventView[]; usage: RunUsageView } };
-          if (!stopped) {
-            setRun(body.data.run);
-            if (body.data.usage) setUsage(body.data.usage);
-            if (body.data.events.length) {
-              cursor.current = body.data.events.at(-1)!.id;
-              setEvents((prev) => [...prev, ...body.data.events]);
-            }
-          }
-        }
-      } catch {
-        // A missed poll is retried on the next tick.
-      }
-      if (!stopped) timer = setTimeout(poll, POLL_MS);
-    };
-    timer = setTimeout(poll, POLL_MS);
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-    };
-  }, [live, run.id]);
 
   const lastApproval = [...events].reverse().find((e) => e.kind === "approval");
   const waitingOn = run.status === "waiting" && lastApproval && events.at(-1)?.id === lastApproval.id ? lastApproval : null;

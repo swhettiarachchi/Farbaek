@@ -118,6 +118,7 @@ export default function CodeMirrorSurface({
   value,
   original,
   controls = true,
+  readOnly = false,
   label,
   onChange,
 }: {
@@ -127,6 +128,8 @@ export default function CodeMirrorSurface({
   original?: string;
   /** Accept and reject buttons on each chunk. Off for history comparisons, which only show the change. */
   controls?: boolean;
+  /** Shown with its colours but not typeable: where saving is off (the sample workspace, a viewer's role). */
+  readOnly?: boolean;
   label: string;
   onChange?: (doc: string) => void;
 }) {
@@ -169,6 +172,8 @@ export default function CodeMirrorSurface({
         EditorState.phrases.of({ Accept: "Keep", Reject: "Leave out" }),
         unifiedMergeView({ original, mergeControls: controls, highlightChanges: true, gutter: true, collapseUnchanged: { margin: 3, minSize: 6 } }),
       );
+    } else if (readOnly) {
+      extensions.push(EditorState.readOnly.of(true), EditorView.editable.of(false));
     } else {
       extensions.push(history(), indentOnInput());
     }

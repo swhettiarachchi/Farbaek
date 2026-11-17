@@ -19,6 +19,7 @@ import { kitTierFor } from "@/core/media/kit-tier";
 import { SITE_THEMES } from "@/core/media/studio-kit";
 import { startCloudRun } from "@/server/cloud-agent/executor";
 import { cloudRunDeps } from "@/server/cloud-agent/wiring";
+import { planPath, readSurface, runPath } from "@/core/agent/build-surface";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { WORKSPACE_COOKIE, isDemoMode, loadAppContext } from "@/server/workspace/context";
@@ -84,7 +85,8 @@ export async function startFromPromptAction(_previous: PromptStartState, form: F
   const result = await startFromPrompt(draftDeps, drafter, { orgId: ctx.current.id, userId: ctx.user.id, prompt: form.get("prompt"), effort, existing, starter });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
-  redirect(`/app/new/${result.value.taskId}`);
+  // From Build's workspace the plan opens there; the address is built here from the ids just created, never sent by the form.
+  redirect(planPath(readSurface(form.get("surface")), { projectId: result.value.projectId, taskId: result.value.taskId }));
 }
 
 export type ApproveBuildState = { status: "idle" } | { status: "error"; message: string; approved?: boolean };
@@ -126,5 +128,11 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills, capUnits: runCapUnits(ctx.current, effort, cap, new Date(), kind), kitTier: kitTierFor(ctx.current.plan), designPass: kind.designPass, theme });
   if (!started.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${started.message}` };
   revalidatePath("/app/build");
+  const surface = readSurface(form.get("surface"));
+  if (surface === "workbench") {
+    // The task was just read by the person's own reader to start the run; its project is where the workspace is.
+    const found = await ctx.reader.getTask(ctx.current.id, taskId).catch(() => null);
+    if (found) redirect(runPath(surface, { projectId: found.task.projectId, taskId, runId: started.value.runId }));
+  }
   redirect(`/app/build/${started.value.runId}`);
 }

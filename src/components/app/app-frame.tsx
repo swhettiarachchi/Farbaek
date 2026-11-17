@@ -7,7 +7,7 @@ import { PageTransition } from "@/components/app/page-transition";
  * Farbaek AI's workspaces bring their own full-screen frame, with no app shell: Chat (stage 199, ADR 0213) and the image and video
  * studios (stage 201, ADR 0216).
  */
-const OWN_FRAME = ["/app/chat", "/app/images", "/app/video"];
+const OWN_FRAME = ["/app/chat", "/app/images", "/app/video", "/app/workbench"];
 
 export function isChatPath(pathname: string | null): boolean {
   const p = pathname ?? "";

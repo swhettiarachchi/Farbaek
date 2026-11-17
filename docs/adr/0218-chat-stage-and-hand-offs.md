@@ -28,5 +28,5 @@ ADR 0217 lets the spectrum be used in "the spaces' own chrome", for identity and
 
 - No new dependency and no migration. The 3D scene is the one the homepage already loads, lazily and only on capable desktops.
 - Everything that moves is under `prefers-reduced-motion: no-preference` or `motion-safe:`, and only `transform`, `rotate`, `scale` and `opacity` animate. No CSS filters.
-- Build's link in Chat goes to the build box for now, and to Build's own workspace when that is built later in this stage.
+- Build's link in Chat goes to Build's own workspace (ADR 0219), which stands in this same frame.
 - If another space wants the same stage, it takes these classes; the studios keep their own frame for now.

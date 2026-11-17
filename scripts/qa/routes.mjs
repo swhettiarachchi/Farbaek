@@ -12,7 +12,7 @@ export const STATIC_ROUTES = [
   "/auth/connect", "/auth/connect/done", "/device",
   // The signed-in app.
   "/app", "/app/chat", "/app/images", "/app/video", "/app/agents", "/app/approvals", "/app/billing", "/app/build", "/app/help", "/app/help/new", "/app/mesh",
-  "/app/more", "/app/new", "/app/projects", "/app/rescue", "/app/sandbox", "/app/sandbox/new", "/app/settings",
+  "/app/more", "/app/new", "/app/workbench", "/app/projects", "/app/rescue", "/app/sandbox", "/app/sandbox/new", "/app/settings",
   "/app/tasks", "/app/templates", "/app/workspaces/new", "/app/skills",
   "/app/activity", "/app/incidents", "/app/integrations", "/app/policies", "/app/trust", "/app/workflows", "/app/workflows/new",
   // Survey Studio.
@@ -31,6 +31,8 @@ export const DISCOVER = [
   { from: "/app/help", pattern: /^\/app\/help\/(?!new$)[^/]+$/, then: [""] },
   { from: "/app/sandbox", pattern: /^\/app\/sandbox\/(?!new$)[^/]+$/, then: [""] },
   { from: "/app", pattern: /^\/app\/new\/[^/]+$/, then: [""] },
+  // Build's workspace for a project (stage 202), from its picker.
+  { from: "/app/workbench", pattern: /^\/app\/workbench\/[^/]+$/, then: [""] },
   { from: "/pricing", pattern: /^\/subscribe\/[^/]+$/, then: [""] },
 ];
 

@@ -2,7 +2,7 @@
 
 - **Date:** 2026-11-17
 - **Branch:** `feat/stage-202-chat-and-workbench` (cut from `feat/stage-201-farbaek-ai`, pull request #264, not yet merged)
-- **Decisions:** ADR 0218 (Chat's stage, and answers that hand off)
+- **Decisions:** ADR 0218 (Chat's stage, and answers that hand off), ADR 0219 (Build's workspace)
 - **Migration:** none
 
 ## What the owner asked
@@ -39,17 +39,56 @@ Files: `src/components/chat/{chat-shell,sidebar,conversation-view,message,compos
 - A real phone.
 - In the demo only, the read-only notice makes the pinned message box 3 px taller than the audit's limit at 320 px.
 
-## Part 2, next: Build's workspace
+## Part 2, done: Build's workspace (ADR 0219)
 
-Planned and checked against the code, not started. One full-screen screen per project at `/app/workbench/[projectId]`: the agent's thread (request, plan, approve, live steps, message, approve a command, stop, result), the preview, the code (tree and editor) and the output (commands and checks), resizable on desktop and one pane at a time on phones. No new dependency and no migration. The work reuses `RunLive`'s parts, `ApproveBuild`, `ProposalReview`, `StaticPreview` and `CodeMirrorSurface` rather than rewriting them.
+The owner then asked for the workspace to "align perfectly with our current UI/UX design language and colour scheme", so it was built in Chat's frame from the start.
 
-### The plan for it
+- **`/app/workbench/[projectId]`**: one full-screen screen per project, a rounded window on the same stage of light as Chat, with Build's leaf colour. **`/app/workbench`** is the picker: the build box and the projects to open.
+- **Agent pane:** the open request as a conversation, with the plan in the plan card's words, the real Approve and build control, the live steps, the card to approve or refuse a command, Stop, the result, and the box for the next request or a message to the working agent. A menu switches between the project's requests.
+- **Preview pane:** the site, live, with Before and With this change while a change waits; a project that can't be shown says why and offers the real way to open it.
+- **Code pane:** the file tree and the Files page's editor. Edit, review the change as a diff, save as a new revision; read-only with the reason where saving is off.
+- **Output pane:** the commands the run recorded with what they printed and how they ended, the files it changed, and the latest check. Not a terminal: it links to a test space for that.
+- **Layout:** on a wide screen the Agent sits beside the Preview or the Code with Output as a drawer; the borders drag and answer the arrow keys. On a phone or a tablet, one pane at a time from a bar at the bottom. Remembered in the browser.
+- **The flow stays inside:** a hidden `surface` word (`page` or `workbench`) on the three build actions; the server builds the address from ids it holds (`src/core/agent/build-surface.ts`).
+- **Shared, not copied:** `useRunFeed` (the run's polling, also used by the run page), `loadPlanCard` (the plan card's reading, also used by the plan page), `KnightMark` (also used by Chat's answers), a `readOnly` option on the editor surface, and `runCommands` beside `runFiles`.
+- **Small page, lazy panes:** one file and the preview are read by their own JSON routes (signed in, the person's own reader, never cached); the preview only when a key made from the files' revisions and the waiting change has changed.
+- **Ways in:** Chat's sidebar, each project's page ("Open it in Build"), and the audits' route list.
 
-- **No return address.** A hidden `surface` value (`page` or `workbench`) on `startFromPromptAction`, `approveAndBuildAction` and `startBuildRunAction`; the server builds the path from ids it holds.
-- **Small page data, heavy data on demand.** A server action that revalidates re-renders the page inside its response, so the page carries only the project, a slim file list, 30 tasks and the current task's plan card, run, 400 events, usage, change summary and checks. JSON routes (signed in, the person's own client, `no-store`) give one file, the preview and the change.
-- **Split `RunLive`, don't embed it:** `src/components/build/use-run-feed.ts` (the polling) and `src/components/build/run-parts.tsx` (`EventRow`, `ApprovalCard`, `MessageBar`, a stop button, the usage line). The run page keeps working as it is.
-- **The real plan card and the real review:** `loadPlanCard()` and `src/components/build/plan-sections.tsx` out of the plan page; `loadChangeReview()` in `src/server/workspace/change-review.ts` out of the task page, feeding `ProposalReview` unchanged.
-- **Panes:** `StaticPreview` and `CodeMirrorSurface` get a `fill` option, `FileEditor` gets `onSaved`, `onCancel` and `onDirtyChange`, and a small client file tree is built on `buildTree`.
-- **Honest gaps:** apps that aren't static show the real reason and the existing Preview button; the interactive console isn't embedded, so Output links to a test space or says why there isn't one; a tab appears only once it works.
-- **Order:** core rules with tests, the `RunLive` split, `surface`, the plan card, the pane options, the server loader and routes, the shell, then Preview, Code, Changes and Output, then the entry links, the audits' route list and a decision record.
-- **Pitfalls found:** drag handles over the preview frame need pointer capture; hidden phone panes measure zero wide, so the preview mounts when first shown; stored pane sizes are read with `useSyncExternalStore`; unsaved edits are guarded when switching files; own-frame pages lose the layout's demo, saving-off and paused bands, so the workspace shows them itself; client files may only import types from `@/server/**`.
+New files: `src/app/app/workbench/**`, `src/components/workbench/**`, `src/components/brand/knight-mark.tsx`, `src/components/build/use-run-feed.ts`, `src/server/workbench/**`, `src/server/workspace/plan-card.ts`, `src/core/workbench/**`, `src/core/agent/build-surface.ts`.
+
+## Verified (Build's workspace)
+
+- Looked at in headless Chrome against the demo workspace at 1440 by 900: the picker, the Agent beside the Preview, the Code view with a file open, Output open, and the Agent's border moved with the keyboard; and on a phone (390 by 844): each of the four panes.
+- The Preview pane's drawing with a static site, at 1440 by 900, 1280 by 720 and on a phone. The sample workspace has no static site, so the preview route's answer was stood in for in the test browser: this checked the pane, not the route.
+- Unit tests: where a build's steps return to (5), the task the workspace opens on and where it stands (13), pane sizes and the remembered layout (7), the preview's change key (5), the commands a run ran (3).
+- The design tests pass with the new screens; lint and the type check are clean.
+- `qa:responsive` on both routes at nine sizes: no sideways scroll, cut content, small or lost taps, nothing out of proportion. `qa:a11y` on both at 1280 and 375: no findings.
+
+- On the final code: lint clean, the type check clean, the full suite (3,740 tests pass, 17 skipped; the run's one unhandled error is the mesh test's temporary folder clean-up, which was there before and isn't touched here), and the production build (demo) with the four new routes.
+- On that production build: `qa:responsive` on the picker, the workspace and Chat at four sizes, clean; `qa:vitals`, phone profile, median of three: the picker LCP 1.57 s, CLS 0, TBT 168 ms; the workspace LCP 1.52 s, CLS 0, TBT 183 ms, 510 KB of script.
+
+## A fresh review, and what it found
+
+A separate agent read the new server and screen code without having written it. It confirmed the reads are safe (every one goes through the person's own client under the database's row rules; the preview's task is tied to its project; the file route is always JSON and never cached; nothing new reaches the browser; the extracted plan card and run feed behave as before; the redirects can't be steered). It also found seven real bugs, all fixed before the first commit:
+
+- **A reviewed change could be saved into the wrong file.** Opening a file from Output skipped the Code pane's guard, and the review wasn't tied to a path. Now the pane owns which file is open, every way of opening one goes through the same guard, and a draft, a review and an error each remember their file.
+- **Discard left the edits on screen.** The editor is started again from the saved text.
+- **Starting a build dropped unsaved edits.** The run's feed is now a child that draws nothing, so the frame and its panes stay put when a run starts or changes.
+- **The kept prompt was never cleared** after a build from the picker. Arriving at a request clears it, as the plan page does.
+- **The layout did nothing when the browser refused to store it.** It now holds for the visit.
+- **A timed-out command was labelled "Running".** A command is recorded once it has ended, so no exit code now reads "No result recorded".
+- **Two requests with the same title** collided in the menu. Menu rows are told apart by position.
+
+From its "plausible" list, also done: a save that lands after leaving a file no longer touches the screen; a failed read has Try again; the site's pictures travel once in the preview's answer instead of once per version; the task machine's own list of ended states is used, so an ended request is never offered for approval and an old dead one is never preferred over newer work; a plan that can't be read no longer takes the page down; and dragging a border no longer redraws the panes on every movement.
+
+## Not verified (Build's workspace)
+
+- A real build, from the request to the applied change: the sample workspace can't start one. So the plan waiting with its Approve and build control, the live steps, the command card, Stop, and coming back to the workspace after approving were not seen running. Their rules are unit-tested and they are the run page's own parts.
+- Editing in the Code pane: typing, reviewing, discarding and saving a file, and opening a changed file from Output with unsaved edits. The sample workspace is read-only and has no runs, so the fixes above were made by reading the code, not by pressing the buttons. Saving calls the Files page's own action.
+- The preview route with a real static project.
+- A real phone.
+
+## Next
+
+- Reviewing and applying a change inside the workspace (it is still on the task page).
+- The same frame for the image and video studios, if the owner wants every space to stand on the stage.

@@ -5,17 +5,19 @@ import { useActionState, useState } from "react";
 import { startBuildRunAction, type BuildActionState } from "@/app/app/build/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
 import { buttonClasses } from "@/components/ui/button";
+import type { BuildSurface } from "@/core/agent/build-surface";
 import type { Effort } from "@/core/agent/effort";
 
 const IDLE: BuildActionState = { status: "idle" };
 
 /** Starts a cloud run on a task with an approved contract. The server checks everything again. */
-export function StartRun({ taskId, disabledReason, compact = false }: { taskId: string; disabledReason: string | null; compact?: boolean }) {
+export function StartRun({ taskId, disabledReason, compact = false, surface = "page" }: { taskId: string; disabledReason: string | null; compact?: boolean; surface?: BuildSurface }) {
   const [state, action, pending] = useActionState(startBuildRunAction, IDLE);
   const [effort, setEffort] = useState<Effort>("balanced");
   return (
     <form action={action} className="grid gap-3">
       <input type="hidden" name="taskId" value={taskId} />
+      <input type="hidden" name="surface" value={surface} />
       {compact ? <input type="hidden" name="effort" value={effort} /> : <EffortPicker value={effort} onChange={setEffort} disabled={pending || Boolean(disabledReason)} />}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
