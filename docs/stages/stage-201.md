@@ -35,7 +35,7 @@ Then `scripts/vps/check-migrations.ps1`, which now reads v100 back too.
 
 ## What the owner needs to set
 
-- `OPENAI_API_KEY` is what makes pictures with OpenAI's model; without it the image studio uses Gemini, and without either it says it isn't connected. OpenAI may ask the organisation to verify itself before its image models answer.
+- `OPENAI_API_KEY` is what makes pictures with OpenAI's model; without it the image studio uses Gemini, and without either it says it isn't connected. OpenAI may ask the organisation to verify itself before its image models answer. Set it with `scripts/vps/set-openai-key.ps1` (added 2026-11-17): it tests the key from the server before saving it, and `scripts/vps/check-ai.ps1` now checks OpenAI too.
 - `GEMINI_API_KEY` on a paid Gemini account makes video (Omni has no free tier).
 
 ## The homepage, redone after the owner's review
