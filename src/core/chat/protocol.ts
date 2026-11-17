@@ -3,6 +3,7 @@
  * stream, and the shapes of conversations, messages and files as the screen shows them. Shared by both sides, framework-free.
  */
 import { z } from "zod";
+import { ANSWER_LANGUAGE_CODES } from "./language-names";
 
 export const CHAT_LIMITS = {
   /** Characters in one question. */
@@ -38,6 +39,8 @@ export const EFFORT_ABOUT: Record<ChatEffort, string> = {
 const id = z.uuid();
 /** "auto" lets Farbaek choose; otherwise a model id from the picker, checked on the server against the plan. */
 const modelChoice = z.string().regex(/^(?:auto|[a-z0-9][a-z0-9.:_-]{0,79})$/);
+/** The answer-language setting from this browser (stage 204): "auto" reads the person's own language. Optional for older pages. */
+const languageChoice = z.object({ answer: z.enum(["auto", ...ANSWER_LANGUAGE_CODES]), script: z.enum(["native", "latin"]) }).optional();
 
 export const turnRequestSchema = z.discriminatedUnion("action", [
   z.object({
@@ -49,6 +52,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     files: z.array(id).max(CHAT_LIMITS.files),
     model: modelChoice,
     effort: z.enum(EFFORTS),
+    language: languageChoice,
     mode: z.enum(["text", "image"]),
     aspect: z.enum(ASPECTS),
     projectId: id.nullable(),
@@ -62,6 +66,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     files: z.array(id).max(CHAT_LIMITS.files),
     model: modelChoice,
     effort: z.enum(EFFORTS),
+    language: languageChoice,
     mode: z.enum(["text", "image"]),
     aspect: z.enum(ASPECTS),
   }),
@@ -74,6 +79,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     replacing: id.optional(),
     model: modelChoice,
     effort: z.enum(EFFORTS),
+    language: languageChoice,
     mode: z.enum(["text", "image"]),
     aspect: z.enum(ASPECTS),
   }),
@@ -84,6 +90,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     messageId: id,
     model: modelChoice,
     effort: z.enum(EFFORTS),
+    language: languageChoice,
   }),
 ]);
 export type TurnRequest = z.infer<typeof turnRequestSchema>;

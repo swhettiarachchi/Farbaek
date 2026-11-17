@@ -67,7 +67,9 @@ export function createAnthropicChat(client: Anthropic = new Anthropic({ maxRetri
             thinking: { type: "adaptive", display: "summarized" },
             output_config: { effort: request.thinking },
             cache_control: { type: "ephemeral" },
-            system: [{ type: "text", text: request.system }],
+            // The language note goes after the unchanged system prompt (stage 204). It stays the same through a conversation in one
+            // language, so the cached conversation still matches; when the language changes, the conversation is read in full once.
+            system: [{ type: "text", text: request.system }, ...(request.guidance ? [{ type: "text" as const, text: request.guidance }] : [])],
             messages: request.messages.map((m) => ({ role: m.role, content: toBlocks(m) })),
           },
           { signal },

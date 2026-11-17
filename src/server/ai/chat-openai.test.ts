@@ -43,6 +43,15 @@ describe("OpenAI's chat answers (stage 203)", () => {
     expect(seen.text).toBe("42");
   });
 
+  it("puts the language note after the system prompt and sends the person's message unchanged (stage 204)", async () => {
+    const { fetcher, sent } = fakeFetch([{ type: "response.completed", response: { usage: { input_tokens: 10, output_tokens: 1 } } }]);
+    const { h } = handlers();
+    const text = "Mata website ekak hadaganna one";
+    await createOpenAiChat({ key: "test-key", fetcher }).stream({ model: "gpt-6-luna", thinking: "low", system: "You are Farbaek AI.", guidance: "Language note.", messages: [{ role: "user", parts: [{ type: "text", text }] }], maxOutputTokens: 100 }, h, new AbortController().signal);
+    expect(sent[0]!.body.instructions).toBe("You are Farbaek AI.\n\nLanguage note.");
+    expect(JSON.stringify(sent[0]!.body.input)).toContain(text);
+  });
+
   it("reads a busy OpenAI as busy, so another model can take the question", async () => {
     const { fetcher } = fakeFetch([], 429);
     const { h } = handlers();

@@ -51,7 +51,8 @@ export function createOpenAiChat(options: { key: string; fetcher?: typeof fetch 
           headers,
           body: JSON.stringify({
             model: request.model,
-            instructions: request.system,
+            // The language note after the unchanged system prompt (stage 204); it stays the same while the conversation's language does.
+            instructions: request.guidance ? `${request.system}\n\n${request.guidance}` : request.system,
             input: request.messages.map(toInput),
             max_output_tokens: request.maxOutputTokens,
             // How hard to think, as the route asked (stage 203): every GPT-6 model takes low, medium and high. Summaries of the thinking

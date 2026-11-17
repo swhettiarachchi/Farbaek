@@ -329,7 +329,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     const question = placeholder(TEMP_QUESTION, "user", { content: input.text, files: input.files, parentId });
     const answer = placeholder(TEMP_ANSWER, "assistant", { kind: input.mode, meta: input.mode === "image" ? { aspect: input.aspect, prompt: input.text } : {} });
     void runTurn(
-      { action: "send", conversationId: convId, parentId: convId ? parentId : null, text: input.text, files: input.files.map((f) => f.id), model: input.model, effort: input.effort, mode: input.mode, aspect: input.aspect, projectId: convId ? null : projectId },
+      { action: "send", conversationId: convId, parentId: convId ? parentId : null, text: input.text, files: input.files.map((f) => f.id), model: input.model, effort: input.effort, language: { answer: prefs.answerLanguage, script: prefs.answerScript }, mode: input.mode, aspect: input.aspect, projectId: convId ? null : projectId },
       messages,
       [question, answer],
       () => composer.current?.fill(input.text, { mode: input.mode, files: input.files }),
@@ -343,7 +343,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     if (at < 0) return;
     const p = prefs;
     void runTurn(
-      { action: "regenerate", conversationId: convId, messageId: answer.parentId, replacing: answer.id, model: p.model, effort: p.effort, mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
+      { action: "regenerate", conversationId: convId, messageId: answer.parentId, replacing: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
       messages.slice(0, at + 1),
       [placeholder(TEMP_ANSWER, "assistant", { kind: answer.kind, parentId: answer.parentId, meta: answer.kind === "image" ? { aspect: answer.meta.aspect, prompt: answer.meta.prompt } : {} })],
       null,
@@ -354,7 +354,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     if (busy || !convId) return;
     const at = messages.findIndex((m) => m.id === question.id);
     const p = prefs;
-    void runTurn({ action: "regenerate", conversationId: convId, messageId: question.id, model: p.model, effort: p.effort, mode: "text", aspect: "1:1" }, messages.slice(0, at + 1), [placeholder(TEMP_ANSWER, "assistant", { parentId: question.id })], null);
+    void runTurn({ action: "regenerate", conversationId: convId, messageId: question.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, mode: "text", aspect: "1:1" }, messages.slice(0, at + 1), [placeholder(TEMP_ANSWER, "assistant", { parentId: question.id })], null);
   };
 
   const edit = (question: ChatMessage, text: string) => {
@@ -365,7 +365,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     const nextAnswer = messages[at + 1];
     const mode = nextAnswer?.kind === "image" ? "image" : "text";
     void runTurn(
-      { action: "edit", conversationId: convId, messageId: question.id, text, files: question.files.map((f) => f.id), model: p.model, effort: p.effort, mode, aspect: ((nextAnswer?.meta.aspect as SendInput["aspect"]) ?? "1:1") },
+      { action: "edit", conversationId: convId, messageId: question.id, text, files: question.files.map((f) => f.id), model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, mode, aspect: ((nextAnswer?.meta.aspect as SendInput["aspect"]) ?? "1:1") },
       messages.slice(0, at),
       [placeholder(TEMP_QUESTION, "user", { content: text, files: question.files, parentId: question.parentId }), placeholder(TEMP_ANSWER, "assistant", { kind: mode, meta: mode === "image" ? { aspect: nextAnswer?.meta.aspect, prompt: text } : {} })],
       null,
@@ -377,7 +377,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     const at = messages.findIndex((m) => m.id === answer.id);
     const p = prefs;
     setMessages((ms) => ms.map((m) => (m.id === answer.id ? { ...m, status: "streaming", error: null } : m)));
-    void runTurn({ action: "continue", conversationId: convId, messageId: answer.id, model: p.model, effort: p.effort }, messages.slice(0, at), [{ ...answer, status: "streaming", error: null }], null);
+    void runTurn({ action: "continue", conversationId: convId, messageId: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript } }, messages.slice(0, at), [{ ...answer, status: "streaming", error: null }], null);
   };
 
   const switchTo = async (id: string) => {
