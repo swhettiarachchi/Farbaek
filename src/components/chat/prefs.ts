@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * A person's chat preferences in this browser (stage 199): the model and answer style they last chose, whether Enter sends, and
- * whether the sidebar is folded. Conveniences only, kept in localStorage; every read survives storage being blocked, and the
+ * A person's chat preferences in this browser (stage 199): the model and answer style they last chose, whether Enter sends,
+ * whether the sidebar is folded, and the language to answer in (stage 204: the language they write in by default). Conveniences only, kept in localStorage; every read survives storage being blocked, and the
  * server checks every choice again. Read with useSyncExternalStore, so the server's render and the first paint agree.
  */
 import { useSyncExternalStore } from "react";
 import { EFFORTS, type ChatEffort } from "@/core/chat/protocol";
+import { cleanPreference, type AnswerScript } from "@/core/chat/language-names";
 import { THEME_COOKIE, type ChatTheme } from "./theme";
 
 export type { ChatTheme };
@@ -16,10 +17,14 @@ export interface ChatPrefs {
   effort: ChatEffort;
   enterSends: boolean;
   sidebarFolded: boolean;
+  /** "auto" answers in the language the person writes in; otherwise a language code. */
+  answerLanguage: string;
+  /** For languages with their own script: that script (default) or English letters. */
+  answerScript: AnswerScript;
 }
 
 const KEY = "fb-chat-prefs";
-const DEFAULTS: ChatPrefs = { model: "auto", effort: "balanced", enterSends: true, sidebarFolded: false };
+const DEFAULTS: ChatPrefs = { model: "auto", effort: "balanced", enterSends: true, sidebarFolded: false, answerLanguage: "auto", answerScript: "native" };
 const listeners = new Set<() => void>();
 let cache: ChatPrefs | null = null;
 let raw: string | null = null;
@@ -35,11 +40,14 @@ function read(): ChatPrefs {
   raw = now;
   try {
     const parsed = now ? (JSON.parse(now) as Partial<ChatPrefs>) : {};
+    const language = cleanPreference({ answer: parsed.answerLanguage, script: parsed.answerScript });
     cache = {
       model: typeof parsed.model === "string" && /^(?:auto|[a-z0-9][a-z0-9.:_-]{0,79})$/.test(parsed.model) ? parsed.model : DEFAULTS.model,
       effort: (EFFORTS as readonly string[]).includes(parsed.effort as string) ? (parsed.effort as ChatEffort) : DEFAULTS.effort,
       enterSends: typeof parsed.enterSends === "boolean" ? parsed.enterSends : DEFAULTS.enterSends,
       sidebarFolded: typeof parsed.sidebarFolded === "boolean" ? parsed.sidebarFolded : DEFAULTS.sidebarFolded,
+      answerLanguage: language.answer,
+      answerScript: language.script,
     };
   } catch {
     cache = DEFAULTS;

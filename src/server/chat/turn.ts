@@ -18,6 +18,7 @@ import { CHAT_LIMITS, cleanTitle, titleFrom, type ChatFile, type ChatMessage, ty
 import { sniffImage } from "@/core/workspace/images";
 import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import { CHAT_SYSTEM_PROMPT, type ChatInputMessage, type ChatModel, type ChatOutcome, type ChatPart } from "@/server/ai/chat-model";
+import { languageNote, planLanguage } from "@/core/chat/language-plan";
 import { IMAGE_OUTPUT_TOKENS, type AspectRatio, type ImageGenerator } from "@/server/ai/gemini-image";
 import { log } from "@/server/observability/log";
 import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, type ResolvedPlan, type UsageContext } from "@/server/workspace/ai-usage";
@@ -292,6 +293,12 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
     images: askedFiles.filter((f) => f.kind === "image").length,
     documents: asked ? askedFiles.filter((f) => f.kind !== "image").length : 0,
   });
+  // The language to answer in (stage 204, ADR 0221): read from the person's own words in this branch, never stored, and sent as a
+  // short note beside the system prompt. The messages themselves go to the model unchanged. Asked again or continued, the question
+  // is the last one the person wrote.
+  const userTexts = base.filter((m) => m.role === "user").map((m) => m.content);
+  const asking = questionText ?? userTexts.pop() ?? "";
+  const guidance = languageNote(planLanguage({ message: asking, earlier: userTexts, preference: request.language })) ?? undefined;
   // What the route needs from earlier (stage 203): the answer before this question, and whether this question is being asked again.
   const before = [...base].reverse().find((m) => m.role === "assistant" && m.kind === "text");
   const previous = before ? { model: modelIdForName(before.modelName), tier: before.meta.tier, provider: before.meta.provider, rating: before.rating } : null;
@@ -317,7 +324,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // The AI names a chat with its first answer that finishes: a first answer that failed leaves it to the next.
   const needsTitle = !conversationId || (!conversationTitled && !base.some((m) => m.role === "assistant" && m.status === "complete"));
   // Enough for whichever candidate answers: the one standing by may cost more per word.
-  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
+  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
 
   const reserved = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units, manual: MANUAL, billing: plan.value });
   if (!reserved.ok) return refused(reserved.code === "QUOTA_EXCEEDED" || reserved.code === "TRIAL_CAP_REACHED" ? 402 : reserved.code === "PLATFORM_DAILY_LIMIT" ? 429 : 503, reserved.message);
@@ -395,7 +402,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       };
       const askOnce = async (messages: ChatInputMessage[]): Promise<ChatOutcome> => {
         try {
-          return await modelFor(answering).stream({ model: answering.model, thinking: answering.thinking, system: CHAT_SYSTEM_PROMPT, messages, maxOutputTokens: maxOutput }, handlers, signal);
+          return await modelFor(answering).stream({ model: answering.model, thinking: answering.thinking, system: CHAT_SYSTEM_PROMPT, guidance, messages, maxOutputTokens: maxOutput }, handlers, signal);
         } catch {
           return { ok: false, failure: "PROVIDER_ERROR", usage: null, aborted: signal.aborted };
         }
@@ -505,7 +512,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
           const reported = usage && usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0) > 0 ? usage : null;
           const spent: ProviderUsage = reported
             ? { ...reported, outputTokens: Math.max(reported.outputTokens, wrote) }
-            : { model: usage?.model ?? answering.model, inputTokens: context.tokens + approxTokens(CHAT_SYSTEM_PROMPT), outputTokens: Math.max(usage?.outputTokens ?? 0, wrote), cacheWriteTokens: 0, cacheReadTokens: 0 };
+            : { model: usage?.model ?? answering.model, inputTokens: context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? ""), outputTokens: Math.max(usage?.outputTokens ?? 0, wrote), cacheWriteTokens: 0, cacheReadTokens: 0 };
           await settleUsage(meter, { orgId, entryId: reserved.value.entryId, usage: spent });
         } else await refund("stopped", usage);
       } else await refund("failed", usage);

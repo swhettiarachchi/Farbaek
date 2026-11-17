@@ -404,3 +404,43 @@ describe("fitContext", () => {
     expect([...fit.withFiles]).toEqual(["3"]);
   });
 });
+
+describe("the language a turn answers in (stage 204)", () => {
+  const SINGLISH = "Mata website ekak hadaganna one";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the fake model records requests of the adapter's shape
+  const sentTo = (deps: TurnDeps) => (deps.claude as unknown as { requests: any[] }).requests;
+
+  it("sends the person's message unchanged, with a language note beside the unchanged system prompt", async () => {
+    const { deps } = fakeDeps();
+    await run(deps, send({ text: SINGLISH }));
+    const request = sentTo(deps)[0];
+    expect(request.messages.at(-1).parts).toEqual([{ type: "text", text: SINGLISH }]);
+    expect(request.guidance).toContain("Answer in Sinhala, written in Sinhala script.");
+    expect(request.guidance).toContain("isn't English");
+    expect(request.system).not.toContain("Sinhala, written in");
+  });
+
+  it("a short follow-up keeps the conversation's language", async () => {
+    const { deps } = fakeDeps({ path: [msg(Q1, "user", { content: SINGLISH }), msg(A1, "assistant", { parentId: Q1, content: "හරි" })] });
+    await run(deps, send({ conversationId: CONV, parentId: A1, text: "ok" }));
+    expect(sentTo(deps)[0].guidance).toContain("Answer in Sinhala");
+  });
+
+  it("follows the answer language chosen in settings, checked by the server", async () => {
+    const { deps } = fakeDeps();
+    await run(deps, send({ text: SINGLISH, language: { answer: "en", script: "native" } }));
+    expect(sentTo(deps)[0].guidance).toContain("Answer in English.");
+  });
+
+  it("asked again, reads the question being answered", async () => {
+    const { deps } = fakeDeps({ path: [msg(Q1, "user", { content: SINGLISH })] });
+    await run(deps, { action: "regenerate", conversationId: CONV, messageId: Q1, model: "auto", effort: "balanced", mode: "text", aspect: "1:1" });
+    expect(sentTo(deps)[0].guidance).toContain("Answer in Sinhala");
+  });
+
+  it("adds no note when there's nothing to say", async () => {
+    const { deps } = fakeDeps();
+    await run(deps, send({ text: "Hi" }));
+    expect(sentTo(deps)[0].guidance).toBeUndefined();
+  });
+});

@@ -7,6 +7,7 @@
 import { CheckIcon, CopyIcon, DesktopIcon, DownloadSimpleIcon, GlobeIcon, LinkBreakIcon, MoonIcon, SunIcon, UsersIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { LINK_LIFETIME_LABELS, LINK_LIFETIMES, type LinkLifetime } from "@/core/workspace/sharing";
+import { languageOptions, type AnswerScript } from "@/core/chat/language-names";
 import { buttonClasses } from "@/components/ui/button";
 import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { shareChatAction, unshareChatAction } from "@/app/app/chat/actions";
@@ -199,6 +200,13 @@ const THEMES: [ChatTheme, typeof SunIcon, string][] = [
   ["system", DesktopIcon, "Auto"],
 ];
 
+/** Every language the reader is tested on, by name (stage 204). */
+const LANGUAGE_OPTIONS = languageOptions();
+const ANSWER_SCRIPTS: [AnswerScript, string][] = [
+  ["native", "Their own script"],
+  ["latin", "English letters"],
+];
+
 const SHORTCUTS: [string, string][] = [
   ["New chat", "Ctrl Shift O"],
   ["Search chats", "Ctrl Shift F"],
@@ -232,6 +240,42 @@ export function SettingsDialog({ open, onClose, theme, onTheme, availability, pl
             ))}
           </div>
           <p className="mt-2 text-xs text-ink-3">Auto follows this device. Dark is for Chat; the rest of Farbaek stays light.</p>
+        </section>
+
+        <section aria-labelledby="chat-set-language">
+          <h3 id="chat-set-language" className={LABEL_CLASSES}>
+            Language
+          </h3>
+          <label htmlFor="chat-answer-language" className="mt-2 block text-sm">
+            Answer in
+          </label>
+          <select id="chat-answer-language" value={prefs.answerLanguage} onChange={(e) => setChatPrefs({ answerLanguage: e.target.value })} className={`${inputClasses()} mt-1`}>
+            <option value="auto">The language I write in</option>
+            {LANGUAGE_OPTIONS.map((o) => (
+              <option key={o.code} value={o.code}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-ink-3">Farbaek AI follows the language you write in, even typed in English letters. Asking in a message, such as &ldquo;answer in English&rdquo;, always comes first.</p>
+          <p id="chat-set-script" className="mt-4 text-sm">
+            Languages with their own script
+          </p>
+          <div role="radiogroup" aria-labelledby="chat-set-script" className="mt-2 grid grid-cols-2 rounded-full bg-canvas-2 p-0.5 ring-1 ring-line sm:inline-grid">
+            {ANSWER_SCRIPTS.map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={prefs.answerScript === value}
+                onClick={() => setChatPrefs({ answerScript: value })}
+                className="tap inline-flex min-h-9 items-center justify-center rounded-full px-3.5 text-sm text-ink-2 aria-checked:bg-surface aria-checked:font-medium aria-checked:text-ink aria-checked:shadow-e1"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-ink-3">Sinhala, Hindi, Tamil and others are answered in their own script, even when you type them in English letters. Choose English letters to get answers the way you type.</p>
         </section>
 
         <section aria-labelledby="chat-set-send">
