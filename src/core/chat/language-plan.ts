@@ -108,6 +108,20 @@ export function analyzeLanguage(plan: LanguagePlan): LanguageAnalysis {
 
 const NOTE = "Language for this answer (a note from Farbaek, not from the person):";
 
+/** The names people use for their language typed in English letters, which models know well. */
+const ROMANIZED_NAMES: Readonly<Record<string, string>> = {
+  si: "Singlish",
+  hi: "Hinglish",
+  ur: "Roman Urdu",
+  "hi|ur": "Hinglish or Roman Urdu",
+  ta: "Tanglish",
+  bn: "Banglish",
+  ml: "Manglish",
+  ar: "Arabizi",
+  ja: "Romaji",
+  zh: "Pinyin",
+};
+
 /**
  * The note sent beside the system prompt. It depends only on the language, the script, where each came from and whether the
  * person types in English letters, so it stays the same from one answer to the next and prompt caching keeps working. Null when
@@ -117,14 +131,22 @@ export function languageNote(plan: LanguagePlan): string | null {
   const info = plan.language ? describeLanguage(plan.language) : null;
   if (!plan.language || !info) {
     if (plan.scriptFrom === "default") return null;
-    const how = plan.script === "latin" ? "in English letters, the way the person types it" : "in its own script";
+    const how = plan.script === "latin" ? "in English letters, the way the person types it (that language's words, not English)" : "in its own script";
     return `${NOTE} When answering in a language with its own script, write it ${how}: the person ${plan.scriptFrom === "asked" ? "asked for this" : "chose this in their settings"}.`;
   }
   // An uncertain reading of one short message ("ok", "go on", "5th") says nothing firm: the model judges for itself.
   if (plan.languageFrom === "read" && !plan.sure) return null;
   const family = plan.language.includes("|");
   const own = info.script !== null;
-  const how = !own ? "" : plan.script === "latin" ? `, written in English letters the way the person types it, not in ${info.script}` : `, written in ${info.script}`;
+  // English letters, said so that no model reads it as English (live, 2026-11-17: GPT-6 Luna answered "Answer in English
+  // letters" in English, and Claude Haiku 5.5 only partly in Singlish, under a shorter note).
+  const latin = own && plan.script === "latin";
+  const known = ROMANIZED_NAMES[plan.language];
+  const how = !own
+    ? ""
+    : latin
+      ? `, written in English letters${known ? ` (often called ${known})` : ""}: ${family ? "the language's own" : info.name} words and grammar, spelled the way the person types them, not English and not ${info.script}`
+      : `, written in ${info.script}`;
   const parts: string[] = [];
   if (plan.languageFrom === "read") {
     if (!own) parts.push(`Answer in the language the person writes in (it reads as ${info.name}).`);
@@ -137,7 +159,10 @@ export function languageNote(plan: LanguagePlan): string | null {
     parts.push(`Answer in ${info.name}${how}.`);
     parts.push(plan.languageFrom === "asked" ? "The person asked for this language: keep to it until they ask for another." : "The person chose this language in their settings.");
   }
-  if (own && plan.scriptFrom === "asked" && plan.languageFrom !== "asked") parts.push("They asked for this way of writing it.");
+  if (own && plan.scriptFrom === "asked" && plan.languageFrom !== "asked") {
+    parts.push(latin ? `They asked for English letters: they mean ${family ? "their language" : info.name} spelled in English letters, not the English language.` : "They asked for this way of writing it.");
+  }
   if (own && plan.scriptFrom === "chosen") parts.push("They chose English letters in their settings.");
+  if (latin) parts.push("Write every sentence this way, even when their latest message is in English; keep technical terms and code as they are.");
   return `${NOTE} ${parts.join(" ")}`;
 }
