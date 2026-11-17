@@ -6,6 +6,9 @@
  */
 
 export const PROMPT_MIN = 8;
+/** Where a prompt waits through sign-up, and where Chat hands a request to the build box. Only in this browser, never in a URL. */
+export const PROMPT_STORAGE_KEY = "farbaek.prompt";
+
 export const PROMPT_MAX = 2_000;
 
 /** The prompt as stored: trimmed, single-spaced line ends, and within limits. Null when it's too short to act on. */

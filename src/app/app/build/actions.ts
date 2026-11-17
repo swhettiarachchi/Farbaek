@@ -10,6 +10,7 @@ import { kitTierFor } from "@/core/media/kit-tier";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { readSurface, runPath } from "@/core/agent/build-surface";
 import { CAP_CHOICES } from "@/core/agent/run-cap";
 import { EFFORTS } from "@/core/agent/routing";
 import { RUN_MESSAGE_MAX, answerRunApproval, cancelCloudRun, sendRunMessage, startCloudRun } from "@/server/cloud-agent/executor";
@@ -40,6 +41,10 @@ export async function startBuildRunAction(_previous: BuildActionState, form: For
   const started = await startCloudRun(wiring.deps, { person: p.person, taskId: parsed.data.taskId, effort: parsed.data.effort, capUnits, kitTier: kitTierFor(p.ctx.current?.plan ?? null) });
   if (!started.ok) return { status: "error", message: started.message };
   revalidatePath("/app/build");
+  if (readSurface(form.get("surface")) === "workbench" && p.ctx.current) {
+    const found = await p.ctx.reader.getTask(p.ctx.current.id, parsed.data.taskId).catch(() => null);
+    if (found) redirect(runPath("workbench", { projectId: found.task.projectId, taskId: parsed.data.taskId, runId: started.value.runId }));
+  }
   redirect(`/app/build/${started.value.runId}`);
 }
 

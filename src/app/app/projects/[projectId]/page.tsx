@@ -191,6 +191,14 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         </section>
       ) : null}
 
+      {/* Build's workspace (stage 202): this project's agent, preview, code and output on one screen. Read-only for a viewer. */}
+      <p className="-mt-3 text-sm leading-relaxed text-ink-2">
+        <Link href={`/app/workbench/${project.id}`} className="inline-flex min-h-11 items-center font-medium text-accent hover:underline">
+          Open it in Build
+        </Link>{" "}
+        to see the agent, the preview and the code side by side.
+      </p>
+
       {contents ? (
         <section aria-labelledby="preview-heading" className="grid gap-3 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">

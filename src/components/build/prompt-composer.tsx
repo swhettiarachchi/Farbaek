@@ -6,11 +6,11 @@ import { useActionState, useEffect, useRef, useState, useSyncExternalStore } fro
 import { startFromPromptAction, type PromptStartState } from "@/app/app/new/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
+import type { BuildSurface } from "@/core/agent/build-surface";
 import type { BuildTargets } from "@/core/workspace/build-target";
-import { PROMPT_MAX, PROMPT_MIN, isSharedBuild, promptFromShare } from "@/core/agent/prompt-start";
+import { PROMPT_MAX, PROMPT_MIN, PROMPT_STORAGE_KEY, isSharedBuild, promptFromShare } from "@/core/agent/prompt-start";
 
-/** Where a prompt waits through sign-up. Only in this browser, never in a URL. */
-export const PROMPT_STORAGE_KEY = "farbaek.prompt";
+export { PROMPT_STORAGE_KEY };
 
 const EXAMPLES = [
   "A one-page site for my bakery with the menu, opening hours and a map",
@@ -77,6 +77,7 @@ export function PromptComposer({
   template,
   suggestion,
   targets,
+  surface = "page",
 }: {
   mode: "app" | "public";
   autoResume?: boolean;
@@ -93,6 +94,8 @@ export function PromptComposer({
    * With a full plan the box starts on the most recent project, so writing a build never ends in a refusal.
    */
   targets?: BuildTargets;
+  /** Where the plan opens once it is drafted: its own page, or Build's workspace when the request was written there (stage 202). */
+  surface?: BuildSurface;
 }) {
   const offered = !projectId && mode === "app" && targets && targets.projects.length > 0 ? targets : null;
   const [chosen, setChosen] = useState(offered?.newProject ? offered.projects[0]!.id : "");
@@ -187,6 +190,7 @@ export function PromptComposer({
         }`}
       >
         {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
+        <input type="hidden" name="surface" value={surface} />
         {template && !intoProject ? <input type="hidden" name="starter" value={template.id} /> : null}
         <label htmlFor={followUp ? "prompt-next" : "prompt"} className="sr-only">
           {followUp ? "Describe the next change" : "Describe what you want to build"}

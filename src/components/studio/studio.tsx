@@ -31,6 +31,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
+import { STUDIO_PROMPT_KEY } from "@/core/chat/protocol";
 import { StatusGlyph } from "@/components/ui/status-badge";
 import {
   IMAGE_DETAIL,
@@ -122,6 +123,23 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
 
   // The dock's state.
   const [text, setText] = useState("");
+  // A request handed over from Chat (stage 202) waits in this browser and lands in the box once, ready to edit. Nothing is
+  // made until the person presses the button.
+  useEffect(() => {
+    let kept: string | null = null;
+    try {
+      kept = window.localStorage.getItem(STUDIO_PROMPT_KEY);
+      window.localStorage.removeItem(STUDIO_PROMPT_KEY);
+    } catch {
+      // Storage refused: the box starts empty.
+    }
+    const handed = kept?.trim().slice(0, 2_000);
+    if (!handed) return;
+    window.requestAnimationFrame(() => {
+      setText(handed);
+      prompt.current?.focus();
+    });
+  }, []);
   const [imageShape, setImageShape] = useState<ImageShape>("1:1");
   const [detail, setDetail] = useState<ImageDetail>("high");
   const [imageStyle, setImageStyle] = useState<ImageStyle>("photo");

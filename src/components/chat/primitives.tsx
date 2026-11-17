@@ -179,9 +179,9 @@ export function Menu({ label, trigger, items, align = "end", children }: { label
             >
               {children
                 ? <MenuClose.Provider value={close}>{children}</MenuClose.Provider>
-                : items?.map((item) => (
+                : items?.map((item, i) => (
                     <button
-                      key={item.label}
+                      key={`${i}:${item.label}`}
                       type="button"
                       role="menuitem"
                       aria-disabled={item.disabled || undefined}

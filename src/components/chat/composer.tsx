@@ -347,8 +347,13 @@ export function Composer({
             {disabledReason}
           </p>
         ) : null}
+        {/* Light under the box (stage 202): a soft pool of the spectrum that comes up while the box is in use or Farbaek AI
+            is answering, and a thin edge of it round the box on focus. Gradients only, and they fade; nothing loops. */}
+        <div className="chat-composer-glow relative">
+        <span aria-hidden className="chat-composer-aura" />
+        <span aria-hidden className="chat-composer-ring" />
         <div
-          className={`rounded-lg border bg-surface shadow-e2 transition-[border-color,box-shadow] duration-200 ease-standard focus-within:shadow-e3 ${mode === "image" ? "border-accent/45" : "border-line focus-within:border-line-2"}`}
+          className={`relative rounded-lg border bg-surface shadow-e2 transition-[border-color,box-shadow] duration-200 ease-standard focus-within:shadow-e3 ${mode === "image" ? "border-accent/45" : "border-line focus-within:border-line-2"}`}
         >
           {files.length > 0 ? (
             <ul className="flex gap-2 overflow-x-auto px-3 pt-3 [scrollbar-width:none]" aria-label="Attached files">
@@ -459,12 +464,12 @@ export function Composer({
                 setMode(mode === "image" ? "text" : "image");
                 area.current?.focus();
               }}
-              className={`tap inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-3 text-sm transition-colors duration-150 disabled:opacity-45 pointer-coarse:min-h-11 max-[24rem]:min-w-11 max-[24rem]:px-0 ${
+              className={`tap inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-3 text-sm transition-colors duration-150 disabled:opacity-45 pointer-coarse:min-h-11 max-[27rem]:min-w-11 max-[27rem]:px-0 ${
                 mode === "image" ? "bg-accent/10 font-medium text-accent" : imagesOff ? "text-ink-3 hover:bg-surface-raised" : "text-ink-2 hover:bg-surface-raised hover:text-ink"
               }`}
             >
               <ImageSquareIcon size={16} weight="bold" aria-hidden />
-              <span className="max-[24rem]:sr-only">Create an image</span>
+              <span className="whitespace-nowrap max-[27rem]:sr-only">Create an image</span>
             </button>
             {mode === "image" ? (
               <Menu
@@ -513,6 +518,7 @@ export function Composer({
               )}
             </div>
           </div>
+        </div>
         </div>
         <p id="chat-composer-hint" className="mt-1.5 min-h-4 px-2 text-center text-xs text-ink-3" aria-live="polite">
           {note ??

@@ -18,14 +18,14 @@ A second look at the references for colour: ChatGPT colours one word of its head
 
 **Light, not paint.** Interfaces stay neutral. Colour comes from behind them: `Halo` draws the spectrum from behind a product window's edges with gradients that fade to nothing (no filters, ADR 0055), on a pale stage, as Antigravity does.
 
-**The knight leads the hero again.** `HeroVisual` (the knight inside the Loom, in 3D on capable desktops and drawn in 2D everywhere else) sits centred above the headline at a size that suits each screen: 208 px wide on a phone, where he is the star, and 200 px on a desktop. New: his light is the spectrum, and with a mouse the whole figure leans a few degrees toward the pointer. Four small cards, one per space in its colour, float beside the hero on wide screens, tilted like things on a desk; each is a link to its space, drifts slightly against the pointer and straightens when hovered. Below 1280 px they're hidden, and the chips under the message box do the same job.
+**The knight leads the hero again.** `HeroVisual` (the knight inside the Loom, in 3D on capable desktops and drawn in 2D everywhere else) sits centred above the headline, as large as each screen allows while the message box stays on the first screen. His size follows the screen's height as well as its width: about 230 to 320 px tall on phones, 350 px on a tablet, 270 px on a short laptop and up to 400 px on a large desktop (he was 200 px everywhere before the owner asked, for the fourth time, for him to be much larger). His light is the spectrum in two layers, blue breathing behind him and rose and aqua drifting slowly round; it blooms in as he arrives. With a mouse the whole figure leans a few degrees toward the pointer; a tap makes him hop and sends a ring of light along the ground; and as the hero scrolls away he eases smaller and rises, where the browser ties animation to scrolling. Four small cards, one per space in its colour, float beside the hero on wide screens, tilted like things on a desk; each is a link to its space, drifts slightly against the pointer and straightens when hovered. Below 1280 px they're hidden, and the chips under the message box do the same job.
 
 **The headline** names the three verbs in the spaces' colours: Ask (blue), create (rose), build (leaf).
 
-**Sizes stay compact:** the headline is 32, 52 and 64 px; buttons 40 px; the hero, knight included, fits one screen with the product window showing under it.
+**Sizes stay compact:** the headline is 32, 52 and 64 px; buttons 40 px. The knight is the one large thing in the hero, and the headline, the sentence and the message box still fit the first screen under him, measured from 360 by 560 to 1920 by 1000.
 
 ## Consequences
 
 - CLAUDE.md's design rules say where the spectrum may be used.
-- The pointer lean and the cards' drift only run with a mouse and when motion is welcome; nothing new loops.
+- The pointer lean and the cards' drift only run with a mouse and when motion is welcome. The slow drift of his light is the one new loop; like his float, it stops off screen, in a hidden tab, with the Pause control and under reduced motion.
 - If the app's working screens ever want the spectrum (for example a space's colour in the sidebar), that is a new decision, not a default.

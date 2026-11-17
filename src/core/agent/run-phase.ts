@@ -143,3 +143,27 @@ export function runFiles(events: readonly PhaseEvent[]): { changed: ChangedFile[
   }
   return { changed: [...changed.values()], read: read.size };
 }
+
+/** A command the run ran, as the workspace's Output pane lists it (stage 202). */
+export interface RanCommand {
+  command: string;
+  /** Null while it hasn't reported an exit code (it was cut off, or never finished). */
+  exitCode: number | null;
+  output: string;
+}
+
+/** Every command the run recorded, oldest first. Only what the run reported: nothing is invented for a quiet run. */
+export function runCommands(events: readonly PhaseEvent[]): RanCommand[] {
+  const ran: RanCommand[] = [];
+  for (const e of events) {
+    if (e.kind !== "command") continue;
+    const command = typeof e.payload.command === "string" ? e.payload.command.trim() : "";
+    if (!command) continue;
+    ran.push({
+      command,
+      exitCode: typeof e.payload.exitCode === "number" && Number.isInteger(e.payload.exitCode) ? e.payload.exitCode : null,
+      output: typeof e.payload.output === "string" ? e.payload.output : "",
+    });
+  }
+  return ran;
+}

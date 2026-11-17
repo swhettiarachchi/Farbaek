@@ -157,9 +157,9 @@ export function HomeDemo() {
                   </p>
                   <div className={`mt-2.5 flex gap-1.5 transition-[opacity,transform] duration-300 sm:mt-3 sm:flex-wrap sm:gap-2 ${step >= TOTAL ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}>
                     {[
-                      { label: "Make the pictures", short: "Pictures", icon: ImageSquareIcon, tone: "text-spark-rose" },
-                      { label: "Make the video", short: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua" },
-                      { label: "Build the website", short: "Website", icon: HammerIcon, tone: "text-spark-leaf" },
+                      { label: "Make a picture", short: "Picture", icon: ImageSquareIcon, tone: "text-spark-rose" },
+                      { label: "Make a video", short: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua" },
+                      { label: "Build a website", short: "Website", icon: HammerIcon, tone: "text-spark-leaf" },
                     ].map((o) => (
                       <span key={o.label} className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-surface px-2.5 text-xs font-medium text-ink sm:px-3">
                         <o.icon size={14} weight="fill" className={o.tone} />

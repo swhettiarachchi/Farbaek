@@ -39,6 +39,8 @@ describe("the chat's dark theme", () => {
   it("keeps the accent, buttons and states readable", () => {
     for (const bg of ["canvas", "surface", "surface-raised"]) {
       for (const fg of ["accent", "verified", "failed", "caution", "info"]) expect(contrast(dark[fg]!, dark[bg]!), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      // The spectrum at night (stage 202): the spaces' colours in Chat's sidebar and under an answer.
+      for (const fg of ["spark-rose", "spark-aqua", "spark-leaf", "spark-ember"]) expect(contrast(dark[fg]!, dark[bg]!), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
     }
     expect(contrast(dark["on-accent"]!, dark.accent!)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(dark["on-primary"]!, dark.primary!)).toBeGreaterThanOrEqual(4.5);

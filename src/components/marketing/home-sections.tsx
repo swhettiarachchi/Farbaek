@@ -112,7 +112,7 @@ export function FinalCall() {
     <section aria-labelledby="final-title" className="pb-12 pt-10 sm:pb-28 sm:pt-24">
       <Container>
         <div className="mx-auto flex max-w-[38rem] flex-col items-center text-center">
-          <BrandLogo height={72} className="mb-3 h-14 w-auto sm:mb-4 sm:h-[4.5rem]" />
+          <BrandLogo height={96} className="mb-3 h-20 w-auto sm:mb-4 sm:h-24" />
           <h2 id="final-title" className={SECTION_TITLE}>
             Not sure where to start? Ask Farbaek AI.
           </h2>
