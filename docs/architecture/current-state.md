@@ -270,7 +270,7 @@ Postgres on Supabase with Row Level Security on every table. The browser can onl
 
 ## 5. Security gaps (see `docs/security/threat-model.md`)
 
-- Next.js is pinned to 16.4.2, which fixes the three advisories published 2026-10-22, two of them critical remote code execution (`docs/security/advisory-2026-10-22-nextjs.md`). Production is safe once that's deployed.
+- Next.js is pinned to 16.4.5, which fixes the seven moderate advisories in its security release, one of them possibly reachable through the sandbox preview gateway (`docs/security/advisory-2026-11-17-nextjs.md`); 16.4.2 had fixed the three of 2026-10-22 (`docs/security/advisory-2026-10-22-nextjs.md`).
 - Auth and tenant isolation are in place (Supabase email sign-in, RLS, cross-tenant database tests). The live write path hasn't been exercised end to end against the hosted project yet.
 - AI drafting sends task titles, project details and the person's notes to Anthropic. They are sent as data with a system prompt that says so; the output only prefills the editor.
 - CSP covers framing, base URI, forms and objects everywhere. Office Space enforces a nonce CSP (ADR 0032); the app (`/app`, `/admin`) enforces its nonce policy (ADR 0107, ADR 0169), reporting to `/api/csp-report`, and `APP_CSP_ENFORCE=0` switches it back to report-only. Previews of people's sites render in `/preview-frame`, which has its own policy.
