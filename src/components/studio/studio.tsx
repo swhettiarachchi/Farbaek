@@ -76,6 +76,8 @@ export interface StudioProps {
   disabledReason: string | null;
   /** A picture to start a video from, from ?still= on the address. */
   initialStill?: string | null;
+  /** The library couldn't be read: it isn't shown as empty. */
+  libraryUnread?: boolean;
 }
 
 const IMAGE_EXAMPLES: { text: string; style: ImageStyle; shape: ImageShape }[] = [
@@ -110,7 +112,7 @@ export function Studio(props: StudioProps) {
   );
 }
 
-function StudioInner({ kind, items: initial, pictures = [], disabledReason, initialStill = null }: StudioProps) {
+function StudioInner({ kind, items: initial, pictures = [], disabledReason, initialStill = null, libraryUnread = false }: StudioProps) {
   const toast = useToast();
   const [items, setItems] = useState(initial);
   const [drawer, setDrawer] = useState(false);
@@ -264,6 +266,7 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
     <Library
       kind={kind}
       items={items}
+      unread={libraryUnread}
       onOpen={(item) => {
         setViewer(item);
         if (inDrawer) setDrawer(false);
@@ -689,7 +692,7 @@ function Stage({ kind, tiles, running, seconds, onOpen }: { kind: Kind; tiles: T
   );
 }
 
-function Library({ kind, items, onOpen, onClose }: { kind: Kind; items: StudioItem[]; onOpen: (i: StudioItem) => void; onClose?: () => void }) {
+function Library({ kind, items, unread = false, onOpen, onClose }: { kind: Kind; items: StudioItem[]; unread?: boolean; onOpen: (i: StudioItem) => void; onClose?: () => void }) {
   const [filter, setFilter] = useState<"all" | "made" | "upload">("all");
   const shown = items.filter((i) => (filter === "all" ? true : filter === "made" ? i.kind !== "upload" : i.kind === "upload"));
   const groups: { label: string; items: StudioItem[] }[] = [];
@@ -733,7 +736,9 @@ function Library({ kind, items, onOpen, onClose }: { kind: Kind; items: StudioIt
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         {groups.length === 0 ? (
-          <p className="px-1 pt-4 text-sm leading-relaxed text-ink-2">{kind === "image" ? "Pictures you make and upload are kept here, private to you." : "Videos you make are kept here, private to you."}</p>
+          <p className="px-1 pt-4 text-sm leading-relaxed text-ink-2">
+            {unread ? "Your library couldn't be read just now. Reload the page in a moment." : kind === "image" ? "Pictures you make and upload are kept here, private to you." : "Videos you make are kept here, private to you."}
+          </p>
         ) : (
           groups.map((g) => (
             <section key={g.label} aria-label={g.label} className="pt-3">

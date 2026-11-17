@@ -14,5 +14,5 @@ export default async function ImagesPage() {
   if (!ctx) redirect("/sign-in?next=/app/images");
   if (!ctx.current) redirect("/app");
   const data = await studioPageData(ctx, "image");
-  return <Studio kind="image" items={data.items} disabledReason={data.disabledReason} />;
+  return <Studio kind="image" items={data.items} disabledReason={data.disabledReason} libraryUnread={data.libraryUnread} />;
 }

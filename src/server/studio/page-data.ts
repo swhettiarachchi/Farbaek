@@ -14,7 +14,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { createStudioWrites, listStudioItems, reclaimRenders } from "./studio";
 
-export async function studioPageData(ctx: AppContext, kind: "image" | "video"): Promise<{ items: StudioItem[]; pictures: StudioItem[]; disabledReason: string | null }> {
+export async function studioPageData(ctx: AppContext, kind: "image" | "video"): Promise<{ items: StudioItem[]; pictures: StudioItem[]; disabledReason: string | null; libraryUnread: boolean }> {
   const orgId = ctx.current!.id;
   let disabledReason: string | null = null;
   if (ctx.mode !== "live") disabledReason = "The demo workspace is read-only. Sign in to your own workspace to make pictures and video.";
@@ -25,15 +25,17 @@ export async function studioPageData(ctx: AppContext, kind: "image" | "video"): 
     const connected = kind === "image" ? openAiImageEngine() !== null || imageGeneration().generator !== null : geminiVideoEngine() !== null;
     if (!connected) disabledReason = kind === "image" ? "Image making isn't connected on this server yet." : "Video making isn't connected on this server yet.";
   }
-  if (ctx.mode !== "live") return { items: [], pictures: [], disabledReason };
+  if (ctx.mode !== "live") return { items: [], pictures: [], disabledReason, libraryUnread: false };
   const client = await createSupabaseServerClient().catch(() => null);
-  if (!client) return { items: [], pictures: [], disabledReason: disabledReason ?? "The studios aren't set up on this server." };
+  if (!client) return { items: [], pictures: [], disabledReason: disabledReason ?? "The studios aren't set up on this server.", libraryUnread: false };
   // Renders a stopped server left behind give their usage back before the library is read.
   const admin = kind === "video" ? createSupabaseAdminClient() : null;
   if (admin && !disabledReason) await reclaimRenders({ usage: createSupabaseWriteDeps(client, admin, ctx.user.id), writes: createStudioWrites(admin) }, { orgId, userId: ctx.user.id }).catch(() => undefined);
   const [items, pictures] = await Promise.all([
-    listStudioItems(client, orgId, kind === "image" ? ["image", "upload"] : ["video"]).then((r) => r ?? []),
+    listStudioItems(client, orgId, kind === "image" ? ["image", "upload"] : ["video"]),
     kind === "video" ? listStudioItems(client, orgId, ["image", "upload"], 120).then((r) => r ?? []) : Promise.resolve([]),
   ]);
-  return { items, pictures, disabledReason };
+  // A library that can't be read isn't shown as empty, and nothing is made into it until it can be (the server refuses too).
+  if (items === null) return { items: [], pictures, disabledReason: disabledReason ?? "Your library can't be read right now, so making is off: nothing made now could be kept. Reload the page in a moment.", libraryUnread: true };
+  return { items, pictures, disabledReason, libraryUnread: false };
 }
