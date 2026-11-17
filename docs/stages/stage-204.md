@@ -43,7 +43,30 @@ A second agent read and probed the stage without having written it. It confirmed
 
 The full test suite also showed one unhandled error both times, from `src/agent-runtime/mesh/mesh.test.ts` (a temporary folder not yet empty when it was removed, on Windows, under load). That file passes alone and nothing in this stage touches it.
 
+## Live, and what the real models did
+
+Merged as #268 on 2026-11-17 at 14:26:18, after the Next.js 16.4.5 upgrade (#269, 14:26:05). Production showed #269's build (`3cf7e4b19cf7`) at 14:31:58 and main's tip, both merges (`e871e237f47c`), at 14:38:33; the homepage, `/chat` and `/api/health` answered 200.
+
+Real messages in the owner's Chrome, signed in, Free plan, Auto and Quick unless said, each in a new chat:
+
+| Message | Answered by | Answer | Chat title |
+| --- | --- | --- | --- |
+| "Mata website ekak hadaganna one." | GPT-6 Luna | Sinhala, in Sinhala script: asks what kind of site (business, online shop, portfolio, blog); "portfolio" kept | "වෙබ් අඩවියක් හදමු" (Sinhala) |
+| then "ok" | GPT-6 Luna | Sinhala script, asks the site's purpose, name and pages; "Home, About, Contact, products" kept | |
+| then "Answer in English letters" | GPT-6 Luna | **English** ("Hari. What kind of website…"): not what was asked | |
+| the same, answered again | Claude Haiku 5.5 (second opinion) | **Partly**: its four questions in Sinhala in English letters ("Website eke nama mokakda?"), the sentences around them in English | |
+| then "Can we switch to English?" | GPT-6 Luna | English | |
+| "Mujhe ek website banani hai." | GPT-6 Luna | Hindi, in Devanagari, on topic | "वेबसाइट बनाने की शुरुआत" (Hindi) |
+| "Privet, kak dela?" | GPT-6 Luna | Russian, in Cyrillic: "Привет! Всё хорошо, спасибо 😊 А у тебя?" | "Приветствие на русском" (Russian) |
+| "Wie kann ich meine Website verbessern?" | GPT-6 Luna | German, eight practical steps | "Website gezielt verbessern" (German) |
+| "Come posso creare un sito web?" | GPT-6 Luna | Italian; WordPress, HTML, CSS and JavaScript kept | "Creare un sito web" (Italian) |
+| "Mata website ekak hadanna one using Next.js and Supabase." | Claude Haiku 5.5, picked by hand | Sinhala, in Sinhala script: a step-by-step guide with Next.js, Supabase, Row Level Security and every code block kept as written | "Next.js සහ Supabase වෙබ් අඩවිය" (Sinhala) |
+
+**Works live:** typed-in-English-letters Sinhala, Hindi and Russian answered in their own scripts; German and Italian in themselves; technical terms and code kept; a short "ok" keeps the conversation's language; "Can we switch to English?" switches; chat titles in the answer's language and script; both GPT-6 Luna and Claude Haiku 5.5 follow the note for language and script.
+
+**Doesn't work yet: asking for English letters.** The note was right: run on the same conversation, the live code sent "Answer in Sinhala, written in English letters the way the person types it, not in Sinhala script… They asked for this way of writing it." GPT-6 Luna still answered in English, and Claude Haiku 5.5 did it only for part of its answer. When the request is itself written in English, the models lean to English. To fix: stronger wording in the note and the system prompt for this case (Sinhala words and grammar, spelled in English letters, not English), checked live again on both models.
+
 ## Not verified yet
 
-- **Which language and script the live models actually answer in**, and whether the meaning is kept: checked after the merge in the owner's Chrome with real messages, and reported as they come out.
 - Accuracy on messages from real people, with their own spellings.
+- Tamil, Urdu, Arabic, Chinese, Japanese and Korean typed in English letters, and Romanian, were checked by tests but not yet with live answers.
