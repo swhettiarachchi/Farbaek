@@ -2,7 +2,7 @@
 
 - **Date:** 2026-11-17
 - **Branch:** `feat/stage-202-chat-and-workbench` (cut from `feat/stage-201-farbaek-ai`)
-- **Pull request:** #265, against `main`. It carries stages 200 and 201 as well (#263, #264), so merging it lands all three, and stage 201's migration v100 must be applied and read back first.
+- **Pull request:** #265, against `main`. Stages 200 and 201 were already live when it was opened: #264 was merged on 2026-11-17 at 03:29, four minutes after it was opened, and before the larger knight was pushed to its branch at 04:00. So #265 carries that knight commit too, along with the Chat redesign and Build's workspace. It needs no migration of its own.
 - **Decisions:** ADR 0218 (Chat's stage, and answers that hand off), ADR 0219 (Build's workspace)
 - **Migration:** none
 
