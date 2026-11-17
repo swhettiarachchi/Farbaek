@@ -70,6 +70,8 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     conversationId: id,
     /** The question to answer again. */
     messageId: id,
+    /** The answer being replaced, when there is one: the second opinion comes from another provider than it (stage 203). */
+    replacing: id.optional(),
     model: modelChoice,
     effort: z.enum(EFFORTS),
     mode: z.enum(["text", "image"]),
@@ -112,7 +114,7 @@ export interface ChatMessage {
   rating: -1 | 1 | null;
   thinkingMs: number | null;
   /** why: what Farbaek AI chose the model for ("a question about code"), shown in the answer's details (ADR 0215). */
-  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal"; why?: string };
+  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal"; why?: string; tier?: "fast" | "standard" | "strong" | "frontier"; provider?: "anthropic" | "openai" };
   createdAt: string;
   /** This message and its siblings, oldest first: an edited question or a new answer is a sibling. */
   siblings: string[];

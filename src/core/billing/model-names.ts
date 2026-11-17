@@ -13,12 +13,22 @@ export const MODEL_NAMES = {
   "gemini-3.8-flash": "Gemini 3.8 Flash",
   "gemini-4-argon": "Gemini 4 Argon",
   "gemini-3.1-flash-lite-image": "Gemini 3.1 Flash Lite Image",
+  "gpt-6-luna": "GPT-6 Luna",
   "gpt-6.1-terra": "GPT-6.1 Terra",
+  "gpt-6.1-sol": "GPT-6.1 Sol",
+  "gpt-6-astra": "GPT-6 Astra",
   "gpt-image-2.5-sunburst": "GPT Image 2.5",
   "gemini-omni-1.2-flash": "Gemini Omni 1.2 Flash",
 } as const;
 
 export type ModelId = keyof typeof MODEL_NAMES;
+
+/** The id behind a product name ("GPT-6 Luna" is gpt-6-luna), or null for a name Farbaek doesn't list. */
+export function modelIdForName(name: string | null | undefined): ModelId | null {
+  if (!name) return null;
+  const found = (Object.entries(MODEL_NAMES) as [ModelId, string][]).find(([, n]) => n === name);
+  return found ? found[0] : null;
+}
 
 /**
  * A model by its product name. A machine id Farbaek doesn't list (an internal

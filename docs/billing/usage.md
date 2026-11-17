@@ -15,6 +15,10 @@ Internal reference (ADR 0020). People never see units: they see the share of thi
 | Gemini 3.5 Flash-Lite | $0.30 | $2.50 | | $0.03 | |
 | Gemini 3.8 Flash | $1.50 | $7.50 | | $0.15 | 2027 price (doubles 2027-01-01) |
 | Gemini 4 Argon | $4 | $20 | | $0.20 | December price (doubles 2026-12-01) |
+| GPT-6 Luna | $0.10 | $0.50 | | $0.01 | Farbaek AI's default chat model (ADR 0220). Above 272K prompt tokens metered at 2x |
+| GPT-6.1 Terra | $1 | $5 | | $0.05 | Writing and pictures in chat; the second check (ADR 0121). Above 272K, 2x |
+| GPT-6.1 Sol | $2 | $10 | | $0.10 | Hard questions in chat (ADR 0220). Above 272K, 2x |
+| GPT-6 Astra | $10 | $50 | | $1 | Chat on plans with the frontier tier (ADR 0220). Above 272K, 2x |
 
 USD per million tokens, list prices retrieved 2026-10-18 (sources in `reports/AI coding platform costs and pricing.md`). A model id the rate card doesn't know is priced as Fable, so nothing is under-metered. Gemini is listed at its announced higher prices so allowances stay profitable when they land.
 
