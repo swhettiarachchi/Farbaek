@@ -132,3 +132,29 @@ describe("planning the searches (stage 205)", () => {
     expect(await plan(null)).toMatchObject({ via: "local" });
   });
 });
+
+describe("the fresh review's research cases (stage 205)", () => {
+  it("a final address too long to save falls back to the one the search gave, so the sources survive a reload", async () => {
+    const search = provider(async () => [result("https://short.example/a")]);
+    const reader = readerOf(async () => ({ ok: true, url: `https://short.example/${"x".repeat(900)}`, title: "T", site: "S", text: longText, published: null, updated: null, lang: "en", optOut: false }));
+    const r = await research(deps(search, reader), input);
+    expect(r.meta.sources[0]!.url).toBe("https://short.example/a");
+  });
+
+  it("pressing Stop isn't counted against the search service", async () => {
+    const d = deps(
+      provider(async (req) => {
+        await new Promise((resolve) => req.signal.addEventListener("abort", resolve));
+        throw new SearchError("timeout", "the search took too long");
+      }),
+      readerOf(async () => ({ ok: false, reason: "x" })),
+    );
+    for (let i = 0; i < 4; i++) {
+      const stop = new AbortController();
+      const pending = research(d, { ...input, signal: stop.signal });
+      setTimeout(() => stop.abort(), 5);
+      expect((await pending).meta.reason).toBe("stopped");
+    }
+    expect(d.breaker.open()).toBe(false);
+  });
+});

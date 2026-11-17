@@ -5,9 +5,12 @@
 //   POST /read  {"url": "https://…", "timeoutMs": 4000, "hintedDate": "2026-11-17"}  → the page's text, or why not
 //   GET  /healthz                                                                  → ok
 import http from "node:http";
+import { denyAddresses } from "./address.mjs";
 import { createReader } from "./read.mjs";
 
 const port = Number(process.env.READER_PORT ?? 8080);
+// The server's own public addresses: Caddy trusts requests from them, so the reader must never reach them.
+denyAddresses(process.env.FARBAEK_SERVER_ADDRESSES);
 const reader = createReader();
 
 function send(res, status, body) {

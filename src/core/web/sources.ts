@@ -115,7 +115,10 @@ export function fitSearchMeta(meta: SearchMeta, maxBytes = 5_500): SearchMeta {
     ...meta,
     queries: meta.queries.slice(0, 3).map((q) => q.slice(0, 200)),
     reason: meta.reason?.slice(0, 200),
-    sources: meta.sources.slice(0, 8).map((s) => ({ ...s, title: s.title.slice(0, 120), site: s.site.slice(0, 60) })),
+    sources: meta.sources
+      .filter((s) => new TextEncoder().encode(s.url).length <= 600)
+      .slice(0, 8)
+      .map((s) => ({ ...s, title: s.title.slice(0, 120), site: s.site.slice(0, 60) })),
   };
   if (fitted.reason === undefined) delete fitted.reason;
   // Shorter titles in fixed steps (each step always ends), then fewer sources.

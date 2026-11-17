@@ -22,10 +22,15 @@ It's still one long-lived Node server with one replica, because agent runs live 
   - It answers only STUN Binding requests, 30 per address every 10 seconds, and keeps no record.
   - Docker publishes the port, which bypasses ufw. If the provider's own firewall (Hostinger's panel) filters traffic, UDP 3478 must be open there.
   - **Check it** from any computer: `node scripts/ops/stun-check.mjs` prints the public address Farbaek's STUN server sees.
+- **Live web search** (stage 205, ADR 0222): two services on their own `web` network, which reaches the internet and the app, never the database's network.
+  - **SearXNG** (`farbaek-searxng`): asks several search engines and answers the app in JSON at `http://searxng:8080`. Pinned by digest in `compose.yaml`; settings in `deploy/vps/searxng/settings.yml`, mounted read-only. Its secret is generated at every start, so none is stored. 512 MB at most.
+  - **The page reader** (`farbaek-reader`): the app's own image running `src/server/web/reader/server.mjs` at `http://reader:8080`, as `node`, read-only, with no capabilities, 384 MB and half a CPU. It opens only public addresses on ports 80 and 443 and follows robots.txt as FarbaekBot (`/bot`).
+  - Neither is a dependency of the app: if one is down, Chat answers and says it couldn't check the web.
+  - **Check them** on the server: `docker compose -f deploy/vps/compose.yaml ps searxng reader`; from the app container, `node -e "fetch('http://searxng:8080/search?q=test&format=json').then(r=>r.json()).then(j=>console.log(j.results.length))"`.
 - **Deploys:**
   - `farbaek-deploy.timer` runs `/usr/local/bin/farbaek-deploy` every 2 minutes;
   - when `origin/main` has moved, it builds `farbaek-app:<commit>`, starts it, and waits up to 90 s for `/api/health`;
-  - a build that isn't healthy is replaced by the previous one;
+  - a build that isn't healthy, or whose services won't start (an image that won't pull), is replaced by the previous one;
   - a commit that failed isn't retried until a newer one lands;
   - the log is `/var/log/farbaek/deploy.log`.
 - **Sandbox cleanup:** `farbaek-sweep.timer` calls `POST /api/internal/sandbox/sweep` every 15 minutes, from inside the app container, which already holds `SANDBOX_CRON_SECRET`.
@@ -41,6 +46,7 @@ It's still one long-lived Node server with one replica, because agent runs live 
 | `Dockerfile`, `.dockerignore` | Built in `/opt/farbaek/app`, the checkout |
 | `deploy/vps/compose.yaml` | Run from the checkout |
 | `deploy/vps/caddy/Caddyfile` | Mounted read-only into Caddy; reloaded after every deploy |
+| `deploy/vps/searxng/settings.yml` | Mounted read-only into SearXNG (stage 205) |
 | `deploy/vps/production.env.example` | Copied once to `/opt/farbaek/env/production.env` |
 | `deploy/vps/systemd/*` | `/etc/systemd/system/` |
 | `scripts/vps/deploy.sh`, `sweep.sh`, `jobs.sh` | `/usr/local/bin/farbaek-deploy`, `farbaek-sweep`, `farbaek-jobs` |

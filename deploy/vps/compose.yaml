@@ -112,6 +112,8 @@ services:
     environment:
       NODE_ENV: production
       READER_PORT: "8080"
+      # The server's own public address (docs/deploy/vps.md): Caddy trusts requests from it, so the reader refuses it too.
+      FARBAEK_SERVER_ADDRESSES: "2.25.88.188"
     expose:
       - "8080"
     cap_drop:

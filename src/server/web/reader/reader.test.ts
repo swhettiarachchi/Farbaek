@@ -217,8 +217,48 @@ describe("the reader's limits (stage 205)", () => {
       return { ok: true, url, status: 200, contentType: "text/html", robotsTag: "", tdm: "", text: "<p>x</p>" };
     }) as never;
     const reader = createReader({ fetcher });
-    await Promise.all(Array.from({ length: 20 }, (_, i) => reader.read(`https://site${i % 3}.example/p${i}`)));
-    expect(peakHost).toBeLessThanOrEqual(2);
+    await Promise.all(Array.from({ length: 20 }, (_, i) => reader.read(`https://site${i % 3}.example.org/p${i}`)));
+    // Reads really happened, two at a time from a site and never more than six.
+    expect(peakHost).toBe(2);
     expect(peak).toBeLessThanOrEqual(6);
+  });
+});
+
+describe("the fresh review's reader cases (stage 205)", () => {
+  it("a hostile robots.txt rule can't freeze the reader", () => {
+    const groups = parseRobots(`User-agent: *\nDisallow: /${"*a".repeat(30)}*b\nDisallow: /${"*-".repeat(14)}x\n`);
+    const started = performance.now();
+    expect(robotsAllow(groups, `/${"a".repeat(2_000)}`)).toBe(true);
+    expect(robotsAllow(groups, `/${"word-".repeat(400)}`)).toBe(true);
+    expect(performance.now() - started).toBeLessThan(200);
+  });
+
+  it("one reader stopping doesn't make the site's robots.txt 'disallow everything' for the next", async () => {
+    let robotsAsked = 0;
+    const fetcher = (async (url: string, options: { signal?: AbortSignal }) => {
+      if (url.endsWith("/robots.txt")) {
+        robotsAsked++;
+        await new Promise((r) => setTimeout(r, 30));
+        // A signal on the shared robots.txt request would make this fail for everyone waiting on it.
+        if (options.signal?.aborted) return { ok: false, reason: "stopped" };
+        return { ok: true, url, status: 200, contentType: "text/plain", robotsTag: "", tdm: "", text: "User-agent: *\nAllow: /\n" };
+      }
+      return { ok: true, url, status: 200, contentType: "text/html", robotsTag: "", tdm: "", text: "<p>Page text.</p>" };
+    }) as never;
+    const reader = createReader({ fetcher });
+    const stop = new AbortController();
+    const first = reader.read("https://shared.example.org/a", { signal: stop.signal });
+    stop.abort();
+    await first;
+    expect(await reader.read("https://shared.example.org/b")).toMatchObject({ ok: true });
+    expect(robotsAsked).toBe(1);
+  });
+
+  it("the server's own public address is refused, like a private one", async () => {
+    const { denyAddresses } = await import("./address.mjs");
+    expect(isPublicIp("2.25.88.188")).toBe(true);
+    denyAddresses("2.25.88.188, not-an-address");
+    expect(isPublicIp("2.25.88.188")).toBe(false);
+    expect(isPublicIp("8.8.8.8")).toBe(true);
   });
 });

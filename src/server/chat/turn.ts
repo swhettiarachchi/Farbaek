@@ -20,7 +20,7 @@ import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import { CHAT_SYSTEM_PROMPT, type ChatInputMessage, type ChatModel, type ChatOutcome, type ChatPart } from "@/server/ai/chat-model";
 import { languageNote, planLanguage } from "@/core/chat/language-plan";
 import { modelAt } from "@/core/chat/ladder";
-import { webFailureNote, webOffNote } from "@/core/web/context";
+import { oneLine, webFailureNote, webOffNote } from "@/core/web/context";
 import { PLANNER_PROMPT, plansLocally, searchSkip } from "@/core/web/plan";
 import type { SearchMeta } from "@/core/web/sources";
 import type { ResearchInput, ResearchResult } from "@/server/web/research";
@@ -397,7 +397,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
     // A continued answer doesn't search again: it keeps citing the sources it started with (stage 205).
     const sources = continuing.meta.search?.sources ?? [];
     const parts: ChatPart[] = [{ type: "text", text: "Continue your previous answer from exactly where it stopped. Don't repeat anything you already wrote, and don't comment on continuing." }];
-    if (sources.length > 0) parts.push({ type: "context", text: `The web sources that answer was using, to keep citing as before:\n${sources.map((s) => `[${s.n}] ${s.title} | ${s.site} | ${s.url}`).join("\n")}` });
+    if (sources.length > 0) parts.push({ type: "context", text: `The web sources that answer was using, to keep citing as before:\n${sources.map((s) => `[${s.n}] ${oneLine(s.title)} | ${oneLine(s.site, 120)} | ${s.url}`).join("\n")}` });
     modelInput.push({ role: "user", parts });
   }
 
@@ -412,7 +412,8 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
     error: null,
     rating: null,
     thinkingMs: null,
-    meta: { why: routed.reason },
+    // A continued answer keeps showing its sources while it carries on.
+    meta: { why: routed.reason, ...(continuing?.meta.search ? { search: continuing.meta.search } : {}) },
     createdAt: continuing?.createdAt ?? new Date(deps.now()).toISOString(),
     siblings: continuing?.siblings ?? [answerId],
     files: [],

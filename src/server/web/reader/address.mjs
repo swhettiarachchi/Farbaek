@@ -51,10 +51,22 @@ for (const [network, prefix] of [
   deniedV6.addSubnet(network, prefix, "ipv6");
 }
 
+/** Addresses that are public but must still never be reached: Farbaek's own server, which trusts requests from itself. */
+const own = new Set();
+
+/** Adds the server's own public addresses (the reader reads them from FARBAEK_SERVER_ADDRESSES at start). */
+export function denyAddresses(list) {
+  for (const raw of String(list ?? "").split(/[\s,]+/)) {
+    const a = raw.trim().toLowerCase();
+    if (isIP(a)) own.add(a);
+  }
+}
+
 /** True for a public, globally routed address; false for anything else, including text that isn't an address. */
 export function isPublicIp(address) {
   const raw = String(address).replace(/^\[|\]$/g, "").split("%")[0];
   const version = isIP(raw);
+  if (own.has(raw.toLowerCase())) return false;
   if (version === 4) return !deniedV4.check(raw, "ipv4");
   if (version === 6) return !deniedV6.check(raw, "ipv6");
   return false;

@@ -48,11 +48,13 @@ export function createReader({ net = PUBLIC_NET, now = Date.now, maxConcurrent =
     if (next >= 0) waiting.splice(next, 1)[0].resolve();
   }
 
-  async function robotsFor(origin, signal) {
+  // Shared by everyone reading that site at the moment, so it runs on its own time limit only: one person pressing Stop
+  // mustn't turn into "robots.txt disallows everything" for the next person.
+  async function robotsFor(origin) {
     const known = robots.get(origin, now());
     if (known) return known;
     if (pendingRobots.has(origin)) return pendingRobots.get(origin);
-    const pending = fetcher(`${origin}/robots.txt`, { timeoutMs: 1_500, maxBytes: 500_000, types: null, signal, net })
+    const pending = fetcher(`${origin}/robots.txt`, { timeoutMs: 1_500, maxBytes: 500_000, types: null, net })
       .then((result) => {
         const value = robotsFromResponse(result);
         // A site that couldn't be reached is asked again in a few minutes, not a day.
@@ -80,7 +82,8 @@ export function createReader({ net = PUBLIC_NET, now = Date.now, maxConcurrent =
     const host = parsed.hostname;
     await acquire(host);
     try {
-      const rules = await robotsFor(parsed.origin, signal);
+      const rules = await robotsFor(parsed.origin);
+      if (signal?.aborted) return { ok: false, reason: "stopped" };
       if (!robotsPermit(rules, parsed.toString())) return { ok: false, reason: "the site's robots.txt doesn't allow it" };
       const page = await fetcher(parsed.toString(), { timeoutMs, signal, net });
       if (!page.ok) return { ok: false, reason: page.reason };

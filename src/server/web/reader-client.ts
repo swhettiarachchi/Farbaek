@@ -17,7 +17,7 @@ export function createReaderClient(baseUrl: string, fetcher: typeof fetch = fetc
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ url, timeoutMs, hintedDate }),
           // A little longer than the reader's own limit, so its answer (even "timed out") arrives.
-          signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs + 750)]),
+          signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs + 500)]),
           redirect: "error",
         });
         if (!response.ok) return { ok: false, reason: "the page reader answered with an error" };

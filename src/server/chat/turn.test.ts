@@ -521,8 +521,10 @@ describe("live web search before the answer (stage 205)", () => {
     const stopped = msg(A1, "assistant", { parentId: Q1, content: "Half", status: "stopped", meta: { search: meta("done") as never } });
     const { deps } = fakeDeps({ path: [msg(Q1, "user", { content: "Bakery names?" }), stopped] });
     const researched = withResearch(deps, { context: "x", status: "done" });
-    await run(deps, { action: "continue", conversationId: CONV, messageId: A1, model: "auto", effort: "balanced" });
+    const { events } = await run(deps, { action: "continue", conversationId: CONV, messageId: A1, model: "auto", effort: "balanced" });
     expect(researched).toHaveLength(0);
+    // The sources stay on screen while it carries on.
+    expect(events[0]).toMatchObject({ type: "start", answer: { meta: { search: { status: "done" } } } });
     const last = sentTo(deps)[0].messages.at(-1).parts;
     expect(last.at(-1)).toMatchObject({ type: "context" });
     expect(last.at(-1).text).toContain("https://example.org/names");

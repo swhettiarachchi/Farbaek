@@ -155,7 +155,7 @@ export function Menu({ label, trigger, items, align = "end", children }: { label
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
-    const list = [...(panel.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"]), [role="menuitemradio"]') ?? [])];
+    const list = [...(panel.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"]), [role="menuitemradio"], [role="menuitemcheckbox"]') ?? [])];
     if (list.length === 0) return;
     e.preventDefault();
     const at = list.indexOf(document.activeElement as HTMLElement);

@@ -6,6 +6,7 @@ export type Robots = { kind: "rules"; groups: RobotsGroup[] } | { kind: "allow-a
 
 export const ROBOTS_TOKEN: string;
 export function parseRobots(text: string): RobotsGroup[];
+export function globMatch(rule: string, path: string): boolean;
 export function robotsAllow(groups: RobotsGroup[], path: string, token?: string): boolean;
 export function robotsFromResponse(result: { ok: boolean; text?: string; status?: number }): Robots;
 export function robotsPermit(robots: Robots, url: string): boolean;

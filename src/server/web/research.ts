@@ -5,9 +5,9 @@
  * so and must say so, and the answer records why. Server-only.
  */
 import { randomBytes } from "node:crypto";
-import { buildWebBlock, webFailureNote, type WebDoc } from "@/core/web/context";
+import { buildWebBlock, oneLine, webFailureNote, type WebDoc } from "@/core/web/context";
 import { cleanQuery, type SearchPlan } from "@/core/web/plan";
-import { fitSearchMeta, selectResults, siteOf, type SearchMeta, type SearchResult } from "@/core/web/sources";
+import { canonicalUrl, fitSearchMeta, selectResults, siteOf, type SearchMeta, type SearchResult } from "@/core/web/sources";
 import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import type { ChatModel } from "@/server/ai/chat-model";
 import { log } from "@/server/observability/log";
@@ -85,6 +85,8 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
   input.onStage?.({ stage: "searching", queries: plan.queries });
   const searchSignal = AbortSignal.any([input.signal, AbortSignal.timeout(Math.max(1_000, Math.min(3_500, deadline - deps.now() - 2_000)))]);
   const { results, failures } = await searchAll(deps.search, plan, input.language, searchSignal);
+  // The person pressed Stop: not the search service's fault, so the breaker isn't told.
+  if (input.signal.aborted) return failed("stopped", at, plan.queries, planned.usage);
   if (results.length === 0) {
     if (failures.length > 0) {
       deps.breaker.fail();
@@ -103,7 +105,8 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
   const chosen = selectResults(results, { max: 8, perSite: 2, newsFirst: plan.freshness === "day" && plan.news });
   const toRead = chosen.slice(0, PAGES_TO_READ);
   input.onStage?.({ stage: "reading", pages: toRead.length });
-  const readTime = Math.max(1_500, Math.min(4_000, deadline - deps.now() - 250));
+  // The reader client allows half a second more than this for the answer to arrive: all within the deadline.
+  const readTime = Math.max(1_000, Math.min(4_000, deadline - deps.now() - 800));
   const pages = await Promise.all(toRead.map((r) => deps.reader!.read(r.url, { timeoutMs: readTime, hintedDate: r.published, signal: input.signal })));
 
   const docs: WebDoc[] = chosen.map((r, i) => {
@@ -111,9 +114,10 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
     const read = page?.ok === true && !page.optOut && page.text.length >= 200;
     return {
       n: i + 1,
-      url: page?.ok ? page.url : r.url,
-      title: (page?.ok && page.title) || r.title || siteOf(r.url),
-      site: (page?.ok && page.site) || siteOf(r.url),
+      // The address after redirects, when it's a usable length; otherwise the one the search gave.
+      url: (page?.ok && canonicalUrl(page.url)) || r.url,
+      title: oneLine((page?.ok && page.title) || r.title || siteOf(r.url)),
+      site: oneLine((page?.ok && page.site) || siteOf(r.url), 120),
       published: (page?.ok && page.published) || r.published,
       updated: page?.ok ? page.updated : null,
       read,

@@ -14,11 +14,20 @@ export interface WebDoc extends WebSource {
   updated: string | null;
 }
 
-/** Zero-width, joiner-less invisible, soft hyphen and bidirectional control characters. */
-const INVISIBLE = /[­؜᠎​-‏‪-‮⁠-⁤⁦-⁩﻿]/g;
+/**
+ * Characters that hide text or change its direction: zero-width spaces, soft hyphens, bidirectional controls, Unicode tag
+ * characters (which can spell out invisible instructions), variation selectors and Hangul fillers. The zero-width joiner and
+ * non-joiner (U+200C, U+200D) stay: Sinhala, Indic and Persian writing needs them.
+ */
+const INVISIBLE = /[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b\u200e\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\u3164\ufe00-\ufe0f\ufeff\uffa0\u{e0000}-\u{e007f}\u{e0100}-\u{e01ef}]/gu;
 
 export function stripInvisible(text: string): string {
   return text.replace(INVISIBLE, "");
+}
+
+/** A title or site name on one line, cleaned: it can't start a line of its own that looks like Farbaek's. */
+export function oneLine(text: string, max = 300): string {
+  return stripInvisible(text).replace(/[\r\n\u2028\u2029\t]+/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, max);
 }
 
 function terms(queries: string[]): string[] {
@@ -38,18 +47,20 @@ export function choosePassages(text: string, queries: string[], maxChars: number
     const hits = words.reduce((n, w) => n + (lower.includes(w) ? 1 : 0), 0);
     return { i, p, score: (i === 0 ? 2 : 0) + hits * 3 + Math.min(p.length, 600) / 600 };
   });
-  const keep = new Set<number>();
+  // Best first, each paragraph whole when it fits, or cut to the room left when there's a fair amount of it, so a long
+  // paragraph (or a page that's one long paragraph) is never dropped altogether.
+  const kept = new Map<number, string>();
   let used = 0;
   for (const s of [...scored].sort((a, b) => b.score - a.score)) {
-    const piece = s.p.length > maxChars ? `${s.p.slice(0, Math.max(0, maxChars - used - 1))}…` : s.p;
-    if (used + piece.length + 2 > maxChars) continue;
-    keep.add(s.i);
+    const room = maxChars - used - 2;
+    if (room < 120) break;
+    const piece = s.p.length <= room ? s.p : `${s.p.slice(0, room - 1)}…`;
+    kept.set(s.i, piece);
     used += piece.length + 2;
-    if (used >= maxChars * 0.95) break;
   }
-  return scored
-    .filter((s) => keep.has(s.i))
-    .map((s) => (s.p.length > maxChars ? `${s.p.slice(0, maxChars - 1)}…` : s.p))
+  return [...kept.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, piece]) => piece)
     .join("\n\n");
 }
 
@@ -81,9 +92,10 @@ export function buildWebBlock(input: { docs: WebDoc[]; queries: string[]; retrie
   for (const d of docs) {
     const dates = [d.published ? `published ${day(d.published)}` : null, d.updated && day(d.updated) !== day(d.published) ? `updated ${day(d.updated)}` : null].filter(Boolean).join(", ");
     const body = stripInvisible(d.text).split(open).join("").split(close).join("");
-    lines.push(`[${d.n}] ${stripInvisible(d.title)} | ${d.site}${dates ? ` | ${dates}` : " | date not given"} | ${d.read ? "page read" : "search snippet only"}`);
+    const passages = d.read ? choosePassages(body, queries, Math.max(400, perRead)) : body.slice(0, 400);
+    lines.push(`[${d.n}] ${oneLine(d.title)} | ${oneLine(d.site, 120)}${dates ? ` | ${dates}` : " | date not given"} | ${d.read ? "page read" : "search snippet only"}`);
     lines.push(d.url);
-    lines.push(d.read ? choosePassages(body, queries, Math.max(400, perRead)) : body.slice(0, 400));
+    lines.push(passages || "(no readable text)");
     lines.push("");
   }
   lines.push(close);

@@ -34,11 +34,44 @@ export function parseRobots(text) {
   return groups;
 }
 
+/** Rules longer than this, or with more wildcards, are ignored: no real site needs them, and they'd only cost time. */
+const MAX_RULE = 512;
+const MAX_STARS = 32;
+
+/**
+ * A robots.txt pattern against a path, without regular expressions: `*` matches any run of characters, a final `$` anchors
+ * the end, and otherwise the pattern matches a prefix. Greedy matching with one backtrack point, so a hostile rule like
+ * "/*a*a*a*a*b" costs at most the pattern's length times the path's, never exponential time.
+ */
+export function globMatch(rule, path) {
+  const anchored = rule.endsWith("$");
+  let p = (anchored ? rule.slice(0, -1) : rule).replace(/\*{2,}/g, "*");
+  if (!anchored) p += "*";
+  let i = 0;
+  let j = 0;
+  let star = -1;
+  let mark = 0;
+  while (i < path.length) {
+    if (j < p.length && p[j] === "*") {
+      star = j++;
+      mark = i;
+    } else if (j < p.length && p[j] === path[i]) {
+      i++;
+      j++;
+    } else if (star >= 0) {
+      j = star + 1;
+      i = ++mark;
+    } else {
+      return false;
+    }
+  }
+  while (j < p.length && p[j] === "*") j++;
+  return j === p.length;
+}
+
 function matches(pattern, path) {
-  const anchored = pattern.endsWith("$");
-  const body = anchored ? pattern.slice(0, -1) : pattern;
-  const source = body.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
-  return new RegExp(`^${source}${anchored ? "$" : ""}`).test(path);
+  if (pattern.length > MAX_RULE || (pattern.match(/\*/g)?.length ?? 0) > MAX_STARS) return false;
+  return globMatch(pattern, path.slice(0, 2_048));
 }
 
 /** True when the rules let this user agent read the path (with its query string). */
