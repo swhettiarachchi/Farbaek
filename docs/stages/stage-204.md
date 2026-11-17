@@ -66,7 +66,10 @@ Real messages in the owner's Chrome, signed in, Free plan, Auto and Quick unless
 
 **Doesn't work yet: asking for English letters.** The note was right: run on the same conversation, the live code sent "Answer in Sinhala, written in English letters the way the person types it, not in Sinhala script… They asked for this way of writing it." GPT-6 Luna still answered in English, and Claude Haiku 5.5 did it only for part of its answer. When the request is itself written in English, the models lean to English. To fix: stronger wording in the note and the system prompt for this case (Sinhala words and grammar, spelled in English letters, not English), checked live again on both models.
 
+**The fix (same day).** For a language with its own script answered in English letters, the note now names the form people know ("often called Singlish", Hinglish, Tanglish, Roman Urdu, Arabizi, Romaji, Pinyin), says it means that language's words and grammar spelled in English letters, "not English and not Sinhala script", that "they mean Sinhala spelled in English letters, not the English language", and to write every sentence that way "even when their latest message is in English". The system prompt's own-script rule now says a request for English letters means the person's language spelled in English letters, never the English language. Notes for ordinary own-script answers are unchanged, so caching for them is unaffected. Tested in the note and prompt tests; whether the live models now follow it is checked after the merge.
+
 ## Not verified yet
 
+- Whether GPT-6 Luna and Claude Haiku 5.5 now answer "Answer in English letters" in Singlish: re-checked live after the merge.
 - Accuracy on messages from real people, with their own spellings.
 - Tamil, Urdu, Arabic, Chinese, Japanese and Korean typed in English letters, and Romanian, were checked by tests but not yet with live answers.

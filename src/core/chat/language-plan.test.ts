@@ -147,6 +147,17 @@ describe("the conversation's language", () => {
     expect(note).toContain("They type Sinhala in English letters: that isn't English.");
   });
 
+  it("asking for English letters asks for the language spelled in English letters, never English (live finding, 2026-11-17)", () => {
+    const note = languageNote(planLanguage({ message: "Answer in English letters", earlier: [`${SINGLISH}.`, "ok"] }))!;
+    expect(note).toContain("Answer in Sinhala, written in English letters (often called Singlish): Sinhala words and grammar");
+    expect(note).toContain("not English and not Sinhala script");
+    expect(note).toContain("they mean Sinhala spelled in English letters, not the English language");
+    expect(note).toContain("even when their latest message is in English");
+    const chosen = languageNote(planLanguage({ message: "Mujhe ek website banani hai", preference: { answer: "auto", script: "latin" } }))!;
+    expect(chosen).toContain("(often called Hinglish or Roman Urdu)");
+    expect(chosen).toContain("They chose English letters in their settings.");
+  });
+
   it("the note stays the same across a conversation in one language, so prompt caching holds", () => {
     const first = languageNote(planLanguage({ message: SINGLISH }));
     const second = languageNote(planLanguage({ message: "Eka Next.js walin hadanna puluwanda?", earlier: [SINGLISH] }));
