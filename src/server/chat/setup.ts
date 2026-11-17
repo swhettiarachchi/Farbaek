@@ -43,7 +43,7 @@ export async function loadChatAvailability(ctx: AppContext, ws: WorkspaceSummary
   const claude = !paused && (ownKey || provider.provider === "anthropic");
   const openai = !paused && openAiKey() !== null;
   const images = imageGeneration();
-  const models = chatModelOptions({ plan: ws.plan, claude, openai, overrides: platformModels() });
+  const models = chatModelOptions({ plan: ws.plan, claude, openai, claudeOwnKey: ownKey, overrides: platformModels() });
   const wallet = ctx.mode === "live" ? await loadWallet(ctx, ws).catch(() => null) : null;
   const monthly = ws.plan.limits.aiUnitsPerMonth;
   const perImage = costUnits(imageModel(), { inputTokens: 40, outputTokens: IMAGE_OUTPUT_TOKENS, cacheWriteTokens: 0, cacheReadTokens: 0 });

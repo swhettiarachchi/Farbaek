@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { trialPlan } from "@/core/billing/trial";
 import { checkChatFile, cleanName, fileSizeLabel, imageSize } from "./files";
 import { highlight, languageLabel } from "./highlight";
-import { chatModelOptions, chooseChatModel } from "./models";
+import { chatModelOptions } from "./models";
 import { cleanTitle, titleFrom, turnRequestSchema } from "./protocol";
 import { SseReader, encodeEvent } from "./sse";
 import { texToMath, type MathNode } from "./tex";
@@ -101,12 +101,25 @@ describe("chat models", () => {
     expect(options.find((o) => o.id === "gpt-6.1-terra")?.unavailable).toBe("OpenAI isn't connected on this server yet.");
   });
 
-  it("honours a chosen model the plan includes, and says so when it can't", () => {
-    expect(chooseChatModel({ plan: trial, claude: true, openai: false }, "claude-haiku-5-5", "balanced")).toMatchObject({ model: "claude-haiku-5-5", provider: "anthropic", note: null });
-    const fallback = chooseChatModel({ plan: trial, claude: true, openai: false }, "gpt-6.1-terra", "quick");
-    expect(fallback).toMatchObject({ provider: "anthropic", thinking: "low" });
-    expect(fallback!.note).toMatch(/chose one for you/);
-    expect(chooseChatModel({ plan: trial, claude: false, openai: false }, "auto", "quick")).toBeNull();
+  it("lists GPT-6 Luna first after Auto, and every model a plan's tier includes (stage 203)", () => {
+    const options = chatModelOptions({ plan: trial, claude: true, openai: true });
+    expect(options.map((o) => o.id).slice(0, 3)).toEqual(["auto", "gpt-6-luna", "claude-haiku-5-5"]);
+    expect(options[0]!.about).toContain("GPT-6 Luna first");
+    for (const id of ["gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-astra", "claude-opus-5-5", "claude-fable-5-1"]) expect(options.some((o) => o.id === id)).toBe(true);
+  });
+
+  it("says the real reason on a workspace's own Claude key, and words Auto from what's connected", () => {
+    const own = chatModelOptions({ plan: trial, claude: true, openai: true, claudeOwnKey: true });
+    expect(own.find((o) => o.id === "gpt-6-luna")!.unavailable).toBe("This workspace answers on its own Claude key.");
+    expect(own[0]!.about).toMatch(/^Claude/);
+    expect(chatModelOptions({ plan: trial, claude: true, openai: false })[0]!.about).toMatch(/^Claude/);
+  });
+
+  it("offers Free its fast models only, and says why the others aren't", () => {
+    const free = chatModelOptions({ plan: { ...trial, planId: "free" } as typeof trial, claude: true, openai: true });
+    expect(free.find((o) => o.id === "gpt-6-luna")!.unavailable).toBeNull();
+    expect(free.find((o) => o.id === "claude-haiku-5-5")!.unavailable).toBeNull();
+    expect(free.find((o) => o.id === "gpt-6.1-sol")!.unavailable).toBe("Included in paid plans.");
   });
 });
 

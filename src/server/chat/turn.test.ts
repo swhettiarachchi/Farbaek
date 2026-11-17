@@ -180,28 +180,78 @@ describe("a chat turn (stage 199)", () => {
   });
 
   it("hands a question to the other provider when the first fails before writing, and says so (stage 201)", async () => {
-    const busy = fakeModel([], () => ({ ok: false, failure: "PROVIDER_BUSY", usage: null, aborted: false }));
-    const gpt = { ...fakeModel(["From the other model."], () => ({ ok: true, stop: "end", usage: { model: "gpt-6.1-terra", inputTokens: 100, outputTokens: 5 } })), provider: "openai" as const };
-    const { deps, calls } = fakeDeps({ model: busy, plan: "pro" });
+    // GPT-6 Luna answers first by default (stage 203); here it's busy, and Claude Haiku takes the question.
+    const gpt = { ...fakeModel([], () => ({ ok: false, failure: "PROVIDER_BUSY", usage: null, aborted: false })), provider: "openai" as const };
+    const haiku = fakeModel(["From the other model."], () => ({ ok: true, stop: "end", usage: { model: "claude-haiku-5-5", inputTokens: 100, outputTokens: 5 } }));
+    const { deps, calls } = fakeDeps({ model: haiku, plan: "pro" });
     const health: [string, boolean][] = [];
     const routed = { ...deps, openai: gpt, openaiConnected: true, recordHealth: (p: string, ok: boolean) => void health.push([p, ok]) };
     const { events } = await run(routed, send());
-    expect(events.find((e) => e.type === "route")).toMatchObject({ type: "route", modelName: "GPT-6.1 Terra" });
-    expect(events.find((e) => e.type === "done")).toMatchObject({ status: "complete", modelName: "GPT-6.1 Terra" });
-    expect(health).toEqual([["anthropic", false], ["openai", true]]);
+    expect(calls.find((c) => c.name === "beginTurn")!.input.model).toBe("gpt-6-luna");
+    expect(events.find((e) => e.type === "route")).toMatchObject({ type: "route", modelName: "Claude Haiku 5.5" });
+    expect(events.find((e) => e.type === "done")).toMatchObject({ status: "complete", modelName: "Claude Haiku 5.5" });
+    expect(health).toEqual([["openai", false], ["anthropic", true]]);
     const last = calls.filter((c) => c.name === "writeReply").at(-1)!.input;
-    expect(last).toMatchObject({ content: "From the other model.", model: "gpt-6.1-terra", meta: { route: { fallback: true } } });
+    expect(last).toMatchObject({ content: "From the other model.", model: "claude-haiku-5-5", meta: { route: { fallback: true, tier: "fast", provider: "anthropic" } } });
     expect(calls.find((c) => c.name === "settle")).toBeTruthy();
   });
 
+  it("tries a hard question's three candidates in turn, ending on a faster model, and says so (stage 203)", async () => {
+    let claudeCalls = 0;
+    const claude = fakeModel(["The faster answer."], () => (++claudeCalls === 1 ? { ok: false, failure: "PROVIDER_BUSY", usage: null, aborted: false } : { ok: true, stop: "end", usage: { model: "claude-haiku-5-5", inputTokens: 100, outputTokens: 5 } }));
+    // The first call writes nothing: the busy reply comes before the text.
+    const quietFirst = { ...claude, async stream(r: Parameters<typeof claude.stream>[0], h: Parameters<typeof claude.stream>[1], sig: AbortSignal) { return claudeCalls === 0 ? (claudeCalls++, { ok: false as const, failure: "PROVIDER_BUSY" as const, usage: null, aborted: false }) : claude.stream(r, h, sig); } };
+    const gpt = { ...fakeModel([], () => ({ ok: false, failure: "PROVIDER_ERROR", usage: null, aborted: false })), provider: "openai" as const };
+    const { deps, calls } = fakeDeps({ model: quietFirst, plan: "pro" });
+    const { events } = await run({ ...deps, openai: gpt, openaiConnected: true }, send({ text: "Fix the bug in this function:\n```ts\nconst f = () => { throw new Error('x') }\n```" }));
+    expect(calls.find((c) => c.name === "beginTurn")!.input.model).toBe("claude-sonnet-5-5");
+    const routes = events.filter((e) => e.type === "route");
+    expect(routes.map((e) => (e.type === "route" ? e.modelName : ""))).toEqual(["GPT-6.1 Sol", "Claude Haiku 5.5"]);
+    expect(routes.at(-1)).toMatchObject({ note: expect.stringContaining("a faster one did") });
+    expect(events.find((e) => e.type === "done")).toMatchObject({ status: "complete", modelName: "Claude Haiku 5.5" });
+    // Enough was reserved for the costliest of the three.
+    expect(calls.find((c) => c.name === "reserve")!.input.units).toBeGreaterThan(0);
+  });
+
+  it("asks the other provider for a second opinion when a question is asked again (stage 203)", async () => {
+    const gpt = { ...fakeModel(["Luna's."], () => ({ ok: true, stop: "end", usage: { model: "gpt-6-luna", inputTokens: 1, outputTokens: 1 } })), provider: "openai" as const };
+    const { deps, calls } = fakeDeps({ plan: "pro", path: [msg(Q1, "user", { content: "What is a good name for a bakery?" })] });
+    await run({ ...deps, openai: gpt, openaiConnected: true }, { action: "regenerate", conversationId: CONV, messageId: Q1, model: "auto", effort: "balanced", mode: "text", aspect: "1:1" } as TurnRequest);
+    const begun = calls.find((c) => c.name === "beginReply")!.input;
+    expect(begun.model).toBe("claude-sonnet-5-5");
+    expect(gpt.requests).toHaveLength(0);
+  });
+
+  it("keeps a conversation on the provider that answered last above the fast tier, from what that answer recorded (stage 203)", async () => {
+    const gpt = { ...fakeModel(["Sol's."], () => ({ ok: true, stop: "end", usage: { model: "gpt-6.1-sol", inputTokens: 1, outputTokens: 1 } })), provider: "openai" as const };
+    const earlier = [msg(Q1, "user"), msg(A1, "assistant", { parentId: Q1, modelName: "Claude Sonnet 5.5", meta: { tier: "standard", provider: "anthropic" } })];
+    const { deps, calls } = fakeDeps({ plan: "pro", path: earlier });
+    // Maths would lead with OpenAI, but the conversation stays with the provider that answered at this tier.
+    await run({ ...deps, openai: gpt, openaiConnected: true }, send({ conversationId: CONV, parentId: A1, text: "Prove that the square root of 2 is irrational." }));
+    expect(calls.find((c) => c.name === "beginTurn")!.input.model).toBe("claude-sonnet-5-5");
+    expect(gpt.requests).toHaveLength(0);
+  });
+
+  it("gives the second opinion from the other provider than the answer it replaces (stage 203)", async () => {
+    const gpt = { ...fakeModel(["Sol's."], () => ({ ok: true, stop: "end", usage: { model: "gpt-6.1-sol", inputTokens: 1, outputTokens: 1 } })), provider: "openai" as const };
+    const replaced = msg(A1, "assistant", { parentId: Q1, modelName: "Claude Sonnet 5.5", meta: { tier: "standard", provider: "anthropic" } });
+    const { deps, calls } = fakeDeps({ plan: "pro", path: [msg(Q1, "user", { content: "Why does my sourdough not rise?" })] });
+    const reads = { ...deps.reads, path: async (c: string, leaf: string | null, n: number) => (leaf === A1 && n === 1 ? [replaced] : deps.reads.path(c, leaf, n)) };
+    await run({ ...deps, reads, openai: gpt, openaiConnected: true }, { action: "regenerate", conversationId: CONV, messageId: Q1, replacing: A1, model: "auto", effort: "balanced", mode: "text", aspect: "1:1" } as TurnRequest);
+    expect(calls.find((c) => c.name === "beginReply")!.input.model).toMatch(/^gpt-6/);
+  });
+
   it("never hands over an answer that has started, or a workspace's own Claude key (stage 201)", async () => {
-    const half = fakeModel(["Half an"], () => ({ ok: false, failure: "PROVIDER_ERROR", usage: null, aborted: false }));
-    const gpt = { ...fakeModel(["Other."], () => ({ ok: true, stop: "end", usage: { model: "gpt-6.1-terra", inputTokens: 1, outputTokens: 1 } })), provider: "openai" as const };
-    const started = fakeDeps({ model: half, plan: "pro" });
-    const a = await run({ ...started.deps, openai: gpt, openaiConnected: true }, send());
+    // GPT-6 Luna starts the answer and then fails: what was written stays, and nothing else is asked.
+    const half = { ...fakeModel(["Half an"], () => ({ ok: false, failure: "PROVIDER_ERROR", usage: null, aborted: false })), provider: "openai" as const };
+    const claude = fakeModel(["Other."], () => ({ ok: true, stop: "end", usage: { model: "claude-haiku-5-5", inputTokens: 1, outputTokens: 1 } }));
+    const started = fakeDeps({ model: claude, plan: "pro" });
+    const a = await run({ ...started.deps, openai: half, openaiConnected: true }, send());
     expect(a.events.some((e) => e.type === "route")).toBe(false);
     expect(a.events.find((e) => e.type === "done")).toMatchObject({ status: "failed" });
+    expect(claude.requests).toHaveLength(0);
 
+    const gpt = { ...fakeModel(["Other."], () => ({ ok: true, stop: "end", usage: { model: "gpt-6-luna", inputTokens: 1, outputTokens: 1 } })), provider: "openai" as const };
     const busy = fakeModel([], () => ({ ok: false, failure: "PROVIDER_BUSY", usage: null, aborted: false }));
     const own = fakeDeps({ model: busy, plan: "pro" });
     const b = await run({ ...own.deps, openai: gpt, openaiConnected: true, claudeOwnKey: true }, send());

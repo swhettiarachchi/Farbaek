@@ -54,6 +54,9 @@ export function createOpenAiChat(options: { key: string; fetcher?: typeof fetch 
             instructions: request.system,
             input: request.messages.map(toInput),
             max_output_tokens: request.maxOutputTokens,
+            // How hard to think, as the route asked (stage 203): every GPT-6 model takes low, medium and high. Summaries of the thinking
+            // aren't asked for, because OpenAI can refuse them for an organization it hasn't verified.
+            reasoning: { effort: request.thinking },
             store: false,
             stream: true,
           }),
@@ -64,8 +67,12 @@ export function createOpenAiChat(options: { key: string; fetcher?: typeof fetch 
       }
       if (response.status === 429 || response.status >= 500) return { ok: false, failure: "PROVIDER_BUSY", usage: null, aborted: false };
       if (!response.ok || !response.body) {
-        log("error", "openai.chat_failed", { model: request.model, status: response.status });
-        return { ok: false, failure: response.status === 400 ? "INCOMPLETE" : "PROVIDER_ERROR", usage: null, aborted: false };
+        const said = await response.text().catch(() => "");
+        log("error", "openai.chat_failed", { model: request.model, status: response.status, said: said.slice(0, 300) });
+        // A 400 about a file is this question's own (it's asked again without older files); one about the model or a setting such
+        // as the thinking effort would fail every question, so it's handed to the other provider instead (stage 203).
+        const aboutFile = /\b(?:file|image|pdf|input_file|input_image)\b/i.test(said) && !/\b(?:reasoning|effort|model)\b/i.test(said);
+        return { ok: false, failure: response.status === 400 && aboutFile ? "INCOMPLETE" : "PROVIDER_ERROR", usage: null, aborted: false };
       }
 
       const reader = response.body.getReader();
@@ -122,6 +129,8 @@ export function createOpenAiChat(options: { key: string; fetcher?: typeof fetch 
             instructions: TITLE_PROMPT,
             input: `Question:\n${request.question.slice(0, 2000)}\n\nAnswer:\n${request.answer.slice(0, 1500)}`,
             max_output_tokens: 1_000,
+            // A name needs little thought; low is the least every GPT-6 model takes.
+            reasoning: { effort: "low" },
             store: false,
           }),
           signal,

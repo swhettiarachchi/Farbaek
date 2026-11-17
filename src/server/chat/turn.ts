@@ -11,7 +11,7 @@
  */
 import { createHash } from "node:crypto";
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
-import { modelName } from "@/core/billing/model-names";
+import { modelIdForName, modelName } from "@/core/billing/model-names";
 import { imageSize } from "@/core/chat/files";
 import { mayFallBack, planChatRoute, readQuestion, type ChatCandidate, type ProviderHealth, type RouteSetup } from "@/core/chat/intelligence";
 import { CHAT_LIMITS, cleanTitle, titleFrom, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
@@ -287,12 +287,23 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const setup: RouteSetup = { plan: plan.value.plan, claude: deps.claude !== null, openai: deps.openai !== null && deps.openaiConnected, overrides: deps.overrides, claudeOwnKey: deps.claudeOwnKey ?? false };
   const asked = newQuestion ?? existingQuestion;
   const askedFiles = newQuestion?.files ?? existingQuestion?.files ?? [];
-  const kind = readQuestion({
+  const read = readQuestion({
     text: questionText ?? existingQuestion?.content ?? continuing?.content ?? "",
     images: askedFiles.filter((f) => f.kind === "image").length,
     documents: asked ? askedFiles.filter((f) => f.kind !== "image").length : 0,
   });
-  const routed = planChatRoute(setup, request.model, request.effort, kind, deps.health?.() ?? { anthropic: true, openai: true });
+  // What the route needs from earlier (stage 203): the answer before this question, and whether this question is being asked again.
+  const before = [...base].reverse().find((m) => m.role === "assistant" && m.kind === "text");
+  const previous = before ? { model: modelIdForName(before.modelName), tier: before.meta.tier, provider: before.meta.provider, rating: before.rating } : null;
+  // Asked again: the answer it replaces, read back only when it really is an answer to this question in this conversation.
+  let replaced: { model: string | null; provider?: "anthropic" | "openai" } | null = null;
+  if (request.action === "regenerate" && request.replacing && existingQuestion) {
+    const found = (await deps.reads.path(conversationId!, request.replacing, 1))?.at(-1);
+    if (found && found.id === request.replacing && found.role === "assistant" && found.parentId === existingQuestion.id) replaced = { model: modelIdForName(found.modelName), provider: found.meta.provider };
+  }
+  // An answer that's continued keeps the model that started it and its reason, when the plan still allows that model.
+  const keep = continuing ? { model: modelIdForName(continuing.modelName), reason: continuing.meta.why, tier: continuing.meta.tier } : null;
+  const routed = planChatRoute(setup, request.model, request.effort, read, deps.health?.() ?? { anthropic: true, openai: true }, { previous, again: request.action === "regenerate", replaced, keep });
   if (!routed) return refused(503, "AI isn't connected on this server yet. Earlier answers in your chats stay readable.");
   const choice = { ...routed.candidates[0]!, note: routed.note };
   const modelFor = (c: ChatCandidate) => (c.provider === "anthropic" ? deps.claude! : deps.openai!);
@@ -405,7 +416,11 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
           thinkingAt = null;
           thoughtChars = 0;
           try {
-            emit({ type: "route", modelName: modelName(next.model), note: "That model didn't answer, so Farbaek AI asked another." });
+            emit({
+            type: "route",
+            modelName: modelName(next.model),
+            note: next.tier === "fast" && routed.candidates[0]!.tier !== "fast" ? "The stronger models didn't answer, so a faster one did." : "That model didn't answer, so Farbaek AI asked another.",
+          });
           } catch {
             // Gone.
           }
@@ -442,7 +457,8 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
         error = FAILED_TEXT[outcome.failure] ?? FAILED_TEXT.PROVIDER_ERROR!;
       }
       // The answer's own facts, written whole: a continued answer no longer says it reached its length limit.
-      const route = { why: routed.reason, ...(fellBack ? { fallback: true } : {}) };
+      // The route's facts are kept with the answer: the next question reads its tier and provider, and ratings can later be read by kind.
+      const route = { why: routed.reason, kind: routed.kind, difficulty: routed.difficulty, tier: answering.tier, provider: answering.provider, ...(fellBack ? { fallback: true } : {}) };
       const finalSave = await save(status, error, stop ? { stop, route } : { route });
       if (!finalSave.ok) log("error", "chat.save_failed", { status, reason: finalSave.error.slice(0, 120) });
       try {

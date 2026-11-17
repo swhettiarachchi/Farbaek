@@ -101,6 +101,17 @@ function readWhy(route: unknown): string | undefined {
   return typeof why === "string" && why.length <= 120 ? why : undefined;
 }
 
+/** The tier and provider a route recorded (stage 203), so the next question can keep to them. Anything else is ignored. */
+function readRouteFacts(route: unknown): { tier?: "fast" | "standard" | "strong" | "frontier"; provider?: "anthropic" | "openai" } {
+  if (!route || typeof route !== "object") return {};
+  const r = route as { tier?: unknown; provider?: unknown; fallback?: unknown };
+  return {
+    ...(r.tier === "fast" || r.tier === "standard" || r.tier === "strong" || r.tier === "frontier" ? { tier: r.tier } : {}),
+    // An answer a fallback wrote says nothing about which provider the conversation prefers: the next question doesn't keep to it.
+    ...((r.provider === "anthropic" || r.provider === "openai") && r.fallback !== true ? { provider: r.provider } : {}),
+  };
+}
+
 export function toMessage(row: z.infer<typeof rowSchema>, now = Date.now()): ChatMessage {
   const meta = row.meta ?? {};
   const stale = row.status === "streaming" && now - Date.parse(row.updated_at) > STALE_MS;
@@ -120,6 +131,7 @@ export function toMessage(row: z.infer<typeof rowSchema>, now = Date.now()): Cha
       prompt: typeof meta.prompt === "string" ? meta.prompt : undefined,
       stop: meta.stop === "length" || meta.stop === "refusal" ? meta.stop : undefined,
       why: readWhy(meta.route),
+      ...readRouteFacts(meta.route),
     },
     createdAt: row.created_at,
     siblings: row.siblings ?? [row.id],

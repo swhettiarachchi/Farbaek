@@ -343,7 +343,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     if (at < 0) return;
     const p = prefs;
     void runTurn(
-      { action: "regenerate", conversationId: convId, messageId: answer.parentId, model: p.model, effort: p.effort, mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
+      { action: "regenerate", conversationId: convId, messageId: answer.parentId, replacing: answer.id, model: p.model, effort: p.effort, mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
       messages.slice(0, at + 1),
       [placeholder(TEMP_ANSWER, "assistant", { kind: answer.kind, parentId: answer.parentId, meta: answer.kind === "image" ? { aspect: answer.meta.aspect, prompt: answer.meta.prompt } : {} })],
       null,
