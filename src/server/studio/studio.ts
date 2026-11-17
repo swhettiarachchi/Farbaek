@@ -24,6 +24,7 @@ import type { DraftFailure, ProviderUsage } from "@/server/ai/contract-drafter";
 import type { AspectRatio, ImageGenerator } from "@/server/ai/gemini-image";
 import type { StudioImageEngine } from "@/server/ai/openai-image";
 import type { VideoEngine } from "@/server/ai/gemini-video";
+import { log } from "@/server/observability/log";
 import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, type UsageContext } from "@/server/workspace/ai-usage";
 import { sha256Hex } from "@/core/workspace/device-copy";
 
@@ -116,7 +117,10 @@ export function toItem(row: z.infer<typeof rowSchema>, now = Date.now()): Studio
 /** The person's studio items in this workspace, newest first, read through row level security (never the bytes). */
 export async function listStudioItems(client: SupabaseClient, orgId: string, kinds: StudioItem["kind"][], limit = 200): Promise<StudioItem[] | null> {
   const { data, error } = await client.from("studio_media").select(ITEM_COLUMNS).eq("org_id", orgId).in("kind", kinds).order("created_at", { ascending: false }).limit(limit);
-  if (error) return null;
+  if (error) {
+    log("error", "studio.library_unreadable", { org: orgId, error: error.message });
+    return null;
+  }
   const now = Date.now();
   return (data ?? []).flatMap((r) => {
     const parsed = rowSchema.safeParse(r);
@@ -163,7 +167,8 @@ const IMAGE_FAILED: Record<string, string> = {
   PROVIDER_BUSY: "The image service is busy, so this picture wasn't counted. Try again in a minute.",
   INCOMPLETE: "No picture came back, so it wasn't counted. Try again.",
   PROVIDER_ERROR: "This picture wasn't made, so it wasn't counted. Try again.",
-  SAVE: "The picture was made but couldn't be saved. Your library may be full.",
+  // A full library has its own words (STORAGE_FULL); anything else is our side, never the person's library (stage 202).
+  SAVE: "The picture was made but couldn't be saved to your library. Try again in a moment.",
 };
 
 const VIDEO_FAILED: Record<string, string> = {
@@ -171,7 +176,7 @@ const VIDEO_FAILED: Record<string, string> = {
   PROVIDER_BUSY: "The video service is busy, so this wasn't counted. Try again in a few minutes.",
   INCOMPLETE: "No video came back, so it wasn't counted. Try again.",
   PROVIDER_ERROR: "The video didn't render, so it wasn't counted. Try again.",
-  SAVE: "The video was made but couldn't be saved. Your library may be full.",
+  SAVE: "The video was made but couldn't be saved to your library, so it wasn't counted. Try again in a moment.",
 };
 
 function reservationMessage(code: string, message: string): StudioFailure {
@@ -281,7 +286,9 @@ export async function prepareImages(deps: StudioDeps, input: { orgId: string; us
           height: size?.height ?? shape.height,
         });
         if (!saved.ok) {
-          emit({ type: "failed", index, error: saved.error.includes("STORAGE_FULL") ? "Your studio library is full (500 MB). Delete some pictures or videos, then try again." : IMAGE_FAILED.SAVE! });
+          const full = saved.error.includes("STORAGE_FULL");
+          if (!full) log("error", "studio.save_failed", { kind: "image", org: orgId, error: saved.error });
+          emit({ type: "failed", index, error: full ? "Your studio library is full (500 MB). Delete some pictures or videos, then try again." : IMAGE_FAILED.SAVE! });
           return;
         }
         made += 1;
@@ -397,6 +404,7 @@ export async function prepareVideo(deps: StudioDeps, input: { orgId: string; use
         height: null,
         durationMs: request.seconds * 1_000,
       });
+      if (!finished.ok && !finished.error.includes("STORAGE_FULL") && !finished.error.includes("FILE_TOO_LARGE")) log("error", "studio.save_failed", { kind: "video", org: orgId, error: finished.error });
       if (!finished.ok) return fail(finished.error.includes("STORAGE_FULL") || finished.error.includes("FILE_TOO_LARGE") ? "The video was made but is too large for your library. Delete some items, or try a shorter or lower resolution video." : VIDEO_FAILED.SAVE!, outcome.usage);
       await settleUsage(deps.usage, { ...entry, usage: outcome.usage });
       emit({ type: "item", index: 0, item: { ...working, status: "ready", mime: "video/mp4", sizeBytes: outcome.bytes.length, durationMs: request.seconds * 1_000 } });

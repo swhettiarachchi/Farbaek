@@ -39,6 +39,13 @@ export async function studioGate(request: Request): Promise<StudioGate> {
   if (paused) return no(paused, 503);
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
   if (!user || !admin) return no("The studios aren't set up on this server.", 503);
+  // What's made has to be kept. If the library can't be reached (stage 202: its table was missing in production for a morning),
+  // stop before the provider is asked, so nothing is made that would be paid for and then lost.
+  const library = await user.from("studio_media").select("id").eq("org_id", ctx.current.id).limit(1);
+  if (library.error) {
+    log("error", "studio.library_unreachable", { org: ctx.current.id, error: library.error.message });
+    return no("Your library can't be reached right now, so nothing was made or counted. Try again in a moment.", 503);
+  }
   return { ok: true, orgId: ctx.current.id, userId: ctx.user.id, user, admin };
 }
 

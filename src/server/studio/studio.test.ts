@@ -98,6 +98,23 @@ describe("the image studio (stage 201)", () => {
     expect(calls.some((c) => c.name === "refund")).toBe(true);
   });
 
+  it("says a picture that couldn't be saved is our side, never a full library, unless the library really is full (stage 202)", async () => {
+    const broken = fakeDeps({ openai: engine(["ok"]) });
+    broken.deps.writes.save = async () => ({ ok: false, error: "Could not find the function public.app_studio_save" });
+    const events = await run(await prepareImages(broken.deps, { orgId: "o", userId: "u", request: imageRequest({ count: 1 }), batchId: "b" }));
+    const failed = events.find((e) => e.type === "failed");
+    expect(failed).toMatchObject({ error: expect.stringContaining("couldn't be saved to your library") });
+    expect(failed && "error" in failed ? failed.error : "").not.toMatch(/full/i);
+    // Nothing kept, so nothing counted.
+    expect(events.at(-1)).toMatchObject({ type: "done", made: 0 });
+    expect(broken.calls.some((c) => c.name === "refund")).toBe(true);
+
+    const full = fakeDeps({ openai: engine(["ok"]) });
+    full.deps.writes.save = async () => ({ ok: false, error: "STORAGE_FULL" });
+    const fullEvents = await run(await prepareImages(full.deps, { orgId: "o", userId: "u", request: imageRequest({ count: 1 }), batchId: "b" }));
+    expect(fullEvents.find((e) => e.type === "failed")).toMatchObject({ error: expect.stringContaining("library is full (500 MB)") });
+  });
+
   it("works from the person's own pictures, and refuses one that's gone", async () => {
     const openai = engine(["ok"]);
     const { deps } = fakeDeps({ openai });

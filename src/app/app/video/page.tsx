@@ -15,5 +15,5 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
   if (!ctx.current) redirect("/app");
   const [data, params] = await Promise.all([studioPageData(ctx, "video"), searchParams]);
   const still = typeof params.still === "string" && /^[0-9a-f-]{36}$/.test(params.still) ? params.still : null;
-  return <Studio kind="video" items={data.items} pictures={data.pictures} disabledReason={data.disabledReason} initialStill={still} />;
+  return <Studio kind="video" items={data.items} pictures={data.pictures} disabledReason={data.disabledReason} initialStill={still} libraryUnread={data.libraryUnread} />;
 }
