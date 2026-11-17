@@ -128,7 +128,8 @@ describe("a chat turn (stage 199)", () => {
     expect(prepared.ok).toBe(true);
     expect(calls.map((c) => c.name).slice(0, 2)).toEqual(["reserve", "beginTurn"]);
     expect(calls[0]!.input).toMatchObject({ operation: "chat", taskId: null });
-    expect(events.map((e) => e.type)).toEqual(["start", "text", "text", "done", "title"]);
+    // With no live web search set up here, the search says so (stage 205) before the answer streams.
+    expect(events.map((e) => e.type)).toEqual(["start", "search", "text", "text", "done", "title"]);
     expect(events[0]).toMatchObject({ type: "start", conversationId: CONV, created: true, answer: { id: A1, status: "streaming" } });
     const final = calls.filter((c) => c.name === "writeReply").at(-1)!.input;
     expect(final).toMatchObject({ status: "complete", content: "Try Rise and Crumb." });
@@ -414,7 +415,9 @@ describe("the language a turn answers in (stage 204)", () => {
     const { deps } = fakeDeps();
     await run(deps, send({ text: SINGLISH }));
     const request = sentTo(deps)[0];
-    expect(request.messages.at(-1).parts).toEqual([{ type: "text", text: SINGLISH }]);
+    // The person's words first, unchanged; this turn's web context after them (stage 205).
+    expect(request.messages.at(-1).parts[0]).toEqual({ type: "text", text: SINGLISH });
+    expect(request.messages.at(-1).parts.slice(1).map((p: { type: string }) => p.type)).toEqual(["context"]);
     expect(request.guidance).toContain("Answer in Sinhala, written in Sinhala script.");
     expect(request.guidance).toContain("isn't English");
     expect(request.system).not.toContain("Sinhala, written in");
@@ -442,5 +445,119 @@ describe("the language a turn answers in (stage 204)", () => {
     const { deps } = fakeDeps();
     await run(deps, send({ text: "Hi" }));
     expect(sentTo(deps)[0].guidance).toBeUndefined();
+  });
+});
+
+describe("live web search before the answer (stage 205)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the fake model records requests of the adapter's shape
+  const sentTo = (deps: TurnDeps) => (deps.claude as unknown as { requests: any[] }).requests;
+  const meta = (status: "done" | "failed") => ({
+    at: "2026-11-16T10:00:00.000Z",
+    status,
+    queries: ["bakery names 2026"],
+    ...(status === "failed" ? { reason: "the search service didn't answer" } : {}),
+    sources: status === "done" ? [{ n: 1, url: "https://example.org/names", title: "Bakery names", site: "example.org", published: "2026-11-15T08:00:00.000Z", read: true }] : [],
+  });
+  function withResearch(deps: TurnDeps, result: { context: string; status: "done" | "failed"; usage?: { model: string; inputTokens: number; outputTokens: number } }) {
+    const calls: unknown[] = [];
+    deps.research = async (input) => {
+      calls.push(input);
+      input.onStage?.({ stage: "searching", queries: ["bakery names 2026"] });
+      input.onStage?.({ stage: "reading", pages: 1 });
+      return { context: result.context, meta: meta(result.status), plannerUsage: result.usage ?? null };
+    };
+    return calls;
+  }
+
+  it("searches first, gives the model the results after the question, and saves the sources with the answer", async () => {
+    const { deps, calls } = fakeDeps();
+    const researched = withResearch(deps, { context: "<web_results>[1] Bakery names</web_results>", status: "done" });
+    const { events } = await run(deps, send());
+    expect(researched).toHaveLength(1);
+    expect(events.filter((e) => e.type === "search").map((e) => (e as { stage: string }).stage)).toEqual(["searching", "reading", "done"]);
+    const parts = sentTo(deps)[0].messages.at(-1).parts;
+    expect(parts[0]).toEqual({ type: "text", text: "What is a good name for a bakery?" });
+    expect(parts.at(-1)).toEqual({ type: "context", text: "<web_results>[1] Bakery names</web_results>" });
+    const final = calls.filter((c) => c.name === "writeReply").at(-1)!.input;
+    expect(final.meta.search).toMatchObject({ status: "done", sources: [{ n: 1, url: "https://example.org/names" }] });
+  });
+
+  it("when the search fails, the model is told and the answer records why", async () => {
+    const { deps, calls } = fakeDeps();
+    withResearch(deps, { context: "Farbaek tried to check the live web ... it didn't work", status: "failed" });
+    const { events } = await run(deps, send());
+    expect(events.find((e) => e.type === "search" && (e as { stage: string }).stage === "failed")).toBeTruthy();
+    expect(sentTo(deps)[0].messages.at(-1).parts.at(-1).text).toMatch(/didn't work/);
+    expect(calls.filter((c) => c.name === "writeReply").at(-1)!.input.meta.search).toMatchObject({ status: "failed", reason: "the search service didn't answer" });
+  });
+
+  it("with no search set up, it says so instead of pretending", async () => {
+    const { deps } = fakeDeps();
+    const { events } = await run(deps, send());
+    expect(events.find((e) => e.type === "search")).toMatchObject({ stage: "failed", search: { reason: "live web search isn't set up on this server" } });
+    expect(sentTo(deps)[0].messages.at(-1).parts.at(-1).text).toMatch(/couldn't check the web this time/);
+  });
+
+  it("switched off, it doesn't search and tells the model not to claim it did", async () => {
+    const { deps, calls } = fakeDeps();
+    const researched = withResearch(deps, { context: "x", status: "done" });
+    const { events } = await run(deps, send({ web: false }));
+    expect(researched).toHaveLength(0);
+    expect(events.find((e) => e.type === "search")).toMatchObject({ stage: "off" });
+    expect(sentTo(deps)[0].messages.at(-1).parts.at(-1).text).toMatch(/switched off web search/);
+    expect(calls.filter((c) => c.name === "writeReply").at(-1)!.input.meta.search).toMatchObject({ status: "off" });
+  });
+
+  it("a bare thank-you doesn't search", async () => {
+    const { deps } = fakeDeps();
+    const researched = withResearch(deps, { context: "x", status: "done" });
+    const { events } = await run(deps, send({ text: "Thanks!" }));
+    expect(researched).toHaveLength(0);
+    expect(events.some((e) => e.type === "search")).toBe(false);
+    expect(sentTo(deps)[0].messages.at(-1).parts).toEqual([{ type: "text", text: "Thanks!" }]);
+  });
+
+  it("continuing an answer doesn't search again, and keeps citing its sources", async () => {
+    const stopped = msg(A1, "assistant", { parentId: Q1, content: "Half", status: "stopped", meta: { search: meta("done") as never } });
+    const { deps } = fakeDeps({ path: [msg(Q1, "user", { content: "Bakery names?" }), stopped] });
+    const researched = withResearch(deps, { context: "x", status: "done" });
+    await run(deps, { action: "continue", conversationId: CONV, messageId: A1, model: "auto", effort: "balanced" });
+    expect(researched).toHaveLength(0);
+    const last = sentTo(deps)[0].messages.at(-1).parts;
+    expect(last.at(-1)).toMatchObject({ type: "context" });
+    expect(last.at(-1).text).toContain("https://example.org/names");
+  });
+
+  it("reserves room for the web text, and a follow-up's planner gets its own reservation, settled to what it used", async () => {
+    const off = fakeDeps();
+    await run(off.deps, send({ web: false }));
+    const on = fakeDeps();
+    withResearch(on.deps, { context: "x", status: "done" });
+    await run(on.deps, send());
+    const units = (c: { calls: { name: string; input: { units: number } }[] }) => c.calls.find((x) => x.name === "reserve")!.input.units;
+    expect(units(on)).toBeGreaterThan(units(off));
+
+    const follow = fakeDeps({ path: [msg(Q1, "user", { content: "Name ideas for my bakery?" }), msg(A1, "assistant", { parentId: Q1, content: "Rise and Crumb." })] });
+    (follow.deps.claude as unknown as { complete: unknown }).complete = async () => ({ text: '{"queries":["bakery"],"freshness":"any"}', usage: null });
+    withResearch(follow.deps, { context: "x", status: "done", usage: { model: "claude-haiku-5-5", inputTokens: 300, outputTokens: 40 } });
+    await run(follow.deps, send({ conversationId: CONV, parentId: A1, text: "Which of them is taken already?" }));
+    expect(follow.calls.filter((c) => c.name === "reserve")).toHaveLength(2);
+    expect(follow.calls.filter((c) => c.name === "settle").some((c) => c.input.usage?.model === "claude-haiku-5-5")).toBe(true);
+  });
+
+  it("stopping during the search ends the answer as stopped, with nothing charged", async () => {
+    const { deps, calls } = fakeDeps();
+    deps.research = (input) =>
+      new Promise((resolve) => {
+        input.signal.addEventListener("abort", () => resolve({ context: "stopped", meta: meta("failed"), plannerUsage: null }));
+      });
+    const prepared = await prepareTurn(deps, { orgId: "o1", userId: "u1", request: send() });
+    if (!prepared.ok) throw new Error("not prepared");
+    const controller = new AbortController();
+    const done = prepared.run(() => undefined, controller.signal);
+    setTimeout(() => controller.abort(), 10);
+    await done;
+    expect(calls.filter((c) => c.name === "writeReply").at(-1)!.input.status).toBe("stopped");
+    expect(calls.find((c) => c.name === "settle")!.input).toMatchObject({ status: "refunded" });
   });
 });

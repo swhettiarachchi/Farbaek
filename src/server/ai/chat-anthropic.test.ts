@@ -39,6 +39,29 @@ describe("Claude's chat answers", () => {
     expect(JSON.stringify(sent[0]!.messages)).toContain(text);
   });
 
+  it("with live web results, the cache breakpoint sits just before them, and no top-level one is sent (stage 205)", async () => {
+    const { client, sent } = fakeClient();
+    await createAnthropicChat(client).stream(
+      {
+        model: "claude-haiku-5-5",
+        thinking: "low",
+        system: "You are Farbaek AI.",
+        messages: [
+          { role: "user", parts: [{ type: "text", text: "First question" }] },
+          { role: "assistant", parts: [{ type: "text", text: "First answer" }] },
+          { role: "user", parts: [{ type: "text", text: "What's new today?" }, { type: "context", text: "<web_results>…</web_results>" }] },
+        ],
+        maxOutputTokens: 100,
+      },
+      { onText: () => undefined, onThinking: () => undefined },
+      new AbortController().signal,
+    );
+    expect(sent[0]!.cache_control).toBeUndefined();
+    const last = (sent[0]!.messages as { content: { text: string; cache_control?: unknown }[] }[]).at(-1)!.content;
+    expect(last[0]).toEqual({ type: "text", text: "What's new today?", cache_control: { type: "ephemeral" } });
+    expect(last[1]).toEqual({ type: "text", text: "<web_results>…</web_results>" });
+  });
+
   it("sends one system block when there's no language note", async () => {
     const { client, sent } = fakeClient();
     await createAnthropicChat(client).stream(

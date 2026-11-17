@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { modelName } from "@/core/billing/model-names";
 import type { ChatFile, ChatMessage, ConversationSummary, MessageStatus } from "@/core/chat/protocol";
+import { searchMetaSchema, type SearchMeta } from "@/core/web/sources";
 import type { RpcResult } from "@/server/workspace/use-cases";
 
 const ok = <T>(value: T): RpcResult<T> => ({ ok: true, value });
@@ -112,6 +113,11 @@ function readRouteFacts(route: unknown): { tier?: "fast" | "standard" | "strong"
   };
 }
 
+function readSearch(value: unknown): { search?: SearchMeta } {
+  const parsed = searchMetaSchema.safeParse(value);
+  return parsed.success ? { search: parsed.data } : {};
+}
+
 export function toMessage(row: z.infer<typeof rowSchema>, now = Date.now()): ChatMessage {
   const meta = row.meta ?? {};
   const stale = row.status === "streaming" && now - Date.parse(row.updated_at) > STALE_MS;
@@ -132,6 +138,8 @@ export function toMessage(row: z.infer<typeof rowSchema>, now = Date.now()): Cha
       stop: meta.stop === "length" || meta.stop === "refusal" ? meta.stop : undefined,
       why: readWhy(meta.route),
       ...readRouteFacts(meta.route),
+      // The live web sources the answer used (stage 205), only when they read back whole and valid.
+      ...readSearch(meta.search),
     },
     createdAt: row.created_at,
     siblings: row.siblings ?? [row.id],

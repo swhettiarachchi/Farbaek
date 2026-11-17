@@ -19,6 +19,11 @@ import { sniffImage } from "@/core/workspace/images";
 import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import { CHAT_SYSTEM_PROMPT, type ChatInputMessage, type ChatModel, type ChatOutcome, type ChatPart } from "@/server/ai/chat-model";
 import { languageNote, planLanguage } from "@/core/chat/language-plan";
+import { modelAt } from "@/core/chat/ladder";
+import { webFailureNote, webOffNote } from "@/core/web/context";
+import { PLANNER_PROMPT, plansLocally, searchSkip } from "@/core/web/plan";
+import type { SearchMeta } from "@/core/web/sources";
+import type { ResearchInput, ResearchResult } from "@/server/web/research";
 import { IMAGE_OUTPUT_TOKENS, type AspectRatio, type ImageGenerator } from "@/server/ai/gemini-image";
 import { log } from "@/server/observability/log";
 import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, type ResolvedPlan, type UsageContext } from "@/server/workspace/ai-usage";
@@ -52,6 +57,8 @@ export interface TurnDeps {
   health?: () => ProviderHealth;
   recordHealth?: (provider: ChatCandidate["provider"], ok: boolean) => void;
   overrides?: RouteSetup["overrides"];
+  /** Checks the live web before an answer (stage 205, server/web/research.ts). Missing: every answer says the web couldn't be checked. */
+  research?: (input: ResearchInput) => Promise<ResearchResult>;
   now(): number;
 }
 
@@ -72,6 +79,13 @@ const CONTEXT_MESSAGES = 80;
 /** User messages back whose files the model still reads; older files are named only. */
 const FILE_TURNS = 3;
 const SAVE_EVERY_MS = 3_000;
+/** Web text an answer may read, by tier (stage 205): a little for the fast models, more where an answer is worth more. */
+const WEB_TOKENS = { fast: 3_000, standard: 6_000, strong: 8_000, frontier: 8_000 } as const;
+/** The web block's own lines (markers, header, numbered sources) beyond the page text. */
+const WEB_FRAME_TOKENS = 600;
+/** The planner's instructions and the conversation it reads, at most; and its reply, with room for a short think. */
+const PLANNER_INPUT_TOKENS = 1_500;
+const PLANNER_OUTPUT_TOKENS = 600;
 
 const CHAT_ERRORS: Record<string, { status: number; message: string }> = {
   CHAT_LIMIT: { status: 409, message: "This conversation is as long as a conversation can be. Start a new chat to carry on." },
@@ -127,7 +141,7 @@ interface ContextMessage {
 }
 
 /** The messages the model reads: the branch, newest last, trimmed to fit, with files for the last few questions only. */
-export function fitContext(messages: ContextMessage[]): { kept: ContextMessage[]; withFiles: Set<string>; tokens: number } {
+export function fitContext(messages: ContextMessage[], budget: number = CONTEXT_TOKENS): { kept: ContextMessage[]; withFiles: Set<string>; tokens: number } {
   const withFiles = new Set<string>();
   let turns = 0;
   for (let i = messages.length - 1; i >= 0 && turns < FILE_TURNS; i--) {
@@ -142,13 +156,26 @@ export function fitContext(messages: ContextMessage[]): { kept: ContextMessage[]
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]!;
     const cost = messageTokens(m, withFiles.has(m.id));
-    if (kept.length > 0 && tokens + cost > CONTEXT_TOKENS) break;
+    if (kept.length > 0 && tokens + cost > budget) break;
     kept.unshift(m);
     tokens += cost;
   }
   // The model's conversation starts with a question.
   while (kept.length > 1 && kept[0]!.role !== "user") kept.shift();
   return { kept, withFiles, tokens };
+}
+
+/** Adds this turn's web results after the person's latest message, for the model only (stage 205). */
+function withContext(messages: ChatInputMessage[], text: string): void {
+  const last = [...messages].reverse().find((m) => m.role === "user");
+  if (last) last.parts.push({ type: "context", text });
+}
+
+/** When this server has no live web search set up: the answer says so, honestly. */
+function noResearch(now: number): ResearchResult {
+  const at = new Date(now);
+  const reason = "live web search isn't set up on this server";
+  return { context: webFailureNote(reason, at), meta: { at: at.toISOString(), status: "failed", queries: [], reason, sources: [] }, plannerUsage: null };
 }
 
 /** Turns the kept messages into the model's input, reading file contents for the ones that carry them. */
@@ -298,7 +325,14 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // is the last one the person wrote.
   const userTexts = base.filter((m) => m.role === "user").map((m) => m.content);
   const asking = questionText ?? userTexts.pop() ?? "";
-  const guidance = languageNote(planLanguage({ message: asking, earlier: userTexts, preference: request.language })) ?? undefined;
+  const languagePlan = planLanguage({ message: asking, earlier: userTexts, preference: request.language });
+  const guidance = languageNote(languagePlan) ?? undefined;
+  // Live web search (stage 205, ADR 0222): every text question checks the web first, unless it's continuing an answer, only an
+  // acknowledgement, or the person switched it off. (Pictures returned earlier.)
+  const skip = searchSkip({ action: request.action, mode, text: asking, webOn: "web" in request ? (request.web ?? true) : true });
+  // The conversation the search planner may read: the turns before this question.
+  const earlierTurns = base.filter((m) => m.kind === "text" && m.content).map((m) => ({ role: m.role, text: m.content }));
+  if (questionText === null && earlierTurns.at(-1)?.role === "user") earlierTurns.pop();
   // What the route needs from earlier (stage 203): the answer before this question, and whether this question is being asked again.
   const before = [...base].reverse().find((m) => m.role === "assistant" && m.kind === "text");
   const previous = before ? { model: modelIdForName(before.modelName), tier: before.meta.tier, provider: before.meta.provider, rating: before.rating } : null;
@@ -319,21 +353,38 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
 
   const contextMessages = [...base.map(asContext), ...(newQuestion ? [newQuestion] : [])];
   if (continuing) contextMessages[contextMessages.length - 1] = asContext(continuing);
-  const context = fitContext(contextMessages);
+  // The web text this answer may read comes out of the conversation's room, and goes into the reservation.
+  const webTokens = skip ? 0 : WEB_TOKENS[choice.tier] + WEB_FRAME_TOKENS;
+  const context = fitContext(contextMessages, CONTEXT_TOKENS - webTokens);
   const maxOutput = MAX_OUTPUT[request.effort];
   // The AI names a chat with its first answer that finishes: a first answer that failed leaves it to the next.
   const needsTitle = !conversationId || (!conversationTitled && !base.some((m) => m.role === "assistant" && m.status === "complete"));
   // Enough for whichever candidate answers: the one standing by may cost more per word.
-  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
+  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + webTokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
 
   const reserved = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units, manual: MANUAL, billing: plan.value });
   if (!reserved.ok) return refused(reserved.code === "QUOTA_EXCEEDED" || reserved.code === "TRIAL_CAP_REACHED" ? 402 : reserved.code === "PLATFORM_DAILY_LIMIT" ? 429 : 503, reserved.message);
   const refund = (reason: "failed" | "stopped", usage: ProviderUsage | null = null) => refundUsage(meter, { orgId, entryId: reserved.value.entryId, usage, reason });
 
+  // The search planner: a short, self-contained English first question is planned without a model; otherwise the answering
+  // provider's fast model writes the queries, on its own small reservation. If that can't be reserved, the plan is made locally.
+  let planner: { model: string; entryId: string } | null = null;
+  if (!skip && !plansLocally(asking, userTexts.length) && modelFor(choice).complete) {
+    const plannerModel = modelAt(choice.provider, "fast", read.kind, false, deps.overrides);
+    const held = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units: reserveUnits(plannerModel, approxTokens(PLANNER_PROMPT) + PLANNER_INPUT_TOKENS, PLANNER_OUTPUT_TOKENS), manual: MANUAL, billing: plan.value });
+    if (held.ok) planner = { model: plannerModel, entryId: held.value.entryId };
+  }
+  const settlePlanner = async (usage: ProviderUsage | null) => {
+    if (!planner) return;
+    if (usage) await settleUsage(meter, { orgId, entryId: planner.entryId, usage });
+    else await refundUsage(meter, { orgId, entryId: planner.entryId, usage: null, reason: "failed" });
+  };
+
   // 3. The writes: the conversation, the question and an empty answer.
   const written = await writeQuestionAndAnswer(deps, { orgId, actor, request, conversationId, questionParent, questionText, questionFiles, existingQuestion, continuing, kind: "text", model: choice.model });
   if (!written.ok) {
     await refund("failed");
+    await settlePlanner(null);
     return written;
   }
   const { conversationId: convId, question, answerId, created } = written;
@@ -342,7 +393,13 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const withFiles = new Set([...context.withFiles].map((id) => (id === "new" ? (question?.id ?? id) : id)));
   const modelInput = await toModelInput(deps.reads, { kept: keptMessages, withFiles });
   const prior = continuing?.content ?? "";
-  if (continuing) modelInput.push({ role: "user", parts: [{ type: "text", text: "Continue your previous answer from exactly where it stopped. Don't repeat anything you already wrote, and don't comment on continuing." }] });
+  if (continuing) {
+    // A continued answer doesn't search again: it keeps citing the sources it started with (stage 205).
+    const sources = continuing.meta.search?.sources ?? [];
+    const parts: ChatPart[] = [{ type: "text", text: "Continue your previous answer from exactly where it stopped. Don't repeat anything you already wrote, and don't comment on continuing." }];
+    if (sources.length > 0) parts.push({ type: "context", text: `The web sources that answer was using, to keep citing as before:\n${sources.map((s) => `[${s.n}] ${s.title} | ${s.site} | ${s.url}`).join("\n")}` });
+    modelInput.push({ role: "user", parts });
+  }
 
   const answer: ChatMessage = {
     id: answerId,
@@ -438,6 +495,34 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
         return result;
       };
 
+      // Live web search (stage 205, ADR 0222), before the model is asked, with its progress on screen. The results go after the
+      // question for this answer only: the question as saved stays the person's own words. A continued answer keeps its sources.
+      const tell = (e: TurnEvent) => {
+        try {
+          emit(e);
+        } catch {
+          // The browser has gone; the answer carries on and is saved.
+        }
+      };
+      let searchMeta: SearchMeta | null = continuing?.meta.search ?? null;
+      let webContext: string | null = null;
+      if (!skip) {
+        const language = languagePlan.romanized || !languagePlan.language || !/^[a-z]{2}$/.test(languagePlan.language) ? null : languagePlan.language;
+        const result = deps.research
+          ? await deps.research({ question: asking, earlier: earlierTurns, local: planner === null, plannerModel: planner ? modelFor(choice) : null, plannerModelId: planner?.model ?? null, language, budgetChars: WEB_TOKENS[choice.tier] * 3, signal, onStage: (s) => tell({ type: "search", ...s }) })
+          : noResearch(deps.now());
+        await settlePlanner(result.plannerUsage);
+        webContext = result.context;
+        searchMeta = result.meta;
+        tell({ type: "search", stage: result.meta.status === "done" ? "done" : "failed", search: result.meta });
+      } else if (skip === "off") {
+        const at = new Date(deps.now());
+        webContext = webOffNote(at);
+        searchMeta = { at: at.toISOString(), status: "off", queries: [], sources: [] };
+        tell({ type: "search", stage: "off", search: searchMeta });
+      }
+      if (webContext) withContext(modelInput, webContext);
+
       let outcome = await ask(modelInput);
       // A file the provider can't read (too large, locked, damaged) would fail every later question too. Asked once more without the
       // files of earlier questions, so one bad file doesn't break the conversation.
@@ -445,6 +530,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       const older = [...withFiles].filter((id) => id !== newest);
       if (!outcome.ok && !outcome.aborted && outcome.failure === "INCOMPLETE" && !added && thinkingAt === null && older.length > 0) {
         const lean = await toModelInput(deps.reads, { kept: keptMessages, withFiles: new Set(newest && withFiles.has(newest) ? [newest] : []) });
+        if (webContext) withContext(lean, webContext);
         outcome = await ask(continuing ? [...lean, ...modelInput.slice(-1)] : lean);
       }
       await saving;
@@ -466,7 +552,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       // The answer's own facts, written whole: a continued answer no longer says it reached its length limit.
       // The route's facts are kept with the answer: the next question reads its tier and provider, and ratings can later be read by kind.
       const route = { why: routed.reason, kind: routed.kind, difficulty: routed.difficulty, tier: answering.tier, provider: answering.provider, ...(fellBack ? { fallback: true } : {}) };
-      const finalSave = await save(status, error, stop ? { stop, route } : { route });
+      const finalSave = await save(status, error, { ...(stop ? { stop } : {}), route, ...(searchMeta ? { search: searchMeta } : {}) });
       if (!finalSave.ok) log("error", "chat.save_failed", { status, reason: finalSave.error.slice(0, 120) });
       try {
         emit({ type: "done", status, error, thinkingMs, modelName: modelName(outcome.usage?.model ?? answering.model), stop });
@@ -512,7 +598,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
           const reported = usage && usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0) > 0 ? usage : null;
           const spent: ProviderUsage = reported
             ? { ...reported, outputTokens: Math.max(reported.outputTokens, wrote) }
-            : { model: usage?.model ?? answering.model, inputTokens: context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? ""), outputTokens: Math.max(usage?.outputTokens ?? 0, wrote), cacheWriteTokens: 0, cacheReadTokens: 0 };
+            : { model: usage?.model ?? answering.model, inputTokens: context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + approxTokens(webContext ?? ""), outputTokens: Math.max(usage?.outputTokens ?? 0, wrote), cacheWriteTokens: 0, cacheReadTokens: 0 };
           await settleUsage(meter, { orgId, entryId: reserved.value.entryId, usage: spent });
         } else await refund("stopped", usage);
       } else await refund("failed", usage);

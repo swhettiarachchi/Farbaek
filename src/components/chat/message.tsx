@@ -39,6 +39,7 @@ import { KnightMark } from "@/components/brand/knight-mark";
 import { buttonClasses } from "@/components/ui/button";
 import { MarkdownView } from "./markdown-view";
 import { IconButton, Menu, useCopy } from "./primitives";
+import { searchLine, WebSources, type LiveSearch } from "./web-sources";
 
 export const fileUrl = (id: string, base = "/app/chat/api/file") => `${base}/${id}`;
 
@@ -200,6 +201,7 @@ const HANDOFFS: { to: HandOff; label: string; short: string; hint: string; icon:
 export function AnswerMessage({
   message,
   thinking,
+  search,
   speaking = false,
   busy = false,
   last = false,
@@ -210,6 +212,8 @@ export function AnswerMessage({
   message: ChatMessage;
   /** The thinking summary while the model thinks; null when it isn't thinking. */
   thinking?: string | null;
+  /** Where the live web search is, while it runs (stage 205). */
+  search?: LiveSearch | null;
   speaking?: boolean;
   busy?: boolean;
   last?: boolean;
@@ -252,7 +256,7 @@ export function AnswerMessage({
             <span className="absolute inset-0 rounded-full bg-accent/10 motion-safe:animate-pulse" />
             <BrandLogo height={20} />
           </span>
-          Working on it
+          {searchLine(search) ?? "Working on it"}
         </div>
       ) : null}
 
@@ -278,6 +282,7 @@ export function AnswerMessage({
           </span>
         </p>
       ) : null}
+      {message.kind === "text" && message.meta.search ? <WebSources search={message.meta.search} /> : null}
       {message.status === "stopped" && !streaming ? <p className="mt-2 text-sm text-ink-3">{message.content ? "Stopped. What was written is kept." : "Stopped before it started."}</p> : null}
       {message.meta.stop === "length" && message.status === "complete" ? <p className="mt-2 text-sm text-ink-3">The answer reached its length limit.</p> : null}
 
@@ -376,12 +381,23 @@ function AnswerDetails({ message }: { message: ChatMessage }) {
             <span className="basis-full text-ink-2">
               Answered by {message.modelName}
               {message.meta.why ? `, chosen for ${message.meta.why}` : ""}.
+              {checkedAt(message)}
             </span>
           ) : null}
         </>
       ) : null}
     </span>
   );
+}
+
+/** When the web was checked for this answer, in the person's own time; shown only once Details is opened (stage 205). */
+function checkedAt(message: ChatMessage): string {
+  const search = message.meta.search;
+  if (!search || search.status !== "done") return "";
+  const t = Date.parse(search.at);
+  if (!Number.isFinite(t)) return "";
+  const when = new Date(t).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return ` Checked the web on ${when}${search.queries.length > 0 ? `, searching for ${search.queries.map((q) => `“${q}”`).join(", ")}` : ""}.`;
 }
 
 function ImageAnswer({ message, fileBase, readOnly, onOpen, onEdit }: { message: ChatMessage; fileBase: string; readOnly: boolean; onOpen?: (f: ChatFile) => void; onEdit?: (f: ChatFile) => void }) {

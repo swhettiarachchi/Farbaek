@@ -1,7 +1,7 @@
 // The page reader's core (stage 205, ADR 0222): robots.txt first, then the page, then its text. At most six pages at once and
 // two per site, so neither the reader nor any one site is overwhelmed. Pages are kept in memory for ten minutes and robots.txt
 // for a day; nothing is written to disk.
-import { fetchPage, PUBLIC_NET } from "./fetch.mjs";
+import { fetchPage, PUBLIC_NET, refuseUrl } from "./fetch.mjs";
 import { extractPage } from "./extract.mjs";
 import { robotsFromResponse, robotsPermit } from "./robots.mjs";
 
@@ -72,6 +72,9 @@ export function createReader({ net = PUBLIC_NET, now = Date.now, maxConcurrent =
     } catch {
       return { ok: false, reason: "not a web address" };
     }
+    // An address that may never be fetched is refused for that reason, before robots.txt or anything else is asked.
+    const refused = refuseUrl(parsed.toString(), net);
+    if (refused) return { ok: false, reason: refused };
     const cached = pages.get(parsed.toString(), now());
     if (cached) return cached;
     const host = parsed.hostname;
