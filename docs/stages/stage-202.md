@@ -1,7 +1,8 @@
 # Stage 202: a Chat that goes past its picture, then Build's own workspace
 
 - **Date:** 2026-11-17
-- **Branch:** `feat/stage-202-chat-and-workbench` (cut from `feat/stage-201-farbaek-ai`, pull request #264, not yet merged)
+- **Branch:** `feat/stage-202-chat-and-workbench` (cut from `feat/stage-201-farbaek-ai`)
+- **Pull request:** #265, against `main`. It carries stages 200 and 201 as well (#263, #264), so merging it lands all three, and stage 201's migration v100 must be applied and read back first.
 - **Decisions:** ADR 0218 (Chat's stage, and answers that hand off), ADR 0219 (Build's workspace)
 - **Migration:** none
 
