@@ -12,8 +12,15 @@ services:
     environment:
       FARBAEK_ENVIRONMENT: production
       FARBAEK_REGION: ${FARBAEK_REGION:-}
+      # Live web search (stage 205, ADR 0222): the search service and the page reader below. If either is down, Chat
+      # still answers and says it couldn't check the web; there's no depends_on on purpose.
+      WEB_SEARCH_URL: http://searxng:8080
+      WEB_READER_URL: http://reader:8080
     expose:
       - "3000"
+    networks:
+      - default
+      - web
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s
@@ -68,8 +75,63 @@ services:
     networks:
       - stun
 
+  # Live web search (stage 205, ADR 0222). SearXNG asks several search engines and answers the app in JSON. Pinned by
+  # digest to a release at least two weeks old. Only on the `web` network: it can reach the internet and the app, never the
+  # database. Its secret is generated at every start and never stored.
+  searxng:
+    image: searxng/searxng:2026.11.1-10db664f1@sha256:63f50f92d266cd2859193ed46c10de9f39d4e44fc24344b2f2f1d2a80ba3689c
+    container_name: farbaek-searxng
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", 'export SEARXNG_SECRET="$$(head -c 32 /dev/urandom | od -An -tx1 | tr -d " \n")"; exec /usr/local/searxng/entrypoint.sh']
+    environment:
+      FORCE_OWNERSHIP: "false"
+      SEARXNG_LIMITER: "false"
+      SEARXNG_IMAGE_PROXY: "false"
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    tmpfs:
+      - /var/cache/searxng
+    expose:
+      - "8080"
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    networks:
+      - web
+
+  # Farbaek's page reader (stage 205, ADR 0222): opens the pages search found and returns their text. The app's own image,
+  # run as a separate, locked-down process: no privileges, read-only, little memory, and only on the `web` network, so a
+  # page address can never reach the database or anything else inside. Its own address checks refuse private addresses too.
+  reader:
+    image: farbaek-app:${FARBAEK_IMAGE_TAG:?set FARBAEK_IMAGE_TAG to the commit to run}
+    container_name: farbaek-reader
+    restart: unless-stopped
+    user: node
+    read_only: true
+    command: ["node", "--max-old-space-size=256", "src/server/web/reader/server.mjs"]
+    environment:
+      NODE_ENV: production
+      READER_PORT: "8080"
+    expose:
+      - "8080"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 384m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - web
+
 networks:
   stun:
+  web:
 
 volumes:
   caddy_data:

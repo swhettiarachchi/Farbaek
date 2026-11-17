@@ -66,8 +66,9 @@ main() {
     exit 1
   fi
 
-  FARBAEK_IMAGE_TAG="$sha" "${COMPOSE[@]}" up -d --remove-orphans >>"$LOG" 2>&1
-  if healthy; then
+  # A failed start (an image that won't pull, a service that won't create) counts like an unhealthy one: it's marked failed
+  # and today's version goes back, instead of `set -e` stopping here and the timer trying the same commit every 2 minutes.
+  if FARBAEK_IMAGE_TAG="$sha" "${COMPOSE[@]}" up -d --remove-orphans >>"$LOG" 2>&1 && healthy; then
     [ -n "$current" ] && [ "$current" != "$sha" ] && echo "$current" > "$STATE/previous"
     echo "$sha" > "$STATE/current"
     FARBAEK_IMAGE_TAG="$sha" "${COMPOSE[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile >>"$LOG" 2>&1 || log "caddy reload failed; it keeps its last config"
