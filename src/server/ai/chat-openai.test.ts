@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { CHAT_SYSTEM_PROMPT } from "./chat-model";
 import { createOpenAiChat } from "./chat-openai";
+
+describe("the chat system prompt (stage 204)", () => {
+  it("says a request for English letters means the person's language spelled in English letters, not English", () => {
+    expect(CHAT_SYSTEM_PROMPT).toContain("unless they ask for English letters: then write their language (its words and grammar) spelled in English letters, never the English language");
+  });
+});
 
 /** A fetch that records the request and answers with these server-sent events. */
 function fakeFetch(events: object[], status = 200) {
