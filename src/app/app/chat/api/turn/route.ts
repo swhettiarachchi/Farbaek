@@ -14,6 +14,7 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { providerHealth, recordProviderResult } from "@/server/ai/provider-health";
+import { webResearch } from "@/server/web/wiring";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
 export const dynamic = "force-dynamic";
@@ -97,6 +98,8 @@ export async function POST(request: Request) {
     health: () => providerHealth(),
     recordHealth: recordProviderResult,
     overrides: platformModels(),
+    // Live web search before every answer (stage 205, ADR 0222).
+    research: webResearch(),
     now: () => Date.now(),
   };
   if (!models.claude && !models.openai && !image) return refuse(models.error ?? "AI isn't connected on this server yet.", 503);

@@ -22,6 +22,8 @@ Internal reference (ADR 0020). People never see units: they see the share of thi
 
 USD per million tokens, list prices retrieved 2026-10-18 (sources in `reports/AI coding platform costs and pricing.md`). A model id the rate card doesn't know is priced as Fable, so nothing is under-metered. Gemini is listed at its announced higher prices so allowances stay profitable when they land.
 
+**Live web search in chat (stage 205, ADR 0222)** has no per-search fee: SearXNG and the page reader run on Farbaek's own server. What it costs is tokens, metered like the rest of the answer: the web text the model reads (at most about 3,000 tokens on the fast tier, 6,000 on standard and 8,000 above, all reserved before the answer starts) and, for follow-up questions, one small planning call on the answering provider's fast model, reserved and settled as its own `chat` entry. A paid search provider added later would add its own fee per search here.
+
 ## Allowances
 
 `src/core/billing/allowance.ts` turns a price into an allowance, so plans can't drift from the research:

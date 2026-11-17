@@ -22,6 +22,8 @@ function toInput(message: ChatInputMessage): { role: "user" | "assistant"; conte
       if (part.text) content.push({ type: "input_text", text: part.text });
     } else if (part.type === "image") content.push({ type: "input_image", image_url: `data:${part.mime};base64,${part.data}` });
     else if (part.type === "pdf") content.push({ type: "input_file", filename: part.name.slice(0, 200), file_data: `data:application/pdf;base64,${part.data}` });
+    // The live web results (stage 205): last, so everything before them stays the same from turn to turn and caches.
+    else if (part.type === "context") content.push({ type: "input_text", text: part.text });
     else content.push({ type: "input_text", text: `Attached file ${part.name}:\n\n${part.text}` });
   }
   return { role: "user", content: content.length > 0 ? content : [{ type: "input_text", text: "(no text)" }] };
@@ -142,6 +144,30 @@ export function createOpenAiChat(options: { key: string; fetcher?: typeof fetch 
         return { title: text, usage: usageOf(request.model, reply.usage) };
       } catch {
         return { title: null, usage: null };
+      }
+    },
+
+    async complete(request, signal) {
+      try {
+        const response = await fetcher(RESPONSES_URL, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: request.model,
+            instructions: request.system,
+            input: request.input,
+            max_output_tokens: request.maxOutputTokens,
+            reasoning: { effort: "low" },
+            store: false,
+          }),
+          signal,
+        });
+        if (!response.ok) return { text: null, usage: null };
+        const reply = (await response.json()) as { output?: { type?: string; content?: { type?: string; text?: string }[] }[]; usage?: ResponseUsage };
+        const text = (reply.output ?? []).filter((o) => o.type === "message").flatMap((o) => o.content ?? []).find((c) => c.type === "output_text")?.text ?? null;
+        return { text, usage: usageOf(request.model, reply.usage) };
+      } catch {
+        return { text: null, usage: null };
       }
     },
   };

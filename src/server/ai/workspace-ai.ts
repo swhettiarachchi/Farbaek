@@ -24,6 +24,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import { openToken, sealToken, vaultKey } from "@/server/launch/token-vault";
 import { resolveAiProvider, type AiProviderId } from "@/server/ai/config";
+import { isPublicIp } from "@/server/web/reader/address.mjs";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import type { AiUsageDeps, FreeUsageDeps } from "@/server/workspace/ai-usage";
 
@@ -43,14 +44,9 @@ export function keyHint(key: string): string {
   return key.replace(/[^A-Za-z0-9_-]/g, "").slice(-4).padStart(4, "x");
 }
 
-const PRIVATE_V4 = [/^10\./, /^127\./, /^0\./, /^169\.254\./, /^192\.168\./, /^172\.(1[6-9]|2\d|3[01])\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, /^(22[4-9]|2[3-5]\d)\./];
-const PRIVATE_V6 = [/^::1$/, /^::$/, /^f[cd]/i, /^fe[89ab]/i, /^::ffff:/i];
-
+/** A public, globally routed address: the same rule the web page reader uses (stage 205, ADR 0222). */
 export function isPublicAddress(address: string): boolean {
-  const v = isIP(address);
-  if (v === 4) return !PRIVATE_V4.some((r) => r.test(address));
-  if (v === 6) return !PRIVATE_V6.some((r) => r.test(address));
-  return false;
+  return isPublicIp(address);
 }
 
 /** A gateway address that's https on a public name, normalized; or why not. */

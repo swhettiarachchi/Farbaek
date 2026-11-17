@@ -9,7 +9,7 @@
  */
 
 /** The public pages, in the order a visitor meets them. */
-export const PUBLIC_PAGES = ["/", "/chat", "/images", "/video", "/build", "/survey", "/proof", "/pricing", "/security", "/verify", "/proofpack/v1", "/privacy", "/terms", "/acceptable-use"] as const;
+export const PUBLIC_PAGES = ["/", "/chat", "/images", "/video", "/build", "/survey", "/proof", "/pricing", "/security", "/verify", "/proofpack/v1", "/privacy", "/terms", "/acceptable-use", "/bot"] as const;
 
 /**
  * Paths crawlers are asked to leave alone on the app's host. Only the ordinary

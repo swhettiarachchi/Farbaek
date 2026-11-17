@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import { ANSWER_LANGUAGE_CODES } from "./language-names";
+import type { SearchMeta } from "@/core/web/sources";
 
 export const CHAT_LIMITS = {
   /** Characters in one question. */
@@ -53,6 +54,8 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     model: modelChoice,
     effort: z.enum(EFFORTS),
     language: languageChoice,
+    /** Check the live web first (stage 205): on unless the person switched it off in this browser. */
+    web: z.boolean().optional(),
     mode: z.enum(["text", "image"]),
     aspect: z.enum(ASPECTS),
     projectId: id.nullable(),
@@ -67,6 +70,8 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     model: modelChoice,
     effort: z.enum(EFFORTS),
     language: languageChoice,
+    /** Check the live web first (stage 205): on unless the person switched it off in this browser. */
+    web: z.boolean().optional(),
     mode: z.enum(["text", "image"]),
     aspect: z.enum(ASPECTS),
   }),
@@ -80,6 +85,8 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     model: modelChoice,
     effort: z.enum(EFFORTS),
     language: languageChoice,
+    /** Check the live web first (stage 205): on unless the person switched it off in this browser. */
+    web: z.boolean().optional(),
     mode: z.enum(["text", "image"]),
     aspect: z.enum(ASPECTS),
   }),
@@ -121,7 +128,7 @@ export interface ChatMessage {
   rating: -1 | 1 | null;
   thinkingMs: number | null;
   /** why: what Farbaek AI chose the model for ("a question about code"), shown in the answer's details (ADR 0215). */
-  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal"; why?: string; tier?: "fast" | "standard" | "strong" | "frontier"; provider?: "anthropic" | "openai" };
+  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal"; why?: string; tier?: "fast" | "standard" | "strong" | "frontier"; provider?: "anthropic" | "openai"; search?: SearchMeta };
   createdAt: string;
   /** This message and its siblings, oldest first: an edited question or a new answer is a sibling. */
   siblings: string[];
@@ -161,6 +168,8 @@ export type TurnEvent =
   | { type: "thinking"; v: string }
   /** The model that was answering failed before writing anything, and another took the question (ADR 0215). */
   | { type: "route"; modelName: string; note: string }
+  /** Checking the live web before the answer (stage 205): planning, searching, reading, then done, failed or off with the saved facts. */
+  | { type: "search"; stage: "planning" | "searching" | "reading" | "done" | "failed" | "off"; queries?: string[]; pages?: number; search?: SearchMeta }
   | { type: "text"; v: string }
   | { type: "image"; file: ChatFile }
   | { type: "title"; title: string }

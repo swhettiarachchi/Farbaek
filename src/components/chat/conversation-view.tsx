@@ -22,6 +22,7 @@ import { useChat } from "./chat-shell";
 import { Composer, type ComposerHandle, type SendInput } from "./composer";
 import { ImageViewer } from "./dialogs";
 import { AnswerMessage, fileUrl, UserMessage } from "./message";
+import type { LiveSearch } from "./web-sources";
 import { IconButton, Menu, useToast } from "./primitives";
 import { useChatPrefs, useReducedMotion } from "./prefs";
 import { readTurnStream } from "./stream";
@@ -60,7 +61,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
   const [title, setTitle] = useState(conversation?.title ?? "");
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [hasEarlier, setHasEarlier] = useState(initialHasEarlier);
-  const [live, setLive] = useState<{ answerId: string; thinking: string | null } | null>(null);
+  const [live, setLive] = useState<{ answerId: string; thinking: string | null; search?: LiveSearch | null } | null>(null);
   const [speaking, setSpeaking] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{ src: string; name: string; prompt: string | null; width: number | null; height: number | null } | null>(null);
   const [atBottom, setAtBottom] = useState(true);
@@ -274,6 +275,14 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
           setLive((l) => (l ? { ...l, thinking: null } : l));
           setMessages((ms) => ms.map((m) => (m.id === id ? { ...m, modelName: e.modelName } : m)));
           toast({ text: e.note, tone: "info" });
+        } else if (e.type === "search") {
+          // Checking the live web (stage 205): the status line follows it, and the saved facts go on the answer when it ends.
+          setLive((l) => (l ? { ...l, search: { stage: e.stage, queries: e.queries ?? l.search?.queries, pages: e.pages } } : l));
+          if (e.search) {
+            const id = answerRef.current;
+            const found = e.search;
+            setMessages((ms) => ms.map((m) => (m.id === id ? { ...m, meta: { ...m.meta, search: found } } : m)));
+          }
         } else if (e.type === "thinking") {
           setLive((l) => (l ? { ...l, thinking: `${l.thinking ?? ""}${e.v}` } : l));
         } else if (e.type === "text") {
@@ -329,7 +338,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     const question = placeholder(TEMP_QUESTION, "user", { content: input.text, files: input.files, parentId });
     const answer = placeholder(TEMP_ANSWER, "assistant", { kind: input.mode, meta: input.mode === "image" ? { aspect: input.aspect, prompt: input.text } : {} });
     void runTurn(
-      { action: "send", conversationId: convId, parentId: convId ? parentId : null, text: input.text, files: input.files.map((f) => f.id), model: input.model, effort: input.effort, language: { answer: prefs.answerLanguage, script: prefs.answerScript }, mode: input.mode, aspect: input.aspect, projectId: convId ? null : projectId },
+      { action: "send", conversationId: convId, parentId: convId ? parentId : null, text: input.text, files: input.files.map((f) => f.id), model: input.model, effort: input.effort, language: { answer: prefs.answerLanguage, script: prefs.answerScript }, web: prefs.searchWeb, mode: input.mode, aspect: input.aspect, projectId: convId ? null : projectId },
       messages,
       [question, answer],
       () => composer.current?.fill(input.text, { mode: input.mode, files: input.files }),
@@ -343,7 +352,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     if (at < 0) return;
     const p = prefs;
     void runTurn(
-      { action: "regenerate", conversationId: convId, messageId: answer.parentId, replacing: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
+      { action: "regenerate", conversationId: convId, messageId: answer.parentId, replacing: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: p.searchWeb, mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
       messages.slice(0, at + 1),
       [placeholder(TEMP_ANSWER, "assistant", { kind: answer.kind, parentId: answer.parentId, meta: answer.kind === "image" ? { aspect: answer.meta.aspect, prompt: answer.meta.prompt } : {} })],
       null,
@@ -354,7 +363,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     if (busy || !convId) return;
     const at = messages.findIndex((m) => m.id === question.id);
     const p = prefs;
-    void runTurn({ action: "regenerate", conversationId: convId, messageId: question.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, mode: "text", aspect: "1:1" }, messages.slice(0, at + 1), [placeholder(TEMP_ANSWER, "assistant", { parentId: question.id })], null);
+    void runTurn({ action: "regenerate", conversationId: convId, messageId: question.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: p.searchWeb, mode: "text", aspect: "1:1" }, messages.slice(0, at + 1), [placeholder(TEMP_ANSWER, "assistant", { parentId: question.id })], null);
   };
 
   const edit = (question: ChatMessage, text: string) => {
@@ -365,7 +374,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     const nextAnswer = messages[at + 1];
     const mode = nextAnswer?.kind === "image" ? "image" : "text";
     void runTurn(
-      { action: "edit", conversationId: convId, messageId: question.id, text, files: question.files.map((f) => f.id), model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, mode, aspect: ((nextAnswer?.meta.aspect as SendInput["aspect"]) ?? "1:1") },
+      { action: "edit", conversationId: convId, messageId: question.id, text, files: question.files.map((f) => f.id), model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: p.searchWeb, mode, aspect: ((nextAnswer?.meta.aspect as SendInput["aspect"]) ?? "1:1") },
       messages.slice(0, at),
       [placeholder(TEMP_QUESTION, "user", { content: text, files: question.files, parentId: question.parentId }), placeholder(TEMP_ANSWER, "assistant", { kind: mode, meta: mode === "image" ? { aspect: nextAnswer?.meta.aspect, prompt: text } : {} })],
       null,
@@ -556,6 +565,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                     key={m.id}
                     message={m}
                     thinking={live?.answerId === m.id ? live.thinking : null}
+                    search={live?.answerId === m.id ? (live.search ?? null) : null}
                     busy={busy}
                     last={i === messages.length - 1}
                     readOnly={chat.demo}

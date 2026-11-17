@@ -15,11 +15,14 @@ function fallbackParams(model: string): { betas: ["server-side-fallback-2026-07-
 
 type Block = Anthropic.Beta.BetaContentBlockParam;
 
-function toBlocks(message: ChatInputMessage): Block[] {
+function toBlocks(message: ChatInputMessage, context?: { at: number }): Block[] {
   const blocks: Block[] = [];
   for (const part of message.parts) {
     if (part.type === "text") {
       if (part.text) blocks.push({ type: "text", text: part.text });
+    } else if (part.type === "context") {
+      if (context && context.at < 0) context.at = blocks.length;
+      blocks.push({ type: "text", text: part.text });
     } else if (part.type === "image") {
       blocks.push({ type: "image", source: { type: "base64", media_type: part.mime as "image/png" | "image/jpeg" | "image/gif" | "image/webp", data: part.data } });
     } else if (part.type === "pdf") {
@@ -29,6 +32,28 @@ function toBlocks(message: ChatInputMessage): Block[] {
     }
   }
   return blocks.length > 0 ? blocks : [{ type: "text", text: "(no text)" }];
+}
+
+/**
+ * The messages as content blocks, and whether they carry their own cache breakpoint. Live web results (stage 205) change
+ * every turn, so the breakpoint goes on the block just before them, and the conversation before them stays cached; without
+ * them, the request's automatic breakpoint at the end does the same job.
+ */
+export function toMessages(messages: ChatInputMessage[]): { messages: Anthropic.Beta.BetaMessageParam[]; breakpoint: boolean } {
+  const out: Anthropic.Beta.BetaMessageParam[] = [];
+  let breakpoint = false;
+  messages.forEach((m, i) => {
+    const context = { at: -1 };
+    const content = toBlocks(m, context);
+    out.push({ role: m.role, content });
+    if (context.at < 0 || breakpoint) return;
+    const before = context.at > 0 ? content[context.at - 1] : i > 0 ? (out[i - 1]!.content as Block[]).at(-1) : undefined;
+    if (before) {
+      (before as Block & { cache_control?: { type: "ephemeral" } }).cache_control = { type: "ephemeral" };
+      breakpoint = true;
+    }
+  });
+  return { messages: out, breakpoint };
 }
 
 interface StreamUsage {
@@ -58,6 +83,7 @@ export function createAnthropicChat(client: Anthropic = new Anthropic({ maxRetri
     async stream(request, handlers, signal): Promise<ChatOutcome> {
       const usage: StreamUsage = { model: request.model, input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
       let started = false;
+      const input = toMessages(request.messages);
       try {
         const stream = client.beta.messages.stream(
           {
@@ -66,11 +92,11 @@ export function createAnthropicChat(client: Anthropic = new Anthropic({ maxRetri
             ...fallbackParams(request.model),
             thinking: { type: "adaptive", display: "summarized" },
             output_config: { effort: request.thinking },
-            cache_control: { type: "ephemeral" },
+            ...(input.breakpoint ? {} : { cache_control: { type: "ephemeral" as const } }),
             // The language note goes after the unchanged system prompt (stage 204). It stays the same through a conversation in one
             // language, so the cached conversation still matches; when the language changes, the conversation is read in full once.
             system: [{ type: "text", text: request.system }, ...(request.guidance ? [{ type: "text" as const, text: request.guidance }] : [])],
-            messages: request.messages.map((m) => ({ role: m.role, content: toBlocks(m) })),
+            messages: input.messages,
           },
           { signal },
         );
@@ -127,6 +153,28 @@ export function createAnthropicChat(client: Anthropic = new Anthropic({ maxRetri
         };
       } catch {
         return { title: null, usage: null };
+      }
+    },
+
+    async complete(request, signal) {
+      try {
+        const message = await client.messages.create(
+          {
+            model: request.model,
+            max_tokens: request.maxOutputTokens,
+            output_config: { effort: "low" },
+            system: request.system,
+            messages: [{ role: "user", content: request.input }],
+          },
+          { signal },
+        );
+        const text = message.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? null;
+        return {
+          text: message.stop_reason === "refusal" ? null : text,
+          usage: { model: message.model, inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens, cacheWriteTokens: message.usage.cache_creation_input_tokens ?? 0, cacheReadTokens: message.usage.cache_read_input_tokens ?? 0 },
+        };
+      } catch {
+        return { text: null, usage: null };
       }
     },
   };

@@ -21,10 +21,12 @@ export interface ChatPrefs {
   answerLanguage: string;
   /** For languages with their own script: that script (default) or English letters. */
   answerScript: AnswerScript;
+  /** Check the live web before every answer (stage 205). On unless switched off. */
+  searchWeb: boolean;
 }
 
 const KEY = "fb-chat-prefs";
-const DEFAULTS: ChatPrefs = { model: "auto", effort: "balanced", enterSends: true, sidebarFolded: false, answerLanguage: "auto", answerScript: "native" };
+const DEFAULTS: ChatPrefs = { model: "auto", effort: "balanced", enterSends: true, sidebarFolded: false, answerLanguage: "auto", answerScript: "native", searchWeb: true };
 const listeners = new Set<() => void>();
 let cache: ChatPrefs | null = null;
 let raw: string | null = null;
@@ -48,6 +50,7 @@ function read(): ChatPrefs {
       sidebarFolded: typeof parsed.sidebarFolded === "boolean" ? parsed.sidebarFolded : DEFAULTS.sidebarFolded,
       answerLanguage: language.answer,
       answerScript: language.script,
+      searchWeb: typeof parsed.searchWeb === "boolean" ? parsed.searchWeb : DEFAULTS.searchWeb,
     };
   } catch {
     cache = DEFAULTS;
