@@ -12,6 +12,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { shareChatAction, unshareChatAction } from "@/app/app/chat/actions";
 import type { ChatAvailabilityView } from "./chat-shell";
+import { MemorySettings } from "./memory-settings";
 import { setChatPrefs, useChatPrefs, type ChatTheme } from "./prefs";
 import { Dialog, useCopy } from "./primitives";
 
@@ -277,6 +278,8 @@ export function SettingsDialog({ open, onClose, theme, onTheme, availability, pl
           </div>
           <p className="mt-2 text-xs text-ink-3">Sinhala, Hindi, Tamil and others are answered in their own script, even when you type them in English letters. Choose English letters to get answers the way you type.</p>
         </section>
+
+        <MemorySettings />
 
         <section aria-labelledby="chat-set-send">
           <h3 id="chat-set-send" className={LABEL_CLASSES}>

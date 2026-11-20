@@ -76,7 +76,7 @@ export function cleanQuery(text: string): string {
 }
 
 const DAY = /\b(?:today|tonight|now|right now|breaking|this morning|this evening|yesterday|just (?:released|announced|happened)|stock|share price|exchange rate|score|weather|traffic)\b|(?<![\p{L}\p{M}])(?:ada|adha|dan|den|daen|heta|iye|kalagunaya|අද|දැන්|හෙට|ඊයේ|කාලගුණය)(?![\p{L}\p{M}])/iu;
-const WEEK = /\b(?:this week|last week|recent(?:ly)?|new|newly|just|update|updates|latest|newest|current|currently|live|price of|prices?)\b|(?<![\p{L}\p{M}])(?:aluth|alut|aluthma|aluthin|nawathama|mila|kiyada|අලුත්|අලුත්ම|අලුතින්|නවතම|මිල|කීයද)(?![\p{L}\p{M}])/iu;
+const WEEK = /\b(?:this week|last week|recent(?:ly)?|new|newly|just|update|updates|latest|newest|current|currently|live (?:scores?|updates?|stream|results?|coverage)|price of|prices?)\b|(?<![\p{L}\p{M}])(?:aluth|alut|aluthma|aluthin|nawathama|mila|kiyada|අලුත්|අලුත්ම|අලුතින්|නවතම|මිල|කීයද)(?![\p{L}\p{M}])/iu;
 const MONTH = /\b(?:this month|last month)\b/i;
 const YEAR = /\b(?:this year|last year|20\d\d)\b/i;
 

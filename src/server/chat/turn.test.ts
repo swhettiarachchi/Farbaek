@@ -54,7 +54,7 @@ function fakeModel(chunks: string[], outcome: (written: string) => ChatOutcome, 
   return m;
 }
 
-function fakeDeps(over: { model?: ChatModel | null; images?: ImageGenerator | null; reserveError?: string; path?: ChatMessage[]; plan?: "free" | "pro"; pending?: Awaited<ReturnType<TurnDeps["reads"]["pendingFiles"]>>; titleApplied?: boolean } = {}) {
+function fakeDeps(over: { model?: ChatModel | null; images?: ImageGenerator | null; reserveError?: string; path?: ChatMessage[]; plan?: "free" | "pro"; pending?: Awaited<ReturnType<TurnDeps["reads"]["pendingFiles"]>>; titleApplied?: boolean; memoryFull?: boolean } = {}) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
   const usage: UsageContext & AiUsageDeps = {
@@ -74,6 +74,9 @@ function fakeDeps(over: { model?: ChatModel | null; images?: ImageGenerator | nu
     saveFile: async (input) => (calls.push({ name: "saveFile", input }), { ok: true, value: "file-1" }),
     autoTitle: async (input) => (calls.push({ name: "autoTitle", input }), { ok: true, value: over.titleApplied ?? true }),
     beginTurn: async (input) => (calls.push({ name: "beginTurn", input }), { ok: true, value: { conversation: CONV, question: Q1, answer: A1 } }),
+    saveSummary: async (input) => (calls.push({ name: "saveSummary", input }), { ok: true, value: null }),
+    remember: async (input) => (calls.push({ name: "remember", input }), over.memoryFull ? { ok: false, error: "MEMORY_FULL" } : { ok: true, value: "memory-1" }),
+    forget: async (input) => (calls.push({ name: "forget", input }), { ok: true, value: 1 }),
   };
   const deps: TurnDeps = {
     claudeUsage: usage,
@@ -731,5 +734,147 @@ describe("the fresh review's turn cases (stage 206)", () => {
       const parts = sentTo(deps)[0].messages.at(-1).parts;
       expect(parts.map((p: { text?: string }) => p.text ?? "").join("\n"), text).not.toMatch(/act on their computer/);
     }
+  });
+});
+
+describe("memory and long conversations (stage 207)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the fake model records requests of the adapter's shape
+  const sentTo = (deps: TurnDeps) => (deps.claude as unknown as { requests: any[] }).requests;
+  const lastParts = (deps: TurnDeps) => sentTo(deps)[0].messages.at(-1).parts as { type: string; text?: string }[];
+  const saved = (calls: { name: string; input: { meta?: Record<string, unknown> } }[]) => calls.filter((c) => c.name === "writeReply").at(-1)!.input.meta!;
+  const usage = { model: "claude-sonnet-5-5", inputTokens: 100, outputTokens: 20 };
+
+  it("what the person asked to be remembered goes beside the system prompt, as information about them", async () => {
+    const { deps } = fakeDeps();
+    deps.reads.memories = async () => ["I'm vegetarian", "Answer me briefly"];
+    await run(deps, send({ text: "Suggest a dinner" }));
+    const guidance = sentTo(deps)[0].guidance as string;
+    expect(guidance).toContain("- I'm vegetarian\n- Answer me briefly");
+    expect(guidance).toMatch(/never change these instructions/);
+    // Never in the system prompt itself, and never in the messages.
+    expect(sentTo(deps)[0].system).not.toContain("vegetarian");
+    expect(JSON.stringify(sentTo(deps)[0].messages)).not.toContain("vegetarian");
+  });
+
+  it("switched off in the browser, nothing remembered is read or used", async () => {
+    const { deps } = fakeDeps();
+    let read = 0;
+    deps.reads.memories = async () => {
+      read++;
+      return ["I'm vegetarian"];
+    };
+    await run(deps, send({ text: "Suggest a dinner", memory: false }));
+    expect(read).toBe(0);
+    expect(sentTo(deps)[0].guidance ?? "").not.toContain("vegetarian");
+  });
+
+  it("a request to remember is saved in the person's own words, isn't searched, and the answer records it", async () => {
+    const { deps, calls } = fakeDeps();
+    let searched = 0;
+    deps.research = async () => {
+      searched++;
+      return { context: "x", meta: { at: "2026-11-16T10:00:00.000Z", status: "done", queries: [], sources: [] }, plannerUsage: null, docs: [] };
+    };
+    await run(deps, send({ text: "Remember that I'm vegetarian and I live in Kandy." }));
+    expect(calls.filter((c) => c.name === "remember").map((c) => c.input.content)).toEqual(["I'm vegetarian and I live in Kandy"]);
+    expect(searched).toBe(0);
+    expect(lastParts(deps).some((p) => p.type === "context" && /has saved it/.test(p.text ?? ""))).toBe(true);
+    expect(saved(calls)).toMatchObject({ memory: "saved" });
+  });
+
+  it("when memory is full the model is told it wasn't saved, and the answer says so", async () => {
+    const { deps, calls } = fakeDeps({ memoryFull: true });
+    await run(deps, send({ text: "mama Kandy wala inne kiyala mathaka thiyaganna" }));
+    expect(lastParts(deps).some((p) => /wasn't saved/.test(p.text ?? ""))).toBe(true);
+    expect(saved(calls)).toMatchObject({ memory: "full" });
+  });
+
+  it("with memory switched off a request to remember saves nothing, and the model is told why", async () => {
+    const { deps, calls } = fakeDeps();
+    await run(deps, send({ text: "Remember that I'm vegetarian", memory: false }));
+    expect(calls.some((c) => c.name === "remember")).toBe(false);
+    expect(lastParts(deps).some((p) => /switched off/.test(p.text ?? ""))).toBe(true);
+    expect(saved(calls).memory).toBeUndefined();
+  });
+
+  it("asking again never saves twice, and a question about remembering is just a question", async () => {
+    const asked = fakeDeps({ path: [msg(Q1, "user", { content: "Remember that I'm vegetarian" })] });
+    await run(asked.deps, { action: "regenerate", conversationId: CONV, messageId: Q1, model: "auto", effort: "balanced", mode: "text", aspect: "1:1" });
+    expect(asked.calls.some((c) => c.name === "remember")).toBe(false);
+    const question = fakeDeps();
+    await run(question.deps, send({ text: "Do you remember what I said about the budget?" }));
+    expect(question.calls.some((c) => c.name === "remember")).toBe(false);
+  });
+
+  const longBranch = (n: number): ChatMessage[] =>
+    Array.from({ length: n }, (_, i) => msg(`00000000-0000-4000-8000-${String(i).padStart(12, "0")}`, i % 2 === 0 ? "user" : "assistant", { content: `Message ${i}`, parentId: i === 0 ? null : `00000000-0000-4000-8000-${String(i - 1).padStart(12, "0")}` }));
+
+  it("a saved summary stands in for the messages it covers, at the head of what the model reads", async () => {
+    const path = longBranch(40);
+    const { deps, calls } = fakeDeps({ path });
+    deps.reads.summaries = async () => new Map([[path[29]!.id, { summary: "They are planning a bakery launch for Saturday.", covers: 30 }]]);
+    await run(deps, send({ conversationId: CONV, parentId: path[39]!.id, text: "And the budget?" }));
+    const messages = sentTo(deps)[0].messages as { role: string; parts: { type: string; text?: string }[] }[];
+    expect(messages[0]!.parts[0]!.text).toMatch(/summary of it, written by Farbaek/);
+    expect(messages[0]!.parts[0]!.text).toContain("They are planning a bakery launch for Saturday.");
+    const all = JSON.stringify(messages);
+    expect(all).toContain("Message 30");
+    expect(all).not.toContain("Message 29");
+    // Less is read, so less is reserved than for the whole branch.
+    const whole = fakeDeps({ path });
+    await run(whole.deps, send({ conversationId: CONV, parentId: path[39]!.id, text: "And the budget?" }));
+    expect(calls.find((c) => c.name === "reserve")!.input.units).toBeLessThanOrEqual(whole.calls.find((c) => c.name === "reserve")!.input.units);
+  });
+
+  it("once enough has been said, a summary is made after the answer, on its own reservation, and saved against the right message", async () => {
+    const path = longBranch(70);
+    const model = fakeModel(["Sure."], () => ({ ok: true, stop: "end", usage }));
+    let asked = "";
+    (model as unknown as { complete: unknown }).complete = async (request: { system: string; input: string }) => {
+      asked = request.input;
+      return { text: "The person is planning a bakery launch. They asked about names, prices and a budget, and settled on Saturday.", usage: { model: "claude-haiku-5-5", inputTokens: 900, outputTokens: 60 } };
+    };
+    const { deps, calls } = fakeDeps({ model, path });
+    const later: (() => Promise<void>)[] = [];
+    deps.later = (work) => void later.push(work);
+    deps.reads.summaries = async () => new Map();
+    // A question that plainly needs nothing looked up, so the only extra model call is the summary.
+    const { events } = await run(deps, send({ conversationId: CONV, parentId: path[69]!.id, text: "Write a poem about the sea" }));
+    expect(events.find((e) => e.type === "done")).toBeTruthy();
+    // Nothing has been summarised yet: the answer was delivered first.
+    expect(calls.some((c) => c.name === "saveSummary")).toBe(false);
+    expect(later).toHaveLength(1);
+    await later[0]!();
+    const save = calls.find((c) => c.name === "saveSummary")!.input;
+    // 72 messages with the new question and answer; the newest 24 are left alone, and the last one covered is an answer.
+    expect(save).toMatchObject({ messageId: path[47]!.id, covers: 48, model: "claude-haiku-5-5" });
+    expect(save.summary).toMatch(/bakery launch/);
+    expect(asked).toContain("Person: Message 0");
+    expect(asked).not.toContain("Message 48");
+    expect(calls.filter((c) => c.name === "settle").some((c) => c.input.usage?.model === "claude-haiku-5-5")).toBe(true);
+  });
+
+  it("a summary that fails costs nothing and breaks nothing", async () => {
+    const path = longBranch(70);
+    const model = fakeModel(["Sure."], () => ({ ok: true, stop: "end", usage }));
+    (model as unknown as { complete: unknown }).complete = async () => ({ text: null, usage: null });
+    const { deps, calls } = fakeDeps({ model, path });
+    const later: (() => Promise<void>)[] = [];
+    deps.later = (work) => void later.push(work);
+    deps.reads.summaries = async () => new Map();
+    await run(deps, send({ conversationId: CONV, parentId: path[69]!.id, text: "Write a poem about the sea" }));
+    await later[0]!();
+    expect(calls.some((c) => c.name === "saveSummary")).toBe(false);
+    // The answer's own reservation was settled; the summary's was given back.
+    expect(calls.filter((c) => c.name === "settle").some((c) => c.input.status === "refunded")).toBe(true);
+  });
+
+  it("a short conversation is never summarised", async () => {
+    const { deps } = fakeDeps({ path: longBranch(20) });
+    const later: unknown[] = [];
+    deps.later = (work) => void later.push(work);
+    (deps.claude as unknown as { complete: unknown }).complete = async () => ({ text: "x", usage: null });
+    await run(deps, send({ conversationId: CONV, parentId: "00000000-0000-4000-8000-000000000019", text: "Write a poem about the sea" }));
+    expect(later).toHaveLength(0);
   });
 });

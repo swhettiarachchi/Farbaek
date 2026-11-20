@@ -66,7 +66,7 @@ const DEEP = [
 
 /** Things that change: the answer is only right if it was checked now. */
 const FRESH = [
-  /\b(?:today|tonight|tomorrow|yesterday|right now|currently|current|latest|newest|live|breaking|trending|this (?:morning|evening|week|month|year|season|quarter)|last (?:night|week|month|year)|recent(?:ly)?|nowadays|these days|so far|up[- ]to[- ]date|as of|just (?:released|announced|launched|happened|came out))\b/i,
+  /\b(?:today|tonight|tomorrow|yesterday|right now|currently|current|latest|newest|live (?:scores?|updates?|stream|results?|blog|coverage|now|feed)|breaking|trending|this (?:morning|evening|week|month|year|season|quarter)|last (?:night|week|month|year)|recent(?:ly)?|nowadays|these days|so far|up[- ]to[- ]date|as of|just (?:released|announced|launched|happened|came out))\b/i,
   /\b(?:news|headlines?|price|prices|cost of|how much (?:is|are|does|do)|stock|share price|market cap|exchange rate|usd|lkr|inr|eur|gbp|bitcoin|crypto|weather|forecast|temperature|traffic|score|scores|standings|fixtures?|schedule|results?|who won|who is winning|election|release date|released|launch(?:ed|es)?|announce(?:d|ment|s)?|update|updates|version|changelog|deadline|open now|opening hours|in stock|available (?:now|yet)|still (?:alive|open|available|valid|true|the)|is .{2,40} down)\b/i,
   /\bwho (?:is|are) (?:the )?(?:current )?(?:president|prime minister|ceo|cto|head|leader|chairman|governor|minister|king|queen|owner|champion|richest|captain|coach|manager)\b/i,
   /\b(?:best|top|cheapest|fastest|most popular)\b[^.?!\n]{2,60}\b(?:20\d\d|right now|this year|today|to buy|available)\b/i,

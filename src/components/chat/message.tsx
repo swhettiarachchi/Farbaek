@@ -41,11 +41,19 @@ import { KnightMark } from "@/components/brand/knight-mark";
 import { buttonClasses } from "@/components/ui/button";
 import { AnswerPartsContext, type AnswerParts } from "./answer-parts";
 import { MarkdownView } from "./markdown-view";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { IconButton, Menu, useCopy } from "./primitives";
 import { searchLine, WebSources, type LiveSearch } from "./web-sources";
 import { withSourceList } from "@/core/web/sources";
 
 export const fileUrl = (id: string, base = "/app/chat/api/file") => `${base}/${id}`;
+
+/** What came of a message that asked for something to be remembered (stage 207). */
+const MEMORY_LINE = {
+  saved: "Saved to memory. You can see it and delete it under Memory in Chat settings.",
+  full: "Not saved: 50 things are remembered already. Forget one under Memory in Chat settings.",
+  failed: "Not saved to memory: it didn't work this time. Try again, or add it under Memory in Chat settings.",
+} as const;
 
 function seconds(ms: number): string {
   const s = Math.max(1, Math.round(ms / 1000));
@@ -308,6 +316,12 @@ export function AnswerMessage({
         </p>
       ) : null}
       {message.kind === "text" && message.meta.search ? <WebSources search={message.meta.search} /> : null}
+      {message.meta.memory ? (
+        <p className="mt-2 flex items-start gap-1.5 text-sm text-ink-3">
+          <StatusGlyph status={message.meta.memory === "saved" ? "done" : "attention"} size={16} className="mt-0.5 shrink-0" />
+          {MEMORY_LINE[message.meta.memory]}
+        </p>
+      ) : null}
       {message.status === "stopped" && !streaming ? <p className="mt-2 text-sm text-ink-3">{message.content ? "Stopped. What was written is kept." : "Stopped before it started."}</p> : null}
       {message.meta.stop === "length" && message.status === "complete" ? <p className="mt-2 text-sm text-ink-3">The answer reached its length limit.</p> : null}
 

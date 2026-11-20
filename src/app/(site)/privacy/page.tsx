@@ -111,7 +111,13 @@ const SECTIONS: LegalSection[] = [
           text isn&apos;t stored; the answer keeps the links it used. A search and the public results it found stay in the server&apos;s memory for up to an hour, so the same search isn&apos;t sent to the engines twice; they aren&apos;t written to disk or linked to you. You can switch this off with Search the web, in the menu beside the message box.
         </p>
         <p>
-          If an owner or admin gives your workspace its own Anthropic key, those requests go to Anthropic, or through their company&apos;s own server, under that account&apos;s own terms. Farbaek
+          If you ask Farbaek AI to remember something (&ldquo;remember that &hellip;&rdquo;, or by adding it under Memory in Chat&apos;s settings), your own words are kept for your chats in that workspace and sent to the AI model
+          with your messages, so it can answer with them in mind. Nothing is worked out about you and added on its own. You can read and delete each one, delete them all, or switch memory off in Chat&apos;s settings; they are in
+          your data download, and they go when you leave the workspace or delete your account. When a conversation grows long, Farbaek asks the AI model for a short summary of its earlier part, so later answers still know how it
+          began. The summary is kept with the conversation, is yours alone, and is deleted with it.
+        </p>
+        <p>
+          If an owner or admin gives your workspace its ownAnthropic key, those requests go to Anthropic, or through their company&apos;s own server, under that account&apos;s own terms. Farbaek
           keeps the key encrypted and never shows it again.
         </p>
         <p>
