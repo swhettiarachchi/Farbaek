@@ -16,6 +16,8 @@ export type Inline =
   | { t: "del"; c: Inline[] }
   | { t: "code"; v: string }
   | { t: "link"; href: string; c: Inline[] }
+  /** Citations of an answer's numbered web sources ([2], [1][4], [1, 3]), stage 206. The screen draws them only when the sources exist. */
+  | { t: "cite"; n: number[] }
   | { t: "math"; v: string }
   | { t: "br" };
 
@@ -332,9 +334,26 @@ function listAt(lines: string[], start: number, depth: number): { block: Block; 
   return { block: { t: "list", ordered: first.ordered, start: first.number, tight, items }, end: i };
 }
 
-/** Reads a whole answer into top-level blocks with their source. */
-export function parseMarkdown(text: string): SourceBlock[] {
-  return parseLines(text.replace(/\r\n?/g, "\n").split("\n"), 0);
+/**
+ * Whether "[2]" is being read as a citation (stage 206). Only an answer that has numbered web sources has citations: anywhere
+ * else square brackets are the person's or the model's own ("Smith [1]", "the interval [0, 1]") and stay exactly as written.
+ * Set for the length of one parse, which never waits on anything.
+ */
+let citing = false;
+
+function whileCiting<T>(citations: boolean, read: () => T): T {
+  const before = citing;
+  citing = citations;
+  try {
+    return read();
+  } finally {
+    citing = before;
+  }
+}
+
+/** Reads a whole answer into top-level blocks with their source. `citations`: the answer has numbered web sources. */
+export function parseMarkdown(text: string, options: { citations?: boolean } = {}): SourceBlock[] {
+  return whileCiting(options.citations ?? false, () => parseLines(text.replace(/\r\n?/g, "\n").split("\n"), 0));
 }
 
 // ---------------------------------------------------------------- inline
@@ -414,8 +433,9 @@ function pushText(out: Inline[], v: string) {
   else out.push({ t: "text", v });
 }
 
-/** Reads one paragraph's text into inline pieces. */
-export function parseInline(text: string, depth = 0): Inline[] {
+/** Reads one paragraph's text into inline pieces. `citations` reads "[2]" as a citation, for a caller outside a whole parse. */
+export function parseInline(text: string, depth = 0, citations?: boolean): Inline[] {
+  if (citations !== undefined) return whileCiting(citations, () => parseInline(text, depth));
   const out: Inline[] = [];
   if (depth > 8) {
     pushText(out, text);
@@ -515,6 +535,22 @@ export function parseInline(text: string, depth = 0): Inline[] {
     }
 
     if (ch === "[") {
+      // A citation of a numbered source: [2], [1, 3], in an answer that has sources. Not an index after a name, a number or
+      // another bracket (items[0], x[1], m[0][1]), not a link label, and never with a zero: sources are numbered from one.
+      const cite = citing ? /^\[(\d{1,2}(?:\s{0,2},\s{0,2}\d{1,2}){0,8})\](?!\()/.exec(rest) : null;
+      const numbers = cite ? cite[1]!.split(",").map((part) => Number(part.trim())) : [];
+      const last = out[out.length - 1];
+      if (cite && !numbers.includes(0) && (last?.t === "cite" || !/[\p{Script=Latin}\p{N}_\]]/u.test(text[i - 1] ?? " "))) {
+        const before = out[out.length - 2];
+        // Marks side by side, or a space apart, are one group.
+        if (last?.t === "cite") last.n.push(...numbers);
+        else if (last?.t === "text" && last.v === " " && before?.t === "cite") {
+          out.pop();
+          before.n.push(...numbers);
+        } else out.push({ t: "cite", n: numbers });
+        i += cite[0].length;
+        continue;
+      }
       const close = closing(text, i + 1, "[", "]");
       if (close > 0 && text[close + 1] === "(") {
         const end = closing(text, close + 2, "(", ")");
@@ -589,12 +625,35 @@ export function parseInline(text: string, depth = 0): Inline[] {
     pushText(out, rest.slice(0, take));
     i += take;
   }
-  return out;
+  return tidyCitations(out);
+}
+
+/**
+ * A citation sits after its sentence's full stop, with no space before it: "rain fell today [1]." is drawn as "rain fell
+ * today." and then the citation, whichever side of the full stop the model put it.
+ */
+function tidyCitations(nodes: Inline[]): Inline[] {
+  for (let k = 0; k < nodes.length; k++) {
+    if (nodes[k]!.t !== "cite") continue;
+    const before = nodes[k - 1];
+    const after = nodes[k + 1];
+    const stop = after?.t === "text" ? /^[.,;:!?。！？।]+/u.exec(after.v)?.[0] : undefined;
+    if (before?.t === "text") before.v = before.v.replace(/ $/, "");
+    if (stop && after?.t === "text") {
+      after.v = after.v.slice(stop.length);
+      if (before?.t === "text") before.v += stop;
+      else {
+        nodes.splice(k, 0, { t: "text", v: stop });
+        k++;
+      }
+    }
+  }
+  return nodes.filter((n) => n.t !== "text" || n.v !== "");
 }
 
 /** The plain words of an answer, for reading aloud and copying as text: no code fences, no Markdown marks. */
 export function plainText(text: string): string {
-  const words = (inl: Inline[]): string => inl.map((n) => (n.t === "text" ? n.v : n.t === "code" ? n.v : n.t === "math" ? n.v : n.t === "br" ? "\n" : words(n.c))).join("");
+  const words = (inl: Inline[]): string => inl.map((n) => (n.t === "text" ? n.v : n.t === "code" ? n.v : n.t === "math" ? n.v : n.t === "br" ? "\n" : n.t === "cite" ? "" : words(n.c))).join("");
   const block = (b: Block): string => {
     switch (b.t) {
       case "p":
@@ -622,14 +681,15 @@ export function plainText(text: string): string {
 
 /** Sentences to speak, without code blocks or tables (a person doesn't want either read out). */
 export function speakable(text: string): string[] {
-  const words = (inl: Inline[]): string => inl.map((n) => (n.t === "text" ? n.v : n.t === "code" ? n.v : n.t === "math" ? "" : n.t === "br" ? " " : words(n.c))).join("");
+  const words = (inl: Inline[]): string => inl.map((n) => (n.t === "text" ? n.v : n.t === "code" ? n.v : n.t === "math" ? "" : n.t === "br" ? " " : n.t === "cite" ? "" : words(n.c))).join("");
   const parts: string[] = [];
   const walk = (b: Block) => {
     if (b.t === "p" || b.t === "h") parts.push(words(b.c));
     else if (b.t === "list") b.items.forEach((it) => it.blocks.forEach(walk));
     else if (b.t === "quote") b.blocks.forEach(walk);
   };
-  parseMarkdown(text).forEach((b) => walk(b.block));
+  // Citation marks are never read aloud.
+  parseMarkdown(text, { citations: true }).forEach((b) => walk(b.block));
   return parts
     .join(" ")
     .split(/(?<=[.!?])\s+/)

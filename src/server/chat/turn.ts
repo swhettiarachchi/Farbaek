@@ -20,9 +20,12 @@ import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import { CHAT_SYSTEM_PROMPT, type ChatInputMessage, type ChatModel, type ChatOutcome, type ChatPart } from "@/server/ai/chat-model";
 import { languageNote, planLanguage } from "@/core/chat/language-plan";
 import { modelAt } from "@/core/chat/ladder";
-import { oneLine, webFailureNote, webOffNote } from "@/core/web/context";
-import { PLANNER_PROMPT, plansLocally, searchSkip } from "@/core/web/plan";
-import type { SearchMeta } from "@/core/web/sources";
+import { computerNote, readAction } from "@/core/chat/intent";
+import { checkCitations } from "@/core/web/citations";
+import { oneLine, sourceOf, webFailureNote, webNotNeededNote, webOffNote, type WebDoc } from "@/core/web/context";
+import { readSearchNeed, type NeedReading } from "@/core/web/intent";
+import { GAP_PROMPT, PLANNER_PROMPT, plansLocally, searchSkip } from "@/core/web/plan";
+import { fitSearchMeta, type SearchMeta } from "@/core/web/sources";
 import type { ResearchInput, ResearchResult } from "@/server/web/research";
 import { IMAGE_OUTPUT_TOKENS, type AspectRatio, type ImageGenerator } from "@/server/ai/gemini-image";
 import { log } from "@/server/observability/log";
@@ -81,11 +84,16 @@ const FILE_TURNS = 3;
 const SAVE_EVERY_MS = 3_000;
 /** Web text an answer may read, by tier (stage 205): a little for the fast models, more where an answer is worth more. */
 const WEB_TOKENS = { fast: 3_000, standard: 6_000, strong: 8_000, frontier: 8_000 } as const;
+/** A deep task reads more, on every tier (stage 206): up to twelve sources in two rounds. */
+const DEEP_WEB_TOKENS = 12_000;
 /** The web block's own lines (markers, header, numbered sources) beyond the page text. */
 const WEB_FRAME_TOKENS = 600;
 /** The planner's instructions and the conversation it reads, at most; and its reply, with room for a short think. */
 const PLANNER_INPUT_TOKENS = 1_500;
-const PLANNER_OUTPUT_TOKENS = 600;
+const PLANNER_OUTPUT_TOKENS = 800;
+/** A deep task's second small call: the task, the searches run and the titles found; and its reply. */
+const GAP_INPUT_TOKENS = 1_200;
+const GAP_OUTPUT_TOKENS = 500;
 
 const CHAT_ERRORS: Record<string, { status: number; message: string }> = {
   CHAT_LIMIT: { status: 409, message: "This conversation is as long as a conversation can be. Start a new chat to carry on." },
@@ -175,7 +183,7 @@ function withContext(messages: ChatInputMessage[], text: string): void {
 function noResearch(now: number): ResearchResult {
   const at = new Date(now);
   const reason = "live web search isn't set up on this server";
-  return { context: webFailureNote(reason, at), meta: { at: at.toISOString(), status: "failed", queries: [], reason, sources: [] }, plannerUsage: null };
+  return { context: webFailureNote(reason, at), meta: { at: at.toISOString(), status: "failed", queries: [], reason, sources: [] }, plannerUsage: null, docs: [] };
 }
 
 /** Turns the kept messages into the model's input, reading file contents for the ones that carry them. */
@@ -330,6 +338,17 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // Live web search (stage 205, ADR 0222): every text question checks the web first, unless it's continuing an answer, only an
   // acknowledgement, or the person switched it off. (Pictures returned earlier.)
   const skip = searchSkip({ action: request.action, mode, text: asking, webOn: "web" in request ? (request.web ?? true) : true });
+  // Whether the message needs the web at all (stage 206, ADR 0223), read from its own words: a greeting, a poem or the person's
+  // own text to rewrite starts at once; "latest", a price or a request to search is searched; anything unclear is the planner
+  // model's to decide. "Check the web" on an answer asks for a search whatever the words look like.
+  const forced = "research" in request && request.research === "search";
+  // A request to do something on the person's computer (stage 206): Chat can't, and the model is told so in so many words.
+  const action = skip ? null : readAction(asking);
+  const read0 = skip ? null : readSearchNeed({ text: asking, files: askedFiles.length, year: new Date(deps.now()).getUTCFullYear() });
+  // A request to act never outranks words that ask for the web ("open my browser and check today's news" is still searched).
+  const actsOnly = action !== null && read0 !== null && (read0.need === "none" || read0.need === "unsure");
+  const need: NeedReading | null = !read0 ? null : forced ? { need: read0.need === "deep" ? "deep" : "search", explicit: true, why: "asked to check the web" } : actsOnly ? { need: "none", explicit: false, why: "a request to act on the computer" } : read0;
+  const notNeeded = need?.need === "none";
   // The conversation the search planner may read: the turns before this question.
   const earlierTurns = base.filter((m) => m.kind === "text" && m.content).map((m) => ({ role: m.role, text: m.content }));
   if (questionText === null && earlierTurns.at(-1)?.role === "user") earlierTurns.pop();
@@ -353,8 +372,13 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
 
   const contextMessages = [...base.map(asContext), ...(newQuestion ? [newQuestion] : [])];
   if (continuing) contextMessages[contextMessages.length - 1] = asContext(continuing);
+  // The search planner runs unless the message plainly needs the web and is a short, self-contained English first question,
+  // which is planned without a model. It may turn a question into a deep task, so the room for one is kept whenever it runs.
+  const searching = !skip && !notNeeded && need !== null;
+  const plansHere = searching && need.need === "search" && plansLocally(asking, userTexts.length);
+  const wantsPlanner = searching && !plansHere && Boolean(modelFor(choice).complete);
   // The web text this answer may read comes out of the conversation's room, and goes into the reservation.
-  const webTokens = skip ? 0 : WEB_TOKENS[choice.tier] + WEB_FRAME_TOKENS;
+  const webTokens = !searching ? 0 : (wantsPlanner ? Math.max(DEEP_WEB_TOKENS, WEB_TOKENS[choice.tier]) : WEB_TOKENS[choice.tier]) + WEB_FRAME_TOKENS;
   const context = fitContext(contextMessages, CONTEXT_TOKENS - webTokens);
   const maxOutput = MAX_OUTPUT[request.effort];
   // The AI names a chat with its first answer that finishes: a first answer that failed leaves it to the next.
@@ -366,12 +390,13 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   if (!reserved.ok) return refused(reserved.code === "QUOTA_EXCEEDED" || reserved.code === "TRIAL_CAP_REACHED" ? 402 : reserved.code === "PLATFORM_DAILY_LIMIT" ? 429 : 503, reserved.message);
   const refund = (reason: "failed" | "stopped", usage: ProviderUsage | null = null) => refundUsage(meter, { orgId, entryId: reserved.value.entryId, usage, reason });
 
-  // The search planner: a short, self-contained English first question is planned without a model; otherwise the answering
-  // provider's fast model writes the queries, on its own small reservation. If that can't be reserved, the plan is made locally.
+  // The search planner: the answering provider's fast model decides whether the web is needed and writes the searches, on its
+  // own small reservation (with room for a deep task's second small call). If that can't be reserved, the plan is made locally.
   let planner: { model: string; entryId: string } | null = null;
-  if (!skip && !plansLocally(asking, userTexts.length) && modelFor(choice).complete) {
+  if (wantsPlanner) {
     const plannerModel = modelAt(choice.provider, "fast", read.kind, false, deps.overrides);
-    const held = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units: reserveUnits(plannerModel, approxTokens(PLANNER_PROMPT) + PLANNER_INPUT_TOKENS, PLANNER_OUTPUT_TOKENS), manual: MANUAL, billing: plan.value });
+    const units = reserveUnits(plannerModel, approxTokens(PLANNER_PROMPT) + PLANNER_INPUT_TOKENS + approxTokens(GAP_PROMPT) + GAP_INPUT_TOKENS, PLANNER_OUTPUT_TOKENS + GAP_OUTPUT_TOKENS);
+    const held = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units, manual: MANUAL, billing: plan.value });
     if (held.ok) planner = { model: plannerModel, entryId: held.value.entryId };
   }
   const settlePlanner = async (usage: ProviderUsage | null) => {
@@ -507,21 +532,46 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       };
       let searchMeta: SearchMeta | null = continuing?.meta.search ?? null;
       let webContext: string | null = null;
-      if (!skip) {
-        const language = languagePlan.romanized || !languagePlan.language || !/^[a-z]{2}$/.test(languagePlan.language) ? null : languagePlan.language;
+      // The pages as the model read them, kept only to check this answer's citations against.
+      let webDocs: WebDoc[] = [];
+      if (searching && need) {
         const result = deps.research
-          ? await deps.research({ question: asking, earlier: earlierTurns, local: planner === null, plannerModel: planner ? modelFor(choice) : null, plannerModelId: planner?.model ?? null, language, budgetChars: WEB_TOKENS[choice.tier] * 3, signal, onStage: (s) => tell({ type: "search", ...s }) })
+          ? await deps.research({
+              question: asking,
+              earlier: earlierTurns,
+              need,
+              local: planner === null,
+              plannerModel: planner ? modelFor(choice) : null,
+              plannerModelId: planner?.model ?? null,
+              budgetChars: WEB_TOKENS[choice.tier] * 3,
+              deepBudgetChars: Math.max(DEEP_WEB_TOKENS, WEB_TOKENS[choice.tier]) * 3,
+              signal,
+              onStage: (s) => {
+                // A deep task can take half a minute before the first word: the answer is kept marked as live meanwhile.
+                heartbeat();
+                tell({ type: "search", ...s });
+              },
+            })
           : noResearch(deps.now());
         await settlePlanner(result.plannerUsage);
         webContext = result.context;
         searchMeta = result.meta;
-        tell({ type: "search", stage: result.meta.status === "done" ? "done" : "failed", search: result.meta });
+        webDocs = result.docs;
+        tell({ type: "search", stage: result.meta.status === "done" ? "done" : result.meta.status === "skipped" ? "skipped" : "failed", search: result.meta });
       } else if (skip === "off") {
         const at = new Date(deps.now());
         webContext = webOffNote(at);
         searchMeta = { at: at.toISOString(), status: "off", queries: [], sources: [] };
         tell({ type: "search", stage: "off", search: searchMeta });
+      } else if (notNeeded) {
+        // Nothing to look up: the answer starts at once, and the model knows the web wasn't checked.
+        const at = new Date(deps.now());
+        webContext = action ? `${computerNote(action)}\n${webNotNeededNote(at)}` : webNotNeededNote(at);
+        searchMeta = { at: at.toISOString(), status: "skipped", queries: [], reason: action ? "this was a request to act on the computer" : "this message didn't need current information", sources: [] };
+        tell({ type: "search", stage: "skipped", search: searchMeta });
       }
+      // A request to act on the computer that was searched anyway (the person asked for a search) still carries its note.
+      if (action && searching && webContext) webContext = `${computerNote(action)}\n${webContext}`;
       if (webContext) withContext(modelInput, webContext);
 
       let outcome = await ask(modelInput);
@@ -549,6 +599,17 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       } else {
         status = "failed";
         error = FAILED_TEXT[outcome.failure] ?? FAILED_TEXT.PROVIDER_ERROR!;
+      }
+      // The answer's citations (stage 206): which sources it cites, and whether the names and numbers of each cited sentence are
+      // on the page it cites. A hint for the reader, saved with the sources and sent to the screen before the answer ends.
+      if (searchMeta?.status === "done" && (searchMeta.sources.length > 0 || webDocs.length > 0) && text.trim()) {
+        // Against every page the model was given, not only the ones that fitted in the saved list: a source it read and cites
+        // is kept, and one it doesn't cite goes first when there isn't room (fitSearchMeta).
+        const given = webDocs.length > 0 ? webDocs.map(sourceOf) : searchMeta.sources;
+        const checked = checkCitations(text, given, webDocs);
+        searchMeta = fitSearchMeta({ ...searchMeta, sources: checked.sources, checks: checked.checks });
+        if (checked.checks.invalid > 0 || checked.checks.unmatched > 0) log("info", "chat.citations", checked.checks);
+        tell({ type: "search", stage: "done", search: searchMeta });
       }
       // The answer's own facts, written whole: a continued answer no longer says it reached its length limit.
       // The route's facts are kept with the answer: the next question reads its tier and provider, and ratings can later be read by kind.

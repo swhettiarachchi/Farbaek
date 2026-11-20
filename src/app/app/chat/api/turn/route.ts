@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     health: () => providerHealth(),
     recordHealth: recordProviderResult,
     overrides: platformModels(),
-    // Live web search before every answer (stage 205, ADR 0222).
+    // Live web search when a question needs it (stage 205, ADR 0222; stage 206, ADR 0223).
     research: webResearch(),
     now: () => Date.now(),
   };

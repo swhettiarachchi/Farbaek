@@ -11,6 +11,11 @@ export interface SearchRequest {
   freshness: Freshness;
   /** The general web, or news. */
   kind: "web" | "news";
+  /**
+   * How fresh the question itself needs its results, when that differs from the date limit sent to the engines (a question
+   * about today searches the general web for the last week): a search kept in memory is reused only this long (search/cache.ts).
+   */
+  keep?: Freshness;
   /** A language code to prefer, when known ("en", "si"); null lets the engines decide. */
   language: string | null;
   signal: AbortSignal;

@@ -8,8 +8,12 @@ export const SAMPLE_CHAT_ID = "00000000-0000-4000-8000-00000000c4a7";
 
 const at = (minutesAgo: number) => new Date(Date.UTC(2026, 10, 16, 9, 30) - minutesAgo * 60_000).toISOString();
 
+/** A second sample (stage 206): a question in Sinhala typed in English letters, answered from the web with its sources. */
+export const SAMPLE_RESEARCH_ID = "00000000-0000-4000-8000-00000000c4a8";
+
 export const SAMPLE_CHATS: ConversationSummary[] = [
   { id: SAMPLE_CHAT_ID, title: "Sample: launch week for a bakery", pinned: false, archived: false, projectId: null, updatedAt: at(5), shared: false },
+  { id: SAMPLE_RESEARCH_ID, title: "Sample: an answer with sources, in Sinhala", pinned: false, archived: false, projectId: null, updatedAt: at(3), shared: false },
 ];
 
 const QUESTION_1 = "00000000-0000-4000-8000-00000000c4b1";
@@ -100,3 +104,83 @@ export const SAMPLE_MESSAGES: ChatMessage[] = [
     ].join("\n"),
   },
 ];
+
+const RESEARCH_QUESTION = "00000000-0000-4000-8000-00000000c4c1";
+const RESEARCH_ANSWER = "00000000-0000-4000-8000-00000000c4c2";
+
+/**
+ * The second sample: what an answer from the live web looks like. The stories are made up and say so in their first line; the
+ * sources are the reserved example sites, which open, so no link leads nowhere and nothing passes for a real report.
+ */
+export const SAMPLE_RESEARCH_MESSAGES: ChatMessage[] = [
+  {
+    ...base,
+    id: RESEARCH_QUESTION,
+    parentId: null,
+    role: "user",
+    content: "Sample: mata ada tech news tika kiyanna",
+    modelName: null,
+    thinkingMs: null,
+    createdAt: at(4),
+    siblings: [RESEARCH_QUESTION],
+  },
+  {
+    ...base,
+    id: RESEARCH_ANSWER,
+    parentId: RESEARCH_QUESTION,
+    role: "assistant",
+    modelName: "Sample answer",
+    thinkingMs: null,
+    createdAt: at(3),
+    siblings: [RESEARCH_ANSWER],
+    meta: {
+      search: {
+        at: at(3),
+        status: "done",
+        queries: ["technology news today", "තාක්ෂණ පුවත් අද"],
+        depth: "standard",
+        sources: [
+          { n: 1, url: "https://example.org/", title: "Sample source one: a phone is announced", site: "example.org", published: at(600), read: true, cited: true, support: "matched" },
+          { n: 2, url: "https://example.com/", title: "Sample source two: battery claims", site: "example.com", published: null, read: true, cited: true, support: "partly" },
+          { n: 3, url: "https://example.net/", title: "Sample source three: update notes", site: "example.net", published: at(2900), updated: at(700), read: true, cited: true, support: "matched" },
+          { n: 4, url: "https://www.iana.org/help/example-domains", title: "Sample source four: a page that was found and not used", site: "iana.org", published: null, read: false, cited: false },
+        ],
+        checks: { cited: 3, matched: 2, unmatched: 0, invalid: 0 },
+      },
+    },
+    content: [
+      "**මේක sample එකක්.** මෙතන තියෙන්නේ ඇත්ත පුවත් නෙවෙයි; පිළිතුරක් පේන විදිහ පෙන්වන්න ලියපු එකක්.",
+      "",
+      "## අද තාක්ෂණ පුවත් (sample)",
+      "",
+      "2026 නොවැම්බර් 16",
+      "",
+      "### Sample phone එකක් එළියට එනවා",
+      "",
+      "Sample Mobile සමාගම එයාලගේ අලුත් phone එක ලබන මාසේ ගෙනෙනවා කියලා කිව්වා. මිල ඩොලර් 499යි [1]. Battery එක පැය 30ක් තියෙනවා කියලත් එයාලා කියනවා [1][2].",
+      "",
+      "### Sample AI update එකක්",
+      "",
+      "Sample Labs එකේ AI assistant එකට දැන් file කියවන්න පුළුවන්. මේ update එක නොවැම්බර් 14 ඉඳන් හැමෝටම ලැබෙනවා [3].",
+      "",
+      "| දේ | විස්තරය |",
+      "| :--- | :--- |",
+      "| Phone එකේ මිල | ඩොලර් 499 |",
+      "| AI update එක | නොවැම්බර් 14 ඉඳන් |",
+      "",
+      "ඊළඟට මොනවා ගැනද දැනගන්න ඕන?",
+      "",
+      "```choices",
+      "AI ගැන තව පුවත් කියන්න",
+      "Phone ගැන තව විස්තර දෙන්න",
+      "ලංකාවේ තාක්ෂණ පුවත් කියන්න",
+      "```",
+    ].join("\n"),
+  },
+];
+
+/** Each sample conversation's messages, by its id. */
+export const SAMPLE_CONVERSATIONS: Readonly<Record<string, ChatMessage[]>> = {
+  [SAMPLE_CHAT_ID]: SAMPLE_MESSAGES,
+  [SAMPLE_RESEARCH_ID]: SAMPLE_RESEARCH_MESSAGES,
+};

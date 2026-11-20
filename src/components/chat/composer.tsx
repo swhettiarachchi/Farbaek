@@ -165,7 +165,7 @@ function ModelList({ models, current, effort }: { models: ChatModelOption[]; cur
   );
 }
 
-/** Live web search before every answer (stage 205): on unless the person switches it off, remembered in this browser. */
+/** Live web search (stage 205; stage 206: when a question needs it): on unless the person switches it off, remembered in this browser. */
 function WebSwitch() {
   const { searchWeb } = useChatPrefs();
   return (
@@ -179,7 +179,7 @@ function WebSwitch() {
       <GlobeIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-2" aria-hidden />
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-ink">Search the web</span>
-        <span className="block text-xs leading-snug text-ink-3">{searchWeb ? "Checks the live web before every answer and lists its sources." : "Off: answers come from what the model already knows."}</span>
+        <span className="block text-xs leading-snug text-ink-3">{searchWeb ? "Checks the live web when a question needs it, and shows its sources." : "Off: answers come from what the model already knows."}</span>
       </span>
       <span aria-hidden className={`mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors duration-150 ${searchWeb ? "bg-accent" : "bg-line-2"}`}>
         <span className={`size-4 rounded-full bg-surface shadow-e1 transition-transform duration-150 ${searchWeb ? "translate-x-4" : ""}`} />

@@ -9,11 +9,11 @@
 import { ArchiveIcon, ArrowDownIcon, CodeIcon, DotsThreeIcon, FileTextIcon, ImageSquareIcon, LightbulbIcon, ListIcon, MagnifyingGlassIcon, NotePencilIcon, PenNibIcon, PencilSimpleIcon, PushPinIcon, PushPinSlashIcon, ShareNetworkIcon, TrashIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
 import { CHAT_LIMITS, HOME_QUESTION_KEY, titleFrom, type HandOff, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
 import { speakable } from "@/core/chat/markdown";
-import { handOffPlan } from "@/core/chat/handoff";
+import { handOffPlan, suggestHandOffs } from "@/core/chat/handoff";
 import { HeroVisual } from "@/components/three/hero-visual";
 import { useSpeaker } from "./use-speaker";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
@@ -277,7 +277,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
           toast({ text: e.note, tone: "info" });
         } else if (e.type === "search") {
           // Checking the live web (stage 205): the status line follows it, and the saved facts go on the answer when it ends.
-          setLive((l) => (l ? { ...l, search: { stage: e.stage, queries: e.queries ?? l.search?.queries, pages: e.pages } } : l));
+          setLive((l) => (l ? { ...l, search: { stage: e.stage, queries: e.queries ?? l.search?.queries, pages: e.pages, round: e.round } } : l));
           if (e.search) {
             const id = answerRef.current;
             const found = e.search;
@@ -327,6 +327,9 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
   );
 
   const tail = messages[messages.length - 1];
+  // The places worth offering under the newest answer (stage 206): read from what the person last asked.
+  const lastAsked = messages.findLast((m) => m.role === "user")?.content ?? "";
+  const offered = useMemo(() => suggestHandOffs(lastAsked), [lastAsked]);
 
   const send = (input: SendInput): boolean => {
     if (busy) return false;
@@ -346,13 +349,14 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     return true;
   };
 
-  const regenerate = (answer: ChatMessage) => {
+  // `checkWeb` answers again after searching the live web, whatever the question looks like (stage 206).
+  const regenerate = (answer: ChatMessage, checkWeb = false) => {
     if (busy || !convId || !answer.parentId) return;
     const at = messages.findIndex((m) => m.id === answer.parentId);
     if (at < 0) return;
     const p = prefs;
     void runTurn(
-      { action: "regenerate", conversationId: convId, messageId: answer.parentId, replacing: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: p.searchWeb, mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
+      { action: "regenerate", conversationId: convId, messageId: answer.parentId, replacing: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: checkWeb ? true : p.searchWeb, ...(checkWeb ? { research: "search" as const } : {}), mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
       messages.slice(0, at + 1),
       [placeholder(TEMP_ANSWER, "assistant", { kind: answer.kind, parentId: answer.parentId, meta: answer.kind === "image" ? { aspect: answer.meta.aspect, prompt: answer.meta.prompt } : {} })],
       null,
@@ -570,7 +574,10 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                     last={i === messages.length - 1}
                     readOnly={chat.demo}
                     speaking={speaking === m.id}
+                    handOffs={i === messages.length - 1 ? offered : undefined}
                     actions={{
+                      onChoose: (text) => void send({ text, files: [], mode: "text", aspect: "1:1", model: prefs.model, effort: prefs.effort }),
+                      onCheckWeb: () => regenerate(m, true),
                       onRegenerate: () => regenerate(m),
                       onContinue: () => continueAnswer(m),
                       onRate: (r) => void rate(m, r),

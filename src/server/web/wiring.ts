@@ -6,15 +6,20 @@
 import { webConfig } from "./config";
 import { createReaderClient } from "./reader-client";
 import { research, type ResearchInput, type ResearchResult } from "./research";
+import { withSearchCache } from "./search/cache";
 import { createBreaker } from "./search/health";
+import type { SearchProvider } from "./search/provider";
 import { createSearxng } from "./search/searxng";
 
 const breaker = createBreaker();
+/** One search provider per server process, so the searches it keeps for a few minutes are shared by every answer (search/cache.ts). */
+let searches: SearchProvider | undefined;
 
 export function webResearch(): ((input: ResearchInput) => Promise<ResearchResult>) | undefined {
   const config = webConfig();
   if (!config) return undefined;
-  const search = createSearxng(config.searchUrl);
+  searches ??= withSearchCache(createSearxng(config.searchUrl));
+  const search = searches;
   const reader = createReaderClient(config.readerUrl);
   return (input) => research({ search, reader, breaker, now: Date.now }, input);
 }

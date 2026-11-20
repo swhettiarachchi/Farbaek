@@ -43,6 +43,12 @@ const modelChoice = z.string().regex(/^(?:auto|[a-z0-9][a-z0-9.:_-]{0,79})$/);
 /** The answer-language setting from this browser (stage 204): "auto" reads the person's own language. Optional for older pages. */
 const languageChoice = z.object({ answer: z.enum(["auto", ...ANSWER_LANGUAGE_CODES]), script: z.enum(["native", "latin"]) }).optional();
 
+/**
+ * Whether the web is checked (stage 206): "auto" (or nothing) lets Farbaek read whether the message needs it; "search" checks it
+ * whatever the message looks like, which is what "Check the web" on an answer asks for. Off is the `web` switch.
+ */
+const researchChoice = z.enum(["auto", "search"]).optional();
+
 export const turnRequestSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("send"),
@@ -56,6 +62,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     language: languageChoice,
     /** Check the live web first (stage 205): on unless the person switched it off in this browser. */
     web: z.boolean().optional(),
+    research: researchChoice,
     mode: z.enum(["text", "image"]),
     aspect: z.enum(ASPECTS),
     projectId: id.nullable(),
@@ -72,6 +79,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     language: languageChoice,
     /** Check the live web first (stage 205): on unless the person switched it off in this browser. */
     web: z.boolean().optional(),
+    research: researchChoice,
     mode: z.enum(["text", "image"]),
     aspect: z.enum(ASPECTS),
   }),
@@ -87,6 +95,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     language: languageChoice,
     /** Check the live web first (stage 205): on unless the person switched it off in this browser. */
     web: z.boolean().optional(),
+    research: researchChoice,
     mode: z.enum(["text", "image"]),
     aspect: z.enum(ASPECTS),
   }),
@@ -157,8 +166,8 @@ export const HOME_QUESTION_KEY = "farbaek.chat-question";
  */
 export const STUDIO_PROMPT_KEY = "farbaek.studio-prompt";
 
-/** The spaces an answer can hand its request to. */
-export type HandOff = "images" | "video" | "build";
+/** The places an answer can hand its request to: three spaces, and the page for the desktop app (stage 206). */
+export type HandOff = "images" | "video" | "build" | "desktop";
 
 /** The events of one turn's stream, in order: start, then thinking and text (or an image), then done. */
 export type TurnEvent =
@@ -168,8 +177,12 @@ export type TurnEvent =
   | { type: "thinking"; v: string }
   /** The model that was answering failed before writing anything, and another took the question (ADR 0215). */
   | { type: "route"; modelName: string; note: string }
-  /** Checking the live web before the answer (stage 205): planning, searching, reading, then done, failed or off with the saved facts. */
-  | { type: "search"; stage: "planning" | "searching" | "reading" | "done" | "failed" | "off"; queries?: string[]; pages?: number; search?: SearchMeta }
+  /**
+   * Checking the live web before the answer (stage 205): planning, searching, reading, and for a deep task checking what's
+   * missing before a second round (stage 206); then done, failed, off or skipped with the saved facts. A second "done" follows
+   * the answer, once its citations have been checked.
+   */
+  | { type: "search"; stage: "planning" | "searching" | "reading" | "checking" | "done" | "failed" | "off" | "skipped"; queries?: string[]; pages?: number; round?: number; search?: SearchMeta }
   | { type: "text"; v: string }
   | { type: "image"; file: ChatFile }
   | { type: "title"; title: string }

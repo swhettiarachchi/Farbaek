@@ -10,6 +10,7 @@ import { z } from "zod";
 import { readLanguage, prose, type Confidence, type LanguageReading } from "./language";
 import { cleanPreference, describeLanguage, type AnswerScript, type LanguagePreference } from "./language-names";
 import { readLanguageRequest } from "./language-requests";
+import { styleNote } from "./language-style";
 
 export type LanguageSource = "asked" | "asked-here" | "chosen" | "read" | "none";
 
@@ -164,5 +165,7 @@ export function languageNote(plan: LanguagePlan): string | null {
   }
   if (own && plan.scriptFrom === "chosen") parts.push("They chose English letters in their settings.");
   if (latin) parts.push("Write every sentence this way, even when their latest message is in English; keep technical terms and code as they are.");
-  return `${NOTE} ${parts.join(" ")}`;
+  // How to write it well (stage 206): the register and what to avoid, for languages models write less naturally than English.
+  const style = styleNote(plan.language, latin);
+  return `${NOTE} ${parts.join(" ")}${style ? `\n${style}` : ""}`;
 }

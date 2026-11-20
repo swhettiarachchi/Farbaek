@@ -21,7 +21,7 @@ export interface ChatPrefs {
   answerLanguage: string;
   /** For languages with their own script: that script (default) or English letters. */
   answerScript: AnswerScript;
-  /** Check the live web before every answer (stage 205). On unless switched off. */
+  /** Check the live web when a question needs it (stage 205, stage 206). On unless switched off. */
   searchWeb: boolean;
 }
 

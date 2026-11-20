@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChatMessage, TurnEvent, TurnRequest } from "@/core/chat/protocol";
+import { sourceOf } from "@/core/web/context";
+import { fitSearchMeta } from "@/core/web/sources";
 import type { ChatModel, ChatOutcome } from "@/server/ai/chat-model";
 import type { ImageGenerator, ImageOutcome } from "@/server/ai/gemini-image";
 import type { AiUsageDeps, UsageContext } from "@/server/workspace/ai-usage";
@@ -464,7 +466,7 @@ describe("live web search before the answer (stage 205)", () => {
       calls.push(input);
       input.onStage?.({ stage: "searching", queries: ["bakery names 2026"] });
       input.onStage?.({ stage: "reading", pages: 1 });
-      return { context: result.context, meta: meta(result.status), plannerUsage: result.usage ?? null };
+      return { context: result.context, meta: meta(result.status), plannerUsage: result.usage ?? null, docs: [] };
     };
     return calls;
   }
@@ -474,12 +476,13 @@ describe("live web search before the answer (stage 205)", () => {
     const researched = withResearch(deps, { context: "<web_results>[1] Bakery names</web_results>", status: "done" });
     const { events } = await run(deps, send());
     expect(researched).toHaveLength(1);
-    expect(events.filter((e) => e.type === "search").map((e) => (e as { stage: string }).stage)).toEqual(["searching", "reading", "done"]);
+    expect(events.filter((e) => e.type === "search").map((e) => (e as { stage: string }).stage)).toEqual(["searching", "reading", "done", "done"]);
     const parts = sentTo(deps)[0].messages.at(-1).parts;
     expect(parts[0]).toEqual({ type: "text", text: "What is a good name for a bakery?" });
     expect(parts.at(-1)).toEqual({ type: "context", text: "<web_results>[1] Bakery names</web_results>" });
     const final = calls.filter((c) => c.name === "writeReply").at(-1)!.input;
-    expect(final.meta.search).toMatchObject({ status: "done", sources: [{ n: 1, url: "https://example.org/names" }] });
+    // The second "done" follows the answer: its citations have been read, and this answer cites nothing.
+    expect(final.meta.search).toMatchObject({ status: "done", sources: [{ n: 1, url: "https://example.org/names", cited: false }], checks: { cited: 0, matched: 0, unmatched: 0, invalid: 0 } });
   });
 
   it("when the search fails, the model is told and the answer records why", async () => {
@@ -551,7 +554,7 @@ describe("live web search before the answer (stage 205)", () => {
     const { deps, calls } = fakeDeps();
     deps.research = (input) =>
       new Promise((resolve) => {
-        input.signal.addEventListener("abort", () => resolve({ context: "stopped", meta: meta("failed"), plannerUsage: null }));
+        input.signal.addEventListener("abort", () => resolve({ context: "stopped", meta: meta("failed"), plannerUsage: null, docs: [] }));
       });
     const prepared = await prepareTurn(deps, { orgId: "o1", userId: "u1", request: send() });
     if (!prepared.ok) throw new Error("not prepared");
@@ -561,5 +564,172 @@ describe("live web search before the answer (stage 205)", () => {
     await done;
     expect(calls.filter((c) => c.name === "writeReply").at(-1)!.input.status).toBe("stopped");
     expect(calls.find((c) => c.name === "settle")!.input).toMatchObject({ status: "refunded" });
+  });
+});
+
+describe("whether the web is checked at all (stage 206)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the fake model records requests of the adapter's shape
+  const sentTo = (deps: TurnDeps) => (deps.claude as unknown as { requests: any[] }).requests;
+  const source = { n: 1, url: "https://example.org/rain", title: "Rain in Colombo", site: "example.org", published: "2026-11-15T08:00:00.000Z", read: true };
+  type Asked = Parameters<NonNullable<TurnDeps["research"]>>[0];
+  function withResearch(deps: TurnDeps, pages: string[] = []) {
+    const asked: Asked[] = [];
+    deps.research = async (input) => {
+      asked.push(input);
+      return {
+        context: "<web_results>[1] Rain in Colombo</web_results>",
+        meta: { at: "2026-11-16T10:00:00.000Z", status: "done", queries: ["colombo rain"], sources: [source] },
+        plannerUsage: null,
+        docs: pages.map((text) => ({ ...source, updated: null, text })),
+      };
+    };
+    return asked;
+  }
+  const withPlanner = (deps: TurnDeps) => {
+    (deps.claude as unknown as { complete: unknown }).complete = async () => ({ text: null, usage: null });
+  };
+  const lastParts = (deps: TurnDeps) => sentTo(deps)[0].messages.at(-1).parts;
+  const savedSearch = (calls: { name: string; input: { meta?: { search?: unknown } } }[]) => calls.filter((c) => c.name === "writeReply").at(-1)!.input.meta!.search;
+  const reserved = (calls: { name: string; input: { units: number } }[]) => calls.find((c) => c.name === "reserve")!.input.units;
+
+  it("a greeting starts at once: nothing is searched, the model is told, and the answer records it", async () => {
+    const { deps, calls } = fakeDeps();
+    const asked = withResearch(deps);
+    const { events } = await run(deps, send({ text: "kohomada machan" }));
+    expect(asked).toHaveLength(0);
+    expect(events.find((e) => e.type === "search")).toMatchObject({ stage: "skipped" });
+    expect(lastParts(deps).at(-1).text).toMatch(/didn't check the live web/);
+    expect(savedSearch(calls)).toMatchObject({ status: "skipped", sources: [] });
+    // No room is kept for web text that won't be read.
+    const searched = fakeDeps();
+    withResearch(searched.deps);
+    await run(searched.deps, send({ text: "What is the weather in Colombo today?" }));
+    expect(reserved(searched.calls)).toBeGreaterThan(reserved(calls));
+  });
+
+  it("Check the web searches whatever the message looks like", async () => {
+    const { deps } = fakeDeps({ path: [msg(Q1, "user", { content: "Write a poem about the sea" })] });
+    const asked = withResearch(deps);
+    await run(deps, { action: "regenerate", conversationId: CONV, messageId: Q1, model: "auto", effort: "balanced", mode: "text", aspect: "1:1", research: "search" });
+    expect(asked).toHaveLength(1);
+    expect(asked[0]!.need).toMatchObject({ need: "search", explicit: true });
+    // Asked again without it, the poem is written at once.
+    const plain = fakeDeps({ path: [msg(Q1, "user", { content: "Write a poem about the sea" })] });
+    const again = withResearch(plain.deps);
+    await run(plain.deps, { action: "regenerate", conversationId: CONV, messageId: Q1, model: "auto", effort: "balanced", mode: "text", aspect: "1:1" });
+    expect(again).toHaveLength(0);
+  });
+
+  it("a short English question that plainly needs the web is planned without a model; an unclear one is the planner's to decide", async () => {
+    const { deps, calls } = fakeDeps();
+    withPlanner(deps);
+    const asked = withResearch(deps);
+    await run(deps, send({ text: "What is the weather in Colombo today?" }));
+    expect(asked[0]).toMatchObject({ local: true, need: { need: "search" } });
+    expect(calls.filter((c) => c.name === "reserve")).toHaveLength(1);
+
+    const unsure = fakeDeps();
+    withPlanner(unsure.deps);
+    const open = withResearch(unsure.deps);
+    await run(unsure.deps, send({ text: "Explain how AI agents work." }));
+    expect(open[0]).toMatchObject({ local: false, need: { need: "unsure" } });
+    expect(unsure.calls.filter((c) => c.name === "reserve")).toHaveLength(2);
+  });
+
+  it("a Sinhala question in English letters goes to the planner with its need already read, and the answer gets the Sinhala style note", async () => {
+    const { deps } = fakeDeps();
+    withPlanner(deps);
+    const asked = withResearch(deps);
+    await run(deps, send({ text: "mata ada tech industire eka aluth details denna" }));
+    expect(asked[0]).toMatchObject({ local: false, need: { need: "search" }, question: "mata ada tech industire eka aluth details denna" });
+    expect(sentTo(deps)[0].guidance).toContain("Answer in Sinhala");
+    expect(sentTo(deps)[0].guidance).toContain("How to write Sinhala here");
+  });
+
+  it("a request to act on the computer isn't searched, and the model is told what it can't do", async () => {
+    const { deps, calls } = fakeDeps();
+    const asked = withResearch(deps);
+    await run(deps, send({ text: "Open my browser and visit the official website." }));
+    expect(asked).toHaveLength(0);
+    const note = lastParts(deps).at(-1).text;
+    expect(note).toMatch(/you can't act on their computer/);
+    expect(note).toMatch(/never say or imply that you opened/);
+    expect(savedSearch(calls)).toMatchObject({ status: "skipped", reason: "this was a request to act on the computer" });
+    // Asking how to do it is a question like any other.
+    const how = fakeDeps();
+    const question = withResearch(how.deps);
+    await run(how.deps, send({ text: "How do I create a folder on my desktop?" }));
+    expect(question).toHaveLength(1);
+    expect(lastParts(how.deps).at(-1).text).not.toMatch(/act on their computer/);
+  });
+
+  it("the finished answer's citations are checked against the pages, saved, and sent to the screen before the answer ends", async () => {
+    const model = fakeModel(["Colombo had 84 mm of rain on Thursday [1]. ", "An invented source says more [4]."], () => ({ ok: true, stop: "end", usage: { model: "claude-sonnet-5-5", inputTokens: 100, outputTokens: 20 } }));
+    const { deps, calls } = fakeDeps({ model });
+    withResearch(deps, ["Colombo recorded 84 mm of rain on Thursday, the Met Department said."]);
+    const { events } = await run(deps, send({ text: "How much rain did Colombo get this week?" }));
+    const saved = savedSearch(calls);
+    expect(saved).toMatchObject({ status: "done", sources: [{ n: 1, cited: true, support: "matched" }], checks: { cited: 1, matched: 1, unmatched: 0, invalid: 1 } });
+    const searches = events.filter((e) => e.type === "search") as { search?: unknown }[];
+    expect(searches.at(-1)!.search).toEqual(saved);
+    expect(events.findLastIndex((e) => e.type === "search")).toBeLessThan(events.findIndex((e) => e.type === "done"));
+  });
+
+  it("research keeps the answer marked as live while it runs", async () => {
+    const { deps, calls } = fakeDeps();
+    let now = Date.parse("2026-11-16T10:00:00Z");
+    deps.now = () => now;
+    deps.research = async (input) => {
+      // A deep task: ten seconds pass before the second round is announced.
+      now += 10_000;
+      input.onStage?.({ stage: "checking" });
+      return { context: "x", meta: { at: "2026-11-16T10:00:00.000Z", status: "done", queries: ["q"], sources: [source] }, plannerUsage: null, docs: [] };
+    };
+    await run(deps, send({ text: "Research the latest developments in AI agents across the world" }));
+    expect(calls.filter((c) => c.name === "writeReply" && c.input.status === "streaming").length).toBeGreaterThan(0);
+  });
+});
+
+describe("the fresh review's turn cases (stage 206)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the fake model records requests of the adapter's shape
+  const sentTo = (deps: TurnDeps) => (deps.claude as unknown as { requests: any[] }).requests;
+  const usage = { model: "claude-sonnet-5-5", inputTokens: 100, outputTokens: 20 };
+
+  it("a source the model read and cites is kept even when the saved list had no room for it", async () => {
+    // Twelve pages with long addresses: more than the saved list can hold, so the first fit drops the last ones.
+    const pages = Array.from({ length: 12 }, (_, i) => ({ n: i + 1, url: `https://site${i + 1}.example/${"p".repeat(520)}`, title: `Colombo rain report ${i + 1}`, site: `site${i + 1}.example`, published: null, updated: null, read: true, text: "Colombo recorded 84 mm of rain on Thursday." }));
+    const fitted = fitSearchMeta({ at: "2026-11-16T10:00:00.000Z", status: "done", queries: ["colombo rain"], sources: pages.map(sourceOf) });
+    expect(fitted.sources.length).toBeLessThan(11);
+    const model = fakeModel(["Colombo had 84 mm of rain on Thursday [11][12]."], () => ({ ok: true, stop: "end", usage }));
+    const { deps, calls } = fakeDeps({ model });
+    deps.research = async () => ({ context: "x", meta: fitted, plannerUsage: null, docs: pages });
+    await run(deps, send({ text: "How much rain did Colombo get this week?" }));
+    const saved = calls.filter((c) => c.name === "writeReply").at(-1)!.input.meta.search as { checks: unknown; sources: { n: number; cited?: boolean; support?: string }[] };
+    expect(saved.checks).toMatchObject({ cited: 2, matched: 2, invalid: 0 });
+    expect(saved.sources.filter((s) => s.cited).map((s) => s.n)).toEqual([11, 12]);
+    expect(new TextEncoder().encode(JSON.stringify(saved)).length).toBeLessThanOrEqual(5_500);
+  });
+
+  it("a request to act that also asks about now is still searched, and carries the note", async () => {
+    const { deps } = fakeDeps();
+    let searched = 0;
+    deps.research = async () => {
+      searched++;
+      return { context: "<web_results>x</web_results>", meta: { at: "2026-11-16T10:00:00.000Z", status: "done", queries: ["q"], sources: [] }, plannerUsage: null, docs: [] };
+    };
+    await run(deps, send({ text: "Open my browser and check today's news" }));
+    expect(searched).toBe(1);
+    const context = sentTo(deps)[0].messages.at(-1).parts.at(-1).text;
+    expect(context).toMatch(/you can't act on their computer/);
+    expect(context).toContain("<web_results>x</web_results>");
+  });
+
+  it("an ordinary request that only mentions a computer word gets no such note", async () => {
+    for (const text of ["Write a press release for me about our new product", "Update the app to use React 19", "Use the browser's localStorage API to save the theme"]) {
+      const { deps } = fakeDeps();
+      await run(deps, send({ text }));
+      const parts = sentTo(deps)[0].messages.at(-1).parts;
+      expect(parts.map((p: { text?: string }) => p.text ?? "").join("\n"), text).not.toMatch(/act on their computer/);
+    }
   });
 });
