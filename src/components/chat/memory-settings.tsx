@@ -22,6 +22,8 @@ interface Remembered {
 export function MemorySettings() {
   const { useMemory } = useChatPrefs();
   const [items, setItems] = useState<Remembered[] | null>(null);
+  // The list couldn't be read: said so, and never shown as an empty list.
+  const [unread, setUnread] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [pending, start] = useTransition();
@@ -34,6 +36,7 @@ export function MemorySettings() {
       if (r.ok) setItems(r.value);
       else {
         setItems([]);
+        setUnread(true);
         setProblem(r.message);
       }
     });
@@ -45,6 +48,7 @@ export function MemorySettings() {
   const apply = (result: Awaited<ReturnType<typeof rememberAction>>) => {
     if (result.ok) {
       setItems(result.value);
+      setUnread(false);
       setProblem(null);
     } else setProblem(result.message);
     return result.ok;
@@ -59,7 +63,10 @@ export function MemorySettings() {
   const forget = (id: string) => start(async () => void apply(await forgetMemoryAction(id)));
   const forgetAll = async (): Promise<ActionState> => {
     const result = await forgetAllMemoriesAction();
-    if (result.status === "done") setItems([]);
+    if (result.status === "done") {
+      setItems([]);
+      setUnread(false);
+    }
     return result;
   };
 
@@ -84,6 +91,8 @@ export function MemorySettings() {
         <p className="mt-3 text-sm text-ink-3" role="status">
           Reading what&apos;s remembered
         </p>
+      ) : unread ? (
+        <p className="mt-3 text-sm text-ink-3">The list isn&apos;t available. Anything remembered is still kept.</p>
       ) : count === 0 ? (
         <p className="mt-3 text-sm text-ink-3">Nothing is remembered yet.</p>
       ) : (

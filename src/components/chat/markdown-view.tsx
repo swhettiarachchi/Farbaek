@@ -11,7 +11,7 @@ import { useAnswerParts } from "./answer-parts";
 import { useCopy } from "./primitives";
 import type { WebSource } from "@/core/web/sources";
 import { extensionFor, highlight, languageLabel, type TokenKind } from "@/core/chat/highlight";
-import { parseMarkdown, type Block, type Inline } from "@/core/chat/markdown";
+import { choiceLines, parseMarkdown, type Block, type Inline } from "@/core/chat/markdown";
 import { texToMath, type MathNode } from "@/core/chat/tex";
 
 const TOKEN_CLASS: Record<TokenKind, string> = {
@@ -120,15 +120,8 @@ function Citation({ numbers }: { numbers: number[] }) {
  */
 function Choices({ text }: { text: string }) {
   const { onChoose } = useAnswerParts();
-  const options = [
-    ...new Set(
-      text
-        .split("\n")
-        .map((line) => line.replace(/^\s*(?:[-*+]|\d{1,2}[.)])\s+/, "").trim())
-        .filter(Boolean)
-        .map((option) => (option.length > 140 ? `${option.slice(0, 139)}…` : option)),
-    ),
-  ].slice(0, 6);
+  // The same reading the server uses to know a pressed choice from a typed message.
+  const options = choiceLines(text);
   if (options.length === 0) return null;
   if (!onChoose) {
     return (

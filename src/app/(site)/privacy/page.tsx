@@ -117,7 +117,7 @@ const SECTIONS: LegalSection[] = [
           began. The summary is kept with the conversation, is yours alone, and is deleted with it.
         </p>
         <p>
-          If an owner or admin gives your workspace its ownAnthropic key, those requests go to Anthropic, or through their company&apos;s own server, under that account&apos;s own terms. Farbaek
+          If an owner or admin gives your workspace its own Anthropic key, those requests go to Anthropic, or through their company&apos;s own server, under that account&apos;s own terms. Farbaek
           keeps the key encrypted and never shows it again.
         </p>
         <p>

@@ -356,6 +356,37 @@ export function parseMarkdown(text: string, options: { citations?: boolean } = {
   return whileCiting(options.citations ?? false, () => parseLines(text.replace(/\r\n?/g, "\n").split("\n"), 0));
 }
 
+/** The lines of a `choices` block as the options a person can press: at most six, each at most 140 characters, none twice. */
+export function choiceLines(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .split("\n")
+        .map((line) => line.replace(/^\s*(?:[-*+]|\d{1,2}[.)])\s+/, "").trim())
+        .filter(Boolean)
+        .map((option) => (option.length > 140 ? `${option.slice(0, 139)}…` : option)),
+    ),
+  ].slice(0, 6);
+}
+
+/**
+ * Every choice an answer offers to be pressed, exactly as the screen would send it. The server reads this to tell the model's
+ * words from the person's: a pressed choice arrives as a message, but the person didn't write it (stage 207, ADR 0224).
+ */
+export function offeredChoices(answer: string): string[] {
+  if (!answer.includes("choices")) return [];
+  const out: string[] = [];
+  const walk = (blocks: readonly Block[]) => {
+    for (const block of blocks) {
+      if (block.t === "code" && block.lang === "choices" && !block.open) out.push(...choiceLines(block.v));
+      else if (block.t === "quote") walk(block.blocks);
+      else if (block.t === "list") for (const item of block.items) walk(item.blocks);
+    }
+  };
+  walk(parseMarkdown(answer).map((b) => b.block));
+  return out;
+}
+
 // ---------------------------------------------------------------- inline
 
 const PUNCTUATION = /[!-/:-@[-`{-~]/;

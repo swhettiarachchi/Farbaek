@@ -22,7 +22,8 @@ import { languageNote, planLanguage } from "@/core/chat/language-plan";
 import { modelAt } from "@/core/chat/ladder";
 import { computerNote, readAction } from "@/core/chat/intent";
 import { memoryNote, memoryOutcomeNote, MEMORY_OFF_NOTE, readRememberRequest, type MemoryOutcome } from "@/core/chat/memory";
-import { cleanSummary, summaryContext, summaryDue, summaryInput, SUMMARY_PROMPT, withSummary, type SavedSummary, type SummaryMessage } from "@/core/chat/summary";
+import { offeredChoices } from "@/core/chat/markdown";
+import { cleanSummary, newestSummary, summaryContext, summaryDue, summaryInput, SUMMARY_PROMPT, type SavedSummary, type SummaryMessage } from "@/core/chat/summary";
 import { checkCitations } from "@/core/web/citations";
 import { oneLine, sourceOf, webFailureNote, webNotNeededNote, webOffNote, type WebDoc } from "@/core/web/context";
 import { readSearchNeed, type NeedReading } from "@/core/web/intent";
@@ -41,8 +42,8 @@ export interface ChatReads {
   pendingFiles(ids: string[]): Promise<{ id: string; kind: ChatFile["kind"]; size: number; messageId: string | null; conversationId: string | null; generated: boolean }[]>;
   conversation(id: string): Promise<{ id: string; titled: boolean; title: string; projectId: string | null } | null>;
   projectExists(id: string): Promise<boolean>;
-  /** The saved summaries of these messages, by message (stage 207). Missing: none. */
-  summaries?(ids: string[]): Promise<Map<string, SavedSummary>>;
+  /** The saved summaries of these messages, by message (stage 207). Null when they couldn't be read: then none is used and none is made. */
+  summaries?(ids: string[]): Promise<Map<string, SavedSummary> | null>;
   /** What the person asked Farbaek to remember in this workspace, newest first (stage 207). Missing: nothing. */
   memories?(): Promise<string[]>;
 }
@@ -348,9 +349,17 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // switched memory off in this browser. Reading it never stops a turn.
   const useMemory = !("memory" in request) || request.memory !== false;
   const remembered = useMemory && deps.reads.memories ? await deps.reads.memories().catch(() => [] as string[]) : [];
-  const guidance = [languageNote(languagePlan), memoryNote(remembered)].filter((note): note is string => Boolean(note)).join("\n\n") || undefined;
-  // Something to remember in this message: only in a message the person just wrote, never when one is asked again.
-  const toRemember = questionText !== null ? readRememberRequest(questionText) : null;
+  const guidance = languageNote(languagePlan) ?? undefined;
+  // It goes beside the person's message, like web results, with no more authority than their own words: never in the instructions.
+  const rememberedNote = memoryNote(remembered);
+  // Something to remember in this message: only in a message the person typed, never when one is asked again, and never a
+  // choice the model offered and the person tapped (those are the model's words).
+  const requested = questionText !== null ? readRememberRequest(questionText) : null;
+  const offered = requested ? ([...base].reverse().find((m) => m.role === "assistant" && m.kind === "text")?.content ?? "") : "";
+  const spaced = (text: string) => text.replace(/\s+/g, " ").trim();
+  const tapped = requested !== null && offeredChoices(offered).some((choice) => spaced(choice) === spaced(questionText ?? ""));
+  const remember = tapped ? null : requested;
+  const toRemember = remember?.thing ?? null;
   // Live web search (stage 205, ADR 0222): every text question checks the web first, unless it's continuing an answer, only an
   // acknowledgement, or the person switched it off. (Pictures returned earlier.)
   const skip = searchSkip({ action: request.action, mode, text: asking, webOn: "web" in request ? (request.web ?? true) : true });
@@ -363,7 +372,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const read0 = skip ? null : readSearchNeed({ text: asking, files: askedFiles.length, year: new Date(deps.now()).getUTCFullYear() });
   // A request to act never outranks words that ask for the web ("open my browser and check today's news" is still searched).
   // A message that only asks for something to be remembered has nothing to look up either.
-  const actsOnly = read0 !== null && ((action !== null && (read0.need === "none" || read0.need === "unsure")) || (toRemember !== null && !read0.explicit));
+  const actsOnly = read0 !== null && ((action !== null && (read0.need === "none" || read0.need === "unsure")) || (remember !== null && remember.whole && !read0.explicit));
   const need: NeedReading | null = !read0 ? null : forced ? { need: read0.need === "deep" ? "deep" : "search", explicit: true, why: "asked to check the web" } : actsOnly ? { need: "none", explicit: false, why: action ? "a request to act on the computer" : "a request to remember something" } : read0;
   const notNeeded = need?.need === "none";
   // The conversation the search planner may read: the turns before this question.
@@ -387,11 +396,11 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // Both candidates meter the same way: a second provider only stands by on Farbaek's own keys (intelligence.ts).
   const meter = choice.provider === "anthropic" ? deps.claudeUsage : deps.usage;
 
-  // A long conversation's earlier part (stage 207): the newest saved summary stands in for the messages it covers.
-  const savedSummaries = base.length >= 8 && deps.reads.summaries ? await deps.reads.summaries(base.map((m) => m.id)).catch(() => new Map<string, SavedSummary>()) : new Map<string, SavedSummary>();
-  const earlier = withSummary(base, savedSummaries);
-  const summaryHead = earlier.summary ? summaryContext(earlier.summary) : null;
-  const contextMessages = [...earlier.kept.map(asContext), ...(newQuestion ? [newQuestion] : [])];
+  // A long conversation's earlier part (stage 207). Null when the summaries couldn't be read: then none is used, and none is
+  // made, so a failed read never ends in a summary that forgets what an earlier one held.
+  const savedSummaries = base.length >= 8 && deps.reads.summaries ? await deps.reads.summaries(base.map((m) => m.id)).catch(() => null) : null;
+  const summaryText = savedSummaries ? newestSummary(base, savedSummaries) : null;
+  const contextMessages = [...base.map(asContext), ...(newQuestion ? [newQuestion] : [])];
   if (continuing) contextMessages[contextMessages.length - 1] = asContext(continuing);
   // The search planner runs unless the message plainly needs the web and is a short, self-contained English first question,
   // which is planned without a model. It may turn a question into a deep task, so the room for one is kept whenever it runs.
@@ -400,13 +409,19 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const wantsPlanner = searching && !plansHere && Boolean(modelFor(choice).complete);
   // The web text this answer may read comes out of the conversation's room, and goes into the reservation.
   const webTokens = !searching ? 0 : (wantsPlanner ? Math.max(DEEP_WEB_TOKENS, WEB_TOKENS[choice.tier]) : WEB_TOKENS[choice.tier]) + WEB_FRAME_TOKENS;
-  const summaryTokens = summaryHead ? approxTokens(summaryHead) + 8 : 0;
-  const context = fitContext(contextMessages, CONTEXT_TOKENS - webTokens - summaryTokens);
+  const memoryTokens = rememberedNote ? approxTokens(rememberedNote) + 8 : 0;
+  const summaryRoom = summaryText ? approxTokens(summaryContext(summaryText)) + 8 : 0;
+  const context = fitContext(contextMessages, CONTEXT_TOKENS - webTokens - summaryRoom - memoryTokens);
+  // The summary is read only when messages have dropped out of what the model reads: the branch is longer than a turn loads, or
+  // some didn't fit. It never replaces a message that is still there.
+  const dropped = base.length >= CONTEXT_MESSAGES || context.kept.length < contextMessages.length;
+  const summaryHead = summaryText && dropped ? summaryContext(summaryText) : null;
+  const summaryTokens = summaryHead ? summaryRoom : 0;
   const maxOutput = MAX_OUTPUT[request.effort];
   // The AI names a chat with its first answer that finishes: a first answer that failed leaves it to the next.
   const needsTitle = !conversationId || (!conversationTitled && !base.some((m) => m.role === "assistant" && m.status === "complete"));
   // Enough for whichever candidate answers: the one standing by may cost more per word.
-  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + webTokens + summaryTokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
+  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + webTokens + summaryTokens + memoryTokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
 
   const reserved = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units, manual: MANUAL, billing: plan.value });
   if (!reserved.ok) return refused(reserved.code === "QUOTA_EXCEEDED" || reserved.code === "TRIAL_CAP_REACHED" ? 402 : reserved.code === "PLATFORM_DAILY_LIMIT" ? 429 : 503, reserved.message);
@@ -607,6 +622,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       }
       // A request to act on the computer that was searched anyway (the person asked for a search) still carries its note.
       if (action && searching && webContext) webContext = `${computerNote(action)}\n${webContext}`;
+      if (rememberedNote) withContext(modelInput, rememberedNote);
       if (memoryContext) withContext(modelInput, memoryContext);
       if (webContext) withContext(modelInput, webContext);
 
@@ -617,6 +633,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       const older = [...withFiles].filter((id) => id !== newest);
       if (!outcome.ok && !outcome.aborted && outcome.failure === "INCOMPLETE" && !added && thinkingAt === null && older.length > 0) {
         const lean = headed(await toModelInput(deps.reads, { kept: keptMessages, withFiles: new Set(newest && withFiles.has(newest) ? [newest] : []) }));
+        if (rememberedNote) withContext(lean, rememberedNote);
         if (memoryContext) withContext(lean, memoryContext);
         if (webContext) withContext(lean, webContext);
         outcome = await ask(continuing ? [...lean, ...modelInput.slice(-1)] : lean);
@@ -651,7 +668,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       // The answer's own facts, written whole: a continued answer no longer says it reached its length limit.
       // The route's facts are kept with the answer: the next question reads its tier and provider, and ratings can later be read by kind.
       const route = { why: routed.reason, kind: routed.kind, difficulty: routed.difficulty, tier: answering.tier, provider: answering.provider, ...(fellBack ? { fallback: true } : {}) };
-      const finalSave = await save(status, error, { ...(stop ? { stop } : {}), route, ...(searchMeta ? { search: searchMeta } : {}), ...(memoryOutcome ? { memory: memoryOutcome } : {}) });
+      const finalSave = await save(status, error, { ...(stop ? { stop } : {}), route, ...(searchMeta ? { search: searchMeta } : {}), ...((memoryOutcome ?? continuing?.meta.memory) ? { memory: memoryOutcome ?? continuing?.meta.memory } : {}) });
       if (!finalSave.ok) log("error", "chat.save_failed", { status, reason: finalSave.error.slice(0, 120) });
       try {
         emit({ type: "done", status, error, thinkingMs, modelName: modelName(outcome.usage?.model ?? answering.model), stop });
@@ -697,14 +714,14 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
           const reported = usage && usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0) > 0 ? usage : null;
           const spent: ProviderUsage = reported
             ? { ...reported, outputTokens: Math.max(reported.outputTokens, wrote) }
-            : { model: usage?.model ?? answering.model, inputTokens: context.tokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + approxTokens(webContext ?? ""), outputTokens: Math.max(usage?.outputTokens ?? 0, wrote), cacheWriteTokens: 0, cacheReadTokens: 0 };
+            : { model: usage?.model ?? answering.model, inputTokens: context.tokens + summaryTokens + memoryTokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + approxTokens(memoryContext ?? "") + approxTokens(webContext ?? ""), outputTokens: Math.max(usage?.outputTokens ?? 0, wrote), cacheWriteTokens: 0, cacheReadTokens: 0 };
           await settleUsage(meter, { orgId, entryId: reserved.value.entryId, usage: spent });
         } else await refund("stopped", usage);
       } else await refund("failed", usage);
 
       // A summary of the conversation's earlier part (stage 207), once enough has been said since the last one. It is made after
       // the answer has been delivered and paid for, on its own small reservation: nobody waits for it, and if it fails nothing is lost.
-      if (status === "complete") {
+      if (status === "complete" && savedSummaries !== null) {
         const branch: SummaryMessage[] = base.map((m) => ({ id: m.id, role: m.role, content: m.kind === "text" ? m.content : "" }));
         if (question) branch.push({ id: question.id, role: "user", content: question.content });
         if (continuing) branch.pop();

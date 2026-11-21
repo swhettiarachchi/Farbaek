@@ -31,7 +31,8 @@ export const COMPUTER_TOOL_INPUTS = {
   write_text_file: z.object({ path: AbsolutePath, content: z.string().max(512 * 1024), reason: Reason }),
   move_path: z.object({ from: AbsolutePath, to: AbsolutePath, reason: Reason }),
   trash_path: z.object({ path: AbsolutePath, reason: Reason }),
-  open_path: z.object({ path: AbsolutePath, reason: Reason }),
+  open_file: z.object({ path: AbsolutePath, reason: Reason }),
+  show_in_folder: z.object({ path: AbsolutePath, reason: Reason }),
   finish: z.object({
     summary: z.string().min(1).max(1_500).describe("Two or three sentences: what was done, as checked, and what wasn't."),
     done: z.array(z.string().max(300)).max(20).describe("Each thing done, as you saw it afterwards."),
@@ -51,10 +52,11 @@ export const COMPUTER_TOOL_DESCRIPTIONS: Record<ComputerToolName, string> = {
   browser_type: "Type into a numbered field from the last browser_read. It waits for the person, who sees the exact text. Password, card and code fields are refused: the person types those themselves.",
   browser_back: "Go back one page in Farbaek's browser window.",
   make_folder: "Create a folder inside one of the folders the person chose. Waits for the person.",
-  write_text_file: "Create or replace a text file inside one of the folders the person chose. Waits for the person. Programs and scripts are refused.",
-  move_path: "Move or rename a file or folder, both ends inside the folders the person chose. Waits for the person.",
+  write_text_file: "Create or replace a plain text file (.txt, .md, .csv, .tsv or .log) inside one of the folders the person chose. Waits for the person. Any other kind of file is refused.",
+  move_path: "Move or rename a file or folder, both ends inside the folders the person chose, keeping its ending. Waits for the person.",
   trash_path: "Move a file or folder to the recycle bin, where the person can restore it. Waits for the person. Nothing is ever deleted for good.",
-  open_path: "Open a file or folder with its usual app. Waits for the person. Programs, scripts and shortcuts are refused.",
+  open_file: "Open a document or a picture with its usual app: text, PDF, images and office documents. Waits for the person. Programs, scripts, shortcuts and web pages are refused.",
+  show_in_folder: "Show a file or folder in the file manager, selected, without opening it. Waits for the person.",
   finish: "End the task with what was done, as you checked it, and what wasn't.",
 };
 
@@ -77,5 +79,25 @@ export function parseComputerCall(name: string, input: unknown): ParsedComputerC
     const issue = parsed.error.issues[0];
     return { ok: false, error: `The input for ${name} isn't valid: ${issue?.path.join(".") || "input"}: ${issue?.message ?? "invalid"}.` };
   }
+  // Text with half a character pair in it can't be hashed for an approval or shown as it would be typed: refused here.
+  if (!wellFormedDeep(parsed.data)) return { ok: false, error: `The input for ${name} has broken characters in it.` };
   return { ok: true, call: { name, input: parsed.data } as ComputerToolCall };
+}
+
+function wellFormedText(text: string): boolean {
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (c < 0xd800 || c > 0xdfff) continue;
+    const next = text.charCodeAt(i + 1);
+    if (c > 0xdbff || !(next >= 0xdc00 && next <= 0xdfff)) return false;
+    i++;
+  }
+  return true;
+}
+
+function wellFormedDeep(value: unknown): boolean {
+  if (typeof value === "string") return wellFormedText(value);
+  if (Array.isArray(value)) return value.every(wellFormedDeep);
+  if (value && typeof value === "object") return Object.values(value).every(wellFormedDeep);
+  return true;
 }

@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       },
       // A long conversation's saved summaries and what the person asked to be remembered (stage 207, ADR 0224): their own, read as them.
       summaries: (ids) => readSummaries(user, ids),
-      memories: async () => (await readMemories(user, orgId)).map((m) => m.content),
+      memories: async () => ((await readMemories(user, orgId)) ?? []).map((m) => m.content),
     },
     claude: models.claude,
     openai: models.openai,

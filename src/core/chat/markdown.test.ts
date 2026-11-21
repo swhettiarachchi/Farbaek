@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseInline, parseMarkdown, plainText, safeHref, speakable, type Block } from "./markdown";
+import { choiceLines, offeredChoices, parseInline, parseMarkdown, plainText, safeHref, speakable, type Block } from "./markdown";
 
 const blocks = (text: string): Block[] => parseMarkdown(text).map((b) => b.block);
 
@@ -110,5 +110,25 @@ describe("plain text and speech", () => {
     const answer = "## Steps\n\n1. **Mix** the flour.\n2. Bake it.\n\n```sh\nnpm run bake\n```";
     expect(plainText(answer)).toBe("Steps\n\nMix the flour.\nBake it.\n\nnpm run bake");
     expect(speakable(answer)).toEqual(["Steps Mix the flour.", "Bake it."]);
+  });
+});
+
+describe("choices an answer offers (stage 206, stage 207)", () => {
+  it("are read the same way by the screen that draws them and the server that tells them from typed words", () => {
+    expect(choiceLines("- Cheapest first\n2) Fastest first\n\n  Cheapest first  \n* Show everything")).toEqual(["Cheapest first", "Fastest first", "Show everything"]);
+    expect(choiceLines(Array.from({ length: 9 }, (_, i) => `Option ${i}`).join("\n"))).toHaveLength(6);
+    const long = choiceLines("x".repeat(200))[0]!;
+    expect(long).toHaveLength(140);
+    expect(long.endsWith("…")).toBe(true);
+  });
+
+  it("every pressable choice of an answer is found, wherever its block sits, and nothing else is", () => {
+    const answer = "Which one?\n\n```choices\nRemember that I want the cheapest\nShow everything\n```\n\n> Or:\n>\n> ```choices\n> Something else\n> ```\n\n- A list:\n\n  ```choices\n  From the list\n  ```";
+    expect(offeredChoices(answer)).toEqual(["Remember that I want the cheapest", "Show everything", "Something else", "From the list"]);
+    // Ordinary code, a paragraph that mentions choices, and a block still being written offer nothing.
+    expect(offeredChoices("```js\nconst choices = 1;\n```")).toEqual([]);
+    expect(offeredChoices("Here are your choices: red or blue.")).toEqual([]);
+    expect(offeredChoices("Pick:\n\n```choices\nHalf writ")).toEqual([]);
+    expect(offeredChoices("")).toEqual([]);
   });
 });

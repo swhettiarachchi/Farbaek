@@ -40,7 +40,7 @@ export async function GET() {
   if (remembered.error) log("warn", "account.export_without_memories", { error: remembered.error.message.slice(0, 120) });
   log("info", "account.exported", { user: ctx.user.id });
   const day = new Date().toISOString().slice(0, 10);
-  return new Response(`${JSON.stringify({ ...(data as Record<string, unknown>), shared_projects: shared.data ?? [], chat_memories: remembered.error ? [] : (remembered.data ?? []) }, null, 2)}\n`, {
+  return new Response(`${JSON.stringify({ ...(data as Record<string, unknown>), shared_projects: shared.data ?? [], ...(remembered.error ? { chat_memories: null, chat_memories_note: "What you asked Farbaek AI to remember couldn't be read for this download. Download again later, or see it under Memory in Chat's settings." } : { chat_memories: remembered.data ?? [] }) }, null, 2)}\n`, {
     headers: {
       "content-type": "application/json; charset=utf-8",
       "content-disposition": `attachment; filename="farbaek-my-data-${day}.json"`,

@@ -171,13 +171,15 @@ export async function readPath(client: SupabaseClient, conversationId: string, l
 
 /**
  * The saved summaries of these messages (v101), by message. Read as the person, so only their own come back. Empty when there
- * are none, and when the table isn't there yet (the app may be deployed a moment before its migration).
+ * are none; null when they couldn't be read, which includes the table not being there yet (the app may be deployed a moment
+ * before its migration).
  */
-export async function readSummaries(client: SupabaseClient, messageIds: string[]): Promise<Map<string, SavedSummary>> {
+export async function readSummaries(client: SupabaseClient, messageIds: string[]): Promise<Map<string, SavedSummary> | null> {
   const out = new Map<string, SavedSummary>();
   if (messageIds.length === 0) return out;
   const { data, error } = await client.from("chat_summaries").select("message_id, summary, covers").in("message_id", messageIds);
-  if (error || !data) return out;
+  // Not "there are none": the turn then neither uses a summary nor makes one over the top of what it couldn't read.
+  if (error || !data) return null;
   for (const row of data) if (typeof row.message_id === "string" && typeof row.summary === "string" && typeof row.covers === "number") out.set(row.message_id, { summary: row.summary, covers: row.covers });
   return out;
 }
@@ -188,10 +190,11 @@ export interface RememberedThing {
   createdAt: string;
 }
 
-/** What the person asked to be remembered in this workspace (v101), newest first. Read as the person. Empty when the table isn't there yet. */
-export async function readMemories(client: SupabaseClient, orgId: string): Promise<RememberedThing[]> {
+/** What the person asked to be remembered in this workspace (v101), newest first. Read as the person. Null when it couldn't be read, which includes the table not being there yet. */
+export async function readMemories(client: SupabaseClient, orgId: string): Promise<RememberedThing[] | null> {
   const { data, error } = await client.from("chat_memories").select("id, content, created_at").eq("org_id", orgId).order("created_at", { ascending: false }).limit(50);
-  if (error || !data) return [];
+  // Null, not an empty list: "couldn't be read" must never be shown as "nothing is remembered".
+  if (error || !data) return null;
   return data.filter((r) => typeof r.id === "string" && typeof r.content === "string").map((r) => ({ id: r.id as string, content: r.content as string, createdAt: String(r.created_at) }));
 }
 
