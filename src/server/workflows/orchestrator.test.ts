@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { advanceWorkflow, resultFor, settleStep, type OrchestratorDeps } from "./orchestrator";
+import { advanceWorkflow, resultFor, settleStep, sweepResult, type OrchestratorDeps } from "./orchestrator";
 
 const person = { orgId: "o1", userId: "u-owner", role: "owner" as const, permissions: {} };
 
-function fakes(over: { asApproved?: boolean | null; claims?: Awaited<ReturnType<OrchestratorDeps["claimNext"]>>[]; states?: Record<string, string>; person?: boolean; start?: "ok" | string; step?: { status: string } | null } = {}) {
+function fakes(over: { runLive?: boolean; asApproved?: boolean | null; claims?: Awaited<ReturnType<OrchestratorDeps["claimNext"]>>[]; states?: Record<string, string>; person?: boolean; start?: "ok" | string; step?: { status: string } | null } = {}) {
   const claims = [...(over.claims ?? [{ result: "started", step: 1, taskId: "t1", capUnits: 1_000, approvedBy: "u-owner" }])];
   const log: string[] = [];
   const deps: OrchestratorDeps = {
@@ -19,6 +19,7 @@ function fakes(over: { asApproved?: boolean | null; claims?: Awaited<ReturnType<
       log.push(`attach ${step} ${run}`);
     },
     taskState: async (_o, task) => over.states?.[task] ?? "CONTRACT_APPROVED",
+    runLive: async () => over.runLive === true,
     person: async () => (over.person === false ? null : person),
     startRun: async (_p, task, cap) => {
       log.push(`start ${task} cap ${cap}`);
@@ -130,5 +131,37 @@ describe("agent teams (ADR 0128)", () => {
     });
     expect(await advanceWorkflow(f.deps, { id: "w1", orgId: "o1" })).toBe("failed");
     expect(f.log).toEqual(["start t2 cap 1000", "result 2 failed: Step 2 couldn't start: No sandbox is free."]);
+  });
+});
+
+describe("a step whose run is still working (stage 209)", () => {
+  it("is left alone by the hourly sweep: a run keeps its task at CONTRACT_APPROVED until it suggests a change", async () => {
+    // What the sweep saw mid-run before the fix: the task's state alone, read as "ended without a change".
+    const working = fakes({ runLive: true, states: { t9: "CONTRACT_APPROVED" } });
+    expect(await settleStep(working.deps, "t9")).toBeNull();
+    expect(working.log).toEqual([]);
+  });
+
+  it("is failed once its run has ended, or been marked interrupted, without a change", async () => {
+    const ended = fakes({ runLive: false, states: { t9: "CONTRACT_APPROVED" } });
+    expect(await settleStep(ended.deps, "t9")).toBe("failed");
+    expect(ended.log).toEqual(["result 1 failed: The agent's run ended without a change to apply."]);
+  });
+
+  it("is settled by its task's state whatever a run is doing, once the task has moved on", async () => {
+    const verified = fakes({ runLive: true, states: { t9: "VERIFIED" }, claims: [{ result: "finished", step: null, taskId: null, capUnits: null, approvedBy: null }] });
+    expect(await settleStep(verified.deps, "t9")).toBe("finished");
+    const failed = fakes({ runLive: true, states: { t9: "FAILED" } });
+    expect(await settleStep(failed.deps, "t9")).toBe("failed");
+  });
+});
+
+describe("the sweep's word for a workflow with several steps in progress", () => {
+  it("says a failure first, then anything that moved, then waiting, then nothing", () => {
+    expect(sweepResult([null, "failed", "started"])).toBe("failed");
+    expect(sweepResult(["waiting", "started"])).toBe("started");
+    expect(sweepResult([null, "waiting"])).toBe("waiting");
+    expect(sweepResult([null, null])).toBeNull();
+    expect(sweepResult([])).toBeNull();
   });
 });

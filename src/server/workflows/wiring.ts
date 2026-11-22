@@ -6,14 +6,15 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { workflowHash } from "@/core/realityloop/workflow";
+import { LIVE_STATUSES } from "@/core/agent/cloud-run";
+import { WORKFLOW_LIMITS, workflowHash } from "@/core/realityloop/workflow";
 import { parsePermissions } from "@/core/workspace/permissions";
 import { startCloudRun } from "@/server/cloud-agent/executor";
 import { cloudRunDeps } from "@/server/cloud-agent/wiring";
 import { log } from "@/server/observability/log";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { ORG_ROLES } from "@/server/workspace/types";
-import { advanceWorkflow, settleStep, type OrchestratorDeps } from "./orchestrator";
+import { advanceWorkflow, settleStep, sweepResult, type OrchestratorDeps } from "./orchestrator";
 import { readWorkflow } from "./read";
 
 const Claim = z.object({ result: z.string(), step: z.number().nullable(), task_id: z.string().nullable(), cap_units: z.number().nullable(), approved_by: z.string().nullable() });
@@ -48,6 +49,11 @@ export function workflowDeps(admin: SupabaseClient): OrchestratorDeps {
       const { data, error } = await admin.from("tasks").select("state").eq("org_id", orgId).eq("id", taskId).maybeSingle();
       if (error) throw new Error(`tasks: ${error.message}`);
       return (data as { state: string } | null)?.state ?? null;
+    },
+    async runLive(orgId, taskId) {
+      const { count, error } = await admin.from("agent_runs").select("id", { count: "exact", head: true }).eq("org_id", orgId).eq("task_id", taskId).in("status", [...LIVE_STATUSES]);
+      if (error) throw new Error(`agent_runs: ${error.message}`);
+      return (count ?? 0) > 0;
     },
     async person(orgId, userId) {
       const { data, error } = await admin.from("organization_members").select("role, permissions").eq("org_id", orgId).eq("user_id", userId).maybeSingle();
@@ -105,8 +111,13 @@ export async function sweepWorkflows(admin: SupabaseClient): Promise<{ checked: 
   if (error) throw new Error(`workflows: ${error.message}`);
   const results: Record<string, number> = {};
   for (const w of (data ?? []) as { id: string; org_id: string; status: string }[]) {
-    const { data: current } = await admin.from("workflow_steps").select("task_id").eq("workflow_id", w.id).in("status", ["running", "waiting"]).limit(1).maybeSingle();
-    const r = current ? await settleStep(deps, (current as { task_id: string }).task_id) : await advanceWorkflow(deps, { id: w.id, orgId: w.org_id });
+    // Every step in progress, not only the first: a team's steps (ADR 0128) run side by side.
+    const { data: current, error: stepsError } = await admin.from("workflow_steps").select("task_id").eq("workflow_id", w.id).in("status", ["running", "waiting"]).order("position").limit(WORKFLOW_LIMITS.maxSteps);
+    if (stepsError) throw new Error(`workflow_steps: ${stepsError.message}`);
+    const steps = (current ?? []) as { task_id: string }[];
+    const settled: (string | null)[] = [];
+    for (const s of steps) settled.push(await settleStep(deps, s.task_id));
+    const r = steps.length > 0 ? sweepResult(settled) : await advanceWorkflow(deps, { id: w.id, orgId: w.org_id });
     const key = r ?? "unchanged";
     results[key] = (results[key] ?? 0) + 1;
   }

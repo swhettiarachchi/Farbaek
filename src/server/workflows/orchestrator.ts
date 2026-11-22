@@ -21,6 +21,8 @@ export interface OrchestratorDeps {
   stepResult(workflowId: string, step: number, result: StepResult, detail: string | null): Promise<void>;
   attachRun(workflowId: string, step: number, runId: string): Promise<void>;
   taskState(orgId: string, taskId: string): Promise<string | null>;
+  /** Whether an agent's run for the task is still going. A run doesn't move its task out of CONTRACT_APPROVED until it has a change. */
+  runLive(orgId: string, taskId: string): Promise<boolean>;
   /** The approver as a run's person now: their role and permissions, or null when they've left. */
   person(orgId: string, userId: string): Promise<RunPerson | null>;
   startRun(person: RunPerson, taskId: string, capUnits: number): Promise<WriteResult<{ runId: string }>>;
@@ -96,11 +98,20 @@ export function resultFor(state: string | null): { result: StepResult; detail: s
 export async function settleStep(deps: OrchestratorDeps, taskId: string): Promise<string | null> {
   const step = await deps.stepForTask(taskId);
   if (!step || (step.status !== "running" && step.status !== "waiting")) return null;
-  const outcome = resultFor(await deps.taskState(step.orgId, taskId));
+  const state = await deps.taskState(step.orgId, taskId);
+  // The run is still working: the task stays CONTRACT_APPROVED until it suggests a change, so that state alone isn't "ended
+  // without a change". A run that died without saying so is marked interrupted by the hourly job first (stage 209).
+  if (state === "CONTRACT_APPROVED" && (await deps.runLive(step.orgId, taskId))) return null;
+  const outcome = resultFor(state);
   if (!outcome) return null;
   // A waiting step stays waiting until its change is applied and checked.
   if (outcome.result === "waiting" && step.status === "waiting") return "waiting";
   await deps.stepResult(step.workflowId, step.step, outcome.result, outcome.detail);
   if (outcome.result !== "verified") return outcome.result;
   return advanceWorkflow(deps, { id: step.workflowId, orgId: step.orgId });
+}
+
+/** One word for a workflow's sweep, from what each of its steps in progress did: a failure first, then anything that moved. */
+export function sweepResult(settled: readonly (string | null)[]): string | null {
+  return settled.find((r) => r === "failed" || r === "halted") ?? settled.find((r) => r !== null && r !== "waiting") ?? settled.find((r) => r !== null) ?? null;
 }

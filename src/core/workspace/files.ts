@@ -75,6 +75,20 @@ export function containsSecret(content: string): boolean {
   return SECRET_PATTERNS.some((p) => p.test(content));
 }
 
+/** A private key from its first line to its last, or to the end of the text when it was cut off. */
+const PRIVATE_KEY_BLOCK = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g;
+
+/**
+ * The same text with everything `containsSecret` recognises blanked, for text that has to be shown on
+ * and can't be refused whole, such as a command's output on its way to a model (stage 209). The
+ * value is never echoed, and what comes back never contains a secret by that same check.
+ */
+export function blankSecrets(content: string): string {
+  let out = content.replace(PRIVATE_KEY_BLOCK, "[redacted]");
+  for (const p of SECRET_PATTERNS) out = out.replace(new RegExp(p.source, p.flags.includes("g") ? p.flags : `${p.flags}g`), "[redacted]");
+  return out;
+}
+
 export type PathCheck = { ok: true; path: string } | { ok: false; reason: string };
 
 /** Validates a relative path. Leading "./" is removed; nothing else is rewritten. */

@@ -8,6 +8,8 @@ import { processWebhooks } from "@/server/billing/webhooks";
 import { billingWebhookDeps } from "@/server/billing/wiring";
 import { runGooglePlaySync } from "@/server/billing/google/service";
 import { googlePlayDeps } from "@/server/billing/google/wiring";
+import { RUN_STALE_AFTER_MS } from "@/core/agent/cloud-run";
+import { createSupabaseRunStore } from "@/server/cloud-agent/store";
 import { checkSchedulerToken } from "@/server/jobs/auth";
 import { runIncidentEscalation } from "@/server/jobs/incident-escalation";
 import { incidentEscalationDeps } from "@/server/jobs/incident-escalation-wiring";
@@ -61,6 +63,9 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
     incidentEscalation: await runJob("incident_escalation", incidentEscalationDeps(), (d) => runIncidentEscalation(d)),
     // At most once a UTC day (ADR 0090): it skips itself after the first check.
     modelWatch: await runJob("model_watch", await modelWatchDeps().catch(() => null), (d) => runModelWatch(d, now)),
+    // Runs whose server stopped (a restart mid-run) say so within the hour, not only when someone opens a page (stage 209).
+    // Before the workflow sweep, which reads a step's run to tell "still working" from "ended".
+    staleRuns: await runJob("stale_runs", createSupabaseAdminClient(), async (admin) => ({ interrupted: await createSupabaseRunStore(admin).interruptStale(new Date(now.getTime() - RUN_STALE_AFTER_MS)) })),
     // Governed workflows (ADR 0092): a missed hook is caught here.
     workflows: await runJob("workflows", createSupabaseAdminClient(), (admin) => sweepWorkflows(admin)),
     // Payment webhooks that failed or arrived while processing was busy (ADR 0100).
