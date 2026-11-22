@@ -31,6 +31,12 @@ function writeHold(held: boolean) {
 
 const noSubscribe = () => () => {};
 
+/** Tells the hero when the 3D scene has left the page, whatever switched it off. */
+function WhileShown({ onGone, children }: { onGone: () => void; children: React.ReactNode }) {
+  useEffect(() => onGone, [onGone]);
+  return children;
+}
+
 const DARK_DEVICE = "(prefers-color-scheme: dark)";
 
 /** Whether the figure stands on a dark page: only inside Farbaek Chat's frame, on its night theme (ADR 0213). */
@@ -147,6 +153,8 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
   }, []);
 
   const onReady = useCallback(() => setReady(true), []);
+  // A scene that left (a dark page, reduced motion) isn't ready any more: the next one fades in only once it has drawn.
+  const onGone = useCallback(() => setReady(false), []);
   const onSlow = useCallback(() => {
     setWant3D(false);
     setReady(false);
@@ -205,7 +213,9 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
       {show3D ? (
         // Wider than its column so the orbit is never cropped; it never receives pointer events.
         <div className={`pointer-events-none absolute -inset-x-[40%] -inset-y-[6%] ${fade(in3D)}`}>
-          <LoomScene active={running} onReady={onReady} onSlow={onSlow} />
+          <WhileShown onGone={onGone}>
+            <LoomScene active={running} onReady={onReady} onSlow={onSlow} />
+          </WhileShown>
         </div>
       ) : null}
 

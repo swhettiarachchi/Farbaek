@@ -12,7 +12,7 @@
 ## What was done
 
 - **One source.** The owner's image is kept as supplied in `scripts/brand/farbaek-cat-source.webp`. `node scripts/brand-assets.mjs` now makes the logo, the app icon and every size from it: 33 files for the website, the installed web app, Android, iPhone and the desktop app. The two hand-kept files of the old artwork are gone, so the old logo has no file left in the repository.
-- **Transparent where a page shows through.** The paper round the cat is cut away; the white inside the drawing (eyes, ears, whiskers, chest) stays. The edge is black at part strength, so no white fringe shows on a tinted surface. Nothing is recoloured or redrawn.
+- **Transparent where a page shows through.** The paper round the cat is cut away. White the drawing encloses (eyes, ears, chest, stripes, claws) stays; the white lines that open onto the paper (between the legs, round the paws, beside the whiskers) go with it. The edge is black at part strength, so no white fringe shows on a tinted surface. Nothing is recoloured or redrawn.
 - **White where it's needed.** App icons keep the artwork's own white (the App Store refuses transparency, and launchers crop), and so do tab icons (a black cat would vanish on a dark tab strip).
 - **Chat's Dark.** A black cat can't be seen on a dark page, so there it sits on its own white paper: the small logo in the sidebar and beside answers, and the large cat on the welcome screen. CSS draws it, so it is right at first paint. The 3D scene has no paper and stays off on Dark; the 2D drawing of the Loom runs instead.
 - **A new address.** The logo is `public/brand/farbaek-logo-v2.webp`. See "What the first check found".
@@ -23,7 +23,19 @@
 
 Screenshots of the local site showed the old logo, stretched, at some sizes. The website's image cache keeps each size of a picture for up to four hours under the picture's address, and the new logo had kept the old address. A browser does the same. After a release, people (the owner first) would have seen the old logo for hours.
 
-The fix: new artwork gets a new address (`-v2`), and the service worker's cache is renamed (`farbaek-offline-v3`) so its kept copy of the old logo is dropped. The PNG copy keeps its address, which other sites may link to; it is fetched fresh each time.
+The fix: new artwork gets a new address (`-v2`), and the service worker deletes its kept copy of the old logo. The PNG copy keeps its address, which other sites may link to; it is fetched fresh each time.
+
+## What a fresh review found
+
+One reviewer read the finished change and found nothing blocking, and four smaller things. Three are fixed here:
+
+- **Some white lines were half kept.** One gap beside a whisker stayed white while the rest of the same line was transparent, with a few stray white pixels. The cut-out now passes through soft grey necks, so each line goes or stays as a whole, and clears white pieces smaller than a dozen pixels. Checked on a strong colour: no white pixel touches the transparent area.
+- **The hero could dip for a moment** when the 3D scene was switched off and on again (a dark page, then light), because it still counted the old scene as ready. A scene that leaves is no longer ready.
+- **Renaming the service worker's cache could drop the offline device page** if the connection failed mid-update. The cache keeps its name and only the old logo is deleted from it.
+
+Left as it is: the 3D cat is about 6% larger than the still picture it fades from (it was 4% with the old artwork). Not noticeable, and changing it would move the rings too.
+
+Found beside this change, not part of it: the service worker keeps the logo for offline use but never serves it, so the offline device page relies on the browser's own cache for it.
 
 ## Verified
 

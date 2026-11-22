@@ -2,7 +2,8 @@
 // scripts/brand/farbaek-cat-source.webp, 1254 px square on white. Its design is never altered: the artwork is
 // only cut out of its white paper, scaled and padded (never recoloured or redrawn).
 // - public/brand/farbaek-logo-v2.webp: the cat with the paper round it made transparent, for pages (BrandLogo, LOGO).
-//   The white inside the cat (eyes, ears, whiskers, chest) is part of the drawing and stays white.
+//   White that the drawing encloses (eyes, ears, chest, stripes, claws) is part of it and stays white. The white lines
+//   that open onto the paper (between the legs, round the paws, beside the whiskers) are paper, and go with it.
 //   The name carries the artwork's number: the site's image cache and people's browsers keep a picture for hours
 //   under its address, so new artwork gets a new address (and LOGO in brand-logo.tsx, public/sw.js, desktop/build.mjs
 //   and scripts/release/store-images.mjs follow it). The PNG copy keeps its address, which other sites may link to.
@@ -24,9 +25,11 @@ const ICON = "public/brand/farbaek-app-icon.webp";
 const iconPaper = { r: 254, g: 254, b: 254, alpha: 1 };
 
 /**
- * The cat cut out of its paper. Paper is whatever white can be reached from the image's edge, so the white inside
- * the drawing is kept. The soft edge between cat and paper becomes black at part strength, so no white fringe shows
- * on another colour. Returns the artwork trimmed to the cat with a small margin, as RGBA.
+ * The cat cut out of its paper. Paper is whatever can be reached from the image's edge without crossing the drawing,
+ * so white the drawing encloses is kept. The reach passes through anything lighter than mid grey: a white line that
+ * narrows to a soft grey neck is one line, and goes or stays as a whole. The soft edge between cat and paper becomes
+ * black at part strength, so no white fringe shows on another colour. Returns the artwork trimmed to the cat with a
+ * small margin, as RGBA.
  */
 async function cutOut(margin = 24) {
   const { data, info } = await sharp(SOURCE).removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -35,15 +38,17 @@ async function cutOut(margin = 24) {
   const lum = new Uint8Array(W * H);
   for (let i = 0, p = 0; i < W * H; i++, p += 3) lum[i] = Math.round((data[p] * 299 + data[p + 1] * 587 + data[p + 2] * 114) / 1000);
 
-  // Paper: flood from every edge pixel over white.
+  // Paper: flood from every edge pixel over anything lighter than mid grey. What it reaches is paper where it is
+  // white, and the soft edge where it is grey.
   const PAPER = 232;
+  const PASSABLE = 128;
   const state = new Uint8Array(W * H); // 0 the drawing, 1 paper, 2 the soft edge beside paper
   const queue = new Int32Array(W * H);
   let head = 0;
   let tail = 0;
   const reach = (i) => {
-    if (state[i] === 0 && lum[i] >= PAPER) {
-      state[i] = 1;
+    if (state[i] === 0 && lum[i] >= PASSABLE) {
+      state[i] = lum[i] >= PAPER ? 1 : 2;
       queue[tail++] = i;
     }
   };
@@ -79,11 +84,33 @@ async function cutOut(margin = 24) {
   };
   const grey = (i) => state[i] === 0 && lum[i] > 24 && lum[i] < PAPER;
   const first = [];
-  for (let i = 0; i < W * H; i++) if (grey(i) && beside(i, 1)) first.push(i);
+  for (let i = 0; i < W * H; i++) if (grey(i) && (beside(i, 1) || beside(i, 2))) first.push(i);
   for (const i of first) state[i] = 2;
   const second = [];
   for (let i = 0; i < W * H; i++) if (grey(i) && beside(i, 2)) second.push(i);
   for (const i of second) state[i] = 2;
+
+  // A few white pixels can be left standing alone in the paper, cut off by the soft edge. Fewer than a dozen together,
+  // touching paper or its edge, are paper.
+  const seen = new Uint8Array(W * H);
+  for (let start = 0; start < W * H; start++) {
+    if (seen[start] || state[start] !== 0 || lum[start] < PAPER) continue;
+    const group = [start];
+    seen[start] = 1;
+    let touches = false;
+    for (let at = 0; at < group.length && group.length <= 12; at++) {
+      const i = group[at];
+      if (beside(i, 1) || beside(i, 2)) touches = true;
+      const x = i % W;
+      for (const n of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i - W, i + W]) {
+        if (n >= 0 && n < W * H && !seen[n] && state[n] === 0 && lum[n] >= PAPER) {
+          seen[n] = 1;
+          group.push(n);
+        }
+      }
+    }
+    if (group.length <= 12 && touches) for (const i of group) state[i] = 1;
+  }
 
   const out = Buffer.alloc(W * H * 4);
   let x0 = W;
