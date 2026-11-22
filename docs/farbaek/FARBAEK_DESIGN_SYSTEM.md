@@ -125,8 +125,17 @@ The black cat (ADR 0226), `public/brand/farbaek-logo-v2.webp`, through `BrandLog
 3. The same without `--theme` for the light look.
 4. `pnpm test`: the two contrast tests, and the tests for tokens, type, icons and filters.
 
+## The frame
+
+Every signed-in page sits in one frame (ADR 0230), the one Chat began with:
+
+- **Wide screens (1024 px and up):** a rounded window (28 px corners, a hairline, `shadow-e2`) on a pale stage (`canvas-2`), with the spectrum's light glowing from behind its edges. The sidebar is inside the window, 280 px wide. The page scrolls inside the window.
+- **Phones and small tablets:** the page fills the screen and scrolls itself, with a header at the top and five tabs at the bottom: Home, Chat, Build, Approvals, More.
+- **The sidebar's first list:** Home, Chat, Images, Video, Build, Projects, Approvals. The four spaces carry their colours. Everything else is under More tools, then the account pages.
+- **The main screen** (ADR 0228) is a greeting and one box that asks or builds, then what needs the person.
+
 ## Not yet
 
 - Pages outside the public site's layout that no server marks (shared links, the device page, the desktop app's connect page, the page for an address that doesn't exist) in Dark.
 - The iPhone app and the desktop app in Dark.
-- One navigation across Chat, the studios and the app shell (planned as stage 212).
+- Chat, the studios and Build's workspace still draw their own copy of the frame, and "Build" opens two places.
