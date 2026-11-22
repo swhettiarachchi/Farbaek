@@ -3,7 +3,7 @@
 /**
  * The Loom drawn in 2D (ADR 0056): the 3D hero scene's rings, stage nodes,
  * evidence packets and motes, from the same geometry (loom-geometry.ts), on
- * two canvases either side of the knight. The far half goes behind him and
+ * two canvases either side of the cat. The far half goes behind him and
  * the near half in front. It costs a few hundred canvas calls a frame and no
  * 3D library, so phones get it, Low Power Mode included.
  *
@@ -12,6 +12,7 @@
  * screen and in a background tab, and fades out when the 3D scene takes over.
  */
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { LOGO } from "@/components/brand/brand-logo";
 import { whenIdle } from "./capability";
 import { LOOM, loomFrame, motes, type LoomShape, type LoomView } from "./loom-geometry";
 
@@ -19,21 +20,21 @@ import { LOOM, loomFrame, motes, type LoomShape, type LoomView } from "./loom-ge
 const START_SECONDS = 4;
 /** About 60 frames a second at most, so 120 Hz screens don't draw twice as often. */
 const MIN_FRAME_MS = 15;
-/** On narrow screens the rings sit a little tighter round the knight, so the stages stay on screen. */
+/** On narrow screens the rings sit a little tighter round the cat, so the stages stay on screen. */
 const NARROW_RING_SCALE = 0.78;
 const WIDE_QUERY = "(min-width: 1024px)";
-/** The knight artwork's proportions (1024 by 1536). */
-const ART = { w: 2, h: 3 };
+/** The logo artwork's proportions, from the file itself. */
+const ART = { w: LOGO.width, h: LOGO.height };
 
-/** Where the canvas puts the knight: as tall as the poster's knight (object-contain inside 10% padding) and at the box's centre. */
+/** Where the canvas puts the cat: as tall as the poster's cat (object-contain inside 10% padding) and at the box's centre. */
 function viewFor(canvas: HTMLCanvasElement, box: HTMLElement, dpr: number): LoomView {
   const c = canvas.getBoundingClientRect();
   const b = box.getBoundingClientRect();
-  const knightPx = Math.min((b.width * 0.8 * ART.h) / ART.w, b.height - b.width * 0.2);
+  const figurePx = Math.min((b.width * 0.8 * ART.h) / ART.w, b.height - b.width * 0.2);
   return {
-    scale: (knightPx / LOOM.knight.height) * dpr,
-    knightX: (b.left + b.width / 2 - c.left) * dpr,
-    knightY: (b.top + b.height / 2 - c.top) * dpr,
+    scale: (figurePx / LOOM.figure.height) * dpr,
+    figureX: (b.left + b.width / 2 - c.left) * dpr,
+    figureY: (b.top + b.height / 2 - c.top) * dpr,
   };
 }
 
@@ -81,7 +82,7 @@ export function LoomCanvas({ boxRef, still, paused, hidden, children }: { boxRef
 
     const field = motes();
     const wide = window.matchMedia(WIDE_QUERY);
-    let view: LoomView = { scale: 1, knightX: 0, knightY: 0 };
+    let view: LoomView = { scale: 1, figureX: 0, figureY: 0 };
     const size = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       for (const c of [b, f]) {

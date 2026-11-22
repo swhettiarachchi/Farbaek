@@ -23,7 +23,7 @@ const sharp = require(require.resolve("sharp", { paths: [dirname(require.resolve
 const TOKENS = { canvas: "#fbfbfc", surface: "#ffffff", ink: "#121317", ink2: "#474c56", ink3: "#636975", line: "#e4e7ec", accent: "#2450f0", accent2: "#0a6e85" };
 
 const dataUri = (file, type) => `data:${type};base64,${readFileSync(join(root, file)).toString("base64")}`;
-const LOGO = dataUri("public/brand/farbaek-logo.webp", "image/webp");
+const LOGO = dataUri("public/brand/farbaek-logo-v2.webp", "image/webp");
 
 const IOS = {
   dir: "desktop/release/store-ios",
@@ -131,7 +131,7 @@ function featureHtml() {
     radial-gradient(300px 260px at 56% 100%, color-mix(in oklab, ${TOKENS.accent2} 12%, transparent), transparent 70%); }
   .thread { position: absolute; left: 0; right: 0; top: 70px; height: 3px; background: linear-gradient(90deg, ${TOKENS.accent}, ${TOKENS.accent2}); opacity: .9; }
   .node { position: absolute; left: 56px; top: 61px; width: 21px; height: 21px; border-radius: 999px; background: #fff; border: 5px solid ${TOKENS.accent}; }
-  .knight { position: absolute; left: 44px; top: 112px; height: 340px; width: auto; }
+  .logo { position: absolute; left: 48px; top: 164px; height: 232px; width: auto; }
   .copy { position: absolute; left: 236px; top: 150px; width: 420px; }
   .brand { font-weight: 500; font-size: 30px; letter-spacing: -0.03em; }
   h1 { margin-top: 14px; font-weight: 500; font-size: 50px; line-height: 1.02; letter-spacing: -0.045em; }
@@ -142,7 +142,7 @@ function featureHtml() {
   .screen img { width: 100%; display: block; }
 </style></head><body>
   <div class="aurora"></div><div class="thread"></div><div class="node"></div>
-  <img class="knight" src="${LOGO}" alt="">
+  <img class="logo" src="${LOGO}" alt="">
   <div class="copy"><div class="brand">Farbaek</div><h1>Approve what your agent builds.</h1><p>From idea to verified software, with control at every step.</p></div>
   <div class="phone"><div class="screen"><img src="${screen}" alt=""></div></div>
 </body></html>`;

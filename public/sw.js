@@ -6,6 +6,8 @@
 // Farbaek's own addresses (ADR 0079, ADR 0192).
 const CACHE = "farbaek-offline-v2";
 const STATIC = "farbaek-static-v1";
+// The logo before the black cat (ADR 0226), once kept here: removed, so no copy of it is left on anyone's device.
+const OLD_LOGO = "/brand/farbaek-logo.webp";
 const OFFLINE_URL = "/offline";
 const DEVICE_URL = "/device";
 const STATIC_LIMIT = 400;
@@ -50,7 +52,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll([OFFLINE_URL, "/brand/farbaek-app-192.png", "/brand/farbaek-logo.webp"]))
+      .then((cache) => cache.addAll([OFFLINE_URL, "/brand/farbaek-app-192.png", "/brand/farbaek-logo-v2.webp"]).then(() => cache.delete(OLD_LOGO)))
       // The device page is a bonus: an install never fails for it.
       .then(() => fetch(DEVICE_URL, { credentials: "omit" }).then(keepDevicePage).catch(() => undefined))
       .then(() => self.skipWaiting()),

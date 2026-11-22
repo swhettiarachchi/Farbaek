@@ -29,10 +29,10 @@ export function Halo({ tones }: { tones: [string, string, string, string] }) {
 }
 
 /**
- * The homepage's first screen (stage 201, ADR 0217; docs/research/homepage-references-2026-11.md): the cat knight with his
+ * The homepage's first screen (stage 201, ADR 0217; docs/research/homepage-references-2026-11.md): the cat with his
  * Loom turning round him, compact and centred, then two lines with the three verbs in the spaces' colours, one sentence and the
  * message box. On wide screens a card for each space floats at the sides. Under it, Farbaek AI itself in a window, on a pale
- * stage with the spectrum glowing behind its edges. The knight is the largest paint and loads first (ADR 0052).
+ * stage with the spectrum glowing behind its edges. The cat is the largest paint and loads first (ADR 0052).
  */
 export function Hero() {
   return (
@@ -42,7 +42,7 @@ export function Hero() {
         <Reveal className="relative mx-auto flex max-w-[46rem] flex-col items-center text-center">
           {/* His height is his box's width. It follows the screen's height too, so he is as large as each screen allows
               while the message box stays on the first screen; the margins take back the empty air inside his box. */}
-          <div className="knight-away -mb-[calc(var(--knight)*0.06)] -mt-[calc(var(--knight)*0.04)] w-[var(--knight)] [--knight:clamp(13rem,calc((100svh_-_20.75rem)_*_0.87),20rem)] sm:[--knight:clamp(12rem,calc((100svh_-_24.5rem)_*_0.87),22rem)] lg:[--knight:clamp(14rem,calc((100svh_-_25.5rem)_*_0.87),23rem)] 2xl:[--knight:clamp(14rem,calc((100svh_-_25.5rem)_*_0.87),25rem)]">
+          <div className="figure-away -mb-[calc(var(--figure)*0.06)] -mt-[calc(var(--figure)*0.04)] w-[var(--figure)] [--figure:clamp(13rem,calc((100svh_-_20.75rem)_*_0.87),20rem)] sm:[--figure:clamp(12rem,calc((100svh_-_24.5rem)_*_0.87),22rem)] lg:[--figure:clamp(14rem,calc((100svh_-_25.5rem)_*_0.87),23rem)] 2xl:[--figure:clamp(14rem,calc((100svh_-_25.5rem)_*_0.87),25rem)]">
             <HeroVisual sizes="(min-width: 1536px) 400px, (min-width: 1024px) 368px, (min-width: 640px) 352px, 320px" />
           </div>
           <h1 id="hero-title" className={`relative mt-2 ${HERO_TITLE}`}>

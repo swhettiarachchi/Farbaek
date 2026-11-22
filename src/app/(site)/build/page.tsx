@@ -26,7 +26,7 @@ function Later({ children }: { children: ReactNode }) {
 
 /**
  * Build, the space where the agent makes sites and apps (ADR 0214). Its hero keeps the Loom: the stages of a build on a
- * ring round the knight, drawn in 2D everywhere and in 3D on capable desktops (ADR 0056).
+ * ring round the cat, drawn in 2D everywhere and in 3D on capable desktops (ADR 0056).
  */
 export default function BuildPage() {
   return (

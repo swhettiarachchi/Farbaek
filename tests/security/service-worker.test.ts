@@ -91,14 +91,16 @@ function world(pages: Record<string, string | number>) {
   }
   const request = (path: string, init: { mode?: string; method?: string } = {}): Req => ({ url: new URL(path, ORIGIN).href, method: init.method ?? "GET", mode: init.mode ?? "no-cors" });
   const cached = () => [...stores.values()].flatMap((m) => [...m.keys()].map((u) => new URL(u).pathname + new URL(u).search));
-  return { event, request, cached, fetched, setOnline: (v: boolean) => void (online = v) };
+  /** Something an earlier version of the service worker kept. */
+  const keep = (cache: string, path: string, body: string) => store(cache).put(new URL(path, ORIGIN).href, response(body));
+  return { event, request, cached, fetched, keep, setOnline: (v: boolean) => void (online = v) };
 }
 
 const PAGES = {
   "/offline": "offline page",
   "/device": DEVICE_HTML,
   "/brand/farbaek-app-192.png": "icon",
-  "/brand/farbaek-logo.webp": "logo",
+  "/brand/farbaek-logo-v2.webp": "logo",
   "/_next/static/css/app.css": "css",
   "/_next/static/chunks/device.js": "js",
   "/_next/static/chunks/rsc.js": "rsc",
@@ -112,8 +114,21 @@ describe("the service worker", () => {
     const w = world(PAGES);
     await w.event("install");
     expect(w.cached().sort()).toEqual(
-      ["/_next/static/chunks/device.js", "/_next/static/chunks/rsc.js", "/_next/static/css/app.css", "/brand/farbaek-app-192.png", "/brand/farbaek-logo.webp", "/device", "/offline"].sort(),
+      ["/_next/static/chunks/device.js", "/_next/static/chunks/rsc.js", "/_next/static/css/app.css", "/brand/farbaek-app-192.png", "/brand/farbaek-logo-v2.webp", "/device", "/offline"].sort(),
     );
+  });
+
+  it("removes the logo it kept before the black cat, and never drops the device page it already holds", async () => {
+    // An update on a bad connection: the logo and icon arrive, the device page doesn't.
+    const w = world({ ...PAGES, "/device": 503 });
+    await w.keep("farbaek-offline-v2", "/brand/farbaek-logo.webp", "the old logo");
+    await w.keep("farbaek-offline-v2", "/device", "the device page kept last time");
+    await w.event("install");
+    await w.event("activate");
+    expect(w.cached()).not.toContain("/brand/farbaek-logo.webp");
+    expect(w.cached()).toContain("/brand/farbaek-logo-v2.webp");
+    w.setOnline(false);
+    expect(await (await w.event("fetch", { request: w.request("/device", { mode: "navigate" }) }))!.text()).toBe("the device page kept last time");
   });
 
   it("never keeps a signed-in page or an API answer", async () => {

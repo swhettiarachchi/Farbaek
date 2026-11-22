@@ -37,7 +37,7 @@ import { useMemo, useState } from "react";
 import { fileSizeLabel } from "@/core/chat/files";
 import type { ChatFile, ChatMessage, HandOff } from "@/core/chat/protocol";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { KnightMark } from "@/components/brand/knight-mark";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { buttonClasses } from "@/components/ui/button";
 import { AnswerPartsContext, type AnswerParts } from "./answer-parts";
 import { MarkdownView } from "./markdown-view";
@@ -262,7 +262,7 @@ export function AnswerMessage({
 
   return (
     <article className="chat-message group sm:grid sm:grid-cols-[2rem_minmax(0,1fr)] sm:gap-x-3 motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both]" aria-label="Farbaek AI said" aria-busy={streaming || undefined}>
-      <KnightMark live={streaming} className="hidden sm:inline-flex" />
+      <BrandMark live={streaming} className="hidden sm:inline-flex" />
       <div className="min-w-0">
       {thinking !== undefined && thinking !== null && streaming ? (
         <div className="mb-2">

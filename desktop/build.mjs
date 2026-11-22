@@ -42,7 +42,7 @@ await build({ ...common, entryPoints: [path.join(src, "renderer", "main.tsx")], 
 
 await fs.copyFile(path.join(src, "renderer", "index.html"), path.join(out, "renderer", "index.html"));
 await fs.copyFile(path.join(src, "rtc", "rtc.html"), path.join(out, "rtc", "rtc.html"));
-await fs.copyFile(path.join(root, "public", "brand", "farbaek-logo.webp"), path.join(out, "renderer", "logo.webp"));
+await fs.copyFile(path.join(root, "public", "brand", "farbaek-logo-v2.webp"), path.join(out, "renderer", "logo.webp"));
 await fs.copyFile(path.join(root, "public", "brand", "farbaek-icon.png"), path.join(out, "renderer", "icon.png"));
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";

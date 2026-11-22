@@ -2,7 +2,7 @@
  * The Loom's shape and motion (ADR 0056), shared by the 3D scene (WebGL,
  * desktops with a mouse) and its 2D drawing (every other screen), so both
  * show the same thing: the six RealityLoop stages on a tilted ring turning
- * slowly round the knight, evidence packets travelling the thread, and fine
+ * slowly round the cat, evidence packets travelling the thread, and fine
  * motes rising.
  *
  * Plain numbers and functions: no React, no three.js. The colours mirror
@@ -21,7 +21,7 @@ export const LOOM_COLORS = {
 export const LOOM = {
   inner: { rx: 2.0, rz: 1.12, tube: 0.009, opacity: 0.75 },
   outer: { rx: 2.7, rz: 1.5, tube: 0.005, opacity: 0.14 },
-  /** The ring group's Euler rotation (x, y, z, applied z first) and its drop below the knight's centre. */
+  /** The ring group's Euler rotation (x, y, z, applied z first) and its drop below the cat's centre. */
   tilt: [0.36, 0, -0.14] as const,
   drop: -0.15,
   /** Radians per second the rings turn about their upright axis. */
@@ -30,7 +30,7 @@ export const LOOM = {
   packets: { count: 12, size: 0.026, lapsPerSecond: 0.03 },
   motes: { count: 260, size: 0.03, opacity: 0.7, seed: 11 },
   camera: { y: 0.15, z: 6.6, fov: 35 },
-  knight: { height: 3.25, y: 0.08 },
+  figure: { height: 3.25, y: 0.08 },
 } as const;
 
 export type Vec3 = { x: number; y: number; z: number };
@@ -89,13 +89,13 @@ export function toWorld(p: Vec3, spin: number): Vec3 {
 }
 
 /**
- * Where the drawing sits: `scale` pixels per world unit at the knight's
- * depth, and the pixel where the knight's centre is.
+ * Where the drawing sits: `scale` pixels per world unit at the cat's
+ * depth, and the pixel where the cat's centre is.
  */
 export interface LoomView {
   scale: number;
-  knightX: number;
-  knightY: number;
+  figureX: number;
+  figureY: number;
 }
 
 export interface Projected {
@@ -103,7 +103,7 @@ export interface Projected {
   y: number;
   /** Size multiplier from perspective: above 1 nearer the camera. */
   k: number;
-  /** World depth: positive is in front of the knight. */
+  /** World depth: positive is in front of the cat. */
   z: number;
 }
 
@@ -111,9 +111,9 @@ export interface Projected {
 export function project(p: Vec3, view: LoomView): Projected {
   const k = LOOM.camera.z / (LOOM.camera.z - p.z);
   return {
-    x: view.knightX + p.x * view.scale * k,
-    // The knight's centre is at y = knight.y; the camera looks along -z from camera.y.
-    y: view.knightY - ((p.y - LOOM.camera.y) * k - (LOOM.knight.y - LOOM.camera.y)) * view.scale,
+    x: view.figureX + p.x * view.scale * k,
+    // The cat's centre is at y = figure.y; the camera looks along -z from camera.y.
+    y: view.figureY - ((p.y - LOOM.camera.y) * k - (LOOM.figure.y - LOOM.camera.y)) * view.scale,
     k,
     z: p.z,
   };
@@ -124,19 +124,19 @@ export type LoomShape =
   | { kind: "dot"; x: number; y: number; r: number; color: string; alpha: number };
 
 export interface LoomFrame {
-  /** Drawn behind the knight, then the knight, then `front` over him. */
+  /** Drawn behind the cat, then the cat, then `front` over him. */
   back: LoomShape[];
   front: LoomShape[];
 }
 
 const RING_SAMPLES = 120;
 
-/** A world point moved toward the knight's centre by `by` (1 leaves it). */
+/** A world point moved toward the cat's centre by `by` (1 leaves it). */
 function shrink(p: Vec3, by: number): Vec3 {
   return by === 1 ? p : { x: p.x * by, y: p.y * by, z: p.z * by };
 }
 
-/** A ring's outline, split where it passes behind the knight's plane. */
+/** A ring's outline, split where it passes behind the cat's plane. */
 function ringLines(ring: { rx: number; rz: number; tube: number; opacity: number }, color: string, spin: number, view: LoomView, ringScale: number, frame: LoomFrame) {
   let run: [number, number][] = [];
   let inFront: boolean | null = null;
@@ -174,7 +174,7 @@ export function motes(count: number = LOOM.motes.count): { x: number; y: number;
 
 /**
  * Everything to draw at `t` seconds, back to front within each layer.
- * `ringScale` draws the rings and what rides on them closer to the knight
+ * `ringScale` draws the rings and what rides on them closer to the cat
  * (narrow screens); sizes and the motes stay as they are.
  */
 export function loomFrame(t: number, view: LoomView, { field = [], ringScale = 1 }: { field?: ReturnType<typeof motes>; ringScale?: number } = {}): LoomFrame {
