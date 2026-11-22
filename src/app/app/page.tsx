@@ -109,8 +109,8 @@ export default async function MissionControl() {
   );
   const stepsHidden = hiddenWorkspaces(jar.get(FIRST_STEPS_COOKIE)?.value).includes(ws.id);
   const showSteps = !steps.complete && !stepsHidden;
-  // Until something is described, the build box sits inside the first step.
-  const composerInSteps = showSteps && steps.steps[0]!.state === "next";
+  // Until something is described, the first step is the build box at the top of the page (its link goes there).
+  const firstBuildNext = showSteps && steps.steps[0]!.state === "next";
   // Once there are projects, the box offers them too; with the plan full it starts on the latest (stage 176).
   const composer = (
     <PromptComposer
@@ -130,11 +130,10 @@ export default async function MissionControl() {
         <h1 className={FOCUSED_TITLE}>What can I help you with?</h1>
       </header>
 
-      {composerInSteps ? null : (
-        <section id="start" aria-label="Ask or build" className="aurora mx-auto w-full max-w-3xl scroll-mt-24">
-          <StartBox build={composer} />
-        </section>
-      )}
+      {/* Everyone gets the box under the greeting. Until something is described, Build leads: it is the first step. */}
+      <section id="start" aria-label="Ask or build" className="aurora mx-auto w-full max-w-3xl scroll-mt-24">
+        <StartBox build={composer} lead={firstBuildNext ? "build" : "ask"} />
+      </section>
 
       {/* The plan in one quiet line: what it is, when a trial ends, and that nothing is charged. */}
       <p className="mx-auto max-w-2xl text-center text-label leading-relaxed text-ink-3">
@@ -156,7 +155,7 @@ export default async function MissionControl() {
 
       {needs ? <NeedsYouCard step={needs} /> : null}
 
-      {showSteps ? <FirstStepsPanel data={steps} composer={composerInSteps ? composer : undefined} /> : null}
+      {showSteps ? <FirstStepsPanel data={steps} /> : null}
 
       <SpaceDoors />
 
