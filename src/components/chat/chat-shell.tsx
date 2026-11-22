@@ -10,7 +10,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ChatModelOption } from "@/core/chat/models";
 import type { ConversationSummary } from "@/core/chat/protocol";
 import { ConfirmDialog, RenameDialog, SettingsDialog, ShareDialog } from "./dialogs";
-import { saveTheme, setChatPrefs, useChatPrefs, type ChatTheme } from "./prefs";
+import type { Theme } from "@/core/theme/theme";
+import { setChatPrefs, useChatPrefs } from "./prefs";
 import { ToastProvider, useToast } from "./primitives";
 import { Sidebar } from "./sidebar";
 import { useKeyboardViewport } from "./use-viewport";
@@ -30,7 +31,8 @@ export interface ChatShellProps {
   conversations: ConversationSummary[];
   projects: { id: string; name: string }[];
   availability: ChatAvailabilityView;
-  theme: ChatTheme;
+  /** The look the server read (ADR 0227), for Chat's settings to show as chosen. */
+  theme: Theme;
   demo: boolean;
   user: { email: string };
   workspaceName: string;
@@ -73,14 +75,13 @@ export function ChatShell(props: ChatShellProps) {
   );
 }
 
-function Shell({ conversations: initial, projects, availability, theme: initialTheme, demo, user, workspaceName, planLabel, signOut, children }: ChatShellProps) {
+function Shell({ conversations: initial, projects, availability, theme, demo, user, workspaceName, planLabel, signOut, children }: ChatShellProps) {
   const router = useRouter();
   const toast = useToast();
   const prefs = useChatPrefs();
   const root = useRef<HTMLDivElement>(null);
   const [conversations, setConversations] = useState(initial);
   const [drawer, setDrawer] = useState(false);
-  const [theme, setTheme] = useState(initialTheme);
   const [dialog, setDialog] = useState<
     | { kind: "share"; id: string; title: string; shared: boolean }
     | { kind: "rename"; id: string; title: string }
@@ -213,7 +214,7 @@ function Shell({ conversations: initial, projects, availability, theme: initialT
     <ChatContext.Provider value={value}>
       {/* On wide screens Chat is a rounded window on a pale stage, with the spectrum's light glowing from behind its edges
           (stage 202, as the homepage draws it). The light is still; while Farbaek AI answers it travels slowly round. */}
-      <div ref={root} data-chat-theme={theme} className="chat-root relative h-[var(--chat-vh,100dvh)] overflow-hidden bg-canvas text-ink lg:bg-canvas-2 lg:p-3 xl:p-4 2xl:p-5">
+      <div ref={root} className="chat-root relative h-[var(--chat-vh,100dvh)] overflow-hidden bg-canvas text-ink lg:bg-canvas-2 lg:p-3 xl:p-4 2xl:p-5">
         <div aria-hidden className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block">
           <div className="chat-halo" />
           <div className="chat-halo-fade absolute inset-0" />
@@ -261,10 +262,6 @@ function Shell({ conversations: initial, projects, availability, theme: initialT
           open={dialog?.kind === "settings"}
           onClose={() => setDialog(null)}
           theme={theme}
-          onTheme={(t) => {
-            setTheme(t);
-            saveTheme(t);
-          }}
           availability={availability}
           planLabel={planLabel}
         />

@@ -48,7 +48,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 
 ## Design rules (White Signal, ADR 0008)
 
-- One light theme. Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold.
+- Two looks, one set of token names (ADR 0227). Crystal White, the light look (`src/styles/tokens.css`), is the default. Dark (`src/styles/theme-dark.css`) is the person's choice for every signed-in page, the staff console and admin, saved once (`ThemeChoice`, cookie `fb_theme`); Auto follows their device. The public site stays light for now. A colour literal will not turn, and a new colour token needs a night value (`tests/design/dark-theme.test.ts`). `data-theme="light"` or `"dark"` on an element keeps that piece in one look. Look at a new screen in both: `pnpm qa:responsive --theme=dark --shots=<folder>`. Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold.
 - Dark `media` tokens are for media frames only (concept film, evidence terminal), never for whole sections.
 - Shape lock: buttons, chips and segmented controls are pills; inputs 12px (`rounded-sm`); cards 20px (`rounded-md`); large panels 28px.
 - Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono (code, data, `//` labels). No serif.

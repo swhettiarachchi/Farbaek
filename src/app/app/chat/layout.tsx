@@ -1,9 +1,8 @@
 import "@/styles/chat-theme.css";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ChatShell } from "@/components/chat/chat-shell";
-import { THEME_COOKIE, type ChatTheme } from "@/components/chat/theme";
+import { savedTheme } from "@/server/theme";
 import { getPlan } from "@/core/billing/catalog";
 import { SAMPLE_CHATS } from "@/content/chat-samples";
 import { loadChatAvailability } from "@/server/chat/setup";
@@ -17,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Farbaek Chat's frame (stage 199, ADR 0213): the person's conversations in this workspace, what the AI can do for them here, and
- * their light or dark choice, read on the server so the first paint is right.
+ * their light or dark choice (every page's since stage 211, ADR 0227), for its settings to show.
  */
 export default async function ChatLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const ctx = await loadAppContext();
@@ -31,8 +30,7 @@ export default async function ChatLayout({ children }: Readonly<{ children: Reac
     ctx.reader.listProjects(ws.id).catch(() => []),
     loadChatAvailability(ctx, ws, client),
   ]);
-  const saved = (await cookies()).get(THEME_COOKIE)?.value;
-  const theme: ChatTheme = saved === "dark" || saved === "system" ? saved : "light";
+  const theme = await savedTheme();
   const trialDays = ws.trial?.phase.phase === "active" ? ws.trial.phase.daysRemaining : null;
   const planLabel = `${getPlan(ws.plan.planId).name}${ws.plan.source === "trial" ? " trial" : " plan"}${trialDays !== null ? `, ${trialDays} ${trialDays === 1 ? "day" : "days"} left` : ""}`;
 

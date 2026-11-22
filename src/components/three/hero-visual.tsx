@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { PauseIcon, PlayIcon } from "@phosphor-icons/react";
 import { useReducedMotion } from "motion/react";
 import { LOGO } from "@/components/brand/brand-logo";
+import { useShownDark } from "@/components/theme/apply";
 import { canRun3D, whenIdle } from "./capability";
 import { LoomCanvas } from "./loom-canvas";
 
@@ -37,28 +38,6 @@ function WhileShown({ onGone, children }: { onGone: () => void; children: React.
   return children;
 }
 
-const DARK_DEVICE = "(prefers-color-scheme: dark)";
-
-/** Whether the figure stands on a dark page: only inside Farbaek Chat's frame, on its night theme (ADR 0213). */
-function onDarkPage(el: HTMLElement | null): boolean {
-  const theme = el?.closest<HTMLElement>("[data-chat-theme]")?.dataset.chatTheme;
-  return theme === "dark" || (theme === "system" && window.matchMedia(DARK_DEVICE).matches);
-}
-
-/** Chat's theme can change while the page is open, from its settings or with the device. */
-function watchPage(el: HTMLElement | null, notify: () => void): () => void {
-  const root = el?.closest<HTMLElement>("[data-chat-theme]");
-  if (!root) return () => {};
-  const device = window.matchMedia(DARK_DEVICE);
-  const seen = new MutationObserver(notify);
-  seen.observe(root, { attributes: true, attributeFilter: ["data-chat-theme"] });
-  device.addEventListener("change", notify);
-  return () => {
-    seen.disconnect();
-    device.removeEventListener("change", notify);
-  };
-}
-
 /**
  * The hero visual. The cat renders first (it is the LCP image). Round him
  * runs the Loom: the six RealityLoop stages on a tilted ring, evidence
@@ -72,8 +51,8 @@ function watchPage(el: HTMLElement | null, notify: () => void): () => void {
  * - Under reduced motion it's one still frame; off screen it stops.
  * - With a mouse, the whole figure leans a few degrees toward the pointer (stage 201): depth you can feel, never on touch
  *   screens and never under reduced motion. The light around him is the spectrum (ADR 0217): blue, rose and aqua.
- * - The cat is black, so on a dark page (Chat's night theme) he stands on his own white paper, as the app icon does
- *   (ADR 0226). The paper is drawn by CSS, so it is there at first paint; the 3D scene has no paper and stays off there.
+ * - The cat is black, so on a dark page he stands on his own white paper, as the app icon does (ADR 0226, ADR 0227).
+ *   The paper is drawn by CSS (`--logo-paper`), so it is there at first paint; the 3D scene has no paper and stays off there.
  *
  * `sizes` is the cat's width for the image loader: the homepage shows him small, /build larger.
  */
@@ -90,9 +69,9 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
   const [chosenHold, setChosenHold] = useState<boolean | null>(null);
   const held = chosenHold ?? storedHold;
   const running = visible && !held;
-  const subscribePage = useCallback((notify: () => void) => watchPage(box.current, notify), []);
-  const readPage = useCallback(() => onDarkPage(box.current), []);
-  const dark = useSyncExternalStore(subscribePage, readPage, () => false);
+  // Shown dark by the page's look, the device or a piece turned by itself (ADR 0227): the 3D scene has no paper for the cat.
+  const figure = useCallback(() => box.current, []);
+  const dark = useShownDark(figure);
 
   useEffect(() => {
     if (reduce) return;
@@ -192,11 +171,11 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
       </div>
 
       {/* The Loom's far side, the cat, then its near side over him. Drawn once mounted; still under reduced motion. */}
-      <LoomCanvas boxRef={box} still={!mounted || reduce !== false} paused={!running} hidden={!mounted || in3D}>
+      <LoomCanvas boxRef={box} still={!mounted || reduce !== false} paused={!running} hidden={!mounted || in3D} night={dark}>
         <div className="hero-float absolute inset-0">
-          {/* His paper on a dark page: out of sight everywhere else (src/styles/chat-theme.css shows it). A little larger
-              than the picture, which fills the box's width inside its 10% padding. */}
-          <div aria-hidden data-brand-paper="" className="absolute left-[4%] top-1/2 hidden w-[92%] -translate-y-1/2 rounded-[14%]" style={{ aspectRatio: `${LOGO.width} / ${LOGO.height}` }} />
+          {/* His paper on a dark page: it has no colour by day (`--logo-paper`, globals.css). A little larger than the
+              picture, which fills the box's width inside its 10% padding. */}
+          <div aria-hidden data-brand-paper="" className="absolute left-[4%] top-1/2 w-[92%] -translate-y-1/2 rounded-[14%]" style={{ aspectRatio: `${LOGO.width} / ${LOGO.height}` }} />
           <Image
             src={LOGO.src}
             alt="Farbaek"

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { PageTransition } from "@/components/app/page-transition";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { ThemeMark } from "@/components/theme/theme-mark";
 import { StatusGlyph } from "@/components/ui/status-badge";
+import { savedTheme } from "@/server/theme";
 import { requireAdmin } from "@/server/admin/access";
 import { deploymentConnections, deploymentLabel, type Connection } from "@/server/admin/data";
 
@@ -47,6 +49,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
 
   return (
     <div className="min-h-[100dvh] bg-canvas lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
+      <ThemeMark theme={await savedTheme()} />
       <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-6 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 lg:flex">
         <div className="grid gap-1 px-1.5">
           <Link href="/admin" className="flex w-fit items-center gap-2 rounded-full" aria-label="Farbaek admin console, overview">

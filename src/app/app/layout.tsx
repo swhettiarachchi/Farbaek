@@ -1,6 +1,6 @@
 import { ArrowRightIcon, CaretDownIcon, ChatCircleTextIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { loadSharedWithMe } from "@/server/workspace/guest-context";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { AndroidEarlyMark } from "@/components/billing/android-early-mark";
@@ -37,6 +37,9 @@ import { buttonClasses } from "@/components/ui/button";
 import { signOut } from "./actions";
 import { DeviceOwner, SignOutForm } from "@/components/device/device-account";
 import { DISPLAY_TITLE, FOCUSED_TITLE } from "@/components/ui/titles";
+import { ThemeMark } from "@/components/theme/theme-mark";
+import { browserBarColor } from "@/core/theme/theme";
+import { savedTheme } from "@/server/theme";
 
 /** The page-wide bands (demo, saving off, agents paused): one neutral style, the icon's colour says which kind (ADR 0183). */
 // The icon sits beside the first line, and the words wrap beside it, never under it.
@@ -70,7 +73,7 @@ function NotConfigured() {
   );
 }
 
-export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
   const ctx = await loadAppContext();
   if (!ctx) return <NotConfigured />;
 
@@ -260,6 +263,22 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       <ServiceWorker />
       {/* Farbaek for Android: Google Play purchases are sent again when the app opens (ADR 0154). */}
       <PlayPurchaseRecovery enabled={googlePlayReady()} />
+    </>
+  );
+}
+
+/** The browser's own bars take the page's colour, in the look the person chose (ADR 0227). */
+export async function generateViewport(): Promise<Viewport> {
+  const theme = await savedTheme();
+  return { themeColor: browserBarColor(theme), colorScheme: theme === "dark" ? "dark" : theme === "system" ? "light dark" : "light" };
+}
+
+/** Every signed-in page, in the look the person chose: the mark turns the whole page before it paints (ADR 0227). */
+export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <>
+      <ThemeMark theme={await savedTheme()} />
+      <Frame>{children}</Frame>
     </>
   );
 }

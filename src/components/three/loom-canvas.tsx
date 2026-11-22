@@ -14,7 +14,7 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { LOGO } from "@/components/brand/brand-logo";
 import { whenIdle } from "./capability";
-import { LOOM, loomFrame, motes, type LoomShape, type LoomView } from "./loom-geometry";
+import { LOOM, LOOM_NIGHT, loomFrame, motes, type LoomShape, type LoomView } from "./loom-geometry";
 
 /** A moment where the stages are spread round the ring, for the first frame and the still one. */
 const START_SECONDS = 4;
@@ -38,21 +38,22 @@ function viewFor(canvas: HTMLCanvasElement, box: HTMLElement, dpr: number): Loom
   };
 }
 
-function paint(ctx: CanvasRenderingContext2D, shapes: LoomShape[], width: number, height: number) {
+function paint(ctx: CanvasRenderingContext2D, shapes: LoomShape[], width: number, height: number, night: boolean) {
   ctx.clearRect(0, 0, width, height);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   for (const s of shapes) {
+    const color = night ? (LOOM_NIGHT[s.color] ?? s.color) : s.color;
     ctx.globalAlpha = s.alpha;
     if (s.kind === "line") {
-      ctx.strokeStyle = s.color;
+      ctx.strokeStyle = color;
       ctx.lineWidth = Math.max(1, s.width);
       ctx.beginPath();
       s.points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
       ctx.stroke();
     } else {
       if (s.x < -s.r || s.y < -s.r || s.x > width + s.r || s.y > height + s.r) continue;
-      ctx.fillStyle = s.color;
+      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(s.x, s.y, Math.max(0.5, s.r), 0, Math.PI * 2);
       ctx.fill();
@@ -61,7 +62,7 @@ function paint(ctx: CanvasRenderingContext2D, shapes: LoomShape[], width: number
   ctx.globalAlpha = 1;
 }
 
-export function LoomCanvas({ boxRef, still, paused, hidden, children }: { boxRef: RefObject<HTMLDivElement | null>; still: boolean; paused: boolean; hidden: boolean; children: ReactNode }) {
+export function LoomCanvas({ boxRef, still, paused, hidden, night = false, children }: { boxRef: RefObject<HTMLDivElement | null>; still: boolean; paused: boolean; hidden: boolean; /** On a dark page: the night colours (ADR 0227). */ night?: boolean; children: ReactNode }) {
   const back = useRef<HTMLCanvasElement>(null);
   const front = useRef<HTMLCanvasElement>(null);
   // The scene's clock carries on from where it stopped when it comes back on screen.
@@ -94,8 +95,8 @@ export function LoomCanvas({ boxRef, still, paused, hidden, children }: { boxRef
     };
     const draw = () => {
       const frame = loomFrame(clock.current, view, { field, ringScale: wide.matches ? 1 : NARROW_RING_SCALE });
-      paint(bctx, frame.back, b.width, b.height);
-      paint(fctx, frame.front, f.width, f.height);
+      paint(bctx, frame.back, b.width, b.height, night);
+      paint(fctx, frame.front, f.width, f.height, night);
     };
 
     let raf = 0;
@@ -128,7 +129,7 @@ export function LoomCanvas({ boxRef, still, paused, hidden, children }: { boxRef
       cancelAnimationFrame(raf);
       ro?.disconnect();
     };
-  }, [boxRef, still, paused, hidden]);
+  }, [boxRef, still, paused, hidden, night]);
 
   // Wider than the box, so the rings can pass beyond it; replaced elements don't stretch, so the size is explicit.
   const layer = "pointer-events-none absolute left-[-12%] top-[-6%] h-[112%] w-[124%] opacity-0 transition-opacity duration-700 lg:left-[-40%] lg:w-[180%]";

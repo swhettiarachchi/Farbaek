@@ -44,7 +44,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
   - `proof/`: Seal geometry from a digest.
   - `workspace/`: project file path rules, import screening (secrets, binaries, build folders), file tree.
 - `src/content/samples.ts`: sample data for the public site. Always label it "sample" where it's shown.
-- `src/styles/tokens.css`: colour tokens. `tests/design/contrast.test.ts` enforces WCAG AA for every pair.
+- `src/styles/tokens.css`: the light look's colour tokens; `src/styles/theme-dark.css`: their night values (ADR 0227). `tests/design/contrast.test.ts` and `tests/design/dark-theme.test.ts` enforce WCAG AA for every pair in each. `src/core/theme/`, `src/server/theme.ts` and `src/components/theme/` hold the person's choice: the cookie, the server's mark in the page (`ThemeMark`) and the control (`ThemeChoice`).
 - `src/components/three/`: the 3D scene on `/build`. `src/components/films/`: the recorded films.
 - `docs/adr/`: one ADR per significant decision. Add one when you change a decision.
 
@@ -60,7 +60,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 
 ## Design rules (White Signal, ADR 0008)
 
-- One light theme. Farbaek Chat alone offers Dark as the person's choice, scoped to its own root (`src/styles/chat-theme.css`, ADR 0213). Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold. The public site and the spaces' own chrome also use the spectrum (ADR 0217): `spark-rose` for Images, `spark-aqua` for Video, `spark-leaf` for Build, `spark-ember` for playful marks, as identity and as light from behind product windows (`Halo`), never for status.
+- Two looks, one set of token names (ADR 0227). Crystal White, the light look (`src/styles/tokens.css`), is the default. Dark (`src/styles/theme-dark.css`) is the person's choice for every signed-in page, the staff console and admin, saved once (`ThemeChoice`, cookie `fb_theme`); Auto follows their device. The public site stays light for now. A colour literal will not turn, and a new colour token needs a night value (`tests/design/dark-theme.test.ts`). `data-theme="light"` or `"dark"` on an element keeps that piece in one look. Look at a new screen in both: `pnpm qa:responsive --theme=dark --shots=<folder>`. Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold. The public site and the spaces' own chrome also use the spectrum (ADR 0217): `spark-rose` for Images, `spark-aqua` for Video, `spark-leaf` for Build, `spark-ember` for playful marks, as identity and as light from behind product windows (`Halo`), never for status.
 - Dark `media` tokens are for media frames only (concept film, evidence terminal), never for whole sections.
 - Shape lock: buttons, chips and segmented controls are pills; inputs 12px (`rounded-sm`); cards 20px (`rounded-md`); large panels 28px.
 - Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono for code and data only (hashes, paths, commands, IDs, keys). No serif.

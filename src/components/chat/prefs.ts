@@ -8,9 +8,6 @@
 import { useSyncExternalStore } from "react";
 import { EFFORTS, type ChatEffort } from "@/core/chat/protocol";
 import { cleanPreference, type AnswerScript } from "@/core/chat/language-names";
-import { THEME_COOKIE, type ChatTheme } from "./theme";
-
-export type { ChatTheme };
 
 export interface ChatPrefs {
   model: string;
@@ -105,10 +102,4 @@ export function useReducedMotion(): boolean {
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     () => false,
   );
-}
-
-/** Saves the theme for the server's next render (a cookie, a year) and applies it now. */
-export function saveTheme(theme: ChatTheme) {
-  document.cookie = `${THEME_COOKIE}=${theme}; path=/app/chat; max-age=31536000; samesite=lax${location.protocol === "https:" ? "; secure" : ""}`;
-  document.querySelector<HTMLElement>(".chat-root")?.setAttribute("data-chat-theme", theme);
 }

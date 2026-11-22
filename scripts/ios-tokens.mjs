@@ -12,7 +12,8 @@ const camel = (name) => name.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 
 /** The Swift source for every six-digit colour token in :root, in the stylesheet's order. */
 export function swiftTokens(css) {
-  const root = css.match(/:root\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+  // The light look's rule: `:root`, with any other selector that shares its values (a piece kept light on a dark page).
+  const root = css.match(/:root[^{}]*\{([\s\S]*?)\n\}/)?.[1] ?? "";
   const colours = [...root.matchAll(/--([a-z0-9-]+):\s*#([0-9a-f]{6});/gi)].map(([, name, hex]) => ({ name: camel(name), hex: hex.toLowerCase() }));
   if (colours.length === 0) throw new Error("No colour tokens found in tokens.css");
   const lines = colours.map((c) => `    static let ${c.name} = Color(hex: 0x${c.hex})`);

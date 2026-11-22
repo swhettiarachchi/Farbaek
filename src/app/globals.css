@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
+@import "../styles/theme-dark.css";
 
 @theme inline {
   --color-canvas: var(--canvas);
@@ -246,6 +247,24 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* A piece shown in the other look than its page (ADR 0227) takes that look's text colour too: an inherited colour
+     was worked out further up, from the page's own ink. */
+  [data-theme] {
+    color: var(--ink);
+  }
+
+  /* The logo's paper (ADR 0226): nothing by day. At night the black cat sits on its own white, as the app icon does:
+     the picture's box is filled and rounded, with a little of the same white round it. The hero's large cat has a
+     paper of its own behind it (HeroVisual). */
+  img[data-brand-logo] {
+    background: var(--logo-paper);
+    border-radius: 24%;
+    box-shadow: 0 0 0 2px var(--logo-paper);
+  }
+  [data-brand-paper] {
+    background: var(--logo-paper);
   }
 
   /* A grid without an explicit column template gets one column that can

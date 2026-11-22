@@ -86,7 +86,7 @@ export default function ChatPage() {
 
           {/* The chat in both of its looks: dark behind, light in front. Sample conversation. */}
           <Reveal delay={0.12} className="relative mx-auto mt-14 max-w-[64rem] sm:mt-20">
-            <div aria-hidden className="chat-root absolute -right-2 -top-10 hidden w-[78%] lg:block" data-chat-theme="dark">
+            <div aria-hidden className="chat-root absolute -right-2 -top-10 hidden w-[78%] lg:block" data-theme="dark">
               <div className="overflow-hidden rounded-lg bg-surface p-2 opacity-90 shadow-e3 ring-1 ring-line">
                 <div className="h-[24rem] overflow-hidden rounded-md bg-surface ring-1 ring-line">
                   <ChatGlimpse />
