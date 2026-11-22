@@ -86,21 +86,19 @@ const ACCOUNT: NavItem[] = [
 /** Every page in the app's navigation, for the command palette. */
 export const APP_PAGES: readonly NavItem[] = [...CORE, ...TOOLS, ...ACCOUNT];
 
-// The phone's five tabs: Tasks, Chat, Images and Video are reached through More there, with the tools and the account pages.
-// Chat also has its own button in the phone header: five tabs is the most a phone bar holds.
-const PHONE_EXTRAS = new Set(["/app/tasks", "/app/chat", "/app/images", "/app/video"]);
+// The phone's five tabs (ADR 0228): Home, Chat, Build, Approvals and More. Every product studied opens on a box to type
+// in, so Chat is a tab. Projects, Tasks, Images and Video are reached through More there, with the tools and the account
+// pages: five tabs is the most a phone bar holds, and a project is one press from Build and from Home.
+const PHONE_EXTRAS = new Set(["/app/projects", "/app/tasks", "/app/images", "/app/video"]);
 const TAB_ITEMS = CORE.filter((i) => !PHONE_EXTRAS.has(i.href));
 /** The rows on the phone's More page, in order. */
 export const MORE_PAGES: readonly NavItem[] = [...CORE.filter((i) => PHONE_EXTRAS.has(i.href)), ...TOOLS, ...ACCOUNT];
 
 /**
- * On the phone, a page that belongs to a tab lights that tab: a task opens from its project, and templates and checking an
- * app start a project. The task list itself lives under More. The desktop sidebar names all of these, so it doesn't need this.
+ * On the phone, a page that belongs to a tab lights that tab: a project, a task, a template and checking an app are all
+ * part of building. The lists themselves live under More. The desktop sidebar names all of these, so it doesn't need this.
  */
-const PHONE_TAB_FOR: readonly { tab: string; page: RegExp }[] = [
-  { tab: "/app/projects", page: /^\/app\/(tasks\/|templates(\/|$)|rescue(\/|$))/ },
-  { tab: "/app/build", page: /^\/app\/new(\/|$)/ },
-];
+const PHONE_TAB_FOR: readonly { tab: string; page: RegExp }[] = [{ tab: "/app/build", page: /^\/app\/(new(\/|$)|projects\/|tasks\/|templates(\/|$)|rescue(\/|$))/ }];
 
 function isActive(pathname: string, item: NavItem): boolean {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
