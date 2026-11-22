@@ -73,7 +73,7 @@ export function StartBox({ build }: { build: ReactNode }) {
 
   return (
     <div className="grid gap-3">
-      <div role="radiogroup" aria-label="What to start" className="inline-grid w-fit grid-cols-2 rounded-full bg-canvas-2 p-0.5 ring-1 ring-line">
+      <div role="radiogroup" aria-label="What to start" className="mx-auto inline-grid w-fit grid-cols-2 rounded-full bg-canvas-2 p-0.5 ring-1 ring-line">
         {CHOICES.map(([value, Glyph, label]) => (
           <button
             key={value}
@@ -120,7 +120,7 @@ export function StartBox({ build }: { build: ReactNode }) {
               <ArrowUpIcon size={16} weight="bold" aria-hidden />
             </button>
           </form>
-          <p className="mt-2 px-1 text-label text-ink-3">Your question opens in Chat, ready to send.</p>
+          <p className="mt-2 px-1 text-center text-label text-ink-3">Your question opens in Chat, ready to send.</p>
         </div>
       ) : (
         build

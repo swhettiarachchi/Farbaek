@@ -4,7 +4,9 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, CardTitle, EmptyState, Notice, PageHeader, TaskStateBadge } from "@/components/app/primitives";
+import { Card, CardTitle, EmptyState, Notice, TaskStateBadge } from "@/components/app/primitives";
+import { BrandLogo } from "@/components/brand/brand-logo";
+import { FOCUSED_TITLE } from "@/components/ui/titles";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { NeedsYouCard } from "@/components/app/needs-you-card";
 import { ProjectCard } from "@/components/app/project-card";
@@ -121,33 +123,38 @@ export default async function MissionControl() {
 
   return (
     <div className={PAGE_STACK}>
-      <PageHeader
-        title="Home"
-        description={
-          trialDays !== null && ws.trial ? (
-            <>
-              {ws.name} is on the <span className="font-medium text-ink">{getPlan(ws.plan.planId).name}</span> trial, with {trialDays} {trialDays === 1 ? "day" : "days"} left. It ends on{" "}
-              <LocalTime iso={ws.trial.endsAt} date />. Then the workspace moves to Free, and nothing is charged.{" "}
-              <Link href="/app/billing" className="font-medium text-accent hover:underline">
-                See usage
-              </Link>
-            </>
-          ) : (
-            <>
-              {ws.name} is on the <span className="font-medium text-ink">{getPlan(ws.plan.planId).name}</span>
-              {ws.plan.source === "trial" ? " trial" : " plan"}.
-            </>
-          )
-        }
-      />
-
-      {needs ? <NeedsYouCard step={needs} /> : null}
+      {/* The main screen opens as every product studied does (ADR 0228): a greeting and one box, in the middle of the
+          page. What needs the person comes straight after, then their work. */}
+      <header className="mx-auto grid w-full max-w-3xl justify-items-center gap-3 pt-1 text-center sm:gap-4 sm:pt-8">
+        <BrandLogo height={56} preload />
+        <h1 className={FOCUSED_TITLE}>What can I help you with?</h1>
+      </header>
 
       {composerInSteps ? null : (
-        <section id="start" aria-label="Ask or build" className="aurora scroll-mt-24">
+        <section id="start" aria-label="Ask or build" className="aurora mx-auto w-full max-w-3xl scroll-mt-24">
           <StartBox build={composer} />
         </section>
       )}
+
+      {/* The plan in one quiet line: what it is, when a trial ends, and that nothing is charged. */}
+      <p className="mx-auto max-w-2xl text-center text-label leading-relaxed text-ink-3">
+        {trialDays !== null && ws.trial ? (
+          <>
+            {ws.name} is on the <span className="font-medium text-ink-2">{getPlan(ws.plan.planId).name}</span> trial, with {trialDays} {trialDays === 1 ? "day" : "days"} left. It ends on{" "}
+            <LocalTime iso={ws.trial.endsAt} date />. Then the workspace moves to Free, and nothing is charged.{" "}
+            <Link href="/app/billing" className="font-medium text-accent hover:underline">
+              See usage
+            </Link>
+          </>
+        ) : (
+          <>
+            {ws.name} is on the <span className="font-medium text-ink-2">{getPlan(ws.plan.planId).name}</span>
+            {ws.plan.source === "trial" ? " trial" : " plan"}.
+          </>
+        )}
+      </p>
+
+      {needs ? <NeedsYouCard step={needs} /> : null}
 
       {showSteps ? <FirstStepsPanel data={steps} composer={composerInSteps ? composer : undefined} /> : null}
 

@@ -18,7 +18,9 @@ Doing all of that at once would mean moving every signed-in page into one new fr
 
 ## Decision
 
-**Home starts with one box that asks or builds** (`StartBox`).
+**The main screen is a greeting and one box.** Home's page title and its paragraph about the plan are gone from the top. In their place, in the middle of the page: the logo, "What can I help you with?" (the same words Chat greets with), and the box. The plan is one quiet line under the box, with the same facts as before: the plan's name, when a trial ends, and that nothing is charged. What needs the person ("Your turn") comes straight after, then the spaces and their work.
+
+**The box asks or builds** (`StartBox`).
 
 - A two-way switch above the box: **Ask** and **Build**.
 - **Ask** takes the words to Chat, where they wait in Chat's box, ready to send. Nothing is sent by itself. The words travel in the browser's storage, never in the address, by the same path a question typed on the public homepage already takes.
