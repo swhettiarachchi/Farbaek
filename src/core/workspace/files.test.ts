@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTree, checkPath, containsSecret, languageOf, screenFile, screenPath, stripRootFolder } from "./files";
+import { blankSecrets, buildTree, checkPath, containsSecret, languageOf, screenFile, screenPath, stripRootFolder } from "./files";
 
 // Fake credentials are assembled at runtime so this file never contains one literally.
 const fake = (...parts: string[]) => parts.join("");
@@ -74,6 +74,31 @@ describe("screening an import", () => {
 
   it("doesn't flag ordinary code that mentions key names", () => {
     expect(containsSecret("const apiKey = process.env.ANTHROPIC_API_KEY;\n// starts with sk-ant-")).toBe(false);
+  });
+
+  it("blanks every credential it recognises in text that has to be shown on, and keeps the rest (stage 209)", () => {
+    const samples = [
+      fake("const k = 'AKIA", "ABCDEFGHIJKLMNOP';"),
+      fake("ANTHROPIC=sk-ant-", "api03-", "x".repeat(30)),
+      fake("token: gh", "p_", "a".repeat(36)),
+      fake("SUPABASE_SECRET_KEY=sb_secret_", "abcdefghijkl"),
+      fake("stripe('sk_", "live_", "a".repeat(24), "')"),
+      fake("FARBAEK_API_KEY=fb", "k_", "a".repeat(43)),
+    ];
+    for (const s of samples) {
+      const out = blankSecrets(`build ok\n${s}\n${s}\ndone`);
+      expect(containsSecret(out), s.slice(0, 12)).toBe(false);
+      expect(out).toMatch(/^build ok\n/);
+      expect(out).toMatch(/\ndone$/);
+      // Both copies, not only the first.
+      expect(out.split("[redacted]")).toHaveLength(3);
+    }
+    // A private key goes from its first line to its last, and to the end when it was cut off.
+    const key = fake("-----BEGIN ", "RSA PRIVATE KEY-----\nMIIEow\nabc123\n-----END ", "RSA PRIVATE KEY-----");
+    expect(blankSecrets(`before\n${key}\nafter`)).toBe("before\n[redacted]\nafter");
+    expect(blankSecrets(fake("-----BEGIN ", "PRIVATE KEY-----\nMIIEow\nabc123"))).toBe("[redacted]");
+    // Ordinary output is left exactly as it was.
+    expect(blankSecrets("12 tests passed in 3.1 s")).toBe("12 tests passed in 3.1 s");
   });
 
   it("skips binary content and files over the limit", () => {

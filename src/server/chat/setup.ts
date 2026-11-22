@@ -15,6 +15,7 @@ import { imageGeneration, imageModel } from "@/server/ai/image-config";
 import { openAiKey } from "@/server/ai/openai-second-checker";
 import { aiForWorkspace, readModelKey } from "@/server/ai/workspace-ai";
 import { platformModels } from "@/server/platform/state";
+import { turnModels } from "./turn-models";
 import type { AppContext } from "@/server/workspace/context";
 import { loadWallet } from "@/server/workspace/usage-summary";
 import type { AiUsageDeps, UsageContext } from "@/server/workspace/ai-usage";
@@ -76,8 +77,6 @@ export async function chatModels<D extends UsageContext & AiUsageDeps>(orgId: st
   if (paused) return { claude: null, claudeUsage: deps, claudeOwnKey: false, openai: null, error: paused };
   const key = openAiKey();
   const openai = key ? createOpenAiChat({ key }) : null;
-  const ai = await aiForWorkspace(orgId, deps, { timeout: 600_000 });
-  if ("error" in ai) return { claude: null, claudeUsage: deps, claudeOwnKey: false, openai, error: openai ? null : ai.error };
-  if (ai.provider !== "anthropic") return { claude: null, claudeUsage: deps, claudeOwnKey: false, openai, error: openai ? null : "Chat needs Claude or OpenAI, and this server uses Gemini." };
-  return { claude: createAnthropicChat(ai.client), claudeUsage: ai.deps, claudeOwnKey: ai.own, openai, error: null };
+  // The own-key rule lives in turnModels: an unreadable own key stops the turn, and never falls back to OpenAI (stage 209).
+  return turnModels(await aiForWorkspace(orgId, deps, { timeout: 600_000 }), openai, deps, createAnthropicChat);
 }

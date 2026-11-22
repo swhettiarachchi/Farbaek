@@ -15,7 +15,7 @@
 import { applyEdits, type ProposedChange } from "@/core/realityloop/change-proposal";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import { checkAgentPath } from "@/core/agent/paths";
-import { SKIP_LABELS, screenFile } from "@/core/workspace/files";
+import { SKIP_LABELS, containsSecret, screenFile, screenPath } from "@/core/workspace/files";
 import { FolderGuardError, type Listing, type ProjectFolder, type SearchResult } from "./fs-guard";
 
 export type WriteMode = "patch" | "disk";
@@ -37,6 +37,12 @@ export interface Checkpoint {
 }
 
 export type WorkspaceErrorCode = "SCREENED" | "EDIT_FAILED" | "NO_CHANGE";
+
+/** A file kept for credentials by its name alone (.env, a private key, .npmrc), as imports decide it. */
+const holdsCredentials = (path: string): boolean => {
+  const screened = screenPath(path);
+  return !screened.ok && screened.reason === "secret_file";
+};
 
 export class WorkspaceError extends Error {
   constructor(
@@ -110,8 +116,21 @@ export class AgentWorkspace {
     return [...this.known].sort();
   }
 
+  /**
+   * A file for the model to read. Screened like an import and like every write (stage 209): a credentials file (.env, a key
+   * file) or a file holding what looks like a key or password is refused, so a secret on the person's computer never reaches
+   * a model's prompt. The refusal names the file and never echoes the value.
+   */
   async read(raw: string): Promise<string> {
     const path = normalize(raw);
+    if (holdsCredentials(path)) throw new WorkspaceError("SCREENED", `${path} is a credentials file, so it isn't read. If the task needs a value from it, ask the person; never guess one.`);
+    const text = await this.raw(path);
+    if (containsSecret(text)) throw new WorkspaceError("SCREENED", `${path} contains what looks like a key or password, so it isn't read. If the task needs this file, ask the person to move the secret out of it first.`);
+    return text;
+  }
+
+  /** A file as it stands, for this class's own bookkeeping (a checkpoint's "before", an edit's base, the final changes). Never shown to a model. */
+  private async raw(path: string): Promise<string> {
     const patched = this.patch.get(path);
     return patched ?? this.folder.read(path);
   }
@@ -131,7 +150,9 @@ export class AgentWorkspace {
   }
 
   async search(query: string): Promise<SearchResult> {
-    const result = await this.folder.search(query);
+    const found = await this.folder.search(query);
+    // The same screening as `read`: nothing from a credentials file, and no line that holds what looks like a secret.
+    const result = { ...found, matches: found.matches.filter((m) => !holdsCredentials(m.path) && !containsSecret(m.text)) };
     if (this.mode !== "patch" || this.patch.size === 0) return result;
     const needle = query.toLowerCase();
     const matches = result.matches.filter((m) => !this.patch.has(m.path));
@@ -150,7 +171,7 @@ export class AgentWorkspace {
     const screened = screenFile(path, content, utf8Bytes(content), MAX_FILE_BYTES);
     if (!screened.ok) throw new WorkspaceError("SCREENED", `${path} can't be written: ${SKIP_LABELS[screened.reason].toLowerCase()}.`);
     const existed = this.known.has(path);
-    const before = existed ? await this.read(path) : null;
+    const before = existed ? await this.raw(path) : null;
     if (before === content) throw new WorkspaceError("NO_CHANGE", `${path} already has this content.`);
     const checkpoint: Checkpoint = { id: this.nextCheckpoint++, path, before, hadPatch: this.patch.has(path), reason };
     if (this.mode === "patch") this.patch.set(path, content);
@@ -163,7 +184,7 @@ export class AgentWorkspace {
 
   async edit(raw: string, edits: readonly { find: string; replace: string }[], reason: string): Promise<Checkpoint> {
     const path = normalize(raw);
-    const current = await this.read(path);
+    const current = await this.raw(path);
     const applied = applyEdits(current, edits);
     if (!applied.ok) {
       const which = `Edit ${applied.index + 1}`;
@@ -209,7 +230,7 @@ export class AgentWorkspace {
     for (const path of this.files()) {
       let content: string;
       try {
-        content = await this.read(path);
+        content = await this.raw(path);
       } catch (error) {
         if (this.base.has(path) || this.reasons.has(path)) notProposed.push({ path, reason: error instanceof Error ? error.message : "It couldn't be read." });
         continue;

@@ -219,6 +219,77 @@ describe("agent loop, Review Only", () => {
   });
 });
 
+describe("secrets on the person's computer never reach the model (stage 209)", () => {
+  // SYNTHETIC: shaped like a cloud access key so the screening sees it; assembled here so no key-shaped text sits in the repo.
+  const KEY = ["AKIA", "ABCDEFGHIJKLMNOP"].join("");
+
+  it("refuses a credentials file and a file holding a key, without echoing the value, and leaves them out of search", async () => {
+    await fs.writeFile(path.join(dir, ".env"), `CLOUD_KEY=${KEY}\nAPI_URL=https://example.test\n`);
+    await fs.writeFile(path.join(dir, "config.js"), `export const cloudKey = "${KEY}";\nexport const apiUrl = "https://example.test";\n`);
+    await fs.writeFile(path.join(dir, "notes.md"), "The API_URL is set in the environment.\n");
+    const seen: string[] = [];
+    const fake = fakeModel([
+      () => ({ calls: [tool("a", "read_file", { path: ".env" }), tool("b", "read_file", { path: "config.js" }), tool("c", "search_files", { query: "example.test" }), tool("d", "search_files", { query: "API_URL" })] }),
+      (results) => {
+        seen.push(...results.map((r) => r.content));
+        expect(results[0]).toMatchObject({ isError: true, content: expect.stringMatching(/^\.env is a credentials file, so it isn't read\./) });
+        expect(results[1]).toMatchObject({ isError: true, content: expect.stringMatching(/^config\.js contains what looks like a key or password, so it isn't read\./) });
+        // The harmless line of config.js still shows; nothing from .env does, and no line holding the key.
+        expect(results[2]!.content).toContain("config.js:2:");
+        expect(results[2]!.content).not.toContain(".env:");
+        expect(results[3]!.content).toContain("notes.md:1:");
+        expect(results[3]!.content).not.toContain(".env:");
+        return { calls: [finish()] };
+      },
+    ]);
+    const ws = await workspace("patch");
+    const report = await runAgent(input({ model: fake.model, workspace: ws }));
+    expect(report.outcome).toMatchObject({ kind: "finished" });
+    expect(seen).toHaveLength(4);
+    expect(seen.join("\n")).not.toContain(KEY);
+    expect(JSON.stringify(fake.sent)).not.toContain(KEY);
+  });
+
+  it("still edits an ordinary file, and still refuses to write a secret into one", async () => {
+    const fake = fakeModel([
+      () => ({ calls: [tool("e", "edit_file", { path: "README.md", edits: [{ find: "Run the tests.", replace: `Key: ${KEY}` }], reason: "Bad idea." })] }),
+      (results) => {
+        expect(results[0]).toMatchObject({ isError: true, content: expect.stringMatching(/^Refused: The new content looks like it holds a secret/) });
+        return { calls: [tool("r", "read_file", { path: "README.md" })] };
+      },
+      (results) => {
+        expect(results[0]).toMatchObject({ isError: false, content: expect.stringContaining("Run the tests.") });
+        return { calls: [finish()] };
+      },
+    ]);
+    const report = await runAgent(input({ model: fake.model, workspace: await workspace("patch") }));
+    expect(report.outcome).toMatchObject({ kind: "finished" });
+  });
+
+  it("blanks what looks like a secret in a command's output before the model reads it", async () => {
+    const printsKey: CommandRunner = {
+      where: "local",
+      async run() {
+        return { exitCode: 0, stdout: `CLOUD_KEY=${KEY}\nbuild ok`, stderr: `warning: token ${KEY} is in use`, truncated: false, timedOut: false, cancelled: false, leftRunning: false, durationMs: 10 };
+      },
+    };
+    const fake = fakeModel([
+      () => ({ calls: [tool("c", "run_command", { program: "git", args: ["status"], reason: "See the state." })] }),
+      (results) => {
+        expect(results[0]).toMatchObject({ isError: false, content: expect.stringMatching(/exited with code 0/) });
+        expect(results[0]!.content).toContain("build ok");
+        expect(results[0]!.content).toContain("[redacted]");
+        expect(results[0]!.content).not.toContain(KEY);
+        return { calls: [finish()] };
+      },
+    ]);
+    const approve = async (request: ApprovalRequest): Promise<ApprovalAnswer> => ({ approved: true, bindingHash: request.bindingHash });
+    const report = await runAgent(input({ mode: "controlled", model: fake.model, workspace: await workspace("disk"), commands: printsKey, approve }));
+    expect(report.outcome).toMatchObject({ kind: "finished" });
+    expect(JSON.stringify(fake.sent)).not.toContain(KEY);
+  });
+});
+
 describe("agent loop, Controlled Development", () => {
   function runner(log: string[]): CommandRunner {
     return {

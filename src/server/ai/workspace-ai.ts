@@ -171,11 +171,12 @@ export async function aiForWorkspace<D extends AiUsageDeps>(
   orgId: string,
   deps: D,
   options: { timeout: number; claudeOnly?: string },
-): Promise<{ provider: AiProviderId; client: Anthropic | undefined; deps: D; own: boolean } | { error: string }> {
+): Promise<{ provider: AiProviderId; client: Anthropic | undefined; deps: D; own: boolean } | { error: string; ownKey?: boolean }> {
   const admin = createSupabaseAdminClient();
   const own = admin ? await loadWorkspaceAi(admin, orgId) : ({ own: false } as const);
   if (own.own) {
-    if (own.broken || !admin) return { error: BROKEN_KEY };
+    // `ownKey` tells a caller with another provider to hand (Chat has OpenAI) that this workspace chose its own key: no fallback.
+    if (own.broken || !admin) return { error: BROKEN_KEY, ownKey: true };
     return { provider: "anthropic", client: workspaceAnthropic(own, { timeout: options.timeout }), deps: ownKeyMetering(deps, recordOwnKeyUsage(admin)), own: true };
   }
   const ai = resolveAiProvider();
