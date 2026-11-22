@@ -8,8 +8,10 @@ The running record of the program the owner set on 2026-11-22. Read this first i
 
 | Work | State | Waiting for |
 | --- | --- | --- |
-| Stages 206 to 208: research when needed, Chat memory, rules for computer tasks | Built and tested, PR #273 open | The owner applies migration v101, then merges |
-| Stage 209: the audit and five faults fixed | Built and tested on `feat/stage-209-program-audit` | Its PR, after #273 merges |
+| Stages 206 to 208: research when needed, Chat memory, rules for computer tasks | Merged as #273 on 2026-11-22 and live | A read-back of migration v101 on production (`scripts/vps/check-migrations.ps1`), which this record has not seen |
+| Stage 209: the audit and five faults fixed | Built and tested on `feat/stage-209-program-audit`, PR open | The owner merges |
+| Stage 210: the black cat is the logo (the owner's request of 2026-11-22, ADR 0226) | Built and tested, PR #274 open | The owner merges; new app releases for the icon on phones and the desktop |
+| Stage 211: Dark for every page, beside Crystal White (ADR 0227) | Being built on `feat/stage-211-dark-mode`, on top of stage 210 | See its stage record |
 | Skills inventory | Written (`FARBAEK_SKILLS_INVENTORY.md`) | Nothing |
 | Master audit | Written (`FARBAEK_MASTER_AUDIT.md`) | Nothing |
 | Research on providers and platforms | 2 of 7 notes complete, 5 partial | Finishing the 5, a few at a time |
@@ -21,7 +23,7 @@ The brief asks for everything. This is the order that makes each stage stand on 
 
 | Stage | What | Why here | Needs the owner |
 | --- | --- | --- | --- |
-| 210 | Study ChatGPT, Claude, Grok, Antigravity, Dots and Muse in a browser, with real screenshots, and finish the research notes. Write `FARBAEK_REFERENCE_RESEARCH.md` | The brief asks for this before design decisions | Signing in where a product needs it |
+| done in 209 | Study ChatGPT, Claude, Grok, Antigravity, Dots and Muse in a browser, with real screenshots (`FARBAEK_REFERENCE_RESEARCH.md`, `FARBAEK_CHATGPT_STUDY.md`). The five partial research notes are still to finish. Stage 210 became the new logo, which the owner asked for on 2026-11-22 | The brief asks for this before design decisions | Signing in where a product needs it |
 | 211 | Crystal White and a dark mode for the whole product: dark values for every token, the person's choice saved once, contrast tests for both, and the places that assume light | The most visible gap, and it needs no new provider | Nothing. ADR 0008 changes, with its own ADR |
 | 212 | One navigation: Chat as the simple home, the other tools as workspaces, "Build" opening one place, one button system | Five navigation systems confuse people today | Nothing |
 | 213 | One model registry: every model's id, price, name, capabilities, status and dates in one place, read by both routers | Grok and failover both need it first | Nothing |
