@@ -32,7 +32,11 @@ describe("search queries (stage 205)", () => {
 
   it("freshness follows the question's words", () => {
     expect(freshnessOf("What's the weather in Colombo today?")).toBe("day");
-    expect(freshnessOf("Latest iPhone price")).toBe("day");
+    // "Latest" and a price mean recent, not published today: the page that answers may be weeks old (stage 206).
+    expect(freshnessOf("Latest iPhone price")).toBe("week");
+    expect(freshnessOf("mata ada puwath kiyanna")).toBe("day");
+    expect(freshnessOf("aluth phone mila")).toBe("week");
+    expect(freshnessOf("¿Cuáles son las noticias de hoy?")).toBe("week");
     expect(freshnessOf("What changed in Next.js this month?")).toBe("month");
     expect(freshnessOf("How does photosynthesis work?")).toBe("any");
   });
@@ -42,15 +46,20 @@ describe("search queries (stage 205)", () => {
     expect(plansLocally("What is its population?", 0)).toBe(false);
     expect(plansLocally("What is the population of Sri Lanka?", 2)).toBe(false);
     expect(plansLocally("Mata website ekak hadaganna one", 0)).toBe(false);
-    expect(localPlan("Can you tell me the latest news about SpaceX?")).toMatchObject({ queries: ["the latest news about SpaceX?"], freshness: "day", news: true });
+    expect(localPlan("Can you tell me the latest news about SpaceX?")).toMatchObject({ queries: ["the latest news about SpaceX?"], freshness: "week", news: true, depth: "quick" });
   });
 
   it("reads the planner model's JSON, fenced or not, and refuses anything else", () => {
-    expect(parsePlan('```json\n{"queries":["GPT-6 release date"],"freshness":"week","news":true}\n```')).toEqual({ queries: ["GPT-6 release date"], freshness: "week", news: true });
+    expect(parsePlan('```json\n{"queries":["GPT-6 release date"],"freshness":"week","news":true}\n```')).toEqual({ need: "search", plan: { queries: ["GPT-6 release date"], freshness: "week", news: true, topic: "", depth: "quick" } });
     expect(parsePlan('{"queries":[],"freshness":"day"}')).toBeNull();
     expect(parsePlan('{"queries":["a b"],"freshness":"hour"}')).toBeNull();
     expect(parsePlan("Sure! Here are some queries")).toBeNull();
-    expect(parsePlan('{"queries":["contact me at jane@example.com about pricing"],"freshness":"any"}')?.queries[0]).not.toContain("@");
+    const cleaned = parsePlan('{"queries":["contact me at jane@example.com about pricing"],"freshness":"any"}');
+    expect(cleaned?.need === "search" ? cleaned.plan.queries[0] : "@").not.toContain("@");
+    // The model may say the web isn't needed, or that the task is a deep one.
+    expect(parsePlan('{"need":"none"}')).toEqual({ need: "none" });
+    expect(parsePlan('{"need":"deep","topic":"AI chips","queries":["a b","c d","e f","g h","i j","k l"],"freshness":"month"}')).toMatchObject({ need: "deep", plan: { depth: "deep", queries: ["a b", "c d", "e f", "g h", "i j"] } });
+    expect(parsePlan('{"need":"search","queries":["a b","c d","e f","g h"],"freshness":"any"}')).toMatchObject({ need: "search", plan: { depth: "standard", queries: ["a b", "c d", "e f"] } });
   });
 });
 

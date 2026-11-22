@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { modelName } from "@/core/billing/model-names";
 import type { ChatFile, ChatMessage, ConversationSummary, MessageStatus } from "@/core/chat/protocol";
+import type { SavedSummary } from "@/core/chat/summary";
 import { searchMetaSchema, type SearchMeta } from "@/core/web/sources";
 import type { RpcResult } from "@/server/workspace/use-cases";
 
@@ -22,6 +23,12 @@ export interface ChatWrites {
   saveFile(i: { orgId: string; actor: string; messageId: string | null; name: string; kind: ChatFile["kind"]; mime: string; size: number; sha256: string; content: string; width: number | null; height: number | null }): Promise<RpcResult<string>>;
   /** Whether the name was used: never over one the person gave it. */
   autoTitle(i: { orgId: string; actor: string; conversationId: string; title: string }): Promise<RpcResult<boolean>>;
+  /** A summary of the branch up to and including this message (v101): replaces one saved for it before. */
+  saveSummary(i: { orgId: string; actor: string; messageId: string; summary: string; covers: number; model: string | null }): Promise<RpcResult<null>>;
+  /** Remembers one thing for the person (v101). The same words twice are kept once. */
+  remember(i: { orgId: string; actor: string; content: string }): Promise<RpcResult<string>>;
+  /** Forgets one remembered thing, or everything when memoryId is null. Returns how many went. */
+  forget(i: { orgId: string; actor: string; memoryId: string | null }): Promise<RpcResult<number>>;
   /** The question and its empty answer in one transaction (and the conversation, when conversationId is null). */
   beginTurn(i: { orgId: string; actor: string; conversationId: string | null; projectId: string | null; title: string; parentId: string | null; content: string; files: string[]; kind: "text" | "image"; model: string }): Promise<RpcResult<{ conversation: string; question: string; answer: string }>>;
 }
@@ -52,6 +59,9 @@ export function createChatWrites(admin: SupabaseClient): ChatWrites {
         z.string(),
       ),
     autoTitle: (i) => call("app_chat_auto_title", { p_org: i.orgId, p_actor: i.actor, p_conversation: i.conversationId, p_title: i.title }, z.boolean()),
+    saveSummary: (i) => call("app_chat_save_summary", { p_org: i.orgId, p_actor: i.actor, p_message: i.messageId, p_summary: i.summary, p_covers: i.covers, p_model: i.model }, nothing),
+    remember: (i) => call("app_chat_remember", { p_org: i.orgId, p_actor: i.actor, p_content: i.content }, z.string()),
+    forget: (i) => call("app_chat_forget", { p_org: i.orgId, p_actor: i.actor, p_memory: i.memoryId }, z.number()),
     beginTurn: (i) =>
       call(
         "app_chat_begin_turn",
@@ -140,6 +150,8 @@ export function toMessage(row: z.infer<typeof rowSchema>, now = Date.now()): Cha
       ...readRouteFacts(meta.route),
       // The live web sources the answer used (stage 205), only when they read back whole and valid.
       ...readSearch(meta.search),
+      // Whether this message asked for something to be remembered, and what came of it (stage 207).
+      ...(meta.memory === "saved" || meta.memory === "full" || meta.memory === "failed" ? { memory: meta.memory } : {}),
     },
     createdAt: row.created_at,
     siblings: row.siblings ?? [row.id],
@@ -155,6 +167,35 @@ export async function readPath(client: SupabaseClient, conversationId: string, l
   if (!rows.success) return null;
   const now = Date.now();
   return rows.data.map((r) => toMessage(r, now));
+}
+
+/**
+ * The saved summaries of these messages (v101), by message. Read as the person, so only their own come back. Empty when there
+ * are none; null when they couldn't be read, which includes the table not being there yet (the app may be deployed a moment
+ * before its migration).
+ */
+export async function readSummaries(client: SupabaseClient, messageIds: string[]): Promise<Map<string, SavedSummary> | null> {
+  const out = new Map<string, SavedSummary>();
+  if (messageIds.length === 0) return out;
+  const { data, error } = await client.from("chat_summaries").select("message_id, summary, covers").in("message_id", messageIds);
+  // Not "there are none": the turn then neither uses a summary nor makes one over the top of what it couldn't read.
+  if (error || !data) return null;
+  for (const row of data) if (typeof row.message_id === "string" && typeof row.summary === "string" && typeof row.covers === "number") out.set(row.message_id, { summary: row.summary, covers: row.covers });
+  return out;
+}
+
+export interface RememberedThing {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
+/** What the person asked to be remembered in this workspace (v101), newest first. Read as the person. Null when it couldn't be read, which includes the table not being there yet. */
+export async function readMemories(client: SupabaseClient, orgId: string): Promise<RememberedThing[] | null> {
+  const { data, error } = await client.from("chat_memories").select("id, content, created_at").eq("org_id", orgId).order("created_at", { ascending: false }).limit(50);
+  // Null, not an empty list: "couldn't be read" must never be shown as "nothing is remembered".
+  if (error || !data) return null;
+  return data.filter((r) => typeof r.id === "string" && typeof r.content === "string").map((r) => ({ id: r.id as string, content: r.content as string, createdAt: String(r.created_at) }));
 }
 
 export interface ConversationRow {

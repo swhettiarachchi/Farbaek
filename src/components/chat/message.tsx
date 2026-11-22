@@ -13,12 +13,14 @@ import {
   CaretRightIcon,
   CheckIcon,
   CopyIcon,
+  DesktopIcon,
   DotsThreeIcon,
   DownloadSimpleIcon,
   FilePdfIcon,
   FileTextIcon,
   FilmSlateIcon,
   FlagIcon,
+  GlobeIcon,
   HammerIcon,
   ImageSquareIcon,
   PencilSimpleIcon,
@@ -31,17 +33,27 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { fileSizeLabel } from "@/core/chat/files";
 import type { ChatFile, ChatMessage, HandOff } from "@/core/chat/protocol";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { KnightMark } from "@/components/brand/knight-mark";
 import { buttonClasses } from "@/components/ui/button";
+import { AnswerPartsContext, type AnswerParts } from "./answer-parts";
 import { MarkdownView } from "./markdown-view";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { IconButton, Menu, useCopy } from "./primitives";
 import { searchLine, WebSources, type LiveSearch } from "./web-sources";
+import { withSourceList } from "@/core/web/sources";
 
 export const fileUrl = (id: string, base = "/app/chat/api/file") => `${base}/${id}`;
+
+/** What came of a message that asked for something to be remembered (stage 207). */
+const MEMORY_LINE = {
+  saved: "Saved to memory. You can see it and delete it under Memory in Chat settings.",
+  full: "Not saved: 50 things are remembered already. Forget one under Memory in Chat settings.",
+  failed: "Not saved to memory: it didn't work this time. Try again, or add it under Memory in Chat settings.",
+} as const;
 
 function seconds(ms: number): string {
   const s = Math.max(1, Math.round(ms / 1000));
@@ -189,13 +201,22 @@ export interface AnswerActions {
   onEditImage(file: ChatFile): void;
   /** Open another space with this conversation's request in its box. */
   onHandOff?(to: HandOff): void;
+  /** Send one of the answer's choices as the next message (stage 206). */
+  onChoose?(text: string): void;
+  /** Answer again, this time checking the live web (stage 206): for an answer that was written without it. */
+  onCheckWeb?(): void;
 }
 
-/** Where an answer can go next (stage 202): each opens that space with the request in its box. Nothing is made until the person presses its button there. */
+/**
+ * Where an answer can go next (stage 202): each opens that space with the request in its box. Nothing is made until the person
+ * presses its button there. Shown only for a request that is about that kind of thing (stage 206, handoff.ts): an answer about
+ * the news doesn't offer to build a website. The desktop entry opens the page for Farbaek's desktop app, and carries nothing.
+ */
 const HANDOFFS: { to: HandOff; label: string; short: string; hint: string; icon: typeof HammerIcon; tone: string }[] = [
   { to: "images", label: "Make a picture", short: "Picture", hint: "Opens Images with your request in its box", icon: ImageSquareIcon, tone: "text-spark-rose" },
   { to: "video", label: "Make a video", short: "Video", hint: "Opens Video with your request in its box", icon: FilmSlateIcon, tone: "text-spark-aqua" },
   { to: "build", label: "Build a website", short: "Website", hint: "Opens Build with your request in its box", icon: HammerIcon, tone: "text-spark-leaf" },
+  { to: "desktop", label: "See the desktop app", short: "Desktop app", hint: "Opens the page for Farbaek's desktop app, which works on your own computer", icon: DesktopIcon, tone: "text-ink-3" },
 ];
 
 export function AnswerMessage({
@@ -207,9 +228,12 @@ export function AnswerMessage({
   last = false,
   readOnly = false,
   fileBase = "/app/chat/api/file",
+  handOffs,
   actions,
 }: {
   message: ChatMessage;
+  /** The places this answer's request could go next (handoff.ts). Missing: none are offered. */
+  handOffs?: readonly HandOff[];
   /** The thinking summary while the model thinks; null when it isn't thinking. */
   thinking?: string | null;
   /** Where the live web search is, while it runs (stage 205). */
@@ -228,6 +252,13 @@ export function AnswerMessage({
   const waiting = streaming && !message.content && message.kind === "text";
   // Only the end of the branch continues: an answer with questions after it doesn't change under them.
   const canContinue = last && message.kind === "text" && (message.status === "stopped" || message.meta.stop === "length") && message.content.trim().length > 0;
+  // What the answer's own parts need (stage 206): its sources by number, for citations in the text, and a way to send a choice.
+  const found = message.meta.search;
+  const choose = last && !busy && !readOnly && !streaming ? actions?.onChoose : undefined;
+  const parts = useMemo<AnswerParts>(() => ({ sources: found?.status === "done" && found.sources.length > 0 ? new Map(found.sources.map((s) => [s.n, s])) : null, onChoose: choose }), [found, choose]);
+  const offered = HANDOFFS.filter((h) => handOffs?.includes(h.to));
+  // An answer written without checking the web can be asked again with it.
+  const canCheckWeb = !readOnly && last && message.kind === "text" && message.status === "complete" && found?.status === "skipped" && Boolean(actions?.onCheckWeb);
 
   return (
     <article className="chat-message group sm:grid sm:grid-cols-[2rem_minmax(0,1fr)] sm:gap-x-3 motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both]" aria-label="Farbaek AI said" aria-busy={streaming || undefined}>
@@ -263,7 +294,9 @@ export function AnswerMessage({
       {message.kind === "image" ? (
         <ImageAnswer message={message} fileBase={fileBase} readOnly={readOnly} onOpen={actions?.onOpenImage} onEdit={actions?.onEditImage} />
       ) : message.content ? (
-        <MarkdownView text={message.content} streaming={streaming} />
+        <AnswerPartsContext.Provider value={parts}>
+          <MarkdownView text={message.content} streaming={streaming} />
+        </AnswerPartsContext.Provider>
       ) : null}
 
       {message.status === "failed" && message.error ? (
@@ -283,12 +316,18 @@ export function AnswerMessage({
         </p>
       ) : null}
       {message.kind === "text" && message.meta.search ? <WebSources search={message.meta.search} /> : null}
+      {message.meta.memory ? (
+        <p className="mt-2 flex items-start gap-1.5 text-sm text-ink-3">
+          <StatusGlyph status={message.meta.memory === "saved" ? "done" : "attention"} size={16} className="mt-0.5 shrink-0" />
+          {MEMORY_LINE[message.meta.memory]}
+        </p>
+      ) : null}
       {message.status === "stopped" && !streaming ? <p className="mt-2 text-sm text-ink-3">{message.content ? "Stopped. What was written is kept." : "Stopped before it started."}</p> : null}
       {message.meta.stop === "length" && message.status === "complete" ? <p className="mt-2 text-sm text-ink-3">The answer reached its length limit.</p> : null}
 
-      {last && !streaming && actions?.onHandOff && message.kind === "text" && message.status === "complete" && message.content ? (
+      {last && !streaming && actions?.onHandOff && offered.length > 0 && message.kind === "text" && message.status === "complete" && message.content ? (
         <div role="group" aria-label="Take this further" className="mt-4 flex flex-wrap gap-2">
-          {HANDOFFS.map((h, i) => (
+          {offered.map((h, i) => (
             <button
               key={h.to}
               type="button"
@@ -315,7 +354,8 @@ export function AnswerMessage({
               label={copied ? "Copied" : "Copy"}
               icon={copied ? CheckIcon : CopyIcon}
               className="pointer-coarse:size-11"
-              onClick={() => void copy(message.content)}
+              // With the cited sources listed under it: the numbers in the text mean nothing without them.
+              onClick={() => void copy(withSourceList(message.content, message.meta.search))}
             />
           ) : null}
           {!readOnly && actions ? (
@@ -331,6 +371,11 @@ export function AnswerMessage({
               {canContinue ? (
                 <button type="button" onClick={actions.onContinue} disabled={busy} className="tap ml-1 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2 hover:border-line-2 hover:text-ink disabled:opacity-50">
                   <PlayIcon size={14} weight="bold" aria-hidden /> Continue
+                </button>
+              ) : null}
+              {canCheckWeb ? (
+                <button type="button" onClick={actions.onCheckWeb} disabled={busy} title="Answers again after searching the live web" className="tap ml-1 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2 hover:border-line-2 hover:text-ink disabled:opacity-50">
+                  <GlobeIcon size={14} weight="bold" aria-hidden /> Check the web
                 </button>
               ) : null}
               <Menu
@@ -393,11 +438,13 @@ function AnswerDetails({ message }: { message: ChatMessage }) {
 /** When the web was checked for this answer, in the person's own time; shown only once Details is opened (stage 205). */
 function checkedAt(message: ChatMessage): string {
   const search = message.meta.search;
+  if (search?.status === "skipped") return ` Answered without checking the web: ${search.reason ?? "this message didn't need current information"}.`;
   if (!search || search.status !== "done") return "";
   const t = Date.parse(search.at);
   if (!Number.isFinite(t)) return "";
   const when = new Date(t).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  return ` Checked the web on ${when}${search.queries.length > 0 ? `, searching for ${search.queries.map((q) => `“${q}”`).join(", ")}` : ""}.`;
+  const rounds = (search.rounds ?? 1) > 1 ? " in two rounds" : "";
+  return ` Checked the web on ${when}${rounds}${search.queries.length > 0 ? `, searching for ${search.queries.map((q) => `“${q}”`).join(", ")}` : ""}.`;
 }
 
 function ImageAnswer({ message, fileBase, readOnly, onOpen, onEdit }: { message: ChatMessage; fileBase: string; readOnly: boolean; onOpen?: (f: ChatFile) => void; onEdit?: (f: ChatFile) => void }) {

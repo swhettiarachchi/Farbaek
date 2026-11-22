@@ -35,9 +35,12 @@ export async function GET() {
     log("error", "account.export_failed", { error: shared.error.message });
     return text(500, "Your data couldn't be gathered. Nothing was changed. Try again in a moment.");
   }
+  // What the person asked Farbaek AI to remember (stage 207). An older database without it adds nothing rather than failing the export.
+  const remembered = await admin.rpc("app_chat_memories_export", { p_user: ctx.user.id });
+  if (remembered.error) log("warn", "account.export_without_memories", { error: remembered.error.message.slice(0, 120) });
   log("info", "account.exported", { user: ctx.user.id });
   const day = new Date().toISOString().slice(0, 10);
-  return new Response(`${JSON.stringify({ ...(data as Record<string, unknown>), shared_projects: shared.data ?? [] }, null, 2)}\n`, {
+  return new Response(`${JSON.stringify({ ...(data as Record<string, unknown>), shared_projects: shared.data ?? [], ...(remembered.error ? { chat_memories: null, chat_memories_note: "What you asked Farbaek AI to remember couldn't be read for this download. Download again later, or see it under Memory in Chat's settings." } : { chat_memories: remembered.data ?? [] }) }, null, 2)}\n`, {
     headers: {
       "content-type": "application/json; charset=utf-8",
       "content-disposition": `attachment; filename="farbaek-my-data-${day}.json"`,

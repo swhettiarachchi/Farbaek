@@ -26,7 +26,8 @@ union all select 'v96 survey assistant', to_regclass('public.survey_assistant_tu
 union all select 'v97 survey free ai', exists (select 1 from pg_catalog.pg_proc where proname = 'app_reserve_free_usage')
 union all select 'v98 chat workspace', to_regclass('public.chat_conversations') is not null
 union all select 'v99 chat search index', to_regclass('public.chat_messages_owner_idx') is not null
-union all select 'v100 creative studios', to_regclass('public.studio_media') is not null;
+union all select 'v100 creative studios', to_regclass('public.studio_media') is not null
+union all select 'v101 chat memory', to_regclass('public.chat_memories') is not null and to_regclass('public.chat_summaries') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_chat_for_share' and prosrc like '%''search''%');
 rollback;
 SQL
 '@

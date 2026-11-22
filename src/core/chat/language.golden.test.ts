@@ -43,10 +43,13 @@ describe("the language reader on the labelled set", () => {
     for (let i = 0; i < rounds; i++) readLanguage(long);
     const perLong = (performance.now() - t) / rounds;
     const notes = texts.map((text) => languageNote(planLanguage({ message: text })) ?? "");
-    const longestNote = Math.max(...notes.map((n) => n.length));
-    console.log(`per reading ${perReading.toFixed(3)} ms, per plan with 12 earlier messages ${perPlan.toFixed(3)} ms, 12,000-character message ${perLong.toFixed(3)} ms, longest note ${longestNote} characters`);
+    // The first line says which language; the lines after it, how to write it well (stage 206, language-style.ts).
+    const longestNote = Math.max(...notes.map((n) => (n.split("\n")[0] ?? "").length));
+    const longestStyle = Math.max(...notes.map((n) => n.length));
+    console.log(`per reading ${perReading.toFixed(3)} ms, per plan with 12 earlier messages ${perPlan.toFixed(3)} ms, 12,000-character message ${perLong.toFixed(3)} ms, longest note ${longestNote} characters, with its style note ${longestStyle}`);
     // Generous ceilings for a slow machine: the point is that it stays far below a model's first word.
     expect(perPlan).toBeLessThan(20);
     expect(longestNote).toBeLessThan(400);
+    expect(longestStyle).toBeLessThan(1_800);
   });
 });

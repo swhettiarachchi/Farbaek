@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { NeedReading } from "@/core/web/intent";
 import type { SearchResult } from "@/core/web/sources";
 import type { ChatModel } from "@/server/ai/chat-model";
 import type { ReaderClient } from "./reader-client";
@@ -9,7 +10,8 @@ import { SearchError, type SearchProvider } from "./search/provider";
 import { createSearxng } from "./search/searxng";
 
 const NOW = Date.parse("2026-11-17T09:00:00Z");
-const result = (url: string, extra: Partial<SearchResult> = {}): SearchResult => ({ url, title: `Title of ${url}`, snippet: `Snippet of ${url}`, published: null, kind: "web", ...extra });
+// Titles carry the question's words: a result with none of them is noise, and is left out (rank.ts).
+const result = (url: string, extra: Partial<SearchResult> = {}): SearchResult => ({ url, title: `Node.js news at ${url}`, snippet: `Snippet of ${url}`, published: null, kind: "web", ...extra });
 const longText = "A real paragraph about the topic with enough words to count as read. ".repeat(10);
 
 function deps(search: SearchProvider | null, reader: ReaderClient | null, over: Partial<ResearchDeps> = {}): ResearchDeps {
@@ -17,7 +19,8 @@ function deps(search: SearchProvider | null, reader: ReaderClient | null, over: 
 }
 const provider = (fn: SearchProvider["search"]): SearchProvider => ({ name: "fake", search: fn });
 const readerOf = (fn: ReaderClient["read"]): ReaderClient => ({ read: fn });
-const input = { question: "What is new in Node.js?", earlier: [], local: true, plannerModel: null, plannerModelId: null, language: "en", budgetChars: 9_000, signal: new AbortController().signal };
+const SEARCH: NeedReading = { need: "search", explicit: false, why: "test" };
+const input = { question: "What is new in Node.js?", earlier: [], need: SEARCH, local: true, plannerModel: null, plannerModelId: null, budgetChars: 9_000, signal: new AbortController().signal };
 
 describe("SearXNG as the search provider (stage 205)", () => {
   const answer = (body: unknown, status = 200) => (async () => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
@@ -61,7 +64,9 @@ describe("research before an answer (stage 205)", () => {
     const r = await research(deps(search, reader), input);
     expect(r.meta).toMatchObject({ status: "done", queries: ["What is new in Node.js?"] });
     expect(r.meta.sources.map((s) => [s.n, s.read])).toEqual([[1, true], [2, false], [3, true]]);
-    expect(r.context).toContain("[2] Title of https://b.example/2 | b.example | date not given | search snippet only");
+    expect(r.context).toContain("[2] Node.js news at https://b.example/2 | b.example | date not given | search snippet only");
+    expect(r.docs.map((d) => d.n)).toEqual([1, 2, 3]);
+    expect(r.meta.depth).toBe("quick");
     expect(r.context).toContain('<web_results tag="tag">');
   });
 
@@ -108,23 +113,25 @@ describe("research before an answer (stage 205)", () => {
       return [];
     });
     await research(deps(search, readerOf(async () => ({ ok: false, reason: "x" }))), { ...input, question: "What's the latest news on SpaceX today?" });
-    expect(kinds.sort()).toEqual(["news", "web"]);
+    // The general web and news side by side, then the general web once more without a date limit, since nothing came back.
+    expect(kinds.sort()).toEqual(["news", "web", "web"]);
   });
 });
 
 describe("planning the searches (stage 205)", () => {
   const model = (text: string | null): ChatModel =>
     ({ provider: "openai", stream: async () => ({}) as never, title: async () => ({ title: null, usage: null }), complete: async () => ({ text, usage: { model: "gpt-6-luna", inputTokens: 200, outputTokens: 20 } }) }) as ChatModel;
-  const plan = (m: ChatModel | null, local = false) => planSearch({ question: "What about its price?", earlier: [{ role: "user", text: "Tell me about the Pixel 11" }], local, model: m, modelId: "gpt-6-luna", signal: new AbortController().signal });
+  const plan = (m: ChatModel | null, local = false, need: NeedReading = { need: "unsure", explicit: false, why: "test" }) =>
+    planSearch({ question: "What about its price?", earlier: [{ role: "user", text: "Tell me about the Pixel 11" }], need, local, model: m, modelId: "gpt-6-luna", signal: new AbortController().signal, now: NOW });
 
   it("uses the model's queries when they're valid, and records what it cost", async () => {
-    const r = await plan(model('{"queries":["Pixel 11 price"],"freshness":"week","news":true}'));
-    expect(r).toMatchObject({ via: "model", plan: { queries: ["Pixel 11 price"], freshness: "week", news: true }, usage: { model: "gpt-6-luna" } });
+    const r = await plan(model('{"need":"search","topic":"Pixel 11 price","queries":["Pixel 11 price"],"freshness":"week","news":true}'));
+    expect(r).toMatchObject({ via: "model", plan: { queries: ["Pixel 11 price"], freshness: "week", news: true, topic: "Pixel 11 price", depth: "quick" }, usage: { model: "gpt-6-luna" } });
   });
 
   it("falls back to the local plan when the model answers nonsense or nothing, still recording its cost", async () => {
-    expect(await plan(model("I can't help with that"))).toMatchObject({ via: "fallback", plan: { queries: ["What about its price?"] }, usage: { model: "gpt-6-luna" } });
-    expect(await plan(model(null))).toMatchObject({ via: "fallback" });
+    expect(await plan(model("I can't help with that"))).toMatchObject({ via: "fallback", miss: "unreadable", plan: { queries: ["What about its price?"] }, usage: { model: "gpt-6-luna" } });
+    expect(await plan(model(null))).toMatchObject({ via: "fallback", miss: "no-answer" });
   });
 
   it("plans locally without a model call when asked to", async () => {

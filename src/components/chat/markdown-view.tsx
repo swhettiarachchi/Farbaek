@@ -7,9 +7,11 @@
  */
 import { CheckIcon, CheckSquareIcon, CopyIcon, DownloadSimpleIcon, SquareIcon } from "@phosphor-icons/react";
 import { createElement, memo, useDeferredValue, useMemo, type ReactNode } from "react";
+import { useAnswerParts } from "./answer-parts";
 import { useCopy } from "./primitives";
+import type { WebSource } from "@/core/web/sources";
 import { extensionFor, highlight, languageLabel, type TokenKind } from "@/core/chat/highlight";
-import { parseMarkdown, type Block, type Inline } from "@/core/chat/markdown";
+import { choiceLines, parseMarkdown, type Block, type Inline } from "@/core/chat/markdown";
 import { texToMath, type MathNode } from "@/core/chat/tex";
 
 const TOKEN_CLASS: Record<TokenKind, string> = {
@@ -75,9 +77,77 @@ function InlineView({ nodes }: { nodes: Inline[] }) {
                 <InlineView nodes={n.c} />
               </a>
             );
+          case "cite":
+            return <Citation key={i} numbers={n.n} />;
         }
       })}
     </>
+  );
+}
+
+/**
+ * A citation in the text (stage 206): the name of the site it points to, as a small link to that page, with "+2" when the
+ * sentence rests on more sources (all of them are listed under Sources). Drawn only for sources Farbaek really retrieved: a
+ * number with no source behind it draws nothing, and in an answer with no web sources "[1]" stays as written.
+ */
+function Citation({ numbers }: { numbers: number[] }) {
+  const { sources } = useAnswerParts();
+  if (!sources) return <>{`[${numbers.join(", ")}]`}</>;
+  const cited = [...new Set(numbers)].map((n) => sources.get(n)).filter((s): s is WebSource => s !== undefined);
+  const first = cited[0];
+  if (!first) return null;
+  const more = cited.length - 1;
+  const name = first.site.length > 24 ? `${first.site.slice(0, 23)}…` : first.site;
+  const others = more > 0 ? `, and ${more} more listed under Sources` : "";
+  return (
+    <a
+      href={first.url}
+      target="_blank"
+      rel="noopener noreferrer nofollow ugc"
+      title={`${first.title}${others}`}
+      aria-label={`Source: ${first.title}, ${first.site}${others}`}
+      className="mx-0.5 inline-flex h-[1.375rem] max-w-[16rem] items-center gap-1 rounded-full border border-line bg-surface-raised px-2 align-[0.08em] text-xs font-medium leading-none text-ink-2 no-underline transition-colors duration-150 hover:border-line-2 hover:text-ink"
+    >
+      <span className="truncate">{name}</span>
+      {more > 0 ? <span className="tabular text-ink-3">+{more}</span> : null}
+    </a>
+  );
+}
+
+/**
+ * Choices the answer offers (stage 206): each is a short message the person can send with one press. Only the newest answer's
+ * can be pressed; anywhere else (an older answer, a shared chat) they are a plain list. Text only, never markup from the model.
+ */
+function Choices({ text }: { text: string }) {
+  const { onChoose } = useAnswerParts();
+  // The same reading the server uses to know a pressed choice from a typed message.
+  const options = choiceLines(text);
+  if (options.length === 0) return null;
+  if (!onChoose) {
+    return (
+      <ul className="my-3 list-disc pl-6 first:mt-0 last:mb-0">
+        {options.map((option) => (
+          <li key={option} className="my-1 pl-1 marker:text-ink-3">
+            {option}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <div role="group" aria-label="Choices" className="my-4 flex flex-col items-start gap-2 first:mt-0 last:mb-0">
+      {options.map((option, i) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onChoose(option)}
+          style={{ animationDelay: `${i * 40}ms` }}
+          className="tap inline-flex min-h-10 max-w-full items-center rounded-full border border-line bg-surface px-4 py-2 text-left text-sm leading-snug text-ink shadow-e1 transition-[border-color,transform] duration-150 hover:-translate-y-px hover:border-line-strong/60 active:scale-[0.98] pointer-coarse:min-h-11 motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both]"
+        >
+          {option}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -141,6 +211,8 @@ function BlockView({ block }: { block: Block }): ReactNode {
       return createElement(tag, { className: `${HEADING[block.level]} mb-2 font-medium leading-snug tracking-[-0.02em] text-ink first:mt-0` }, <InlineView nodes={block.c} />);
     }
     case "code":
+      // Choices to press, once the block is whole; nothing while it is still being written.
+      if (block.lang === "choices") return block.open ? null : <Choices text={block.v} />;
       return <CodeBlock lang={block.lang} code={block.v} open={block.open} />;
     case "math":
       return (
@@ -214,19 +286,21 @@ function BlockView({ block }: { block: Block }): ReactNode {
 }
 
 /** One top-level block, redrawn only when its own source changes. */
-const MemoBlock = memo(function MemoBlock({ block }: { block: Block; src: string }) {
+const MemoBlock = memo(function MemoBlock({ block }: { block: Block; src: string; cites: boolean }) {
   return <BlockView block={block} />;
-}, (a, b) => a.src === b.src);
+}, (a, b) => a.src === b.src && a.cites === b.cites);
 
 /** An answer's Markdown. `streaming` adds the caret after the last block. */
 export function MarkdownView({ text, streaming = false }: { text: string; streaming?: boolean }) {
   // While an answer streams, rendering can fall a frame or two behind under load instead of re-reading every frame.
   const shown = useDeferredValue(text);
-  const blocks = useMemo(() => parseMarkdown(shown), [shown]);
+  // "[2]" is a citation only in an answer that has numbered web sources; anywhere else it stays as written.
+  const cites = useAnswerParts().sources !== null;
+  const blocks = useMemo(() => parseMarkdown(shown, { citations: cites }), [shown, cites]);
   return (
     <div className="chat-prose text-body leading-[1.7] text-ink [overflow-wrap:break-word]">
       {blocks.map((b, i) => (
-        <MemoBlock key={i} block={b.block} src={b.src} />
+        <MemoBlock key={i} block={b.block} src={b.src} cites={cites} />
       ))}
       {streaming ? <span className="chat-caret" aria-hidden /> : null}
     </div>

@@ -1,0 +1,1451 @@
+{
+  "need": [
+    {
+      "text": "hey there",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "good morning! how's it going",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "who made you?",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "what can you actually do",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "write me a short poem about rain on a tin roof",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "tell me a joke about cats",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "Translate to French: I will be late for the meeting tomorrow.",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "proofread this pls: Their going to the store tommorow and I dont know if there coming back",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "can you make this shorter: We would like to take this opportunity to inform you that your application has been received and is currently under review by our team.",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "what's 4589 * 23",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "fix this\n```js\nfunction add(a,b){ return a - b }\nconsole.log(add(2,3)) // should print 5\n```",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "give me a riddle",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "write a catchy slogan for a lemonade stand",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "thanks, you're the best",
+      "label": "none",
+      "group": "english"
+    },
+    {
+      "text": "whats the news today",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "bitcoin price right now",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "is it going to rain in london tomorrow",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "who won the lakers game last night",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "what's the latest version of node js",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "who is the current prime minister of the UK",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "is whatsapp down?",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "usd to eur exchange rate",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "can you look up the opening hours for the british museum",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "google when the next iphone comes out",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "any recent developments in the ukraine peace talks",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "how much is a tesla model 3 these days",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "check online if flight EK650 is delayed",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "what happened in the stock market this week",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "temperature in dubai rn",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "verify this for me: did Spain win the Euros in 2024?",
+      "label": "web",
+      "group": "english"
+    },
+    {
+      "text": "do a deep research on the electric vehicle battery recycling industry",
+      "label": "deep",
+      "group": "english"
+    },
+    {
+      "text": "I need a comprehensive report on how remote work affects productivity, with sources",
+      "label": "deep",
+      "group": "english"
+    },
+    {
+      "text": "compare Postgres, MySQL and MongoDB on performance, scalability, cost and ease of hosting",
+      "label": "deep",
+      "group": "english"
+    },
+    {
+      "text": "write a literature review on microplastics in drinking water",
+      "label": "deep",
+      "group": "english"
+    },
+    {
+      "text": "market analysis for specialty coffee shops in southeast asia",
+      "label": "deep",
+      "group": "english"
+    },
+    {
+      "text": "investigate why so many food delivery startups failed and give me a detailed analysis",
+      "label": "deep",
+      "group": "english"
+    },
+    {
+      "text": "how does a heat pump work",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "how do i reverse a linked list in java",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "write an email to my boss asking for friday off",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "what's the difference between a virus and a bacteria",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "why is the sky blue",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "tips for a job interview at a bank",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "plan a 3 day trip to kyoto for me",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "whats the capital of australia",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "how to get red wine out of a carpet",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "should i learn rust or go first",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "my sourdough starter isnt rising what am i doing wrong",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "what does idempotent mean in REST apis",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "who wrote pride and prejudice",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "give me a beginner workout plan i can do at home",
+      "label": "open",
+      "group": "english"
+    },
+    {
+      "text": "හායි",
+      "label": "none",
+      "group": "sinhala"
+    },
+    {
+      "text": "කොහොමද ඉතින්",
+      "label": "none",
+      "group": "sinhala"
+    },
+    {
+      "text": "ඔයා කවුද?",
+      "label": "none",
+      "group": "sinhala"
+    },
+    {
+      "text": "ඔයාට මොනවද කරන්න පුළුවන්",
+      "label": "none",
+      "group": "sinhala"
+    },
+    {
+      "text": "අම්මා ගැන ලස්සන කවියක් ලියන්න",
+      "label": "none",
+      "group": "sinhala"
+    },
+    {
+      "text": "විහිළුවක් කියන්නකෝ",
+      "label": "none",
+      "group": "sinhala"
+    },
+    {
+      "text": "මේක ඉංග්‍රීසියට පරිවර්තනය කරන්න: මම හෙට උදේ ගමට යනවා",
+      "label": "none",
+      "group": "sinhala"
+    },
+    {
+      "text": "250 + 375 කීයද",
+      "label": "none",
+      "group": "sinhala"
+    },
+    {
+      "text": "මේ වාක්‍යය කෙටි කරන්න: අපගේ ආයතනය විසින් ඔබ වෙත මෙම ලිපිය එවනු ලබන්නේ ඔබගේ ඉල්ලුම්පත්‍රය ලැබුණු බව දැනුම් දීම සඳහාය",
+      "label": "none",
+      "group": "sinhala"
+    },
+    {
+      "text": "අද පුවත් මොනවද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "අද රත්තරන් පවුමක මිල කීයද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "කොළඹ අද කාලගුණය කොහොමද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "ඩොලර් එකේ අද රේට් එක කීයද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "ඊයේ ක්‍රිකට් මැච් එක දින්නේ කවුද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "දැන් ලංකාවේ ජනාධිපති කවුද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "පෙට්‍රල් ලීටරයක් දැන් කීයද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "A/L results දැන් දාලද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "iPhone 16 එකේ ලංකාවේ මිල කීයද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "මේ සතියේ ලයිට් කපනවද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "අලුත්ම Android version එක මොකක්ද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "හෙට නුවර වැස්සක් තියෙයිද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "google කරලා බලන්නකෝ දළදා පෙරහැර තියෙන්නේ කවදද කියලා",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "ලංකාව ඉන්දියාව මැච් එකේ දැන් ලකුණු කීයද",
+      "label": "web",
+      "group": "sinhala"
+    },
+    {
+      "text": "ලංකාවේ තේ කර්මාන්තය ගැන සවිස්තර වාර්තාවක් හදලා දෙන්න",
+      "label": "deep",
+      "group": "sinhala"
+    },
+    {
+      "text": "පුනර්ජනනීය බලශක්තිය ගැන ගැඹුරු පර්යේෂණයක් කරන්න",
+      "label": "deep",
+      "group": "sinhala"
+    },
+    {
+      "text": "ලංකාවේ සංචාරක ව්‍යාපාරය ගැන වෙළඳපොළ විශ්ලේෂණයක් ඕන",
+      "label": "deep",
+      "group": "sinhala"
+    },
+    {
+      "text": "ප්‍රභාසංස්ලේෂණය කියන්නේ මොකක්ද",
+      "label": "open",
+      "group": "sinhala"
+    },
+    {
+      "text": "කිරිබත් හදන්නේ කොහොමද",
+      "label": "open",
+      "group": "sinhala"
+    },
+    {
+      "text": "Python වල list එකක් sort කරන්නේ කොහොමද",
+      "label": "open",
+      "group": "sinhala"
+    },
+    {
+      "text": "ලීව් එකක් ඉල්ලලා බොස්ට ලියුමක් ලියන්න",
+      "label": "open",
+      "group": "sinhala"
+    },
+    {
+      "text": "උණ හැදුණම මොනවද කරන්න ඕන",
+      "label": "open",
+      "group": "sinhala"
+    },
+    {
+      "text": "ජපානයේ අගනුවර මොකක්ද",
+      "label": "open",
+      "group": "sinhala"
+    },
+    {
+      "text": "සීගිරිය හැදුවේ කවුද",
+      "label": "open",
+      "group": "sinhala"
+    },
+    {
+      "text": "චන්ද්‍රග්‍රහණයක් වෙන්නේ කොහොමද",
+      "label": "open",
+      "group": "sinhala"
+    },
+    {
+      "text": "interview එකකට ලෑස්ති වෙන්නේ කොහොමද",
+      "label": "open",
+      "group": "sinhala"
+    },
+    {
+      "text": "hi kohomada",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "oya kauda",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "oyata mokakda krnna puluwan",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "mt kaviyak liyala denna adare gana",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "wihiluwak kiyapanko",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "meka english walata translate karanna: mama heta gedara yanawa",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "125 + 480 kiyada",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "gm machan",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "meke error eka hadanna\n```python\nfor i in range(5)\n    print(i)\n```",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "meka keti karala denna: api hamoma heta ude 8ta office ekata enna one kiyala boss kiwwa eka nisa kauruth parakku wenna epa",
+      "label": "none",
+      "group": "singlish"
+    },
+    {
+      "text": "ada news mnwada",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "ada dolar eka kiyda",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "rattharan pawumak ada kiyada",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "heta colombo wahinavada",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "iye match eka dinne kauda",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "petrol mila wadi unada ada",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "dan lankawe agamathi kauda",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "al results avada thama",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "aluth iphone eke gana kiyada lankawe",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "me dawaswala elawalu mila kohomada",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "ada kalagunaya mkkd nuwara",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "samsung s25 eka lankawata awada",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "google krla balanna heta poya dawasakda",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "ada light kapanawada ape patte",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "lanka india match eke score eka kiyada dn",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "me sathiye aluth film monawada tiyenne",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "net eken hoyala balanna nic eka hadanna kiyak yanawada",
+      "label": "web",
+      "group": "singlish"
+    },
+    {
+      "text": "lankawe solar power gana deep research ekak karanna",
+      "label": "deep",
+      "group": "singlish"
+    },
+    {
+      "text": "mt wisthara sahitha report ekak one lankawe it industry eka gana",
+      "label": "deep",
+      "group": "singlish"
+    },
+    {
+      "text": "dialog mobitel hutch packages compare karanna mila speed coverage anuwa",
+      "label": "deep",
+      "group": "singlish"
+    },
+    {
+      "text": "kiribath hadanne kohomada",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "python walin file ekak read karanne kohomda",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "boss ta leave ekak illala email ekak liyanna",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "hisaradeta mokada karanne",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "lankawe usama kanda mokakda",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "interview ekakata lasthi wenne khmd",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "english igena ganna lesima widiha mkkd",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "blockchain kiyanne mokakda therum karala denna",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "bara adu karaganna monawada kanna one",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "ammage upandinayata denna hoda thaggak kynna",
+      "label": "open",
+      "group": "singlish"
+    },
+    {
+      "text": "hello, කොහොමද ඔයාට",
+      "label": "none",
+      "group": "mixed"
+    },
+    {
+      "text": "can you tell me oya kauda and what you do?",
+      "label": "none",
+      "group": "mixed"
+    },
+    {
+      "text": "translate this to English please: මට අද වැඩට යන්න බෑ, අසනීපයි",
+      "label": "none",
+      "group": "mixed"
+    },
+    {
+      "text": "Proofread karanna: I has went to the market yesterday and buyed three mango",
+      "label": "none",
+      "group": "mixed"
+    },
+    {
+      "text": "funny joke එකක් කියන්න office එක ගැන",
+      "label": "none",
+      "group": "mixed"
+    },
+    {
+      "text": "today news මොනවද in Sri Lanka",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "what is the dollar rate අද",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "Colombo weather eka kohomada right now",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "iPhone 17 price එක ලංකාවේ කීයද",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "ada gold rate eka kiyada, 22 carat",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "latest cricket score එක කියන්න SL vs AUS",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "who is the current ජනාධිපති of Sri Lanka",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "please check online, Kandy පාර වහලද landslide එක නිසා",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "fuel prices වැඩි වුණාද this month",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "is the passport office open හෙට?",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "O/L exam results release karalada, can you look it up",
+      "label": "web",
+      "group": "mixed"
+    },
+    {
+      "text": "ලංකාවේ e-commerce market එක ගැන comprehensive report එකක් ඕන, competitors, growth සහ challenges එක්ක",
+      "label": "deep",
+      "group": "mixed"
+    },
+    {
+      "text": "do a deep research on dengue පැතිරීම in Sri Lanka, hethu saha visadum",
+      "label": "deep",
+      "group": "mixed"
+    },
+    {
+      "text": "React වල useEffect එක වැඩ කරන්නේ කොහොමද explain කරන්න",
+      "label": "open",
+      "group": "mixed"
+    },
+    {
+      "text": "how to make පොල් සම්බෝල properly",
+      "label": "open",
+      "group": "mixed"
+    },
+    {
+      "text": "mage CV eka improve karanna tips denna, I'm a fresh graduate",
+      "label": "open",
+      "group": "mixed"
+    },
+    {
+      "text": "what does 'ආයුබෝවන්' actually mean",
+      "label": "open",
+      "group": "mixed"
+    },
+    {
+      "text": "interview එකකදී tell me about yourself කිව්වම මොනවද කියන්න ඕන",
+      "label": "open",
+      "group": "mixed"
+    },
+    {
+      "text": "SQL join types tika podi examples ekka kiyala denna",
+      "label": "open",
+      "group": "mixed"
+    },
+    {
+      "text": "ගෙදර wifi එක slow, how can I fix it",
+      "label": "open",
+      "group": "mixed"
+    },
+    {
+      "text": "¿Qué noticias hay hoy en España?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "Quel temps fait-il à Paris aujourd'hui ?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "Wie viel kostet ein Liter Benzin aktuell in Deutschland?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "qual é a cotação do dólar hoje?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "Che tempo farà domani a Roma?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "Wat is het laatste nieuws van vandaag?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "Какой сейчас курс доллара к рублю?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "ما هو سعر الذهب اليوم في مصر؟",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "आज दिल्ली में मौसम कैसा है?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "இன்றைய முக்கிய செய்திகள் என்ன?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "今日の東京の天気はどうですか",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "今天比特币的价格是多少？",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "오늘 서울 날씨 어때요?",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "aaj sone ka bhav kya hai mumbai me",
+      "label": "web",
+      "group": "world"
+    },
+    {
+      "text": "Hola, ¿qué tal?",
+      "label": "none",
+      "group": "world"
+    },
+    {
+      "text": "Guten Morgen!",
+      "label": "none",
+      "group": "world"
+    },
+    {
+      "text": "こんにちは",
+      "label": "none",
+      "group": "world"
+    },
+    {
+      "text": "مرحبا، كيف حالك؟",
+      "label": "none",
+      "group": "world"
+    },
+    {
+      "text": "வணக்கம்",
+      "label": "none",
+      "group": "world"
+    },
+    {
+      "text": "namaste bhai kaise ho",
+      "label": "none",
+      "group": "world"
+    }
+  ],
+  "actions": [
+    {
+      "text": "open chrome and go to youtube",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "create a folder called Invoices on my desktop",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "can u take a screenshot of my screen rn",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "delete all the files in my downloads folder",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "rename the file report.docx on my desktop to final_report.docx",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "shut down my pc",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "restart my computer in 10 minutes",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "install vlc on my laptop",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "click the submit button for me",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "type my address into the form that's open on my screen",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "run ipconfig on my machine and tell me what it says",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "move all the pdfs from Documents into a new folder named Tax 2025",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "open notepad",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "uninstall zoom from this computer",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "move my mouse to the top left corner and double click",
+      "label": "action",
+      "group": "english"
+    },
+    {
+      "text": "how do i open chrome in incognito mode",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "how do I create a folder on my desktop in windows 11",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "what's the shortcut to take a screenshot on a mac",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "write a bash script to delete all .log files in a directory",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "how to rename multiple files at once",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "why does my pc take so long to shut down",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "what is the command to restart a linux server",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "is it safe to install vlc from the official site",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "open a csv file in pandas and show the first 5 rows, how?",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "what does ipconfig /flushdns do",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "explain what a browser cache is",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "how can i uninstall programs that dont show up in control panel",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "give me the powershell code to move all pdfs to another folder",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "what's the keyboard shortcut for closing a window",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "how does remote desktop let someone else control my mouse",
+      "label": "question",
+      "group": "english"
+    },
+    {
+      "text": "mage chrome eka open karanna",
+      "label": "action",
+      "group": "singlish"
+    },
+    {
+      "text": "desktop eke aluth folder ekak hadanna photos kiyala",
+      "label": "action",
+      "group": "singlish"
+    },
+    {
+      "text": "screenshot ekak ganna dan",
+      "label": "action",
+      "group": "singlish"
+    },
+    {
+      "text": "mage pc eka shutdown krnna",
+      "label": "action",
+      "group": "singlish"
+    },
+    {
+      "text": "downloads wala thiyena pdf tika delete karanna",
+      "label": "action",
+      "group": "singlish"
+    },
+    {
+      "text": "notepad eka arala hello kiyala type karanna",
+      "label": "action",
+      "group": "singlish"
+    },
+    {
+      "text": "chrome eka open wenne na mokada karanne",
+      "label": "question",
+      "group": "singlish"
+    },
+    {
+      "text": "folder ekak hadanne kohomada desktop eke",
+      "label": "question",
+      "group": "singlish"
+    },
+    {
+      "text": "screenshot ekak ganne khmd laptop eken",
+      "label": "question",
+      "group": "singlish"
+    },
+    {
+      "text": "pc eka shutdown wenna parakku wenne ai",
+      "label": "question",
+      "group": "singlish"
+    },
+    {
+      "text": "delete karapu file ekak aye ganna puluwanda",
+      "label": "question",
+      "group": "singlish"
+    },
+    {
+      "text": "python walin file ekak open karanne kohomada",
+      "label": "question",
+      "group": "singlish"
+    },
+    {
+      "text": "මගේ browser එක open කරන්න",
+      "label": "action",
+      "group": "sinhala"
+    },
+    {
+      "text": "Desktop එකේ 'වැඩ' කියලා folder එකක් හදන්න",
+      "label": "action",
+      "group": "sinhala"
+    },
+    {
+      "text": "මගේ computer එක restart කරන්න",
+      "label": "action",
+      "group": "sinhala"
+    },
+    {
+      "text": "Downloads folder එකේ තියෙන ඔක්කොම files මකන්න",
+      "label": "action",
+      "group": "sinhala"
+    },
+    {
+      "text": "folder එකක් හදන්නේ කොහොමද",
+      "label": "question",
+      "group": "sinhala"
+    },
+    {
+      "text": "browser එකක් කියන්නේ මොකක්ද",
+      "label": "question",
+      "group": "sinhala"
+    },
+    {
+      "text": "computer එක slow වෙන්නේ ඇයි",
+      "label": "question",
+      "group": "sinhala"
+    },
+    {
+      "text": "files මකන script එකක් ලියලා දෙන්න Python වලින්",
+      "label": "question",
+      "group": "sinhala"
+    }
+  ],
+  "gloss": [
+    {
+      "text": "ada rattaran mila kiyada",
+      "has": [
+        "gold",
+        "price",
+        "today"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "ada lankawe pradana puwath mnwada",
+      "has": [
+        "sri lanka",
+        "news",
+        "today"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "heta colombo kalagunaya kohomada",
+      "has": [
+        "colombo",
+        "weather",
+        "tomorrow"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "dollar rate eka ada kiyda",
+      "has": [
+        "dollar",
+        "rate",
+        "today"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "petrol mila ada wadi unada",
+      "has": [
+        "petrol",
+        "price",
+        "today"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "lankawe janadhipathi dan kauda",
+      "has": [
+        "sri lanka",
+        "president"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "ada cricket match eke lakunu kiyada",
+      "has": [
+        "cricket",
+        "score",
+        "today"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "al wibhaga prathipala kawadda enne",
+      "has": [
+        "exam",
+        "results"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "samsung s25 ultra lankawe mila kiyada",
+      "has": [
+        "samsung",
+        "s25",
+        "price",
+        "sri lanka"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "iphone 16 pro max eka dan kiyada",
+      "has": [
+        "iphone 16",
+        "price"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "galle ada kalagunaya mkkd",
+      "has": [
+        "galle",
+        "weather",
+        "today"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "lankawe ilaga chandaya kawadda thiyenne",
+      "has": [
+        "sri lanka",
+        "election"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "ada pol gediyaka mila kiyada",
+      "has": [
+        "coconut",
+        "price",
+        "today"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "sahal kilo ekak dan kiyada",
+      "has": [
+        "rice",
+        "price"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "gas cylinder eke aluth mila kiyada",
+      "has": [
+        "gas",
+        "cylinder",
+        "price"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "lanka india t20 match eka dinne kauda",
+      "has": [
+        "sri lanka",
+        "india",
+        "t20"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "ratnapura ganwathura thathwaya ada kohomada",
+      "has": [
+        "ratnapura",
+        "flood",
+        "today"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "aluth budget eken rajaye sewakayange padi wadi wenawada",
+      "has": [
+        "budget",
+        "salary",
+        "government"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "chatgpt aluth version eka mokakda",
+      "has": [
+        "chatgpt",
+        "version"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "wahana import thahanama ain kalada",
+      "has": [
+        "vehicle",
+        "import",
+        "ban"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "shishyathwa wibhage prathipala awada",
+      "has": [
+        "scholarship",
+        "exam",
+        "results"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "starlink lankawe mila gana kiyanna",
+      "has": [
+        "starlink",
+        "sri lanka",
+        "price"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "lankawe uddhamanaya dan kiyada",
+      "has": [
+        "sri lanka",
+        "inflation"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "asia cup final eka kawadda",
+      "has": [
+        "asia cup",
+        "final"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "ada light kapana welawal monawada",
+      "has": [
+        "power cut",
+        "today"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "redmi note 14 lankawe mila",
+      "has": [
+        "redmi note 14",
+        "price",
+        "sri lanka"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "kolamba idan yapanayata kochchi welawal ada",
+      "has": [
+        "train",
+        "colombo",
+        "jaffna"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "dan lankawe agamathi kawda",
+      "has": [
+        "sri lanka",
+        "prime minister"
+      ],
+      "group": "singlish"
+    },
+    {
+      "text": "අද රන් පවුමක මිල කීයද",
+      "has": [
+        "gold",
+        "price",
+        "today"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "අද ප්‍රධාන පුවත් මොනවද",
+      "has": [
+        "news",
+        "today"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "හෙට යාපනයේ කාලගුණය කොහොමද",
+      "has": [
+        "jaffna",
+        "weather",
+        "tomorrow"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "ඩීසල් ලීටරයක මිල දැන් කීයද",
+      "has": [
+        "diesel",
+        "price"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "ශ්‍රී ලංකාවේ වත්මන් අගමැති කවුද",
+      "has": [
+        "sri lanka",
+        "prime minister"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "සාමාන්‍ය පෙළ විභාග ප්‍රතිඵල කවදද නිකුත් වෙන්නේ",
+      "has": [
+        "exam",
+        "results"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "ලංකාව සහ පාකිස්තානය අතර ටෙස්ට් තරගයේ ලකුණු",
+      "has": [
+        "sri lanka",
+        "pakistan",
+        "score"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "අද ඩොලරයේ විකුණුම් මිල කීයද",
+      "has": [
+        "dollar",
+        "today"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "මැතිවරණ ප්‍රතිඵල ආවද",
+      "has": [
+        "election",
+        "results"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "Pixel 9 එකේ ලංකාවේ මිල කීයද",
+      "has": [
+        "pixel 9",
+        "price",
+        "sri lanka"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "මේ සතියේ එළවළු මිල වැඩි වෙලාද",
+      "has": [
+        "vegetable",
+        "price"
+      ],
+      "group": "sinhala"
+    },
+    {
+      "text": "ලංකාවේ ආර්ථික වර්ධන වේගය දැන් කීයද",
+      "has": [
+        "sri lanka",
+        "growth"
+      ],
+      "group": "sinhala"
+    }
+  ]
+}

@@ -24,6 +24,8 @@ import { NoiseError, fingerprint } from "./noise";
 /** How long a receiver waits for the next piece before treating the connection as dropped. */
 const IDLE_MS = 60_000;
 const INCOMING = ".farbaek-incoming";
+/** Removing a folder for good. On Windows another program (a virus scanner, the indexer) can hold a file for a moment: tried again a few times. */
+const REMOVE = { recursive: true, force: true, maxRetries: 5, retryDelay: 100 } as const;
 /** Free space kept beyond the transfer's size. */
 const SPACE_MARGIN = 64 * 1024 * 1024;
 
@@ -149,6 +151,8 @@ export class IncomingTransfer {
   private readonly complete: boolean[];
   private running: Promise<void> | null = null;
   private accepting = false;
+  /** The person cancelled here. Whatever is still writing stops first; only then is the folder removed. */
+  private cancelling = false;
   readonly peerKey: Buffer;
 
   constructor(
@@ -226,9 +230,17 @@ export class IncomingTransfer {
       this.set("failed", "There isn't enough free space in that folder's drive for this transfer.");
       return;
     }
+    // Cancelled while the folder was being checked: nothing has been made, and nothing is.
+    if (this.cancelling) return;
     this.destination = await this.makeFolder(parent);
     this.folder = await ProjectFolder.open(this.destination);
-    if (earlier) {
+    this.running = this.seedThenRun(earlier);
+    await this.running;
+  }
+
+  /** Everything that writes into the transfer's folder, as one piece of work that `cancel` waits for. */
+  private async seedThenRun(earlier?: string): Promise<void> {
+    if (earlier && !this.cancelling) {
       this.set("receiving", "Checking the earlier copy for files this computer already has.");
       try {
         await this.seedFrom(earlier);
@@ -237,12 +249,13 @@ export class IncomingTransfer {
         this.reused = { files: 0, bytes: 0 };
         this.verified.fill(0);
         this.complete.fill(false);
-        await fs.rm(path.join(this.destination, INCOMING), { recursive: true, force: true }).catch(() => undefined);
+        if (this.destination) await fs.rm(path.join(this.destination, INCOMING), REMOVE).catch(() => undefined);
         this.reuseProblem = `The earlier copy couldn't be used (${error instanceof Error ? error.message : "it couldn't be read"}), so every file was sent.`;
       }
     }
-    this.running = this.run();
-    await this.running;
+    // Cancelled before or during that: `cancel` removes the folder once this returns.
+    if (this.cancelling) return;
+    await this.run();
   }
 
   /** Files already on this computer, copied from the earlier copy instead of sent. */
@@ -257,6 +270,7 @@ export class IncomingTransfer {
   private async seedFrom(earlier: string): Promise<void> {
     const source = await ProjectFolder.open(earlier);
     for (const [f, entry] of this.manifest.files.entries()) {
+      if (this.cancelling) throw new Error("the transfer was cancelled");
       const matched = await matchingChunks(source, entry);
       if (matched === 0) continue;
       const whole = matched === entry.chunks.length;
@@ -267,6 +281,7 @@ export class IncomingTransfer {
         let at = 0;
         if (keep > 0) {
           for await (const piece of from.createReadStream({ start: 0, end: keep - 1, highWaterMark: 1024 * 1024, autoClose: false })) {
+            if (this.cancelling) throw new Error("the transfer was cancelled");
             const bytes = piece as Buffer;
             await to.write(bytes, 0, bytes.length, at);
             at += bytes.length;
@@ -308,9 +323,13 @@ export class IncomingTransfer {
   }
 
   async cancel(): Promise<void> {
-    if (this.state === "done" || this.state === "cancelled" || this.state === "failed" || this.state === "declined") return;
+    if (this.state === "done" || this.state === "cancelled" || this.state === "failed" || this.state === "declined" || this.cancelling) return;
+    this.cancelling = true;
     await this.channel?.send({ t: "cancel" }).catch(() => undefined);
     this.channel?.close();
+    // The receiving loop may be in the middle of a write or a checkpoint. Removing the folder under it left files behind and
+    // failed with "directory not empty", so it stops first: the closed connection ends it at its next read.
+    await this.running?.catch(() => undefined);
     await this.removeAll();
     this.set("cancelled", "Cancelled. Everything received was removed.");
   }
@@ -391,6 +410,12 @@ export class IncomingTransfer {
       channel.close();
     } catch (error) {
       await current?.handle.close().catch(() => undefined);
+      // Cancelled on this computer: no checkpoint, no message and no state from here. `cancel` is waiting for this to return,
+      // and then removes everything and says so.
+      if (this.cancelling) {
+        channel.close();
+        return;
+      }
       if (!dropped(error)) {
         const reason = error instanceof Mismatch ? error.message : "The receiving computer couldn't write the files.";
         await channel.send({ t: "error", code: error instanceof Mismatch ? error.code : "internal", message: reason }).catch(() => undefined);
@@ -452,7 +477,7 @@ export class IncomingTransfer {
 
   /** Removes the folder made for this transfer, with everything received into it. */
   private async removeAll(): Promise<void> {
-    if (this.destination) await fs.rm(this.destination, { recursive: true, force: true });
+    if (this.destination) await fs.rm(this.destination, REMOVE);
     this.destination = null;
     this.folder = null;
   }

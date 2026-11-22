@@ -18,7 +18,7 @@ import { XXHandshake, generateKeyPair, pairingCode, pairingCommit } from "./nois
 import { MeshNode, type RelayLink } from "./node";
 import { fakeRelay } from "./relay-fake";
 import { packFolder } from "./pack";
-import type { IncomingView } from "./receive";
+import { IncomingTransfer, type IncomingView } from "./receive";
 
 // Every temp folder made here is removed after this file's tests, so test runs don't fill the disk.
 const made: string[] = [];
@@ -516,6 +516,49 @@ describe("nearby transfer between two agents", { timeout: 30_000 }, () => {
     await new Promise((r) => setTimeout(r, 1_500));
     expect(stateOf(a, outId)).toBe("cancelled");
     expect(a.snapshot().transfers.find((t) => t.id === outId)!.message).toBe("Laptop cancelled the transfer.");
+  });
+
+  it("cancelling on the receiving side stops the receive loop before the folder is removed, so nothing is written under the removal", async () => {
+    const { a, b, port } = await paired();
+    const { root } = await sourceFolder();
+    const { outId, inId } = await offerTo(a, b, port, root);
+    const dest = await tmp("dest");
+    // The removal is held back a moment, so anything still writing would be caught writing during it. Before the fix the
+    // loop saved a checkpoint into the folder while it was being removed, which on Windows failed with "directory not empty".
+    const inner = IncomingTransfer.prototype as unknown as { removeAll(): Promise<void>; saveCheckpoint(): Promise<void> };
+    const removeAll = inner.removeAll;
+    const saveCheckpoint = inner.saveCheckpoint;
+    let removing = false;
+    let writesUnderRemoval = 0;
+    vi.spyOn(inner, "removeAll").mockImplementation(async function (this: unknown) {
+      removing = true;
+      await new Promise((r) => setTimeout(r, 80));
+      return removeAll.call(this);
+    });
+    vi.spyOn(inner, "saveCheckpoint").mockImplementation(async function (this: unknown) {
+      if (removing) writesUnderRemoval += 1;
+      return saveCheckpoint.call(this);
+    });
+    let pieces = 0;
+    let cancelled: Promise<void> | null = null;
+    const receive = SecureChannel.prototype.receive;
+    vi.spyOn(SecureChannel.prototype, "receive").mockImplementation(async function (this: SecureChannel, timeoutMs?: number) {
+      const got = await receive.call(this, timeoutMs);
+      if (got.message.t === "data" && ++pieces === 20 && !cancelled) cancelled = b.cancel(inId);
+      return got;
+    });
+    // Accepting returns at once; the transfer runs on.
+    await b.accept(inId, dest);
+    await until(() => cancelled !== null);
+    // The cancel itself finishes cleanly: no rejection is left for anyone to catch.
+    await expect(cancelled).resolves.toBeUndefined();
+    expect(writesUnderRemoval).toBe(0);
+    expect(stateOf(b, inId)).toBe("cancelled");
+    expect(await fs.readdir(dest)).toEqual([]);
+    await until(() => stateOf(a, outId) === "cancelled");
+    // A second cancel, and one after it has ended, do nothing.
+    await expect(b.cancel(inId)).resolves.toBeUndefined();
+    expect(stateOf(b, inId)).toBe("cancelled");
   });
 
   it("names an incoming offer as the sender was named when paired, whatever its hello says now", async () => {

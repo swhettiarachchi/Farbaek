@@ -2,10 +2,11 @@
  * Search results and the sources an answer used (stage 205, ADR 0222). Framework-free.
  *
  * Results are deduplicated by a canonical address (tracking parameters and fragments removed), at most two per site, so one
- * site can't fill the answer. The sources saved with an answer stay well under the 8 KB the database allows for a message's
+ * site can't fill the answer (ranking is in rank.ts). The sources saved with an answer stay well under the 8 KB the database allows for a message's
  * facts, counted in UTF-8 bytes, since Sinhala, Tamil and Japanese titles take three bytes a character.
  */
 import { z } from "zod";
+import { DEPTHS, type Depth } from "./plan";
 
 export interface SearchResult {
   url: string;
@@ -15,6 +16,8 @@ export interface SearchResult {
   published: string | null;
   /** Which search found it: the general web or news. */
   kind: "web" | "news";
+  /** When the search that found it ran, when that wasn't just now (a search kept for a few minutes, search/cache.ts). */
+  fetchedAt?: number;
 }
 
 export interface WebSource {
@@ -26,19 +29,40 @@ export interface WebSource {
   published: string | null;
   /** True when the page itself was read; false when only the search snippet was used. */
   read: boolean;
+  /** The page's own "updated" date, when it gives one that differs from its published date. */
+  updated?: string | null;
+  /** The answer cites it. Set once the answer is written (citations.ts). */
+  cited?: boolean;
+  /** Whether the names and numbers in the sentences that cite it are on the page. Set once the answer is written. */
+  support?: Support;
 }
 
-export const SEARCH_STATUSES = ["done", "failed", "off"] as const;
+/** matched: found on the page. partly: some found. unmatched: none found. unchecked: nothing to compare, or only a snippet. */
+export const SUPPORTS = ["matched", "partly", "unmatched", "unchecked"] as const;
+export type Support = (typeof SUPPORTS)[number];
+
+/** skipped: the message didn't need the web (a greeting, a poem, the person's own text), so it wasn't checked. */
+export const SEARCH_STATUSES = ["done", "failed", "off", "skipped"] as const;
 
 export interface SearchMeta {
   /** When the web was checked (ISO). */
   at: string;
   status: (typeof SEARCH_STATUSES)[number];
   queries: string[];
-  /** Why it failed or was off, in plain words. */
+  /** Why it failed, was off or was skipped, in plain words. */
   reason?: string;
   sources: WebSource[];
+  /** How far the research went: one search, a few, or a task in several parts. */
+  depth?: Depth;
+  /** Rounds of searching: 2 when a deep task looked again for what the first round missed. */
+  rounds?: number;
+  /** The answer's citations, counted once it is written: sources cited, and how many of them carry the cited names and numbers. */
+  checks?: { cited: number; matched: number; unmatched: number; invalid: number };
 }
+
+/** The most sources and searches saved with one answer: a deep task reads more than a quick one. */
+export const MAX_SAVED_SOURCES = 12;
+export const MAX_SAVED_QUERIES = 8;
 
 const source = z.object({
   n: z.number().int().min(1).max(20),
@@ -47,14 +71,20 @@ const source = z.object({
   site: z.string().max(120),
   published: z.string().max(40).nullable(),
   read: z.boolean(),
+  updated: z.string().max(40).nullable().optional(),
+  cited: z.boolean().optional(),
+  support: z.enum(SUPPORTS).optional(),
 });
 
 export const searchMetaSchema = z.object({
   at: z.string().max(40),
   status: z.enum(SEARCH_STATUSES),
-  queries: z.array(z.string().max(200)).max(3),
+  queries: z.array(z.string().max(200)).max(MAX_SAVED_QUERIES),
   reason: z.string().max(200).optional(),
-  sources: z.array(source).max(8),
+  sources: z.array(source).max(MAX_SAVED_SOURCES),
+  depth: z.enum(DEPTHS).optional(),
+  rounds: z.number().int().min(1).max(3).optional(),
+  checks: z.object({ cited: z.number().int().min(0).max(20), matched: z.number().int().min(0).max(20), unmatched: z.number().int().min(0).max(20), invalid: z.number().int().min(0).max(99) }).optional(),
 });
 
 const TRACKING = /^(?:utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|ref|ref_src|ref_url|_hsenc|_hsmi|yclid|si|spm)$/i;
@@ -113,11 +143,11 @@ const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)
 export function fitSearchMeta(meta: SearchMeta, maxBytes = 5_500): SearchMeta {
   const fitted: SearchMeta = {
     ...meta,
-    queries: meta.queries.slice(0, 3).map((q) => q.slice(0, 200)),
+    queries: meta.queries.slice(0, MAX_SAVED_QUERIES).map((q) => q.slice(0, 200)),
     reason: meta.reason?.slice(0, 200),
     sources: meta.sources
       .filter((s) => new TextEncoder().encode(s.url).length <= 600)
-      .slice(0, 8)
+      .slice(0, MAX_SAVED_SOURCES)
       .map((s) => ({ ...s, title: s.title.slice(0, 120), site: s.site.slice(0, 60) })),
   };
   if (fitted.reason === undefined) delete fitted.reason;
@@ -126,6 +156,22 @@ export function fitSearchMeta(meta: SearchMeta, maxBytes = 5_500): SearchMeta {
     if (bytes(fitted) <= maxBytes) break;
     fitted.sources = fitted.sources.map((s) => ({ ...s, title: s.title.length > limit ? `${s.title.slice(0, limit - 1)}…` : s.title }));
   }
-  while (bytes(fitted) > maxBytes && fitted.sources.length > 0) fitted.sources = fitted.sources.slice(0, -1);
+  // Then fewer sources: the last one the answer doesn't cite goes first, so a cited source is never lost before an uncited one.
+  while (bytes(fitted) > maxBytes && fitted.sources.length > 0) {
+    const uncited = fitted.sources.findLastIndex((s) => !s.cited);
+    const drop = uncited >= 0 ? uncited : fitted.sources.length - 1;
+    fitted.sources = fitted.sources.filter((_, i) => i !== drop);
+  }
   return fitted;
+}
+
+/**
+ * An answer's text with its cited sources listed under it, for copying it somewhere else (stage 206): the numbers in the text
+ * mean nothing without the pages they stand for. An answer that cites nothing, or wasn't searched, is returned as it is.
+ */
+export function withSourceList(content: string, search: SearchMeta | undefined): string {
+  if (!search || search.status !== "done") return content;
+  const cited = search.sources.filter((s) => s.cited);
+  if (cited.length === 0) return content;
+  return `${content.trimEnd()}\n\nSources\n${cited.map((s) => `[${s.n}] ${s.title || s.site} (${s.site}) ${s.url}`).join("\n")}`;
 }

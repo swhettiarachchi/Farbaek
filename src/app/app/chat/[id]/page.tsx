@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { ConversationView } from "@/components/chat/conversation-view";
 import { CHAT_LIMITS } from "@/core/chat/protocol";
-import { SAMPLE_CHAT_ID, SAMPLE_CHATS, SAMPLE_MESSAGES } from "@/content/chat-samples";
+import { SAMPLE_CHATS, SAMPLE_CONVERSATIONS } from "@/content/chat-samples";
 import { isShared, readConversation, readPath } from "@/server/chat/store";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
@@ -16,9 +16,10 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
   if (!ctx.current) redirect("/app");
 
   if (ctx.mode === "demo") {
-    if (id !== SAMPLE_CHAT_ID) notFound();
-    const sample = SAMPLE_CHATS[0]!;
-    return <ConversationView key={id} conversation={{ id, title: sample.title, pinned: false, shared: false }} initialMessages={SAMPLE_MESSAGES} initialHasEarlier={false} />;
+    const sample = SAMPLE_CHATS.find((c) => c.id === id);
+    const messages = SAMPLE_CONVERSATIONS[id];
+    if (!sample || !messages) notFound();
+    return <ConversationView key={id} conversation={{ id, title: sample.title, pinned: false, shared: false }} initialMessages={messages} initialHasEarlier={false} />;
   }
 
   const client = await createSupabaseServerClient();

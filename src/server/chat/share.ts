@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import type { ChatFile } from "@/core/chat/protocol";
+import { searchMetaSchema, type SearchMeta } from "@/core/web/sources";
 import { invitationTokenHash, isInvitationToken } from "@/core/workspace/invitations";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -15,7 +16,7 @@ export type SharedChatState = "none" | "revoked" | "expired" | "paused" | "suspe
 export interface SharedChat {
   title: string;
   audience: "workspace" | "anyone";
-  messages: { id: string; role: "user" | "assistant"; kind: "text" | "image"; content: string; status: string; model: string | null; createdAt: string; files: ChatFile[] }[];
+  messages: { id: string; role: "user" | "assistant"; kind: "text" | "image"; content: string; status: string; model: string | null; createdAt: string; files: ChatFile[]; search?: SearchMeta }[];
 }
 
 const fileSchema = z.object({ id: z.string(), name: z.string(), kind: z.enum(["image", "pdf", "text"]), mime: z.string(), size: z.number(), width: z.number().nullable(), height: z.number().nullable(), generated: z.boolean() });
@@ -24,7 +25,7 @@ const liveSchema = z.object({
   audience: z.enum(["workspace", "anyone"]),
   title: z.string().nullable(),
   messages: z.array(
-    z.object({ id: z.string(), role: z.enum(["user", "assistant"]), kind: z.enum(["text", "image"]), content: z.string(), status: z.string(), model: z.string().nullable(), created_at: z.string(), files: z.array(fileSchema) }),
+    z.object({ id: z.string(), role: z.enum(["user", "assistant"]), kind: z.enum(["text", "image"]), content: z.string(), status: z.string(), model: z.string().nullable(), created_at: z.string(), files: z.array(fileSchema), search: z.unknown().optional() }),
   ),
 });
 
@@ -55,7 +56,11 @@ export async function openSharedChat(token: string): Promise<{ ok: true; chat: S
     chat: {
       title: live.data.title || "Shared chat",
       audience: live.data.audience,
-      messages: live.data.messages.map((m) => ({ id: m.id, role: m.role, kind: m.kind, content: m.content, status: m.status, model: m.model, createdAt: m.created_at, files: m.files })),
+      // An answer's sources (v101): checked like any saved answer's, and left out when they don't read as sources.
+      messages: live.data.messages.map((m) => {
+        const search = m.role === "assistant" ? searchMetaSchema.safeParse(m.search) : null;
+        return { id: m.id, role: m.role, kind: m.kind, content: m.content, status: m.status, model: m.model, createdAt: m.created_at, files: m.files, ...(search?.success ? { search: search.data } : {}) };
+      }),
     },
   };
 }

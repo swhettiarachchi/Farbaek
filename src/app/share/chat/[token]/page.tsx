@@ -57,7 +57,8 @@ export default async function SharedChatPage({ params }: { params: Promise<{ tok
     error: null,
     rating: null,
     thinkingMs: null,
-    meta: {},
+    // The sources an answer cites go with it (stage 207), so its citations are links here too.
+    meta: m.search ? { search: m.search } : {},
     createdAt: m.createdAt,
     siblings: [m.id],
     files: m.files,

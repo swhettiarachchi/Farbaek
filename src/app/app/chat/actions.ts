@@ -12,7 +12,8 @@ import { z } from "zod";
 import { CHAT_LIMITS, type ChatMessage, type ConversationSummary } from "@/core/chat/protocol";
 import { invitationTokenHash, newInvitationToken } from "@/core/workspace/invitations";
 import { isLinkLifetime, linkExpiry } from "@/core/workspace/sharing";
-import { listConversations, readPath, searchMessages } from "@/server/chat/store";
+import { MEMORY_LIMITS, memoryToSave } from "@/core/chat/memory";
+import { listConversations, readMemories, readPath, searchMessages, type RememberedThing } from "@/server/chat/store";
 import { chatFailure } from "@/server/chat/turn";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { siteUrl } from "@/server/supabase/config";
@@ -179,4 +180,62 @@ export async function unshareChatAction(id: string): Promise<ChatActionResult> {
   const g = await writer();
   if (!g.ok) return g;
   return rpc(g.w, "app_chat_unshare", { p_conversation: id });
+}
+
+// ---------------------------------------------------------------- memory (stage 207, ADR 0224)
+
+/** What the person asked Farbaek AI to remember in this workspace, newest first. */
+export async function listMemoriesAction(): Promise<ChatActionResult<RememberedThing[]>> {
+  const g = await reader();
+  if (!g.ok) return g;
+  return listed(await readMemories(g.user, g.orgId), "What's remembered couldn't be read just now. Nothing was changed. Try again.");
+}
+
+/** The list after a read or a change. A list that couldn't be read is never shown as an empty one. */
+function listed(found: RememberedThing[] | null, problem: string): ChatActionResult<RememberedThing[]> {
+  return found ? { ok: true, value: found } : { ok: false, message: problem };
+}
+
+/** Remembers one thing the person typed into Chat's settings: their own words, tidied, never anything that looks like a secret. */
+export async function rememberAction(text: string): Promise<ChatActionResult<RememberedThing[]>> {
+  // Checked by its length before anything reads it (memoryToSave): anyone signed in can call this with any text.
+  const checked = memoryToSave(text);
+  if (!checked.ok) return checked;
+  const g = await writer();
+  if (!g.ok) return g;
+  const { error } = await g.w.admin.rpc("app_chat_remember", { p_org: g.w.orgId, p_actor: g.w.actor, p_content: checked.content });
+  if (error) return { ok: false, message: error.message.includes("MEMORY_FULL") ? `${MEMORY_LIMITS.items} things are remembered already, which is the most. Forget one first.` : "That couldn't be saved. Try again." };
+  return listed(await readMemories(g.w.user, g.w.orgId), "It was saved, but the list couldn't be read back. Reload the page to see it.");
+}
+
+/** Forgets one remembered thing. Anyone still in the workspace may delete what is theirs. */
+export async function forgetMemoryAction(id: string): Promise<ChatActionResult<RememberedThing[]>> {
+  if (!uuid.safeParse(id).success) return { ok: false, message: "That isn't in your memory." };
+  const g = await eraser();
+  if (!g.ok) return g;
+  const { error } = await g.admin.rpc("app_chat_forget", { p_org: g.orgId, p_actor: g.actor, p_memory: id });
+  if (error) return { ok: false, message: "That couldn't be forgotten. Try again." };
+  return listed(await readMemories(g.user, g.orgId), "It was forgotten, but the list couldn't be read back. Reload the page to see it.");
+}
+
+/** Forgets everything remembered for the person in this workspace. Answers in the shape `ConfirmAction` shows. */
+export async function forgetAllMemoriesAction(): Promise<{ status: "error"; message: string } | { status: "done"; message: string }> {
+  const g = await eraser();
+  if (!g.ok) return { status: "error", message: g.message };
+  const { data, error } = await g.admin.rpc("app_chat_forget", { p_org: g.orgId, p_actor: g.actor, p_memory: null });
+  if (error) return { status: "error", message: "Nothing was forgotten: it didn't work this time. Try again." };
+  const count = typeof data === "number" ? data : 0;
+  return { status: "done", message: count === 0 ? "There was nothing to forget." : count === 1 ? "1 thing forgotten." : `${count} things forgotten.` };
+}
+
+/** Deleting what is yours needs no role: a viewer may too, while they are in the workspace. */
+async function eraser(): Promise<{ ok: true; admin: SupabaseClient; user: SupabaseClient; orgId: string; actor: string } | { ok: false; message: string }> {
+  const ctx = await loadAppContext();
+  if (!ctx) redirect("/sign-in");
+  if (ctx.mode === "demo") return { ok: false, message: "The demo workspace is read-only, so nothing here is saved." };
+  if (!ctx.current) return { ok: false, message: "Create a workspace first." };
+  const admin = createSupabaseAdminClient();
+  const user = await createSupabaseServerClient();
+  if (!admin || !user) return { ok: false, message: "Chat isn't set up on this server." };
+  return { ok: true, admin, user, orgId: ctx.current.id, actor: ctx.user.id };
 }

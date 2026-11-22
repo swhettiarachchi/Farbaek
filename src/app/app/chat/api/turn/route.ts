@@ -1,9 +1,10 @@
+import { after } from "next/server";
 import { turnRequestSchema, type TurnEvent } from "@/core/chat/protocol";
 import { encodeEvent, encodeKeepAlive } from "@/core/chat/sse";
 import { imageGeneration } from "@/server/ai/image-config";
 import { openAiKey } from "@/server/ai/openai-second-checker";
 import { chatModels } from "@/server/chat/setup";
-import { createChatWrites, readConversation, readFiles, readPath, readPendingFiles } from "@/server/chat/store";
+import { createChatWrites, readConversation, readFiles, readMemories, readPath, readPendingFiles, readSummaries } from "@/server/chat/store";
 import { prepareTurn, type TurnDeps } from "@/server/chat/turn";
 import { readTextCapped } from "@/server/http/body";
 import { log } from "@/server/observability/log";
@@ -88,6 +89,9 @@ export async function POST(request: Request) {
         const { data } = await user.from("projects").select("id").eq("id", id).eq("org_id", orgId).maybeSingle();
         return Boolean(data);
       },
+      // A long conversation's saved summaries and what the person asked to be remembered (stage 207, ADR 0224): their own, read as them.
+      summaries: (ids) => readSummaries(user, ids),
+      memories: async () => ((await readMemories(user, orgId)) ?? []).map((m) => m.content),
     },
     claude: models.claude,
     openai: models.openai,
@@ -98,8 +102,10 @@ export async function POST(request: Request) {
     health: () => providerHealth(),
     recordHealth: recordProviderResult,
     overrides: platformModels(),
-    // Live web search before every answer (stage 205, ADR 0222).
+    // Live web search when a question needs it (stage 205, ADR 0222; stage 206, ADR 0223).
     research: webResearch(),
+    // Work for after the answer has been sent: the response is done, and this still runs.
+    later: (work) => after(work),
     now: () => Date.now(),
   };
   if (!models.claude && !models.openai && !image) return refuse(models.error ?? "AI isn't connected on this server yet.", 503);

@@ -105,10 +105,16 @@ const SECTIONS: LegalSection[] = [
           When you use Farbaek AI&apos;s chat, your messages and the files you attach go to Anthropic (Claude) or OpenAI, whichever model Farbaek AI chooses for the question; if one can&apos;t answer, the other may take the same question. Pictures you make in the chat or the image studio go to OpenAI or Google (Gemini), with any of your own pictures you chose to work from; videos go to Google (Gemini). Each provider receives only that request, under the API terms above. What you make is kept in your workspace, private to you, until you delete it or leave the workspace.
         </p>
         <p>
-          Before Farbaek AI answers in the chat, it checks the live web. Short search queries written from your question go from Farbaek&apos;s own server to search engines (Bing, DuckDuckGo, Brave, Qwant and
+          When a question in the chat needs current information, Farbaek AI checks the live web before it answers. Short search queries written from your question go from Farbaek&apos;s own server to search engines (Bing, DuckDuckGo, Brave, Qwant and
           Wikipedia) under their own privacy policies; email addresses, phone numbers, long numbers, links and anything that looks like a password or key are taken out first, and the engines see Farbaek&apos;s
           server, never you or your account. Farbaek then opens the pages they find, as FarbaekBot and following each site&apos;s robots.txt, and gives their text to the AI model for that answer only. Page
-          text isn&apos;t stored; the answer keeps the links it used. You can switch this off with Search the web, in the menu beside the message box.
+          text isn&apos;t stored; the answer keeps the links it used. A search and the public results it found stay in the server&apos;s memory for up to an hour, so the same search isn&apos;t sent to the engines twice; they aren&apos;t written to disk or linked to you. You can switch this off with Search the web, in the menu beside the message box.
+        </p>
+        <p>
+          If you ask Farbaek AI to remember something (&ldquo;remember that &hellip;&rdquo;, or by adding it under Memory in Chat&apos;s settings), your own words are kept for your chats in that workspace and sent to the AI model
+          with your messages, so it can answer with them in mind. Nothing is worked out about you and added on its own. You can read and delete each one, delete them all, or switch memory off in Chat&apos;s settings; they are in
+          your data download, and they go when you leave the workspace or delete your account. When a conversation grows long, Farbaek asks the AI model for a short summary of its earlier part, so later answers still know how it
+          began. The summary is kept with the conversation, is yours alone, and is deleted with it.
         </p>
         <p>
           If an owner or admin gives your workspace its own Anthropic key, those requests go to Anthropic, or through their company&apos;s own server, under that account&apos;s own terms. Farbaek
