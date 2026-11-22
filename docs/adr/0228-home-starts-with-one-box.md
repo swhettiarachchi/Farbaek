@@ -26,7 +26,7 @@ Doing all of that at once would mean moving every signed-in page into one new fr
 - **Ask** takes the words to Chat, where they wait in Chat's box, ready to send. Nothing is sent by itself. The words travel in the browser's storage, never in the address, by the same path a question typed on the public homepage already takes.
 - **Build** is the build box Home always had, unchanged.
 - Ask leads. The switch remembers the person's last choice in that browser.
-- A new workspace still meets the build box inside its first steps, as before.
+- A workspace that hasn't built anything yet gets the same box under the greeting, with Build leading until the person chooses, since its first step is a build. The first step's link goes to the box.
 
 **The phone's five tabs are Home, Chat, Build, Approvals and More.**
 

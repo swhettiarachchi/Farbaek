@@ -9,7 +9,8 @@
  *   never in the address, exactly as a question typed on the public homepage does.
  * - **Build** is the build box Home always had, passed in whole from the server.
  *
- * The switch remembers the person's last choice in this browser. Ask leads, since most first questions are questions.
+ * The switch remembers the person's last choice in this browser. Ask leads, since most first questions are questions;
+ * for a workspace that hasn't built anything yet, Home asks for Build to lead (`lead`), since its first step is a build.
  */
 import { ArrowUpIcon, ChatCircleTextIcon, HammerIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
@@ -22,12 +23,14 @@ const START_EVENT = "farbaek-home-start";
 /** Set only when the browser refused to remember, so the switch still works for this visit. */
 let thisVisit: Start | null = null;
 
-function readStart(): Start {
+/** The person's own last choice, or null when they never chose. */
+function readStart(): Start | null {
   if (thisVisit) return thisVisit;
   try {
-    return window.localStorage.getItem(START_KEY) === "build" ? "build" : "ask";
+    const saved = window.localStorage.getItem(START_KEY);
+    return saved === "build" || saved === "ask" ? saved : null;
   } catch {
-    return "ask";
+    return null;
   }
 }
 
@@ -50,9 +53,10 @@ const CHOICES: [Start, typeof HammerIcon, string][] = [
   ["build", HammerIcon, "Build"],
 ];
 
-export function StartBox({ build }: { build: ReactNode }) {
+export function StartBox({ build, lead = "ask" }: { build: ReactNode; /** Which side shows until the person chooses. */ lead?: Start }) {
   const router = useRouter();
-  const start = useSyncExternalStore(subscribeStart, readStart, () => "ask" as Start);
+  const chosen = useSyncExternalStore(subscribeStart, readStart, () => null);
+  const start = chosen ?? lead;
   const [text, setText] = useState("");
   const box = useRef<HTMLTextAreaElement>(null);
   const id = useId();

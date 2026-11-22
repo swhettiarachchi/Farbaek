@@ -19,6 +19,14 @@
 - **By using it** in a browser at 390 and 1280 px on the local demo workspace: the switch starts on Ask, Build shows the build box, the choice survives a reload, and a question typed in Ask opens Chat with the words in its box, nothing sent and nothing in the address. The phone bar shows the five tabs.
 - The layout audit found nothing on Home or More at 375 and 1280 px, nor on Home in Dark at 390 px. After the main screen was rebuilt it was audited and photographed again at 390 and 1280 px, and in Dark at 1280 px: nothing found.
 
+## A fault found after the merge
+
+For a workspace that hadn't built anything yet, the new main screen showed the greeting with no box under it: the build box sat further down, inside the first step, and there was no way to ask from Home. Found by reading the page's code for that case after #277 was live.
+
+- **The fix** (`fix/home-box-for-new-workspaces`): everyone gets the box under the greeting. Until something is described, Build leads; a person's own choice still wins once they make one. The first step links to the box, as it always did.
+- **Checked:** typecheck, lint, build, 482 design, app and workspace tests, and the browser check of the box and tabs again at 390 and 1280 px.
+- **Not seen in a browser:** the new-workspace screen itself. The demo workspace already has projects, so the check ran on an existing workspace; the new case rests on the code and the types.
+
 ## Not done
 
 - **Part 2:** one frame for every signed-in page (Chat's window and sidebar for Home, Projects, Tasks and the rest), one menu behind a plus button in Chat's composer, and "Build" opening one place.
