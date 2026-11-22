@@ -19,6 +19,7 @@
 //   pnpm qa:responsive --shots=<folder>      also save a screenshot of each (--shot=viewport for the first screen only)
 //   pnpm qa:responsive --text-scale=2        as Android's text size at 200% (ADR 0171)
 //   pnpm qa:responsive --strict              also fail on anything out of proportion
+//   pnpm qa:responsive --theme=dark          as someone who chose Dark (ADR 0227); "system" follows --device-dark
 //
 // Screens: "375" is a phone (or a tablet from 768, a desktop from 1024), "844x390" a landscape phone, and "1180t" a touch
 // screen of that width (an iPad). It writes a JSON report (--out, default the system temp folder) and exits 1 when a page
@@ -43,6 +44,10 @@ const STRICT = args.includes("--strict");
 // The browser's default font size, which rem, em and rem-based media queries all follow.
 const TEXT_SCALE = Number(flag("text-scale") ?? 1);
 const routeFilter = flag("routes")?.split(",");
+// The look a person saved (ADR 0227): the same cookie the app writes. Light when not given.
+const THEME = flag("theme");
+if (THEME && !["light", "dark", "system"].includes(THEME)) throw new Error("--theme is light, dark or system");
+const DEVICE_DARK = args.includes("--device-dark");
 
 function chromePath() {
   const candidates = [
@@ -411,7 +416,8 @@ try {
     const device = deviceFor(spec);
     const { kind, viewport, isMobile, hasTouch, deviceScaleFactor } = device;
     const options = { viewport, isMobile, hasTouch, deviceScaleFactor };
-    const ctx = await browser.newContext({ ...options, reducedMotion: "reduce" });
+    const ctx = await browser.newContext({ ...options, reducedMotion: "reduce", colorScheme: DEVICE_DARK ? "dark" : "light" });
+    if (THEME) await ctx.addCookies([{ name: "fb_theme", value: THEME, url: BASE }]);
     const page = await ctx.newPage();
     let errors = [];
     page.on("console", (m) => {

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { LOOM, LOOM_COLORS, loomFrame, motes, project, ringPoint, toWorld, type LoomView } from "./loom-geometry";
+import { LOOM, LOOM_COLORS, LOOM_NIGHT, loomFrame, motes, project, ringPoint, toWorld, type LoomView } from "./loom-geometry";
 
 const view: LoomView = { scale: 100, figureX: 200, figureY: 250 };
 
@@ -77,5 +77,14 @@ describe("the Loom's 2D geometry", () => {
     expect(loomFrame(4, view)).not.toEqual(loomFrame(5, view));
     expect(spread(xs(4, 0.78))).toBeLessThan(spread(xs(4)) * 0.8);
     expect(motes(10)).toEqual(motes(10));
+  });
+});
+
+describe("the Loom on a dark page", () => {
+  it("has a night colour for every colour it draws with", () => {
+    const drawn = new Set([LOOM_COLORS.accent, LOOM_COLORS.cyan, LOOM_COLORS.ink, ...LOOM_COLORS.stages, ...LOOM_COLORS.motes]);
+    for (const color of drawn) expect(LOOM_NIGHT[color], color).toMatch(/^#[0-9a-f]{6}$/);
+    // Nothing drawn by day is left as it is at night: ink on charcoal would vanish.
+    for (const color of drawn) expect(LOOM_NIGHT[color]).not.toBe(color);
   });
 });

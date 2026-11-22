@@ -4,7 +4,7 @@
  * Farbaek Chat's dialogs (stage 199): sharing a conversation by link, renaming, deleting (which can't be undone, so it asks), the
  * settings, and a picture at full size.
  */
-import { CheckIcon, CopyIcon, DesktopIcon, DownloadSimpleIcon, GlobeIcon, LinkBreakIcon, MoonIcon, SunIcon, UsersIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckIcon, CopyIcon, DownloadSimpleIcon, GlobeIcon, LinkBreakIcon, UsersIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { LINK_LIFETIME_LABELS, LINK_LIFETIMES, type LinkLifetime } from "@/core/workspace/sharing";
 import { languageOptions, type AnswerScript } from "@/core/chat/language-names";
@@ -13,7 +13,9 @@ import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { shareChatAction, unshareChatAction } from "@/app/app/chat/actions";
 import type { ChatAvailabilityView } from "./chat-shell";
 import { MemorySettings } from "./memory-settings";
-import { setChatPrefs, useChatPrefs, type ChatTheme } from "./prefs";
+import { ThemeChoice } from "@/components/theme/theme-choice";
+import type { Theme } from "@/core/theme/theme";
+import { setChatPrefs, useChatPrefs } from "./prefs";
 import { Dialog, useCopy } from "./primitives";
 
 function Problem({ text }: { text: string | null }) {
@@ -195,12 +197,6 @@ export function ConfirmDialog({ state, onClose, onConfirm }: { state: { id: stri
   );
 }
 
-const THEMES: [ChatTheme, typeof SunIcon, string][] = [
-  ["light", SunIcon, "Light"],
-  ["dark", MoonIcon, "Dark"],
-  ["system", DesktopIcon, "Auto"],
-];
-
 /** Every language the reader is tested on, by name (stage 204). */
 const LANGUAGE_OPTIONS = languageOptions();
 const ANSWER_SCRIPTS: [AnswerScript, string][] = [
@@ -217,7 +213,7 @@ const SHORTCUTS: [string, string][] = [
   ["New line", "Shift Enter"],
 ];
 
-export function SettingsDialog({ open, onClose, theme, onTheme, availability, planLabel }: { open: boolean; onClose: () => void; theme: ChatTheme; onTheme: (t: ChatTheme) => void; availability: ChatAvailabilityView; planLabel: string }) {
+export function SettingsDialog({ open, onClose, theme, availability, planLabel }: { open: boolean; onClose: () => void; theme: Theme; availability: ChatAvailabilityView; planLabel: string }) {
   const prefs = useChatPrefs();
   return (
     <Dialog open={open} onClose={onClose} title="Chat settings">
@@ -226,21 +222,10 @@ export function SettingsDialog({ open, onClose, theme, onTheme, availability, pl
           <h3 id="chat-set-look" className={LABEL_CLASSES}>
             Appearance
           </h3>
-          <div role="radiogroup" aria-labelledby="chat-set-look" className="mt-2 grid grid-cols-3 rounded-full bg-canvas-2 p-0.5 ring-1 ring-line sm:inline-grid">
-            {THEMES.map(([value, Glyph, label]) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={theme === value}
-                onClick={() => onTheme(value)}
-                className="tap inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full px-3.5 text-sm text-ink-2 aria-checked:bg-surface aria-checked:font-medium aria-checked:text-ink aria-checked:shadow-e1"
-              >
-                <Glyph size={16} weight="bold" aria-hidden /> {label}
-              </button>
-            ))}
+          <div className="mt-2">
+            <ThemeChoice saved={theme} labelledBy="chat-set-look" />
           </div>
-          <p className="mt-2 text-xs text-ink-3">Auto follows this device. Dark is for Chat; the rest of Farbaek stays light.</p>
+          <p className="mt-2 text-xs text-ink-3">For all of Farbaek on this device. Auto follows the device&rsquo;s own setting.</p>
         </section>
 
         <section aria-labelledby="chat-set-language">

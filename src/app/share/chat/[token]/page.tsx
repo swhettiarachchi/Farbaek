@@ -64,7 +64,7 @@ export default async function SharedChatPage({ params }: { params: Promise<{ tok
     files: m.files,
   }));
   return (
-    <div className="chat-root mx-auto max-w-3xl" data-chat-theme="light">
+    <div className="chat-root mx-auto max-w-3xl">
       <h1 className={FOCUSED_TITLE}>{chat.title}</h1>
       <p className="mt-2 text-sm text-ink-3">A chat with Farbaek&apos;s AI, shared read-only as it was when shared. {chat.audience === "workspace" ? "Only people in its workspace can open this link." : "Anyone with the link can open it."}</p>
       <div className="mt-8 grid gap-8">

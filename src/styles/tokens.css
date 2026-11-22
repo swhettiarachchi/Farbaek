@@ -1,11 +1,12 @@
 /*
- * Farbaek "White Signal" design tokens (ADR 0008). Source of truth for colour.
- * A single light theme by brand decision: white tech, developer-first.
+ * Farbaek's light look, "Crystal White" (the White Signal tokens of ADR 0008, named in ADR 0227). Source of truth
+ * for colour, and the default: white tech, developer-first. Dark is the person's choice and lives in theme-dark.css,
+ * with the same token names. This file holds light values only.
  * tests/design/contrast.test.ts parses this file and enforces WCAG 2.2 AA
  * for every text and UI pair, including the dark media panels.
  *
  * One accent family: signal blue, with signal cyan only inside the aurora and
- * the Proof Thread gradient. No gold in the UI (the logo keeps its own colours).
+ * the Proof Thread gradient. No gold anywhere.
  *
  * Status (ADR 0183): blue means your turn ("approval" is signal blue), burnt
  * orange means look before going on ("caution", for real warnings only), steel
@@ -13,7 +14,9 @@
  * purple. Shadows are tinted with ink, never with the accent.
  */
 
-:root {
+/* `data-theme="light"` keeps one piece light on a dark page: a sheet of paper, a picture of the light app. */
+:root,
+[data-theme="light"] {
   color-scheme: light;
 
   --canvas: #fbfbfc;
@@ -42,6 +45,10 @@
   --spark-aqua: #0b7285;
   --spark-leaf: #0b7a4b;
   --spark-ember: #b93d0b;
+  /* How strongly the spectrum's light shows behind a window (Halo, Chat's stage). Stronger at night. */
+  --halo: 44%;
+  /* The paper behind the logo: none by day. At night the black cat sits on its own white (ADR 0226, theme-dark.css). */
+  --logo-paper: transparent;
 
   --primary: #121317;
   --primary-hover: #23252b;

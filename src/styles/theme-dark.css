@@ -1,0 +1,115 @@
+/*
+ * Farbaek's dark look (stage 211, ADR 0227). Light, "Crystal White" (tokens.css), stays the default: Dark is the
+ * person's choice, for every page, and "Match device" follows their device. These are the same token names with night
+ * values, so every token utility follows. They are the values Farbaek Chat has used since stage 199.
+ *
+ * A second design, not an inversion: deep charcoal instead of black, surfaces that get lighter as they rise, hairlines
+ * and a faint top edge instead of shadows, soft white text, and signal blue lightened so it doesn't vibrate.
+ * tests/design/dark-theme.test.ts checks every text and control pair for WCAG AA, and that every colour has a night value.
+ *
+ * Where the choice is read:
+ * - `data-page-theme` on the page (the `html` element, or a mark the server renders inside the page: ThemeMark)
+ *   turns the whole page, with its dialogs and menus.
+ * - `data-theme="dark"` on any element turns that piece alone: a picture of Chat at night on a light page.
+ *   `data-theme="light"` (tokens.css) keeps a piece light on a dark page: a sheet of paper, a preview of someone's site.
+ *
+ * The media tokens (dark frames inside the page) are the same in both looks.
+ */
+
+:root[data-page-theme="dark"],
+:root:has([data-page-theme="dark"]),
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #0f1013;
+  --canvas-2: #131418;
+  --surface: #17191e;
+  --surface-raised: #1e2127;
+  --surface-sunken: #0b0c0f;
+  --line: #262a31;
+  --line-2: #343943;
+  --line-strong: #7b818c;
+
+  --ink: #eceef2;
+  --ink-2: #b9bec8;
+  --ink-3: #9198a4;
+
+  --accent: #8aa4ff;
+  --accent-strong: #a9bcff;
+  --accent-2: #5fd3e8;
+  --on-accent: #0b0c10;
+  --seal: #a3a9b4;
+  --spark-rose: #ff8fb3;
+  --spark-aqua: #5fd0e0;
+  --spark-leaf: #5fd39b;
+  --spark-ember: #ff9d7a;
+  --halo: 58%;
+
+  --primary: #eceef2;
+  --primary-hover: #ffffff;
+  --on-primary: #0f1013;
+
+  --verified: #4fd18b;
+  --approval: #8aa4ff;
+  --caution: #ff9466;
+  --failed: #ff7a8c;
+  --info: #a8b9d1;
+  --unverified: #a0a5ae;
+  --simulated: #a9aeb8;
+
+  /* The logo is a black cat (ADR 0226): at night it sits on its own white paper, as the app icon does. */
+  --logo-paper: #fefefe;
+
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --elev-2: 0 1px 2px rgb(0 0 0 / 0.35), 0 16px 32px -16px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --elev-3: 0 2px 4px rgb(0 0 0 / 0.4), 0 32px 64px -24px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-page-theme="system"],
+  :root:has([data-page-theme="system"]) {
+    color-scheme: dark;
+
+    --canvas: #0f1013;
+    --canvas-2: #131418;
+    --surface: #17191e;
+    --surface-raised: #1e2127;
+    --surface-sunken: #0b0c0f;
+    --line: #262a31;
+    --line-2: #343943;
+    --line-strong: #7b818c;
+
+    --ink: #eceef2;
+    --ink-2: #b9bec8;
+    --ink-3: #9198a4;
+
+    --accent: #8aa4ff;
+    --accent-strong: #a9bcff;
+    --accent-2: #5fd3e8;
+    --on-accent: #0b0c10;
+    --seal: #a3a9b4;
+    --spark-rose: #ff8fb3;
+    --spark-aqua: #5fd0e0;
+    --spark-leaf: #5fd39b;
+    --spark-ember: #ff9d7a;
+    --halo: 58%;
+
+    --primary: #eceef2;
+    --primary-hover: #ffffff;
+    --on-primary: #0f1013;
+
+    --verified: #4fd18b;
+    --approval: #8aa4ff;
+    --caution: #ff9466;
+    --failed: #ff7a8c;
+    --info: #a8b9d1;
+    --unverified: #a0a5ae;
+    --simulated: #a9aeb8;
+
+    --logo-paper: #fefefe;
+
+    --elev-1: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.04);
+    --elev-2: 0 1px 2px rgb(0 0 0 / 0.35), 0 16px 32px -16px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06);
+    --elev-3: 0 2px 4px rgb(0 0 0 / 0.4), 0 32px 64px -24px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.08);
+  }
+}

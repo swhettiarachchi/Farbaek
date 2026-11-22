@@ -1,4 +1,4 @@
-import { BookOpenTextIcon, BracketsCurlyIcon, BuildingsIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { BookOpenTextIcon, BracketsCurlyIcon, BuildingsIcon, CircleHalfIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AutonomySettings } from "@/components/app/autonomy-settings";
@@ -41,6 +41,8 @@ import { CONTACT } from "@/config/contact";
 import { invitableRoles } from "@/core/workspace/invitations";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { Card, CardTitle, PageHeader } from "@/components/app/primitives";
+import { ThemeChoice } from "@/components/theme/theme-choice";
+import { savedTheme } from "@/server/theme";
 import { RelativeTime } from "@/components/ui/local-time";
 import { loadAppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
@@ -52,6 +54,7 @@ const ROLE_LABEL = { owner: "Owner", admin: "Admin", member: "Member", viewer: "
 
 export default async function SettingsPage() {
   const ctx = await loadAppContext();
+  const theme = await savedTheme();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
   const canManage = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
@@ -139,6 +142,19 @@ export default async function SettingsPage() {
           <RenameWorkspaceForm name={ws.name} disabledReason={renameReason} />
         </div>
       </Card>
+
+      {/* Light or dark, for all of Farbaek on this device (ADR 0227). Light unless the person chooses otherwise. */}
+      <section id="appearance" aria-labelledby="appearance-title" className="scroll-mt-24">
+        <Card>
+          <CardTitle id="appearance-title" icon={CircleHalfIcon}>
+            Appearance
+          </CardTitle>
+          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-2">Light or Dark, for every page of Farbaek on this device. Auto follows the device&rsquo;s own setting.</p>
+          <div className="mt-4">
+            <ThemeChoice saved={theme} labelledBy="appearance-title" />
+          </div>
+        </Card>
+      </section>
 
       <Card>
         <CardTitle icon={UsersThreeIcon}>People</CardTitle>

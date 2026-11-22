@@ -16,6 +16,14 @@ Farbaek's interface should feel premium because it is fast, calm and honest. It 
 - In inline styles, use `var(--color-…)` or `color-mix(in oklab, var(--color-x) 16%, var(--color-surface))`, never literal colours.
 - `tests/design/contrast.test.ts` must stay green.
 
+**Two looks (ADR 0227).** Crystal White (light, `src/styles/tokens.css`) is the default. Dark (`src/styles/theme-dark.css`) is the person's choice for every signed-in page, and Auto follows their device.
+- The same token names carry both, so a screen built from tokens turns by itself. A colour literal will not.
+- A new colour token needs a night value: `tests/design/dark-theme.test.ts` fails without one.
+- Dark is its own design: surfaces get lighter as they rise, hairlines replace shadows, the accent is lighter. Don't invert anything by hand.
+- A piece that must stay in one look takes `data-theme="light"` (a sheet of paper, a picture of the light app) or `data-theme="dark"`.
+- The logo is black, so at night it sits on its own white paper (`--logo-paper`, ADR 0226). Never invert it.
+- Look at a new screen in both looks: `pnpm qa:responsive --theme=dark --shots=<folder>`, then the contact sheets.
+
 **Shape lock:**
 
 | Element | Shape |

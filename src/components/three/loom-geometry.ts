@@ -18,6 +18,19 @@ export const LOOM_COLORS = {
   motes: ["#2450f0", "#0a6e85", "#7f9cff", "#9aa0aa"],
 } as const;
 
+/**
+ * The same colours on a dark page (ADR 0227): each light value's night partner, as in theme-dark.css. The drawing is
+ * made with the light values and painted through this, so the geometry never needs to know which look it is in.
+ */
+export const LOOM_NIGHT: Readonly<Record<string, string>> = {
+  "#2450f0": "#8aa4ff",
+  "#0a6e85": "#5fd3e8",
+  "#121317": "#eceef2",
+  "#9cb0f8": "#5b6fb5",
+  "#9aa0aa": "#6f7682",
+  "#7f9cff": "#a9bcff",
+};
+
 export const LOOM = {
   inner: { rx: 2.0, rz: 1.12, tube: 0.009, opacity: 0.75 },
   outer: { rx: 2.7, rz: 1.5, tube: 0.005, opacity: 0.14 },
