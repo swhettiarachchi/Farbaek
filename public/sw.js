@@ -4,7 +4,7 @@
 // storage), the logo and icons, and Next.js's built files, whose names change
 // with their contents. Never a page with anyone's data, and it opens only
 // Farbaek's own addresses (ADR 0079, ADR 0192).
-const CACHE = "farbaek-offline-v2";
+const CACHE = "farbaek-offline-v3";
 const STATIC = "farbaek-static-v1";
 const OFFLINE_URL = "/offline";
 const DEVICE_URL = "/device";
@@ -50,7 +50,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll([OFFLINE_URL, "/brand/farbaek-app-192.png", "/brand/farbaek-logo.webp"]))
+      .then((cache) => cache.addAll([OFFLINE_URL, "/brand/farbaek-app-192.png", "/brand/farbaek-logo-v2.webp"]))
       // The device page is a bonus: an install never fails for it.
       .then(() => fetch(DEVICE_URL, { credentials: "omit" }).then(keepDevicePage).catch(() => undefined))
       .then(() => self.skipWaiting()),

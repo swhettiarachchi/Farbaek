@@ -98,7 +98,7 @@ const PAGES = {
   "/offline": "offline page",
   "/device": DEVICE_HTML,
   "/brand/farbaek-app-192.png": "icon",
-  "/brand/farbaek-logo.webp": "logo",
+  "/brand/farbaek-logo-v2.webp": "logo",
   "/_next/static/css/app.css": "css",
   "/_next/static/chunks/device.js": "js",
   "/_next/static/chunks/rsc.js": "rsc",
@@ -112,7 +112,7 @@ describe("the service worker", () => {
     const w = world(PAGES);
     await w.event("install");
     expect(w.cached().sort()).toEqual(
-      ["/_next/static/chunks/device.js", "/_next/static/chunks/rsc.js", "/_next/static/css/app.css", "/brand/farbaek-app-192.png", "/brand/farbaek-logo.webp", "/device", "/offline"].sort(),
+      ["/_next/static/chunks/device.js", "/_next/static/chunks/rsc.js", "/_next/static/css/app.css", "/brand/farbaek-app-192.png", "/brand/farbaek-logo-v2.webp", "/device", "/offline"].sort(),
     );
   });
 

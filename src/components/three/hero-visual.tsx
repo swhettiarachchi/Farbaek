@@ -31,21 +31,45 @@ function writeHold(held: boolean) {
 
 const noSubscribe = () => () => {};
 
+const DARK_DEVICE = "(prefers-color-scheme: dark)";
+
+/** Whether the figure stands on a dark page: only inside Farbaek Chat's frame, on its night theme (ADR 0213). */
+function onDarkPage(el: HTMLElement | null): boolean {
+  const theme = el?.closest<HTMLElement>("[data-chat-theme]")?.dataset.chatTheme;
+  return theme === "dark" || (theme === "system" && window.matchMedia(DARK_DEVICE).matches);
+}
+
+/** Chat's theme can change while the page is open, from its settings or with the device. */
+function watchPage(el: HTMLElement | null, notify: () => void): () => void {
+  const root = el?.closest<HTMLElement>("[data-chat-theme]");
+  if (!root) return () => {};
+  const device = window.matchMedia(DARK_DEVICE);
+  const seen = new MutationObserver(notify);
+  seen.observe(root, { attributes: true, attributeFilter: ["data-chat-theme"] });
+  device.addEventListener("change", notify);
+  return () => {
+    seen.disconnect();
+    device.removeEventListener("change", notify);
+  };
+}
+
 /**
- * The hero visual. The knight renders first (it is the LCP image). Round him
+ * The hero visual. The cat renders first (it is the LCP image). Round him
  * runs the Loom: the six RealityLoop stages on a tilted ring, evidence
  * packets and rising motes (ADR 0056).
  *
  * - Every screen gets the Loom drawn in 2D from the same geometry as the 3D
- *   scene (LoomCanvas), and the knight floats. Phones have it too, Low Power
+ *   scene (LoomCanvas), and the cat floats. Phones have it too, Low Power
  *   Mode included, without a 3D library.
  * - Desktops with a mouse load the 3D scene once the browser is idle, and it
  *   cross-fades in over the drawing (ADR 0052).
  * - Under reduced motion it's one still frame; off screen it stops.
  * - With a mouse, the whole figure leans a few degrees toward the pointer (stage 201): depth you can feel, never on touch
  *   screens and never under reduced motion. The light around him is the spectrum (ADR 0217): blue, rose and aqua.
+ * - The cat is black, so on a dark page (Chat's night theme) he stands on his own white paper, as the app icon does
+ *   (ADR 0226). The paper is drawn by CSS, so it is there at first paint; the 3D scene has no paper and stays off there.
  *
- * `sizes` is the knight's width for the image loader: the homepage shows him small, /build larger.
+ * `sizes` is the cat's width for the image loader: the homepage shows him small, /build larger.
  */
 export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640px) 440px, 92vw" }: { sizes?: string } = {}) {
   const reduce = useReducedMotion();
@@ -60,6 +84,9 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
   const [chosenHold, setChosenHold] = useState<boolean | null>(null);
   const held = chosenHold ?? storedHold;
   const running = visible && !held;
+  const subscribePage = useCallback((notify: () => void) => watchPage(box.current, notify), []);
+  const readPage = useCallback(() => onDarkPage(box.current), []);
+  const dark = useSyncExternalStore(subscribePage, readPage, () => false);
 
   useEffect(() => {
     if (reduce) return;
@@ -112,11 +139,11 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
   const hop = useCallback(() => {
     const el = box.current;
     if (!el) return;
-    el.classList.remove("knight-hop", "knight-enter");
-    ring.current?.classList.remove("knight-ripple-go");
+    el.classList.remove("figure-hop", "figure-enter");
+    ring.current?.classList.remove("figure-ripple-go");
     void el.offsetWidth;
-    el.classList.add("knight-hop");
-    ring.current?.classList.add("knight-ripple-go");
+    el.classList.add("figure-hop");
+    ring.current?.classList.add("figure-ripple-go");
   }, []);
 
   const onReady = useCallback(() => setReady(true), []);
@@ -124,7 +151,9 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
     setWant3D(false);
     setReady(false);
   }, []);
-  const show3D = want3D && !reduce;
+  const show3D = want3D && !reduce && !dark;
+  // The drawing and the picture give way only while the 3D scene is on screen.
+  const in3D = show3D && ready;
   const fade = (on: boolean) => `transition-opacity duration-300 ${on ? "opacity-100" : "opacity-0"}`;
 
   return (
@@ -132,12 +161,12 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
       ref={box}
       data-paused={running ? undefined : ""}
       onClick={hop}
-      className="knight-enter relative mx-auto aspect-[4/5] w-full max-w-[440px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:max-w-none"
+      className="figure-enter relative mx-auto aspect-[4/5] w-full max-w-[440px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:max-w-none"
       style={{ transform: "perspective(900px) rotateY(calc(var(--lean-x, 0) * 7deg)) rotateX(calc(var(--lean-y, 0) * -5deg))" }}
     >
       {/* Soft light pool and contact shadow: page lighting around the figure, not a plate. The light blooms in as he
           arrives, then lives in two layers (ADR 0217): blue breathing behind him, and rose and aqua drifting slowly round. */}
-      <div aria-hidden className="knight-bloom pointer-events-none absolute inset-0">
+      <div aria-hidden className="figure-bloom pointer-events-none absolute inset-0">
         <div className="hero-aura absolute inset-[-16%]" style={{ background: "radial-gradient(40% 36% at 50% 44%, color-mix(in oklab, var(--color-accent) 17%, transparent), transparent 70%)" }} />
         <div
           className="hero-aura-drift absolute inset-[-16%]"
@@ -151,12 +180,15 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
           style={{ background: "radial-gradient(50% 50% at 50% 50%, color-mix(in oklab, var(--color-ink) 16%, transparent), transparent 70%)" }}
         />
         {/* The ring a tap sends out along the ground. Out of sight until then. */}
-        <div ref={ring} className="knight-ripple absolute bottom-[3.5%] left-1/2 h-[11%] w-[62%] -translate-x-1/2 rounded-[50%] border border-accent/45 opacity-0" />
+        <div ref={ring} className="figure-ripple absolute bottom-[3.5%] left-1/2 h-[11%] w-[62%] -translate-x-1/2 rounded-[50%] border border-accent/45 opacity-0" />
       </div>
 
-      {/* The Loom's far side, the knight, then its near side over him. Drawn once mounted; still under reduced motion. */}
-      <LoomCanvas boxRef={box} still={!mounted || reduce !== false} paused={!running} hidden={!mounted || ready}>
+      {/* The Loom's far side, the cat, then its near side over him. Drawn once mounted; still under reduced motion. */}
+      <LoomCanvas boxRef={box} still={!mounted || reduce !== false} paused={!running} hidden={!mounted || in3D}>
         <div className="hero-float absolute inset-0">
+          {/* His paper on a dark page: out of sight everywhere else (src/styles/chat-theme.css shows it). A little larger
+              than the picture, which fills the box's width inside its 10% padding. */}
+          <div aria-hidden data-brand-paper="" className="absolute left-[4%] top-1/2 hidden w-[92%] -translate-y-1/2 rounded-[14%]" style={{ aspectRatio: `${LOGO.width} / ${LOGO.height}` }} />
           <Image
             src={LOGO.src}
             alt="Farbaek"
@@ -165,14 +197,14 @@ export function HeroVisual({ sizes = "(min-width: 1024px) 44vw, (min-width: 640p
             // The largest paint on phones: ahead of the scripts (ADR 0052).
             fetchPriority="high"
             sizes={sizes}
-            className={`object-contain p-[10%] ${fade(!ready)}`}
+            className={`object-contain p-[10%] ${fade(!in3D)}`}
           />
         </div>
       </LoomCanvas>
 
       {show3D ? (
         // Wider than its column so the orbit is never cropped; it never receives pointer events.
-        <div className={`pointer-events-none absolute -inset-x-[40%] -inset-y-[6%] ${fade(ready)}`}>
+        <div className={`pointer-events-none absolute -inset-x-[40%] -inset-y-[6%] ${fade(in3D)}`}>
           <LoomScene active={running} onReady={onReady} onSlow={onSlow} />
         </div>
       ) : null}

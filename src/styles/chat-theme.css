@@ -260,3 +260,29 @@
 .chat-composer-glow:focus-within .chat-composer-ring {
   opacity: 0.85;
 }
+
+/*
+ * The logo at night (ADR 0226). The cat is black, so on a dark page it sits on its own white paper, as the app icon does:
+ * the picture's box is filled with the artwork's white and rounded, with a little of the same white round it.
+ */
+.chat-root[data-chat-theme="dark"] img[data-brand-logo] {
+  background: #fefefe;
+  border-radius: 24%;
+  box-shadow: 0 0 0 2px #fefefe;
+}
+/* The large cat on the welcome screen has a paper of its own behind it (HeroVisual), hidden on a light page. */
+.chat-root[data-chat-theme="dark"] [data-brand-paper] {
+  display: block;
+  background: #fefefe;
+}
+@media (prefers-color-scheme: dark) {
+  .chat-root[data-chat-theme="system"] img[data-brand-logo] {
+    background: #fefefe;
+    border-radius: 24%;
+    box-shadow: 0 0 0 2px #fefefe;
+  }
+  .chat-root[data-chat-theme="system"] [data-brand-paper] {
+    display: block;
+    background: #fefefe;
+  }
+}

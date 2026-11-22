@@ -32,7 +32,7 @@ describe("decideRoute", () => {
     expect(route("officespace.farbaek.com", "/api/health")).toEqual({ kind: "office", rewrite: "/office/api/health" });
     expect(route("officespace.farbaek.com", "/app")).toEqual({ kind: "office", rewrite: "/office/app" });
     expect(route("officespace.farbaek.com", "/office/staff")).toEqual({ kind: "office", rewrite: "/office/office/staff" });
-    expect(route("officespace.farbaek.com", "/brand/farbaek-logo.webp")).toEqual({ kind: "office-public" });
+    expect(route("officespace.farbaek.com", "/brand/farbaek-logo-v2.webp")).toEqual({ kind: "office-public" });
   });
 
   it("hides /office everywhere else", () => {

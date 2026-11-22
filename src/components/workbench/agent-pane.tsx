@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { cancelBuildRunAction } from "@/app/app/build/actions";
 import { TaskStateBadge } from "@/components/app/primitives";
-import { KnightMark } from "@/components/brand/knight-mark";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { ApproveBuild } from "@/components/build/approve-build";
 import { PromptComposer } from "@/components/build/prompt-composer";
@@ -98,7 +98,7 @@ export function AgentPane({ data, run, events, usage, live }: { data: WorkbenchD
 
               {/* The agent's side. */}
               <div className="motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both] sm:grid sm:grid-cols-[2rem_minmax(0,1fr)] sm:gap-x-3">
-                <KnightMark live={live} className="hidden sm:inline-flex" />
+                <BrandMark live={live} className="hidden sm:inline-flex" />
                 <div className="grid min-w-0 gap-4">
                   {stage === "plan_missing" ? (
                     <div className="grid gap-3">

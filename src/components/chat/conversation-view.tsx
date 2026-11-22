@@ -626,7 +626,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
 function EmptyState({ onPick, demo }: { onPick: (s: (typeof SUGGESTIONS)[number]) => void; demo: boolean }) {
   return (
     <div className="text-center motion-safe:animate-[chat-rise_320ms_cubic-bezier(0.16,1,0.3,1)_both]">
-      {/* The knight in his orbit, as on the homepage: drawn in 2D everywhere, in 3D on desktops that can afford it, still
+      {/* The cat in his orbit, as on the homepage: drawn in 2D everywhere, in 3D on desktops that can afford it, still
           under reduced motion. He leans toward the pointer and hops when pressed. Sized by the screen's height, so the
           message box is never pushed off a short screen. */}
       <div className="mx-auto w-[clamp(7.5rem,22svh,12.5rem)]">

@@ -1,11 +1,12 @@
 import { BrandLogo } from "./brand-logo";
 
 /**
- * Farbaek AI beside what it says or does: the knight, bare (the logo takes no plate or frame). While it is thinking, writing
- * or working, a small orbit turns round him, the same sign the agent's mark gives for work in progress (`core-orbit`); it is
- * still under reduced motion. Used beside Chat's answers (ADR 0218) and the agent's side of Build's workspace (ADR 0219).
+ * Farbaek AI beside what it says or does: the cat, bare (on Chat's dark theme it sits on its own white paper, ADR 0226).
+ * While it is thinking, writing or working, a small orbit turns round him, the same sign the agent's mark gives for work
+ * in progress (`core-orbit`); it is still under reduced motion. Used beside Chat's answers (ADR 0218) and the agent's
+ * side of Build's workspace (ADR 0219).
  */
-export function KnightMark({ live, className = "" }: { live: boolean; className?: string }) {
+export function BrandMark({ live, className = "" }: { live: boolean; className?: string }) {
   return (
     <span aria-hidden className={`relative mt-0.5 size-8 shrink-0 items-center justify-center ${className}`}>
       {live ? (

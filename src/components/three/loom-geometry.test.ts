@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { LOOM, LOOM_COLORS, loomFrame, motes, project, ringPoint, toWorld, type LoomView } from "./loom-geometry";
 
-const view: LoomView = { scale: 100, knightX: 200, knightY: 250 };
+const view: LoomView = { scale: 100, figureX: 200, figureY: 250 };
 
 describe("the Loom's 2D geometry", () => {
   it("turns and tilts a ring point exactly as the 3D scene's groups do", () => {
@@ -26,23 +26,23 @@ describe("the Loom's 2D geometry", () => {
     }
   });
 
-  it("projects like the 3D scene's camera, with the knight's centre where the poster's knight is", () => {
+  it("projects like the 3D scene's camera, with the cat's centre where the poster's cat is", () => {
     const height = 800;
     const camera = new THREE.PerspectiveCamera(LOOM.camera.fov, 1, 0.1, 100);
     camera.position.set(0, LOOM.camera.y, LOOM.camera.z);
     camera.updateMatrixWorld(true);
-    // Pixels per unit at the knight's depth for a canvas this tall.
+    // Pixels per unit at the cat's depth for a canvas this tall.
     const scale = height / 2 / Math.tan(THREE.MathUtils.degToRad(LOOM.camera.fov / 2)) / LOOM.camera.z;
-    const centre = new THREE.Vector3(0, LOOM.knight.y, 0).project(camera);
-    const knightX = ((centre.x + 1) / 2) * height;
-    const knightY = ((1 - centre.y) / 2) * height;
+    const centre = new THREE.Vector3(0, LOOM.figure.y, 0).project(camera);
+    const figureX = ((centre.x + 1) / 2) * height;
+    const figureY = ((1 - centre.y) / 2) * height;
     for (const p of [new THREE.Vector3(1.2, 0.4, 0.9), new THREE.Vector3(-2.1, -0.6, -1.4)]) {
       const ndc = p.clone().project(camera);
-      const got = project({ x: p.x, y: p.y, z: p.z }, { scale, knightX, knightY });
+      const got = project({ x: p.x, y: p.y, z: p.z }, { scale, figureX, figureY });
       expect(got.x).toBeCloseTo(((ndc.x + 1) / 2) * height, 4);
       expect(got.y).toBeCloseTo(((1 - ndc.y) / 2) * height, 4);
     }
-    expect(project({ x: 0, y: LOOM.knight.y, z: 0 }, view)).toMatchObject({ x: 200, y: 250, k: 1 });
+    expect(project({ x: 0, y: LOOM.figure.y, z: 0 }, view)).toMatchObject({ x: 200, y: 250, k: 1 });
   });
 
   it("spaces the stages evenly by length round the ring, like the 3D curve", () => {
@@ -59,7 +59,7 @@ describe("the Loom's 2D geometry", () => {
     }
   });
 
-  it("draws every stage and packet once, the far side behind the knight and the near side over him", () => {
+  it("draws every stage and packet once, the far side behind the cat and the near side over him", () => {
     const frame = loomFrame(4, view);
     const dots = [...frame.back, ...frame.front].filter((s) => s.kind === "dot");
     // A halo and a core per stage, one dot per packet.

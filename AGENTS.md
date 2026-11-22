@@ -52,7 +52,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 - Dark `media` tokens are for media frames only (concept film, evidence terminal), never for whole sections.
 - Shape lock: buttons, chips and segmented controls are pills; inputs 12px (`rounded-sm`); cards 20px (`rounded-md`); large panels 28px.
 - Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono (code, data, `//` labels). No serif.
-- Logo: `public/brand/farbaek-logo.webp`, used unaltered through `BrandLogo` or `LOGO`, directly on the page: no plate, frame or filter.
+- Logo (ADR 0226): the black cat, `public/brand/farbaek-logo-v2.webp`, used unaltered through `BrandLogo` or `LOGO`, directly on the page: no frame, filter or recolouring. On a dark page (Chat's Dark) it sits on its own white paper, drawn by `src/styles/chat-theme.css`: never invert it. The owner's image is `scripts/brand/farbaek-cat-source.webp`; `node scripts/brand-assets.mjs` makes the logo, the app icon and every size from it. No other logo artwork exists.
 - 3D and film load lazily, pause off-screen, and fall back to static under reduced motion, Save-Data or weak hardware. Film content is labelled sample data.
 - Motion only for live state, hierarchy, storytelling or feedback; always honour `prefers-reduced-motion`.
 - Status never relies on colour alone: icon, label and pattern.

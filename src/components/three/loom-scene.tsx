@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "The Loom": the hero's 3D scene. The supplied knight logo levitates at the
+ * "The Loom": the hero's 3D scene. The supplied logo levitates at the
  * centre as a textured plane (its pixels unaltered, unlit basic material),
  * while the six RealityLoop stages orbit around it, passing in front of and
  * behind the figure. Evidence packets travel along the thread and fine
@@ -46,7 +46,7 @@ function orbitCurve(rx: number, rz: number): THREE.CatmullRomCurve3 {
   return new THREE.CatmullRomCurve3(points, true, "centripetal");
 }
 
-function Knight({ onReady, pointer }: { onReady: () => void; pointer: PointerRef }) {
+function Figure({ onReady, pointer }: { onReady: () => void; pointer: PointerRef }) {
   const loaded = useLoader(THREE.TextureLoader, LOGO.src);
   const mesh = useRef<THREE.Mesh>(null);
 
@@ -66,12 +66,12 @@ function Knight({ onReady, pointer }: { onReady: () => void; pointer: PointerRef
     const m = mesh.current;
     if (!m) return;
     const p = pointer.current;
-    m.position.y = LOOM.knight.y + Math.sin(clock.elapsedTime * 0.9) * 0.06;
+    m.position.y = LOOM.figure.y + Math.sin(clock.elapsedTime * 0.9) * 0.06;
     m.rotation.y = THREE.MathUtils.lerp(m.rotation.y, p.x * 0.14, 0.04);
     m.rotation.x = THREE.MathUtils.lerp(m.rotation.x, -p.y * 0.06, 0.04);
   });
 
-  const height = LOOM.knight.height;
+  const height = LOOM.figure.height;
   return (
     <mesh ref={mesh}>
       <planeGeometry args={[(height * LOGO.width) / LOGO.height, height]} />
@@ -204,7 +204,7 @@ export default function LoomScene({ active, onReady, onSlow }: { active: boolean
       aria-hidden
     >
       <Suspense fallback={null}>
-        <Knight onReady={onReady} pointer={pointer} />
+        <Figure onReady={onReady} pointer={pointer} />
       </Suspense>
       <Loom />
       <Motes pointer={pointer} />
