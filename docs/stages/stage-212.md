@@ -63,3 +63,28 @@ For a workspace that hadn't built anything yet, the new main screen showed the g
 - **"Build" still opens more than one place** (`/app/build`, `/app/new`, the workspace). One start is the next step.
 - **Not looked at:** real phones, the staff console and admin in the frame (they keep their own shell), and the signed-in live site.
 - The sidebars of Chat and of the rest are close, not identical: row height and text inset differ by a few pixels.
+
+# Stage 212, part 3: one definition of the frame, and the studios inside it
+
+- **Date:** 2026-11-23
+- **Branch:** `feat/stage-212-studios-in-frame`, on top of part 2 (`feat/stage-212-one-frame`, #280)
+- **Decision:** ADR 0230, "One definition"
+- **Migration:** none. **New dependency:** none.
+
+## What was built
+
+- **The image and video studios sit in the same window as everything else.** They were the last signed-in pages drawn flat, edge to edge, so Home to Images changed the whole screen. The light behind the window travels while a picture or a film is being made.
+- **The stage, the window and the light are defined once** (`src/components/ui/stage-window.tsx`) and used by the app's frame, Chat, the studios and Build's workspace. Part 2 left four copies.
+
+## Verified
+
+- **Measured in a browser, at 1440 px:** Home, Projects, Chat, Images, Video and Build's workspace each show the window 16 px in on every side, with a 28 px corner, a hairline, the soft shadow, the same stage colour and the light behind it; the screen itself doesn't scroll on any of them. No console errors.
+- **At 375 px:** none of the six has a stage, a corner or a hairline; each is edge to edge, as before.
+- **Looked at:** Images in Crystal White and Video in Dark at 1440 px, and Images on a phone.
+- `pnpm typecheck` and lint on the changed files: clean. `pnpm test`: 4,331 pass, 17 skipped. `pnpm build`: passes.
+
+## Not done
+
+- **One sidebar.** Chat keeps its conversations, the studios their library, and Build's workspace has none.
+- **"Build" starts in three places** (`/app/new`, `/app/build`, `/app/workbench`), two of them with the same box, leading into two flows. Choosing the one that is Build is the next step here, and it needs the build flow walked in a browser, not a link changed.
+- **One plus menu in Chat's box.**

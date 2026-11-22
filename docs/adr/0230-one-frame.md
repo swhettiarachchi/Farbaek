@@ -37,10 +37,18 @@ Almost nothing in the app depended on the screen scrolling: one page outside thi
 
 ## What this does not do yet
 
-- **Chat, the studios and Build's workspace still draw their own copy of the frame.** They look the same now; they are not yet the same component, so a small jump is still possible between them and the app's pages (the sidebar's top differs: Chat has New chat and Search chats, the app has search, the workspace and New build).
-- **"Build" still opens two places:** the app's sidebar goes to the list of builds, Chat's goes to Build's workspace.
+- **One sidebar.** The stage and the window are one definition now (see below), but what is inside differs: Chat has its conversations, the studios have the library, Build's workspace has none, and the app has its pages.
+- **"Build" still starts in three places:** New build (`/app/new`), the list of builds (`/app/build`, where the app's sidebar goes) and Build's workspace (`/app/workbench`, where Chat's sidebar goes). Two of them carry the same box, and they lead into two different flows. Making it one is a decision about which flow is Build, and a stage of its own.
 - **One plus menu in Chat's composer.**
 - The staff console and admin keep their own frames.
+
+## One definition (stage 212, part 3)
+
+Part 2 left four copies of the frame, and one space outside it: the image and video studios were still drawn flat, edge to edge, so going from Home to Images changed the whole screen.
+
+- `src/components/ui/stage-window.tsx` holds the stage, the window and the light: `STAGE`, `STAGE_WINDOW` and `StageLight`.
+- The app's frame, Chat, the studios and Build's workspace all use it. A change to the corner, the gap or the light is made once.
+- **The studios are in the window now.** The light behind it travels while a picture or a film is being made, as it does while Chat answers.
 
 ## Consequences
 

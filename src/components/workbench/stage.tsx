@@ -2,6 +2,7 @@ import { ChatCircleTextIcon, FilmSlateIcon, FolderSimpleIcon, HammerIcon, HouseS
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { STAGE, STAGE_WINDOW, StageLight } from "@/components/ui/stage-window";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
 
 /** Farbaek AI's spaces, as Chat's sidebar and the studios' headers show them (ADR 0217). */
@@ -22,16 +23,13 @@ const SPACES = [
  */
 export function WorkbenchStage({ heading, name, skip, projects = true, children }: { heading: string; name: string; skip: { href: string; label: string }; projects?: boolean; children: ReactNode }) {
   return (
-    <div className="chat-root relative h-[100dvh] overflow-hidden bg-canvas text-ink [--tab-bar:0px] lg:bg-canvas-2 lg:p-3 xl:p-4 2xl:p-5">
-      <div aria-hidden className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block">
-        <div className="chat-halo" />
-        <div className="chat-halo-fade absolute inset-0" />
-      </div>
+    <div className={`chat-root relative h-[100dvh] overflow-hidden bg-canvas text-ink [--tab-bar:0px] ${STAGE}`}>
+      <StageLight />
       <a href={skip.href} className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm text-on-primary focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
         {skip.label}
       </a>
 
-      <main id="main" className="relative flex h-full flex-col overflow-hidden bg-canvas lg:rounded-lg lg:border lg:border-line lg:shadow-e2">
+      <main id="main" className={`relative flex h-full flex-col overflow-hidden ${STAGE_WINDOW}`}>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-2 sm:px-3">
           <Link href="/app" aria-label="Farbaek, Home" title="Home" className="tap inline-flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-surface-raised">
             <BrandLogo height={28} />
