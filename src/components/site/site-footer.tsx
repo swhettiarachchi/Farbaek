@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { CookieChoicesButton } from "@/components/analytics/analytics-consent";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { ThemeChoice } from "@/components/theme/theme-choice";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
 import { LEGAL_DOCS } from "@/config/legal";
+import { DEFAULT_THEME } from "@/core/theme/theme";
 import { MORE_LINKS, SPACES } from "./spaces";
 
 const COLUMNS = [
@@ -55,6 +57,13 @@ export function SiteFooter() {
       </Container>
       {/* The footer ends with the legal links (the oversized wordmark under them went at the owner's request, 2026-11-14). */}
       <Container className="pb-6">
+        {/* Light, Dark or Auto, for the whole of Farbaek (ADR 0232). The page is built ahead of time, so it starts from Light and the control reads the page's mark. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line py-4">
+          <p id="site-look" className="text-sm text-ink-3">
+            Appearance
+          </p>
+          <ThemeChoice saved={DEFAULT_THEME} labelledBy="site-look" />
+        </div>
         <nav aria-label="Legal" className="border-t border-line py-3">
           <ul className="flex flex-wrap gap-x-6 text-sm">
             {LEGAL_DOCS.map((link) => (

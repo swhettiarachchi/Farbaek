@@ -27,7 +27,7 @@ The study of the reference products (ChatGPT, Claude, Grok, Antigravity) found t
 
 **Light stays the default.** A person who never chooses sees exactly what they saw before. This is also the rule for the sites Farbaek builds for people.
 
-**Every signed-in page, the staff console and admin.** "Every page" in this ADR means every page behind sign-in. The public site stays light for now (see the end).
+**Every signed-in page, the staff console and admin.** "Every page" in this ADR means every page behind sign-in. The public site stays light for now (see the end). *Changed by ADR 0232 (stage 211, part 2): the public site follows the same choice.*
 
 **One choice, saved once.** A cookie, `fb_theme`, on every page for a year. Chat's older cookie is still read where the browser sends it, so a choice made in Chat is kept; the first change anywhere replaces it. The control is one component (`ThemeChoice`), in Settings and in Chat's settings.
 

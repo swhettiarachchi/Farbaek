@@ -22,12 +22,15 @@ const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
  */
 export const EARLY_MARK_SHA256 = "L3Nsn+QgUfcxU3eUyZIB4K+MFlBfOWKhS0c3yicwqAs=";
 
+/** The hash of the site layout's other inline script (`siteThemeScript`, ADR 0232), which shows a visitor's saved look before the page paints. */
+export const SITE_THEME_SHA256 = "09hnB25oinD4bRzh9hZZiYqtWZKLqF3xEg4iAbuzoog=";
+
 export function appCsp(nonce: string, opts: { dev: boolean; https: boolean; previewDomain: string | null; signIn?: boolean }): string {
   const preview = opts.previewDomain ? ` https://*.${opts.previewDomain}` : "";
   const turnstile = opts.signIn ? ` ${TURNSTILE_ORIGIN}` : "";
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${opts.signIn ? ` 'sha256-${EARLY_MARK_SHA256}'` : ""}${opts.dev ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${opts.signIn ? ` 'sha256-${EARLY_MARK_SHA256}' 'sha256-${SITE_THEME_SHA256}'` : ""}${opts.dev ? " 'unsafe-eval'" : ""}`,
     // Motion and React set style attributes, which nonces can't cover; previews of people's sites bring their own styles.
     "style-src 'self' 'unsafe-inline' https:",
     "img-src 'self' data: blob: https:",
