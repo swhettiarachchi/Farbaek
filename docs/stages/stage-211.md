@@ -45,7 +45,14 @@ The brief of 2026-11-22: a premium Crystal White theme with "an equally polished
 ## Not verified, or not in this stage
 
 - **Real phones.** The checks are emulated screens.
-- **Choosing in the browser by hand.** The control's code path is small and typed, and Dark was verified through the cookie the control writes, but nobody has pressed the three buttons in a real signed-in session yet.
+- **Choosing in the browser: checked later the same day, after the merge.** The three buttons were pressed in a browser on the local demo workspace, once as a light device and once as a dark one:
+  - the page starts Light on both, since nothing follows the device unless Auto is chosen;
+  - Dark turns the page at once, saves the cookie and changes the browser bar's colour;
+  - Auto is light on the light device and dark on the dark one;
+  - Light turns it back;
+  - after a reload the choice is still shown and still chosen, another page has it too, and the public site stays light;
+  - no errors on the page.
+  Still not done: the same presses in a real signed-in session on production.
 - **The staff console and admin in Dark** were wired the same way and typechecked, but not photographed: both need a signed-in staff session.
 - **The public site** stays light. Its pages are built ahead of time and carry the most hand-made light; it needs its own pass.
 - **The iPhone and desktop apps** are light only.
