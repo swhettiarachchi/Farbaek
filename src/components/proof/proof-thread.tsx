@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckIcon, ClockUserIcon, XIcon } from "@phosphor-icons/react";
-import { motion, useReducedMotion, type Variants } from "motion/react";
+import { MotionConfig, motion, type Variants } from "motion/react";
 
 export type ThreadStatus = "verified" | "approval" | "unverified" | "failed";
 
@@ -67,52 +67,56 @@ const lineY: Variants = { hidden: { scaleY: 0 }, shown: { scaleY: 1, transition:
  * The Proof Thread. Segment style follows the status of the stage it leads to:
  * solid blue when verified or awaiting approval, dashed while
  * unverified, red when failed. Horizontal from lg up, vertical below.
+ *
+ * The server and the browser must draw the same first frame, so the start state never depends on the person's motion
+ * setting (it used to, and every task page logged a hydration error for people who turn motion off, who then saw the
+ * lines draw anyway). `reducedMotion="user"` leaves the short fade and makes the lines appear at once.
  */
 export function ProofThread({ stages, label }: { stages: ThreadStage[]; label: string }) {
-  const reduce = useReducedMotion();
-
   return (
-    <motion.ol
-      aria-label={label}
-      className="grid gap-0 lg:grid-cols-6 lg:gap-0"
-      variants={list}
-      initial={reduce ? false : "hidden"}
-      whileInView="shown"
-      viewport={{ once: true, amount: 0.3 }}
-    >
-      {stages.map((stage, i) => {
-        const next = stages[i + 1];
-        return (
-          <motion.li key={stage.key} variants={item} className="grid min-w-0 grid-cols-[28px_1fr] gap-x-4 lg:flex lg:flex-col lg:gap-0">
-            {/* Node and connector */}
-            <div className="flex flex-col items-center lg:flex-row lg:items-center">
-              <Node status={stage.status} />
-              {next ? (
-                <>
-                  <motion.span
-                    aria-hidden
-                    variants={lineY}
-                    className={`my-1 w-0 flex-1 origin-top border-l-[1.5px] lg:hidden ${SEGMENT[next.status]}`}
-                  />
-                  <motion.span
-                    aria-hidden
-                    variants={lineX}
-                    className={`mx-2 hidden h-0 flex-1 origin-left border-t-[1.5px] lg:block ${SEGMENT[next.status]}`}
-                  />
-                </>
-              ) : null}
-            </div>
-            <div className="min-w-0 pb-8 lg:pb-0 lg:pr-4 lg:pt-5">
-              {/* Side by side when stacked; label over status in the six-column row, so narrow columns never overlap. */}
-              <p className="flex flex-wrap items-baseline gap-x-2 lg:flex-col lg:items-start lg:gap-0.5">
-                <span className="text-title-4 font-medium">{stage.label}</span>
-                <span className="text-label text-ink-3">{sentence(stage.statusText ?? STATUS_TEXT[stage.status])}</span>
-              </p>
-              <p className="mt-1.5 text-body leading-relaxed text-ink-2">{stage.body}</p>
-            </div>
-          </motion.li>
-        );
-      })}
-    </motion.ol>
+    <MotionConfig reducedMotion="user">
+      <motion.ol
+        aria-label={label}
+        className="grid gap-0 lg:grid-cols-6 lg:gap-0"
+        variants={list}
+        initial="hidden"
+        whileInView="shown"
+        viewport={{ once: true, amount: 0.3 }}
+      >
+        {stages.map((stage, i) => {
+          const next = stages[i + 1];
+          return (
+            <motion.li key={stage.key} variants={item} className="grid min-w-0 grid-cols-[28px_1fr] gap-x-4 lg:flex lg:flex-col lg:gap-0">
+              {/* Node and connector */}
+              <div className="flex flex-col items-center lg:flex-row lg:items-center">
+                <Node status={stage.status} />
+                {next ? (
+                  <>
+                    <motion.span
+                      aria-hidden
+                      variants={lineY}
+                      className={`my-1 w-0 flex-1 origin-top border-l-[1.5px] lg:hidden ${SEGMENT[next.status]}`}
+                    />
+                    <motion.span
+                      aria-hidden
+                      variants={lineX}
+                      className={`mx-2 hidden h-0 flex-1 origin-left border-t-[1.5px] lg:block ${SEGMENT[next.status]}`}
+                    />
+                  </>
+                ) : null}
+              </div>
+              <div className="min-w-0 pb-8 lg:pb-0 lg:pr-4 lg:pt-5">
+                {/* Side by side when stacked; label over status in the six-column row, so narrow columns never overlap. */}
+                <p className="flex flex-wrap items-baseline gap-x-2 lg:flex-col lg:items-start lg:gap-0.5">
+                  <span className="text-title-4 font-medium">{stage.label}</span>
+                  <span className="text-label text-ink-3">{sentence(stage.statusText ?? STATUS_TEXT[stage.status])}</span>
+                </p>
+                <p className="mt-1.5 text-body leading-relaxed text-ink-2">{stage.body}</p>
+              </div>
+            </motion.li>
+          );
+        })}
+      </motion.ol>
+    </MotionConfig>
   );
 }

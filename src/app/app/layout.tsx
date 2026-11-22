@@ -1,4 +1,5 @@
 import { ArrowRightIcon, CaretDownIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import "@/styles/chat-theme.css";
 import { loadSharedWithMe } from "@/server/workspace/guest-context";
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
@@ -149,15 +150,16 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
       {/* Farbaek Chat (stage 199) brings its own full-screen frame; every other page gets this one. In the sidebar, children never shrink: on a short screen it scrolls instead of squeezing its controls. */}
       <AppFrame
         sidebar={
-      <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+      <aside className="hidden h-full min-h-0 flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
         <div className="px-1.5">
           <Brand />
         </div>
-        <PaletteTrigger />
-        <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
+        {/* The same order as Chat's sidebar (ADR 0230): the brand, the main button, search, then the list. */}
         <Link href="/app/new" transitionTypes={PAGE_NAV} className={buttonClasses("primary", "sm", "w-full")}>
           <PlusIcon size={16} weight="bold" aria-hidden /> New build
         </Link>
+        <PaletteTrigger />
+        <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
         {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} /> : null}
         <SidebarNav approvals={approvals} helpUnread={helpUnread} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">

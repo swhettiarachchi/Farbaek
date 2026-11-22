@@ -37,6 +37,8 @@ import { useId, useState, useSyncExternalStore, type ReactNode } from "react";
 
 export interface NavItem {
   href: string;
+  /** A space's own colour for its icon (ADR 0217): Chat, Images, Video and Build. */
+  tone?: string;
   /** The plain name people see (ADR 0170). */
   label: string;
   short: string;
@@ -51,17 +53,17 @@ export interface NavItem {
 /** What most people need, always in view: Farbaek AI's spaces (ADR 0214, ADR 0216) and the work in them. */
 const CORE: NavItem[] = [
   { href: "/app", label: "Home", short: "Home", icon: HouseSimpleIcon, exact: true, about: "What's happening, and what needs you.", also: ["Mission Control"] },
-  { href: "/app/chat", label: "Chat", short: "Chat", icon: ChatCircleTextIcon, about: "Ask, write, code and research with Farbaek AI.", also: ["AI chat", "Assistant", "Ask AI", "Farbaek AI"] },
-  { href: "/app/images", label: "Images", short: "Images", icon: ImageSquareIcon, about: "Make and edit pictures with studio finish.", also: ["Image studio", "Pictures", "Image generation", "Photos"] },
-  { href: "/app/video", label: "Video", short: "Video", icon: FilmSlateIcon, about: "Make short videos with sound, from words or a picture.", also: ["Video studio", "Videos", "Video generation", "Film"] },
-  { href: "/app/build", label: "Build", short: "Build", icon: HammerIcon, about: "Everything the agent is building or has built." },
+  { href: "/app/chat", label: "Chat", short: "Chat", icon: ChatCircleTextIcon, tone: "text-accent", about: "Ask, write, code and research with Farbaek AI.", also: ["AI chat", "Assistant", "Ask AI", "Farbaek AI"] },
+  { href: "/app/images", label: "Images", short: "Images", icon: ImageSquareIcon, tone: "text-spark-rose", about: "Make and edit pictures with studio finish.", also: ["Image studio", "Pictures", "Image generation", "Photos"] },
+  { href: "/app/video", label: "Video", short: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua", about: "Make short videos with sound, from words or a picture.", also: ["Video studio", "Videos", "Video generation", "Film"] },
+  { href: "/app/build", label: "Build", short: "Build", icon: HammerIcon, tone: "text-spark-leaf", about: "Everything the agent is building or has built." },
   { href: "/app/projects", label: "Projects", short: "Projects", icon: SquaresFourIcon, about: "Your sites and apps." },
-  { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListBulletsIcon, about: "Every piece of work, and where it stands." },
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckSquareOffsetIcon, about: "Changes waiting for your yes or no." },
 ];
 
 /** Useful, not needed every day: one labelled group, opened when wanted. Survey Studio leads it: a specialist's space (ADR 0216). */
 const TOOLS: NavItem[] = [
+  { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListBulletsIcon, about: "Every piece of work, and where it stands." },
   { href: "/app/survey", label: "Survey Studio", short: "Survey", icon: CompassToolIcon, about: "Land survey plans from field data, drawn to scale as PDF and DXF.", also: ["Survey", "Land survey", "Cadastral", "Survey plan", "DXF"] },
   { href: "/app/sandbox", label: "Test space", short: "Test space", icon: TerminalWindowIcon, about: "Run an app and try it, safely apart from everything else.", also: ["Sandbox", "Terminal"] },
   { href: "/app/skills", label: "Skills", short: "Skills", icon: BookOpenTextIcon, about: "Teach the agent how to design and build, from a library or your own.", also: ["SKILL.md", "Claude Skills", "Design skills"] },
@@ -89,7 +91,7 @@ export const APP_PAGES: readonly NavItem[] = [...CORE, ...TOOLS, ...ACCOUNT];
 // The phone's five tabs (ADR 0228): Home, Chat, Build, Approvals and More. Every product studied opens on a box to type
 // in, so Chat is a tab. Projects, Tasks, Images and Video are reached through More there, with the tools and the account
 // pages: five tabs is the most a phone bar holds, and a project is one press from Build and from Home.
-const PHONE_EXTRAS = new Set(["/app/projects", "/app/tasks", "/app/images", "/app/video"]);
+const PHONE_EXTRAS = new Set(["/app/projects", "/app/images", "/app/video"]);
 const TAB_ITEMS = CORE.filter((i) => !PHONE_EXTRAS.has(i.href));
 /** The rows on the phone's More page, in order. */
 export const MORE_PAGES: readonly NavItem[] = [...CORE.filter((i) => PHONE_EXTRAS.has(i.href)), ...TOOLS, ...ACCOUNT];
@@ -159,7 +161,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
             active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
           }`}
         >
-          <item.icon size={20} weight={active ? "fill" : "regular"} className={active ? "text-accent" : ""} aria-hidden />
+          <item.icon size={20} weight={active || item.tone ? "fill" : "regular"} className={item.tone ?? (active ? "text-accent" : "")} aria-hidden />
           {item.label}
           {item.href === "/app/approvals" ? <Badge count={approvals} /> : null}
           {item.href === "/app/help" ? <Badge count={helpUnread} tone="accent" label={helpUnread === 1 ? "new reply" : "new replies"} /> : null}

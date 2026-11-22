@@ -14,6 +14,7 @@ import {
   FolderSimpleIcon,
   GearSixIcon,
   HouseIcon,
+  HouseSimpleIcon,
   ChatCircleTextIcon,
   FilmSlateIcon,
   HammerIcon,
@@ -239,6 +240,10 @@ export function Sidebar({
       </div>
 
       <div className="mt-3 grid gap-0.5 px-3">
+        {/* Home leads, as in the app's own sidebar (ADR 0230): the two lists start the same way. */}
+        <Link href="/app" onClick={onNavigate} className={SPACE_ROW}>
+          <HouseSimpleIcon size={16} weight="fill" className="text-ink-3 transition-transform duration-150 group-hover/space:scale-110" aria-hidden /> Home
+        </Link>
         {SPACE_LINKS.map((s) => (
           <Link key={s.href} href={s.href} onClick={onNavigate} aria-current={s.href === "/app/chat" && pathname !== "/app/chat/images" ? "page" : undefined} className={SPACE_ROW}>
             <s.icon size={16} weight="fill" className={`${s.tone} transition-transform duration-150 group-hover/space:scale-110`} aria-hidden /> {s.label}
