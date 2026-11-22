@@ -40,6 +40,8 @@ Then `scripts/vps/check-migrations.ps1`, which now reads v101 back too (the two 
 
 The app is written to run without the migration (no memory, no summaries, no shared sources, nothing broken), so the order protects features, not uptime.
 
+**Applied on 2026-11-21 by the owner**, before the merge, with the line above. The script's output, from the owner's screenshot: "1 of 3: sending 20270111090000_chat_memory (SHA-256 7b04d734...)", "2 of 3: checking it on the server and applying it in one transaction", "3 of 3: recording it and reading back", then the read-back `t` and "Done. 20270111090000_chat_memory is applied in production." The read-back is the `-Check` above: both tables are there, and the migration is one transaction, so the functions and the shared-chat read went in with them. `check-migrations.ps1` was not run afterwards: it is refused for Claude (reading production), and the owner wasn't asked to run it as well.
+
 ## A fresh review, and what it found (2026-11-21)
 
 Every check had passed when a reviewer that hadn't written the code read this stage. It found seven real faults. All are fixed, each with a test; ADR 0224 has the reasons.
@@ -60,11 +62,20 @@ The migration was read and needed no change, so its hash is the same.
 
 One limit that remains: if making a summary fails many times in a row, until the last saved one is more than 80 messages back, the next summary starts fresh and the part before it is lost to the model (the messages themselves are always kept and shown). A summary is tried again after every answer, so it would take about eight failures in a row.
 
+## Also fixed: cancelling a nearby transfer on the receiving computer
+
+Not part of Chat, but found by this stage's test run and fixed here at the owner's request.
+
+- **What was wrong.** When the person receiving a project from a nearby device pressed Cancel while files were arriving, the folder made for the transfer was removed at once, while the receiving loop was still running. The loop then noticed the closed connection and saved a checkpoint into the folder being removed. On Windows the removal failed with "directory not empty": the cancel ended as an error nobody caught, the state could end as "interrupted" instead of "cancelled", and a checkpoint file could be left behind. It was a real fault in `src/agent-runtime/mesh/receive.ts`, not only a noisy test.
+- **The fix.** Cancel now marks the transfer as cancelling, closes the connection, waits for whatever is writing to stop (the receiving loop, or the check of an earlier copy), and only then removes the folder. The loop saves no checkpoint and sets no state once cancelling. Removal retries a few times when another program holds a file for a moment. A cancel pressed while the folder is still being checked makes no folder at all.
+- **Verified.** A new test in `mesh.test.ts` holds the removal back and counts writes made under it: one without the fix, none with it. Results of running the whole mesh suite ten times in a row are under "Checks at the end".
+
 ## Checks at the end
 
 Run on 2026-11-21, after the review's fixes, for stages 207 and 208 together:
 
 - `pnpm typecheck` and `pnpm lint`: clean.
-- `pnpm test`: 477 files and 4,189 tests pass, 17 skipped (4,156 before the review's tests were added). The run also reported one error that isn't a test: `src/agent-runtime/mesh/mesh.test.ts` (last changed on 2026-11-12, not part of this work) sometimes leaves a rejected promise when a temporary folder can't be removed on Windows (`ENOTEMPTY`). Run alone three times it happened once; all 57 of its tests pass each time. It makes `pnpm test` end as failed on this PC when it happens, and is worth its own fix.
+- `pnpm test`: 477 files and 4,189 tests pass, 17 skipped (4,156 before the review's tests were added). The run also reported one error that isn't a test: `src/agent-runtime/mesh/mesh.test.ts` (last changed on 2026-11-12, not part of this work) sometimes leaves a rejected promise when a temporary folder can't be removed on Windows (`ENOTEMPTY`). Run alone three times it happened once; all 57 of its tests pass each time. It made `pnpm test` end as failed on this PC when it happened. Fixed the same day, at the owner's request (next section).
 - After the last edits: the type check, lint, and the design, chat, agent and web suites again (50 files, 746 tests pass).
 - In a browser (demo workspace, development server): Chat's settings show the Memory section with its switch, the box to add one and the note about where what's remembered goes. The demo can't read a list, and the section now says the list isn't available with the reason under it, where before the review it said "Nothing is remembered yet". The sample chat with sources still draws its citations. No console errors.
+- The nearby-transfer fix, on 2026-11-22: `src/agent-runtime/mesh/mesh.test.ts` five times in a row (58 tests each) and the whole mesh folder five more times (4 files, 76 tests each), every run clean, with no error left over from removing a folder. The type check and lint on the mesh folder: clean.
