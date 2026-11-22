@@ -28,6 +28,17 @@ export function readTheme(saved: string | null | undefined, olderChatChoice?: st
   return DEFAULT_THEME;
 }
 
+/**
+ * The choice in a browser's own cookie text ("a=1; fb_theme=dark"), or null when there is none or it isn't a known look.
+ * The first cookie of that name counts. The script for pages built ahead of time reads it the same way (site-script.ts);
+ * a test holds the two together.
+ */
+export function themeInCookies(cookies: string): Theme | null {
+  const first = cookies.split("; ").find((part) => part.startsWith(`${THEME_COOKIE}=`));
+  const value = first?.slice(THEME_COOKIE.length + 1);
+  return isTheme(value) ? value : null;
+}
+
 /** The cookie that keeps a choice for a year, on every page of this site. */
 export function themeCookie(theme: Theme, secure: boolean): string {
   return `${THEME_COOKIE}=${theme}; path=/; max-age=${YEAR_SECONDS}; samesite=lax${secure ? "; secure" : ""}`;

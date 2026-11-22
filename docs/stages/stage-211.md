@@ -62,3 +62,62 @@ The brief of 2026-11-22: a premium Crystal White theme with "an equally polished
 
 - Stage 212: one navigation, with Chat as the simple home.
 - The public site in Dark.
+
+# Stage 211, part 2: the public site in Dark
+
+- **Date:** 2026-11-23
+- **Branch:** `feat/stage-211-site-dark`, from `main`
+- **Decision:** ADR 0232
+- **Migration:** none. **New dependency:** none.
+
+## What the owner asked
+
+A Dark look on every page, beside Crystal White. Stage 211 did every signed-in page and left the public site light, because its pages are built ahead of time and no server reads a cookie for them.
+
+## What was built
+
+- **The public site follows the person's choice** (`src/app/(site)/layout.tsx`): the homepage, the spaces' pages, pricing, sign-in, the legal pages and the rest.
+- **No white flash for someone who chose Dark.** A fixed script straight after the page's mark writes the saved choice on it before the page paints (`src/core/theme/site-script.ts`, `SiteThemeScript`). It accepts only "dark" or "system".
+- **The mark stays right afterwards** (`SiteThemeMark`): arriving from the app without a full load, and changing the choice.
+- **A control in the footer:** Light, Dark or Auto, the one Settings has. It is the same choice everywhere: change it on the site and the app has it, and the other way round.
+- **Light is still what a new visitor sees,** also on a device set to dark.
+- **The sign-in pages' script policy allows exactly this script, by its hash** (`src/server/http/app-headers.ts`).
+- **A page already drawn stays in step with the choice** (`ThemeSync`, on the site and in the app): after Back and Forward, after another tab chooses, after a link inside the site, and when a device turns for someone on Auto.
+- The rule in `CLAUDE.md` and `AGENTS.md` now says Dark is for every page.
+
+## Verified
+
+- **By pressing the control in a real browser,** at 1280 px on a light device and at 375 px on a dark device, with the same result on both:
+  - a new visitor arrives in Light;
+  - Dark turns the page at once and saves the choice;
+  - the next page is already dark before the app's own scripts run, and so is the sign-in page under its script policy;
+  - a link inside the site keeps it; the signed-in app shows the same look;
+  - Auto follows the device, and turns when the device's setting turns;
+  - Light is kept on the next visit;
+  - no console errors.
+- **Looked at, screen by screen, in Dark at 1280 px:** the homepage, Build, Pricing, Survey and Sign in, and the homepage's first screen with motion on (the 3D scene). At 375 px: the homepage.
+- **Photographed in Dark with no console errors:** Chat, Images, Video, Proof, Security, Check a ProofPack, Privacy and the ProofPack format (their sheets were made, not each studied).
+- **Layout audit in Dark,** 15 public routes at 375 and 1280 px: none scrolling sideways, none cutting content off, no small or lost taps, none out of proportion, no errors.
+- **Accessibility audit** on the homepage, Pricing and Sign in at both widths: no findings.
+- **Tests:** the script against a pretend page (writes Dark or Auto, leaves Light for anything else, reads only its own cookie, never throws); the script and the live page agreeing on fourteen cookie texts; its hash in the sign-in policy; no other inline script allowed there. `pnpm test`: 4,341 pass. `pnpm typecheck`, lint on the changed folders and `pnpm build` pass, and the public pages are still built ahead of time.
+
+## Found by a fresh review before the pull request, and fixed
+
+Every check above had passed. An independent read of the commit then found five faults, each confirmed and fixed, and each checked afterwards by doing what triggers it in a browser:
+
+- **The browser's bar went light again after the first link inside the site** (the tags that colour it are replaced on each such link). It now stays dark over two links, and follows the device on Auto.
+- **Back into the app showed the old look** after choosing on the site. It now shows the new one.
+- **A choice made in this tab outranked the cookie for the tab's life,** so another tab's later choice was ignored. The cookie comes first now.
+- **The script and the live page read two cookies of the same name differently.** Both take the first now, and a test holds them together.
+- **One test proved nothing** (it compared the script with itself). Replaced.
+
+The review also corrected two statements in the decision record: the offline page does turn, and two more pages stay light.
+
+## Not done
+
+- **Not seen on a real phone,** or on the live site.
+- **Pages outside the site's layout that no server marks stay light:** shared links, the device page, the desktop app's connect page, and the page for an address that doesn't exist.
+- **An installed app keeps its older, light copy of the offline page** until its service worker next updates.
+- **With scripts off, the public site is Light** whatever was chosen.
+- **The hero's cat on its white paper is a large white card at night,** on phones most of the first screen. That is the logo's rule (ADR 0226); a quieter treatment for the hero alone is the owner's call.
+- The browser's own bars turn a moment after the page, once it is live.

@@ -4,18 +4,25 @@ The running record of the program the owner set on 2026-11-22. Read this first i
 
 **Rule for this file:** a line says "done" only when the work is merged or has a test or a live check behind it. Everything else says what it is waiting for.
 
-## Where it stands (2026-11-22)
+## Where it stands (2026-11-23)
 
 | Work | State | Waiting for |
 | --- | --- | --- |
 | Stages 206 to 208: research when needed, Chat memory, rules for computer tasks | Merged as #273 on 2026-11-22 and live | A read-back of migration v101 on production (`scripts/vps/check-migrations.ps1`), which this record has not seen |
-| Stage 209: the audit and five faults fixed | Built and tested on `feat/stage-209-program-audit`, PR open | The owner merges |
-| Stage 210: the black cat is the logo (the owner's request of 2026-11-22, ADR 0226) | Built and tested, PR #274 open | The owner merges; new app releases for the icon on phones and the desktop |
-| Stage 211: Dark for every page, beside Crystal White (ADR 0227) | Being built on `feat/stage-211-dark-mode`, on top of stage 210 | See its stage record |
-| Skills inventory | Written (`FARBAEK_SKILLS_INVENTORY.md`) | Nothing |
-| Master audit | Written (`FARBAEK_MASTER_AUDIT.md`) | Nothing |
+| Stage 209: the audit and five faults fixed | Merged as #275 | The next desktop release, for its desktop fix |
+| Stage 210: the black cat is the logo (ADR 0226) | Merged and live | New app releases for the icon on phones and the desktop |
+| Stage 211: Dark for every signed-in page, beside Crystal White (ADR 0227) | Merged as #276 and live | Nothing |
+| Stage 211, part 2: the public site in Dark, with the control in its footer (ADR 0232) | Built and tested, PR open | The owner merges |
+| Stage 212, part 1: the main screen is a greeting and one box that asks or builds; Chat is a phone tab (ADR 0228) | Merged as #277 and #279, and live | Nothing |
+| Stage 212, part 2: every signed-in page in one frame on wide screens, a shorter sidebar in the spaces' colours (ADR 0230) | Built and tested, PR #280 open | The owner merges |
+| Stage 212, what is left: Chat, the studios and Build's workspace sharing the one frame component; "Build" opening one place; one plus menu in Chat | Not started | #280 first |
+| Stage 213, part 1: one registry of the models Farbaek uses (ADR 0229) | Merged as #278 | Nothing |
+| Stage 213, what is left: both routers reading the registry; the prices due for a check shown to staff | Not started | Nothing |
+| Stage 218, part 1: the suggested prices worked out in code, with a page to decide from (ADR 0231) | Built and tested, PR #281 open | The owner merges, then decides the prices, monthly or yearly for the smallest plan, the hours and seats, and what each plan includes |
+| Skills inventory, master audit, the study of the reference products | Written | Nothing |
 | Research on providers and platforms | 2 of 7 notes complete, 5 partial | Finishing the 5, a few at a time |
-| Study of the reference products in a browser | Done at desktop width for all six, with 46 screenshots and `FARBAEK_REFERENCE_RESEARCH.md`. The two signed-in apps weren't captured at phone width | A Chrome window that can be narrowed |
+
+The server was running main's latest build when checked on 2026-11-23 (`/api/health` asked at the server's own address).
 
 ## The order of work
 

@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { earlyMarkScript } from "@/core/billing/store-client";
+import { siteThemeScript } from "@/core/theme/site-script";
 import { describe, expect, it } from "vitest";
-import { APP_CSP_PATH, appCsp, appCspEnforced, appCspHeaders, parseCspReports, SIGN_IN_CSP_PATH, EARLY_MARK_SHA256 } from "./app-headers";
+import { APP_CSP_PATH, appCsp, appCspEnforced, appCspHeaders, parseCspReports, SIGN_IN_CSP_PATH, EARLY_MARK_SHA256, SITE_THEME_SHA256 } from "./app-headers";
 
 describe("the app's Content-Security-Policy (ADR 0107)", () => {
   it("allows scripts only from a nonce, talks only to Farbaek, and frames only previews", () => {
@@ -61,6 +62,23 @@ describe("the sign-in pages' policy (ADR 0175)", () => {
     expect(createHash("sha256").update(earlyMarkScript(), "utf8").digest("base64")).toBe(EARLY_MARK_SHA256);
     expect(appCsp("n", { dev: false, https: true, previewDomain: null, signIn: true })).toContain(`'sha256-${EARLY_MARK_SHA256}'`);
     expect(appCsp("n", { dev: false, https: true, previewDomain: null })).not.toContain("sha256-");
+  });
+
+  it("writes only a known look, and only on the page's mark", () => {
+    const script = siteThemeScript();
+    expect(script).toContain('(m[1]==="dark"||m[1]==="system")');
+    expect(script).toContain('setAttribute("data-page-theme",m[1])');
+    // Nothing from the cookie reaches the page but one of those two words.
+    expect(script).not.toMatch(/innerHTML|eval|document\.write|location/);
+  });
+
+  it("lets the script that shows a visitor's saved look run too, by its hash, and nothing else inline (ADR 0232)", () => {
+    expect(createHash("sha256").update(siteThemeScript(), "utf8").digest("base64")).toBe(SITE_THEME_SHA256);
+    const signIn = appCsp("n", { dev: false, https: true, previewDomain: null, signIn: true });
+    expect(signIn).toContain(`'sha256-${SITE_THEME_SHA256}'`);
+    expect(signIn.match(/sha256-/g)).toHaveLength(2);
+    const scripts = signIn.split("; ").find((directive) => directive.startsWith("script-src"));
+    expect(scripts).not.toContain("unsafe-inline");
   });
 
   it("covers the pages where people sign in or consent, and not the marketing pages", () => {

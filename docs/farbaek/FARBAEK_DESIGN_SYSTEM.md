@@ -9,7 +9,7 @@ What the interface is made of, as it stands in the code on 2026-11-22 (stage 211
 | | Crystal White (light) | Dark |
 | --- | --- | --- |
 | **When** | The default, for everyone who hasn't chosen | The person's choice, or Auto on a dark device |
-| **Where** | Every page | Every signed-in page, the staff console and admin. The public site is still light |
+| **Where** | Every page | Every page: the public site (ADR 0232), every signed-in page, the staff console and admin |
 | **Values** | `src/styles/tokens.css` | `src/styles/theme-dark.css` |
 | **Tested by** | `tests/design/contrast.test.ts` | `tests/design/dark-theme.test.ts` |
 | **Decision** | ADR 0008 | ADR 0227 |
@@ -127,6 +127,6 @@ The black cat (ADR 0226), `public/brand/farbaek-logo-v2.webp`, through `BrandLog
 
 ## Not yet
 
-- The public site in Dark.
+- Pages outside the public site's layout that no server marks (shared links, the device page, the desktop app's connect page, the page for an address that doesn't exist) in Dark.
 - The iPhone app and the desktop app in Dark.
 - One navigation across Chat, the studios and the app shell (planned as stage 212).

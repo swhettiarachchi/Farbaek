@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OLD_CHAT_THEME_COOKIE, THEME_COOKIE, browserBarColor, clearOldChatCookie, isTheme, readTheme, showsDark, themeCookie } from "./theme";
+import { OLD_CHAT_THEME_COOKIE, THEME_COOKIE, browserBarColor, clearOldChatCookie, isTheme, readTheme, showsDark, themeCookie, themeInCookies } from "./theme";
 
 describe("the saved look", () => {
   it("is Light unless a real choice was saved", () => {
@@ -67,5 +67,20 @@ describe("what shows", () => {
       { media: "(prefers-color-scheme: light)", color: "#fbfbfc" },
       { media: "(prefers-color-scheme: dark)", color: "#0f1013" },
     ]);
+  });
+});
+
+describe("the choice in a browser's cookie text", () => {
+  it("is the first cookie of its name, when it is a known look", () => {
+    expect(themeInCookies("fb_theme=dark")).toBe("dark");
+    expect(themeInCookies("a=1; fb_theme=system; b=2")).toBe("system");
+    expect(themeInCookies("fb_theme=light")).toBe("light");
+    expect(themeInCookies("fb_theme=light; fb_theme=dark")).toBe("light");
+  });
+
+  it("is nothing for no cookie, another cookie, or a value it doesn't know", () => {
+    for (const cookies of ["", "a=1", "xfb_theme=dark", "fb_theme=", "fb_theme=DARK", "fb_theme=dark%22", "fb_theme=sepia; fb_theme=dark"]) {
+      expect(themeInCookies(cookies), cookies).toBeNull();
+    }
   });
 });
