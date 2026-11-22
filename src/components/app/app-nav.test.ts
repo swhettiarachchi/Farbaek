@@ -28,6 +28,11 @@ describe("the app's navigation (ADR 0170)", () => {
     const rows = MORE_PAGES.map((p) => p.href);
     expect(rows).toContain("/app/trust");
     expect(rows).toContain("/app/tasks");
-    expect(rows).not.toContain("/app/projects");
+    // Chat is a tab of its own (ADR 0228), so it isn't a row here; Projects is, since its tab went to Chat.
+    expect(rows).toContain("/app/projects");
+    expect(rows).not.toContain("/app/chat");
+    expect(rows).not.toContain("/app");
+    expect(rows).not.toContain("/app/build");
+    expect(rows).not.toContain("/app/approvals");
   });
 });

@@ -10,6 +10,7 @@ import { NeedsYouCard } from "@/components/app/needs-you-card";
 import { ProjectCard } from "@/components/app/project-card";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { PromptComposer } from "@/components/build/prompt-composer";
+import { StartBox } from "@/components/app/start-box";
 import { SpaceDoors } from "@/components/app/space-doors";
 import { buildTargets } from "@/core/workspace/build-target";
 import { ButtonLink } from "@/components/ui/button";
@@ -143,8 +144,8 @@ export default async function MissionControl() {
       {needs ? <NeedsYouCard step={needs} /> : null}
 
       {composerInSteps ? null : (
-        <section id="start" aria-label="Start a build" className="aurora scroll-mt-24">
-          {composer}
+        <section id="start" aria-label="Ask or build" className="aurora scroll-mt-24">
+          <StartBox build={composer} />
         </section>
       )}
 

@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CaretDownIcon, ChatCircleTextIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CaretDownIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { loadSharedWithMe } from "@/server/workspace/guest-context";
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
@@ -233,10 +233,8 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
           <Brand />
           {/* 12px between the 40px buttons, so their 48px touch areas never overlap, even on a 320px phone. */}
           <div className="flex min-w-0 items-center gap-3">
+            {/* Chat is a tab in the bar below (ADR 0228), so the header no longer repeats it. */}
             <PaletteIconButton />
-            <Link href="/app/chat" aria-label="Chat" title="Chat" className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink">
-              <ChatCircleTextIcon size={20} aria-hidden />
-            </Link>
             {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} compact /> : null}
             {/* The pill stays small; the link around it is a full 44px target. */}
             <Link href="/app/more" aria-label={`${current.name}, switch workspace and more`} className="flex min-h-11 min-w-0 max-w-[42vw] items-center rounded-full">
