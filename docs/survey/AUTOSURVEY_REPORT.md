@@ -42,7 +42,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Surveyor profile resolver | `autosurvey/defaults.ts`, `server/survey/defaults.ts` | Partly built: carried code list, sheet presentation and grid; no profile table yet |
 | Data normalisation | `import/*` readers, `import/reduce.ts` | Built and tested |
 | CRS resolver | `crs.ts`, the start screen's last-confirmed grid | Built and tested: never inferred, always confirmed; no transformations |
-| Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `grammar.ts`, `codes.ts`, `codelib.ts` | Built and tested: Farbaek's and Carlson's line words (ADR 0243), joins to a point, a code report in the checks; arcs read but drawn straight |
+| Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `grammar.ts`, `codes.ts`, `codelib.ts`, `codehints.ts` | Built and tested: Farbaek's and Carlson's line words (ADR 0243), joins to a point, a code report in the checks, suggestions for unknown codes added in one press (ADR 0246); arcs read but drawn straight |
 | Sketch intelligence | `autosurvey/sketch.ts`, `server/survey/sketches.ts`, `server/ai/sketch-reader.ts` | Built, not proven on real sketches |
 | Source reconciliation | point clashes, sketch-versus-instrument checks, observation checks | Built and tested |
 | Survey computation | `angles.ts`, `geometry.ts`, `cogo.ts`, `units.ts`, `reduce.ts`, `adjust.ts` | Built and tested |
@@ -205,7 +205,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #297 | 234 (line words, code report) | Merged, live (build dbc3fa889203) | none |
 | #298 | 235 (timed jobs, finishing a cut-off run) | Merged, live (build 684f7edfa43f) | none |
 | #299 | 236 (checks and sources report) | Open | none |
-| next | 237 (success metrics script) | Open, builds on #299 | none |
+| #300 | 237 (success metrics script) | Open, builds on #299 | none |
+| next | 238 (suggestions for unknown codes) | Open, builds on #300 | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 

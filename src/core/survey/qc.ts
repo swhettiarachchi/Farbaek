@@ -9,6 +9,7 @@ import { codeOf, codesAreCommonList, codesAreDsrList, lookupCode } from "./codes
 import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
 import { legIndex, lotName, unreviewed, type SurveyDocument } from "./document";
+import { sidedRoadEdge } from "./codehints";
 import { autoDoubt, doubtContext } from "./exceptions";
 import { codeReport } from "./fieldToFinish";
 import { GRAMMAR } from "./grammar";
@@ -413,7 +414,8 @@ export function checkSurvey(input: QcInput): Finding[] {
   const report = codeReport(input.points, doc.codes, grammar);
   // A line of one point the plan already draws there (by hand, or from another string) isn't missing.
   const lineProblems = report.problems.filter((p) => !(p.id && p.code && doc.features.some((f) => f.code === p.code && f.points.includes(p.id!))));
-  const strangers = report.counts.filter((c) => c.kind === null && !usedCodes.has(c.code));
+  // Road edges with a side (RD1, RD2) draw the road: they're never library codes, so they aren't strangers. One with no side (RD) is.
+  const strangers = report.counts.filter((c) => c.kind === null && !usedCodes.has(c.code) && !sidedRoadEdge(c.code));
   if (strangers.length > 0) {
     const pts = (n: number) => `${n} ${n === 1 ? "point" : "points"}`;
     add({
@@ -421,7 +423,7 @@ export function checkSurvey(input: QcInput): Finding[] {
       severity: "information",
       message: `${strangers.length === 1 ? "A code the points carry isn't" : `${strangers.length} codes the points carry aren't`} in the code library, so the plan can't say what ${strangers.length === 1 ? "it is" : "they are"} or draw ${strangers.length === 1 ? "it" : "them"} as a line or symbol: ${strangers.slice(0, 8).map((c) => `${c.code} (${pts(c.count)})`).join(", ")}${strangers.length > 8 ? ", and more" : ""}.`,
       target: { kind: "field", id: "codes" },
-      action: "Add each to the code library with what it is, or correct the points' codes.",
+      action: "Add each to the code library with what it is: the plan editor's Codes tab suggests what each might be. Or correct the points' codes.",
       blocks: [],
     });
   }
