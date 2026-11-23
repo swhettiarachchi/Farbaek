@@ -9,6 +9,7 @@ import { generateSurveyPlanAction, type GenerateState } from "@/app/app/survey/a
 import { commonCodes } from "@/core/survey/codes";
 import { CRS_REGISTRY, LOCAL_CRS, crsById } from "@/core/survey/crs";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
+import { LIBRARY_LIMITS, librarySummary, looksLikeCodeLibrary, parseCodeLibrary, type LibraryRead } from "@/core/survey/codelib";
 import { START_LIMITS, gridProblem, kindOfUpload, notReadYet, pointClashes, readSurveyFile, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
 import { IMPORT_LIMITS } from "@/core/survey/import/delimited";
 import { buttonClasses } from "@/components/ui/button";
@@ -23,7 +24,9 @@ type Upload =
   | { key: string; name: string; size: number; kind: "survey-data"; content: string; read: FileRead | null; problem: string | null; encoding: string | null }
   /** A field sketch, shrunk as it's added so a photo this device can't open is said at once, not after the plan exists. */
   | { key: string; name: string; size: number; kind: "sketch"; photo: Blob | null; problem: string | null }
-  | { key: string; name: string; size: number; kind: "document"; reason: string };
+  | { key: string; name: string; size: number; kind: "document"; reason: string }
+  /** An office code library (ADR 0237): read here to show, and again on the server. */
+  | { key: string; name: string; size: number; kind: "code-library"; content: string; read: LibraryRead };
 
 /**
  * After Generate Plan, when the screen stays to say something about the sketches: they couldn't be read, or nothing on them could
@@ -63,6 +66,7 @@ export function AutoSurveyStart({
   disabledReason,
   sketchOff,
   aiCost,
+  carried = { codes: null, sheet: null },
 }: {
   startingCrsId: string | null;
   surveyorName: string | null;
@@ -71,6 +75,8 @@ export function AutoSurveyStart({
   sketchOff: string | null;
   /** What reading them costs, in a sentence. */
   aiCost: string;
+  /** What a new plan takes from this surveyor's own recent plans (ADR 0237). */
+  carried?: { codes: { from: string; count: number } | null; sheet: { from: string; paper: string; orientation: string } | null };
 }) {
   const router = useRouter();
   const [uploads, setUploads] = useState<Upload[]>([]);
@@ -122,6 +128,10 @@ export function AutoSurveyStart({
         continue;
       }
       const { content, encoding } = await decode(file);
+      if (looksLikeCodeLibrary(file.name, content)) {
+        added.push({ key, name: file.name, size: file.size, kind: "code-library", content, read: file.size > LIBRARY_LIMITS.bytes ? { ok: false, problem: `This code library is larger than ${LIBRARY_LIMITS.bytes / 1_000} KB.` } : parseCodeLibrary(content) });
+        continue;
+      }
       added.push({ key, name: file.name, size: file.size, kind, content, read: null, problem: null, encoding });
     }
     setUploads((now) => reread([...now, ...added].slice(0, START_LIMITS.files)));
@@ -146,6 +156,9 @@ export function AutoSurveyStart({
   const problems = data.filter((u) => u.problem).length + clashes.length + (grid ? 1 : 0);
   const dataBytes = data.reduce((sum, u) => sum + u.content.length, 0);
   const sketches = uploads.filter((u): u is Extract<Upload, { kind: "sketch" }> => u.kind === "sketch");
+  const libraries = uploads.filter((u): u is Extract<Upload, { kind: "code-library" }> => u.kind === "code-library");
+  const library = libraries.length === 1 && libraries[0]!.read.ok ? libraries[0]! : null;
+  const libraryBlock = libraries.length > 1 ? "Use one code library at a time: remove the others." : libraries.some((u) => !u.read.ok) ? "Remove the code library marked below, or fix it." : null;
   // Sketches are read only when Claude is available here and the surveyor agreed; otherwise they never hold up the plan.
   const reading = sketches.length > 0 && sketchOff === null && consent;
   const sketchBytes = sketches.reduce((sum, u) => sum + (u.photo?.size ?? 0), 0);
@@ -162,7 +175,9 @@ export function AutoSurveyStart({
 
   const blocked =
     disabledReason ??
-    (drawn
+    (libraryBlock && !drawn
+      ? libraryBlock
+      : drawn
       ? "The plan is drawn. Open it below."
       : data.length === 0
       ? "Add at least one survey data file: a points file or an instrument's job export."
@@ -170,7 +185,7 @@ export function AutoSurveyStart({
         ? "Choose the coordinate system the points are in."
         : problems > 0
           ? "Sort out what's marked below first."
-          : dataBytes > START_LIMITS.dataBytes
+          : dataBytes + (library?.content.length ?? 0) > START_LIMITS.dataBytes
             ? `The survey files hold more than ${START_LIMITS.dataBytes / 1024 / 1024} MB together. Generate from fewer, then import the rest.`
             : sketchBlock);
 
@@ -180,7 +195,10 @@ export function AutoSurveyStart({
     const toRead = reading ? sketches.flatMap((u) => (u.photo ? [{ name: u.name, photo: u.photo }] : [])) : [];
     startTransition(async () => {
       setPhase("drawing");
-      const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content })) });
+      // A request the server refuses before the action runs (too large to carry) comes back as a thrown error: said, not lost.
+      const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content })), library: library ? { name: library.name, content: library.content } : null }).catch(
+        (): GenerateState => ({ status: "error", message: "The files couldn't be sent: they may be too large together. Generate from fewer files, then import the rest into the project.", problems: [] }),
+      );
       if (r.status !== "done") {
         setResult(r);
         return;
@@ -210,6 +228,10 @@ export function AutoSurveyStart({
   /** What each file is now, in a badge and one sentence. */
   const state = (u: Upload): { status: "done" | "attention" | "working" | "pending" | "off"; label: string; text: string } => {
     if (u.kind === "document") return { status: "off", label: "Not read", text: u.reason };
+    if (u.kind === "code-library") {
+      if (!u.read.ok) return { status: "attention", label: "Needs a look", text: u.read.problem };
+      return { status: "done", label: "Read", text: librarySummary(u.read, points.map((p) => p.code ?? "")) };
+    }
     if (u.kind === "sketch") {
       if (u.problem) return { status: "attention", label: "Needs a look", text: u.problem };
       if (sketchOff) return { status: "off", label: "Not read", text: sketchOff };
@@ -360,7 +382,21 @@ export function AutoSurveyStart({
             </>
           )}
         </p>
-        {dsr ? <p className="text-sm text-ink-2">These files use the Survey Department&apos;s codes (Chapter XXII), so the plan is drawn with its code list.</p> : null}
+        {library ? (
+          <p className="text-sm text-ink-2">
+            Codes: your office library, <span className="font-medium text-ink">{library.name}</span>, for you to check once on this plan.
+          </p>
+        ) : carried.codes ? (
+          <p className="text-sm text-ink-2">
+            Codes: the list you checked on <span className="font-medium text-ink">{carried.codes.from}</span> ({carried.codes.count} codes), for you to check once on this plan.
+          </p>
+        ) : null}
+        {carried.sheet ? (
+          <p className="text-sm text-ink-2">
+            Sheet: laid out as on <span className="font-medium text-ink">{carried.sheet.from}</span> ({carried.sheet.paper === "auto" ? "paper chosen to fit" : carried.sheet.paper}, {carried.sheet.orientation}).
+          </p>
+        ) : null}
+        {dsr && !library && !carried.codes ? <p className="text-sm text-ink-2">These files use the Survey Department&apos;s codes (Chapter XXII), so the plan is drawn with its code list.</p> : null}
         {sketches.length > 0 && !sketchOff ? (
           <label className="flex min-h-11 items-start gap-3 rounded-sm border border-line bg-canvas-2 p-3 text-sm text-ink">
             <input type="checkbox" checked={consent} disabled={pending || Boolean(drawn)} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />

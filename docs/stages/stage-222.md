@@ -59,10 +59,7 @@
 Each is its own pull request, built and checked the same way:
 
 2. **Only exceptions to review:** built in stage 224 (ADR 0235). One "Needs you" list (must fix, for you to confirm, for information) instead of ticking every drafted item; only drawn items tested code doubts wait for a confirmation of their own.
-3. **The surveyor profile carries defaults:**
-   - an office code library, imported from a Carlson-style CSV;
-   - the coordinate system, title defaults and plan numbering, so a returning surveyor sets nothing twice.
-   - It needs a migration.
+3. **The surveyor profile carries defaults:** built without a migration in stage 226 (ADR 0237): the office code library from a Carlson-style file, the code list the surveyor checked last, and their sheet's presentation; the coordinate system since stage 222. A profile table (equipment, title-block preferences, plan numbering) still needs a migration.
 4. **Originals kept byte for byte, photos and sketches included,** in storage on Farbaek's own server. It needs a migration and a storage decision.
 5. **Reading sketches:** built in stage 223 (ADR 0234), on Claude at the owner's choice. Each handwritten number or label is kept as written and checked against the instrument data, conflicts are shown with both values, and a sketch is never a source of coordinates. Places on the image are left out: Claude's are approximate.
 6. **Work in the background:** Generate Plan as a resumable job with its real stages shown, so leaving the page loses nothing.
