@@ -1,6 +1,6 @@
 # ADR 0230: One frame for every signed-in page
 
-- **Status:** accepted (stage 212, part 2, 2026-11-22)
+- **Status:** accepted (stage 212, part 2, 2026-11-22). **Changed 2026-11-23:** full screen, no stage (see the end)
 - **Builds on:** ADR 0211 (phone first), ADR 0213 and 0218 (Chat and its stage), ADR 0217 (the spectrum), ADR 0227 (two looks), ADR 0228 (the main screen)
 - **Changes:** the signed-in app's frame on wide screens, and the sidebar's first list
 
@@ -49,6 +49,14 @@ Part 2 left four copies of the frame, and one space outside it: the image and vi
 - `src/components/ui/stage-window.tsx` holds the stage, the window and the light: `STAGE`, `STAGE_WINDOW` and `StageLight`.
 - The app's frame, Chat, the studios and Build's workspace all use it. A change to the corner, the gap or the light is made once.
 - **The studios are in the window now.** The light behind it travels while a picture or a film is being made, as it does while Chat answers.
+
+## Full screen (2026-11-23, the owner's request)
+
+The owner asked to remove the coloured line round the platform and make it full screen size. So the stage, the gap and the light behind the window are gone:
+
+- Every signed-in page, Chat, the studios and Build's workspace fill the screen on every size: the sidebar on the left, the page beside it, no corner, no gap, no coloured edge.
+- What part 2 and part 3 decided still holds: one frame for every space, the shorter coloured sidebar, the page scrolling beside the sidebar on wide screens, Back and Forward remembered.
+- `stage-window.tsx` and the light's styles (`.chat-halo`) are deleted, and the app no longer loads Chat's stylesheet. The light that travelled while Chat answered went with it; the message box still glows while an answer is written.
 
 ## Consequences
 

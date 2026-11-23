@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { PageTransition } from "@/components/app/page-transition";
-import { STAGE, STAGE_WINDOW, StageLight } from "@/components/ui/stage-window";
 
 /** Where each page's window was left, by address, for Back and Forward. Kept for the visit; nothing is stored. */
 const LEFT_AT = new Map<string, number>();
@@ -23,10 +22,9 @@ export function isChatPath(pathname: string | null): boolean {
  * The signed-in app's frame: the sidebar, the page bands and phone header, the page, and the phone tab bar, all rendered on the
  * server and passed in. On Chat's and the studios' pages only the page shows, since they bring their own frame.
  *
- * On wide screens it is the same frame Chat has (stage 212, ADR 0230): a rounded window on a pale stage, with the spectrum's
- * light glowing from behind its edges, the sidebar inside it and the page scrolling inside it. So Home, Projects, Settings
- * and Chat are one window, and going between them changes what is in it, not the whole screen. Phones and small tablets
- * keep the page as it was: it fills the screen and the page itself scrolls, which is what a phone's browser bars expect.
+ * On wide screens it fills the screen, as Chat's does (ADR 0230, full screen since 2026-11-23 at the owner's request): the
+ * sidebar on the left and the page scrolling beside it. Phones and small tablets keep the page as it was: it fills the
+ * screen and the page itself scrolls, which is what a phone's browser bars expect.
  */
 export function AppFrame({ sidebar, top, tabBar, children }: { sidebar: React.ReactNode; top: React.ReactNode; tabBar: React.ReactNode; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -61,10 +59,8 @@ export function AppFrame({ sidebar, top, tabBar, children }: { sidebar: React.Re
     );
   }
   return (
-    <div data-signed-in className={`relative min-h-[100dvh] bg-canvas lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden ${STAGE}`}>
-      {/* The stage and the window are the ones Chat, the studios and Build's workspace use (stage-window.tsx). Here the light is still. */}
-      <StageLight />
-      <div className={`relative lg:grid lg:h-full lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:overflow-hidden ${STAGE_WINDOW}`}>
+    <div data-signed-in className="relative min-h-[100dvh] bg-canvas lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden">
+      <div className="relative bg-canvas lg:grid lg:h-full lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:overflow-hidden">
         {sidebar}
         <div ref={scroller} data-app-scroll onScroll={(e) => LEFT_AT.set(pathname ?? "", e.currentTarget.scrollTop)} className="min-w-0 lg:h-full lg:overflow-y-auto lg:overscroll-contain">
           {top}
