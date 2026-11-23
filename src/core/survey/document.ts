@@ -208,8 +208,11 @@ export const surveyDocumentSchema = z.object({
   /** Notes printed as "Note:- …" under the legend. */
   notes: z.array(text(300).pipe(z.string().min(1))).max(10),
   codes: z.array(codeEntrySchema).max(80),
-  /** Presentation only: label nudges on paper, millimetres, by entity id. */
-  labelOffsets: z.record(z.string().max(80), z.object({ dx: z.number().min(-200).max(200), dy: z.number().min(-200).max(200) })),
+  /**
+   * Presentation only: label nudges on paper, millimetres, by entity id, and which of the label's places the nudge was measured from
+   * (ADR 0242), so the label stays where it was dragged however the others are placed. Older nudges have no place.
+   */
+  labelOffsets: z.record(z.string().max(80), z.object({ dx: z.number().min(-200).max(200), dy: z.number().min(-200).max(200), slot: z.number().int().min(0).max(999).optional() })),
   layers: z.record(z.enum(LAYER_IDS), z.object({ visible: z.boolean(), locked: z.boolean() })),
   sheet: sheetFieldsSchema,
   settings: settingsSchema,

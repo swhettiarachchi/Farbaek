@@ -82,7 +82,7 @@ export type PlanOp = { quote: string } & (
   | { kind: "view"; action: "zoom_in" | "zoom_out" | "whole_sheet" | "focus" | "select" | "clear_selection"; entities: string[] }
   | { kind: "history"; action: "undo" | "redo" }
   | { kind: "layer"; layer: LayerId; visible: boolean | null; locked: boolean | null }
-  | { kind: "label"; entity: string; dx: number; dy: number }
+  | { kind: "label"; entity: string; dx: number; dy: number; /** The place the label is drawn at, which the nudge is measured from (ADR 0242). */ slot?: number }
   | { kind: "label_back"; entity: string }
   | { kind: "sheet"; setting: "paper"; value: SurveyDocument["settings"]["paper"] }
   | { kind: "sheet"; setting: "orientation"; value: SurveyDocument["settings"]["orientation"] }

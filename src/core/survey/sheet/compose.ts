@@ -21,6 +21,7 @@ import { arpClassic, hectares } from "../formats";
 import { fmt, fromSquareMetres, formatArp, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 import { composeClassic } from "./classic";
+import { LabelSession, solveLabels } from "./labels";
 import { Placer, atPage, textQuad, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawRoads, drawScaleBar, drawSimpleNorth, overlappingLabels, suggestScale, type DrawCtx } from "./draw";
 import { textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import type { SheetTemplate } from "./template";
@@ -51,6 +52,8 @@ export interface ComposeInput {
   version?: number;
   /** Set for a block-out plan: a planned division drawn from this version, worked out by the named engine (blockout.ts). */
   blockOut?: { engine: string };
+  /** The labels' placers for this composition (labels.ts): set by `composeSheet` for its two passes. */
+  labels?: LabelSession;
 }
 
 /**
@@ -115,7 +118,8 @@ export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: 
       message: `${crowded.length === 1 ? "A label overlaps" : `${crowded.length} labels overlap`} another label or a point${scale ? ` at 1:${scale}` : ""}.`,
       target: { kind: "sheet" },
       detail: crowded.slice(0, 6).map((p) => `"${p[0]}" and "${p[1]}"`).join(", ") + (crowded.length > 6 ? ", and more" : ""),
-      action: "Drag one of them clear in the editor, or choose a larger scale. Nothing is moved for you.",
+      // Labels are already placed together (ADR 0242); these still touch, or one of them was moved by hand.
+      action: "Farbaek moved the labels it could to clear them, and these still touch. Drag one of them clear in the editor, or choose a larger scale.",
       blocks: [],
     });
   }
@@ -126,8 +130,18 @@ export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: 
   }
 }
 
-export function composeSheet(input: ComposeInput): ComposedSheet {
-  return input.document.settings.template === "classic" ? composeClassic(input) : composePanel(input);
+/**
+ * The sheet, with its labels placed together (ADR 0242): drawn once recording each label's candidates, solved, and drawn again with
+ * the solved places when that improves anything. `greedy` keeps the first pass, each label at its first free place, for comparison.
+ */
+export function composeSheet(input: ComposeInput, placement: "solved" | "greedy" = "solved"): ComposedSheet {
+  const once = (labels: LabelSession) => (input.document.settings.template === "classic" ? composeClassic({ ...input, labels }) : composePanel({ ...input, labels }));
+  const first = new LabelSession();
+  const sheet = once(first);
+  if (placement === "greedy") return sheet;
+  const solved = first.placers.map(solveLabels);
+  if (solved.every((x) => x === null)) return sheet;
+  return once(new LabelSession(solved.map((x) => x?.plan ?? null)));
 }
 
 export class Column {
@@ -215,7 +229,7 @@ export function usedCodes(doc: SurveyDocument, lots: PlanLots, points: readonly 
 
 /** A drawing context on a page. */
 export function drawCtx(out: SceneItem[], v: Viewport, input: ComposeInput, sizes: DrawCtx["sizes"], lines: DrawCtx["lines"], slant: number, bounds: DrawCtx["bounds"] = null): DrawCtx {
-  return { out, v, doc: input.document, byId: new Map(input.points.map((p) => [p.id, p])), sizes, lines, slant, placer: new Placer(), bounds, cramped: [], outside: [] };
+  return { out, v, doc: input.document, byId: new Map(input.points.map((p) => [p.id, p])), sizes, lines, slant, placer: input.labels ? input.labels.placer(bounds) : new Placer(null, bounds), bounds, cramped: [], outside: [] };
 }
 
 function composePanel(input: ComposeInput): ComposedSheet {

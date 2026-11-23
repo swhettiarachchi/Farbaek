@@ -54,7 +54,8 @@ export function applyOps(base: SurveyDocument, ops: readonly PlanOp[], points: r
       }
       case "label": {
         const cur = doc.labelOffsets[op.entity] ?? { dx: 0, dy: 0 };
-        doc.labelOffsets[op.entity] = { dx: clamp(cur.dx + op.dx), dy: clamp(cur.dy + op.dy) };
+        const slot = cur.slot ?? op.slot;
+        doc.labelOffsets[op.entity] = { dx: clamp(cur.dx + op.dx), dy: clamp(cur.dy + op.dy), ...(slot !== undefined ? { slot } : {}) };
         touched.push(op.entity);
         parts.add("labelOffsets");
         break;
