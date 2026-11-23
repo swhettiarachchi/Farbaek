@@ -1,12 +1,12 @@
 # Farbaek AutoSurvey: implementation report
 
-The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 233. It keeps four things apart:
+The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 234. It keeps four things apart:
 - **Built and tested:** working in the product, with automated tests.
 - **Built, not proven on real data:** working and tested, but only on synthetic data so far.
 - **Partly built.**
 - **Not built.**
 
-Every dataset used in testing is synthetic: no real survey has gone through AutoSurvey yet. Each stage's own record is in `docs/stages/stage-222.md` to `stage-232.md`, and each decision in ADRs 0233 to 0241.
+Every dataset used in testing is synthetic: no real survey has gone through AutoSurvey yet. Each stage's own record is in `docs/stages/stage-222.md` to `stage-234.md`, and each decision in ADRs 0233 to 0243.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -42,7 +42,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Surveyor profile resolver | `autosurvey/defaults.ts`, `server/survey/defaults.ts` | Partly built: carried code list, sheet presentation and grid; no profile table yet |
 | Data normalisation | `import/*` readers, `import/reduce.ts` | Built and tested |
 | CRS resolver | `crs.ts`, the start screen's last-confirmed grid | Built and tested: never inferred, always confirmed; no transformations |
-| Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `codes.ts`, `codelib.ts` | Built and tested; no curve or join codes |
+| Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `grammar.ts`, `codes.ts`, `codelib.ts` | Built and tested: Farbaek's and Carlson's line words (ADR 0243), joins to a point, a code report in the checks; arcs read but drawn straight |
 | Sketch intelligence | `autosurvey/sketch.ts`, `server/survey/sketches.ts`, `server/ai/sketch-reader.ts` | Built, not proven on real sketches |
 | Source reconciliation | point clashes, sketch-versus-instrument checks, observation checks | Built and tested |
 | Survey computation | `angles.ts`, `geometry.ts`, `cogo.ts`, `units.ts`, `reduce.ts`, `adjust.ts` | Built and tested |
@@ -91,6 +91,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 - **Sketch photos kept** beside their readings, served through row-level security (ADR 0240, schema v103).
 - **A benchmark of the deterministic path** (stage 232).
 - **Labels placed together** (stage 233, ADR 0242): every movable label offers candidates, which are scored and searched together. For example, a synthetic row of eight 8 m lots at 1:1000 with every dimension on the face went from 26 overlapping pairs to 9.
+- **Line words as a grammar** (stage 234, ADR 0243): Farbaek's END and CLO, or Carlson's BEG, END, CLO, JPN and PC/PT. A Carlson `.fcl` library brings its words. A code report in the checks lists the codes the library doesn't know and what reading the lines found.
 
 ## 5. Working input formats
 
@@ -182,8 +183,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 
 ## 11. Test results
 
-- **`pnpm test` on stage 232's branch:** 4,489 tests pass, 17 skipped, in 498 files.
-- **Survey Studio's own tests:** 528 in 43 files, covering readers, calculations, the draft, checks, exceptions, sketches, jobs, the traverse, Generate Plan and the detailed import. The schema tests run against the real migrations in PGlite.
+- **`pnpm test` on stage 234's branch:** 4,518 tests pass, 17 skipped, in 500 files.
+- **Survey Studio's own tests:** 557 in 45 files, covering readers, calculations, the draft, checks, exceptions, sketches, jobs, the traverse, Generate Plan and the detailed import. The schema tests run against the real migrations in PGlite.
 - **`pnpm lint`, `pnpm typecheck` and `pnpm build` pass.**
 - **A fresh review agent read each stage's risky files after every check had passed.** It found real faults in each stage it read, for example 6 in stage 223, 5 in stage 230 and 9 in stage 231, all fixed with tests.
 - **Not run:**
@@ -199,7 +200,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #293 | 229 (background jobs) | Merged, live | **v102:** the owner applies it; the code works without it |
 | #294 | 230 (sketch photos kept) | Merged, live (build c96322bebc79) | **v103:** the owner applies it; the code works without it |
 | #295 | 231 and 232 (traverse, benchmark) | Merged, live (build 397d43d92a1a) | none |
-| Next PR | 233 (label placement) and this report | Open | none |
+| #296 | 233 (label placement) and this report | Open | none |
+| #297 | 234 (line words, code report) | Open, builds on #296 | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
@@ -207,7 +209,7 @@ Production deploys main by itself. Whether v102 and v103 are applied isn't confi
 
 **Not built:**
 - **Labels and layout:** leader lines and a leg table for dimensions that can't fit; multi-sheet layout.
-- **Codes:** curve and join codes.
+- **Codes:** drawing curves (PC/PT arcs are drawn straight, and said); offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
 - **Defaults:** a surveyor profile table (equipment, title block, plan numbering).
 - **Jobs:** resuming a cut-off run; a timer for the jobs sweep; incremental regeneration (a correction saves a new version and re-checks the whole plan).

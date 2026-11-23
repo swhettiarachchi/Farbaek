@@ -26,7 +26,8 @@
  */
 import { codeOf, entryFor, lookupCode, type CodeEntry } from "./codes";
 import type { DrawingFeature, Lot, Road, SurveyDocument } from "./document";
-import { suggestFeatures } from "./fieldToFinish";
+import { suggestFeatures, type CodeProblem } from "./fieldToFinish";
+import { GRAMMAR } from "./grammar";
 import { area, distance, orient, pointSegmentDistance, segmentsIntersect, signedArea, type Point } from "./geometry";
 import type { SurveyPoint } from "./parcel";
 import { roadWidth } from "./roads";
@@ -224,7 +225,9 @@ export function autoDraft(input: AutoDraftInput): AutoDraftResult {
   let n = 0;
   const fresh: DrawingFeature[] = [];
   let tooLong = 0;
-  for (const s of suggestFeatures(input.points, codes)) {
+  // Read with the plan's code grammar (ADR 0243); what reading the codes found is said, a few at a time.
+  const codeProblems: CodeProblem[] = [];
+  for (const s of suggestFeatures(input.points, codes, GRAMMAR[doc.grammar ?? "farbaek"], codeProblems)) {
     if (have.has(`${s.code}|${s.points.join(",")}`)) continue;
     if (s.points.length > LIMITS.featurePoints) {
       tooLong++;
@@ -251,6 +254,8 @@ export function autoDraft(input: AutoDraftInput): AutoDraftResult {
     drawn.push(`${kept.length} ${kept.length === 1 ? "line" : "lines"} from the field codes: ${[...counts].map(([m, k]) => `${k} ${m.toLowerCase()}`).join(", ")}.`);
   }
   if (fresh.length > kept.length) notDrawn.push(`${fresh.length - kept.length} more ${fresh.length - kept.length === 1 ? "line" : "lines"} from the codes weren't drawn: a plan holds ${LIMITS.features} lines.`);
+  for (const p of codeProblems.slice(0, 4)) notDrawn.push(p.message);
+  if (codeProblems.length > 4) notDrawn.push(`${codeProblems.length - 4} more things in the codes, listed in the plan's checks.`);
   if (tooLong > 0) notDrawn.push(`${tooLong} ${tooLong === 1 ? "line has" : "lines have"} more than ${LIMITS.featurePoints} points and ${tooLong === 1 ? "wasn't" : "weren't"} drawn: split the string with a numbered code (MW1, MW2).`);
 
   // A road from two road-edge strings, when the plan has none and they make a plausible road.

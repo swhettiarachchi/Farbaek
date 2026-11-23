@@ -11,6 +11,7 @@ import { COLUMN_ORDERS, IMPORT_LIMITS, parseDelimited, previewDelimited, type Co
 import { IMPORT_FORMATS, detectFormat, printoutSource, unreadableFile, type ImportFormat } from "@/core/survey/import/detect";
 import { readPoints } from "@/core/survey/import/read";
 import { ADJUST_NAMES, type AdjustMethod } from "@/core/survey/adjust";
+import { GRAMMAR, type GrammarId } from "@/core/survey/grammar";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { importSurveyPointsAction, type SurveyFormState } from "@/app/app/survey/actions";
 import { DrawnSummary } from "@/components/survey/draw-from-points";
@@ -50,6 +51,7 @@ export function ImportPanel({
   crsId,
   crsName,
   codes,
+  grammar = "farbaek",
   planHasLots,
   known,
   readOnly,
@@ -58,6 +60,8 @@ export function ImportPanel({
   crsId: string;
   crsName: string;
   codes: CodeEntry[];
+  /** How the plan reads line codes (ADR 0243), so the preview draws lines as the draft will. */
+  grammar?: GrammarId;
   planHasLots: boolean;
   /** The project's points, which typed legs may start from or close on. */
   known: { pointId: string; e: number; n: number }[];
@@ -180,8 +184,8 @@ export function ImportPanel({
     if (points.length === 0) return null;
     const marks = points.filter((p) => isBoundaryMark(entryFor(library, p.code)));
     const road = roadEdges(points);
-    return { marks, outline: outlineFrom(marks), lines: suggestFeatures(points, library), road };
-  }, [points, library]);
+    return { marks, outline: outlineFrom(marks), lines: suggestFeatures(points, library, GRAMMAR[grammar]), road };
+  }, [points, library, grammar]);
   const codeCounts = useMemo(() => {
     const m = new Map<string, number>();
     for (const p of points) {

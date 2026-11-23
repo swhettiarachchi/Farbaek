@@ -12,6 +12,7 @@ import {
 import { useId, useState } from "react";
 import { formatDms, formatQuadrant, toDms } from "@/core/survey/angles";
 import { CODE_KINDS, LINE_STYLES, commonCodes, dsrCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
+import { GRAMMAR, GRAMMARS, type GrammarId } from "@/core/survey/grammar";
 import { runsText, titleSentence } from "@/core/survey/description";
 import { STANDARD_SCALES, lotName, type SurveyDocument } from "@/core/survey/document";
 import { roadWidth } from "@/core/survey/roads";
@@ -372,6 +373,12 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
 const KIND_LABELS: Record<CodeKind, string> = { mark: "Mark at a point", line: "Line through points", outline: "Closed outline", symbol: "Symbol" };
 const STYLE_LABELS: Record<LineStyle, string> = { solid: "Solid", dashed: "Dashed", ticked: "Ticked" };
 
+/** What each way of writing line words means, in a sentence. */
+const GRAMMAR_HINTS: Record<GrammarId, string> = {
+  farbaek: "A line runs while one point after another carries its code. END after the code ends it, and CLO closes it.",
+  carlson: "BEG begins a line and END ends it, so a line runs on through other points until it ends. CLO closes it, JPN 23 joins the point to point 23, and PC and PT mark an arc, drawn as straight segments for now.",
+};
+
 /** The code library: what each field code means and how it's drawn. */
 export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; update: Update; readOnly: boolean }) {
   const reviewed = doc.provenance["codes"]?.reviewed === true;
@@ -384,6 +391,18 @@ export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; upd
   return (
     <div className="grid gap-4 rounded-md bg-surface p-4 ring-1 ring-line">
       <p className="text-sm text-ink-2">Codes your instrument records with each point. The Reference on the plan lists only the codes it uses. The starting list is common Sri Lankan usage, not an official one.</p>
+      {/* How the crew writes the words after a code that begin, end or close a line (ADR 0243). */}
+      <label className="grid gap-1">
+        <span className="text-xs text-ink-3">How your crew writes line words</span>
+        <select value={doc.grammar ?? "farbaek"} disabled={readOnly} onChange={(e) => edit((d) => void (d.grammar = e.target.value as GrammarId))} className={inputClasses()}>
+          {GRAMMARS.map((g) => (
+            <option key={g} value={g}>
+              {GRAMMAR[g].name}
+            </option>
+          ))}
+        </select>
+        <span className="text-sm text-ink-3">{GRAMMAR_HINTS[doc.grammar ?? "farbaek"]}</span>
+      </label>
       <ul className="grid gap-3">
         {doc.codes.map((c, i) => (
           <li key={i} className="grid gap-2 border-t border-line pt-3 first:border-t-0 first:pt-0">

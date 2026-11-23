@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ADJUST_METHODS, ADJUST_NAMES } from "@/core/survey/adjust";
+import { grammarForLibrary } from "@/core/survey/grammar";
 import { autoDraft } from "@/core/survey/autodraft";
 import { START_LIMITS, gridProblem, pointClashes, readSurveyFile, startName, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
@@ -265,7 +266,9 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
     const lib = parseCodeLibrary(i.library.content);
     if (!lib.ok) return { status: "error", message: "One thing needs you before the plan can be drawn. Nothing was saved.", problems: [{ file: i.library.name, problem: lib.problem }] };
     const taken = libraryFor(lib.entries, all.map((p) => p.code ?? "").filter(Boolean));
-    document = { ...document, codes: taken.codes, provenance: { ...document.provenance, codes: { source: "engine", reviewed: false } } };
+    // A Carlson library (.fcl) brings Carlson's line words with it (ADR 0243); the plan's checks and Codes step say which are read.
+    const grammar = grammarForLibrary(i.library.name);
+    document = { ...document, codes: taken.codes, provenance: { ...document.provenance, codes: { source: "engine", reviewed: false } }, ...(grammar ? { grammar } : {}) };
   }
   const created = await surveyStore.createProject(g.w.admin, g.w.actor, { name: startName(i.title, reads[0]?.name ?? null, new Date()), planType: "cadastral", crsId: crs.id, confirm: true, document });
   if (!created.ok) return { status: "error", message: created.message, problems: [] };
