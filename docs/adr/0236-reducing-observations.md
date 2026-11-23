@@ -41,7 +41,7 @@ Leica GSI files are reduced by the same engine.
 
 ## What it doesn't do
 
-- **No traverse adjustment** (Bowditch, transit, least squares) and **no closure report** beyond the checks above. Those need the surveyor's choice of method.
+- ~~No traverse adjustment and no closure report.~~ Since stage 231 (ADR 0241), an SDR job's traverse closure is said, and adjusted by the compass or transit rule when the surveyor chooses one. Least squares isn't done.
 - **Topcon GTS-7 raw files and 11 records' heights** are not reduced. 11 records' heights are left out because what their vertical distance includes isn't given.
 - **Not tried on a real Sokkia job yet:** the tests are synthetic, laid out byte by byte from Sokkia's interface document. Whether a real SET650X job records F1 distances before or after the prism constant needs the surveyor's file. The import says which constant was recorded, and the backsight check shows a systematic error at once.
 

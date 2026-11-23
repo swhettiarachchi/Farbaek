@@ -30,13 +30,15 @@ import { codeProblem, guardFile, numberedLines, pointIdProblem } from "./common"
 import { IMPORT_LIMITS, readNumber, type ImportedPoint, type ImportIssue } from "./delimited";
 import { normaliseDegrees } from "../angles";
 import { CHECK_LIMIT_M, gap, reduceSetup, type ReducedPoint, type Setup, type Shot } from "./reduce";
+import { ADJUST_NAMES, type AdjustMethod } from "../adjust";
+import { COMPUTED_DERIVATIONS, CONTROL_DERIVATIONS, carriedShot, closeTraverse, type At, type ShotAt, type StationRecord, type TraverseClosure } from "./closure";
 
 export interface SdrRead {
   points: ImportedPoint[];
   issues: ImportIssue[];
   layout: "SDR2x" | "SDR33" | null;
-  /** How many points were computed from observations, and from how many stations: recorded with the import. */
-  reduced: { points: number; stations: number } | null;
+  /** How many points were computed from observations, from how many stations, and the traverse's closure: recorded with the import. */
+  reduced: { points: number; stations: number; traverse: TraverseClosure | null } | null;
 }
 
 /** Whether text is an SDR file: its first record is a 00 header naming SDR2x or SDR33. */
@@ -65,7 +67,8 @@ const ANGLE_UNITS: Record<string, { name: string; toDegrees: (v: number) => numb
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-export function parseSdr(text: string, crs: CrsRecord | null = null): SdrRead {
+/** `adjust` is the rule the surveyor chose to spread a traverse's misclosure by (ADR 0241); without one, nothing is adjusted. */
+export function parseSdr(text: string, crs: CrsRecord | null = null, adjust: AdjustMethod | null = null): SdrRead {
   const guard = guardFile(text, "This is a binary file, not an SDR text file. Export the job from the instrument or Sokkia's software as an SDR33 or CSV file.");
   if (guard) return { points: [], issues: [guard], layout: null, reduced: null };
   const records = numberedLines(text)
@@ -138,6 +141,22 @@ export function parseSdr(text: string, crs: CrsRecord | null = null): SdrRead {
   let shots: Shot[] = [];
   let targetHeight: number | null = null;
 
+  // Each occupied station at its first setup, and the station whose shot gave it its coordinates (ADR 0241): the traverse.
+  const stations = new Map<string, StationRecord>();
+  // Every shot reduced, per point, and each standing coordinate record's derivation (KI keyed, TP computed...): what's control.
+  const history = new Map<string, ShotAt[]>();
+  const derivation = new Map<string, { station: boolean; code: string }>();
+  /** A station at its first setup: control when keyed in or given as control, else linked to the earlier shot it came from. */
+  const noteStation = (id: string, at: At, line: number, record: string | null) => {
+    if (stations.has(id)) return;
+    const set = (from: string | null) => void stations.set(id, { e: at.e, n: at.n, line, from });
+    const kind = byName.has(id) ? derivation.get(id) : undefined;
+    if ((record !== null && CONTROL_DERIVATIONS.has(record)) || (kind && !kind.station && !COMPUTED_DERIVATIONS.has(kind.code))) return set(null);
+    const shot = computed.get(id);
+    if (shot && at === shot) return set(shot.from);
+    set(carriedShot(at, history.get(id), stations)?.from ?? null);
+  };
+
   const known = (id: string) => byName.get(id) ?? computed.get(id) ?? null;
   // A setup's shots are reduced when the next station is set up, or at the end: a traverse's next station comes from them.
   const flush = () => {
@@ -146,6 +165,9 @@ export function parseSdr(text: string, crs: CrsRecord | null = null): SdrRead {
       for (const p of r.problems) leftOut.push(`line ${p.line}: ${p.message}`);
       for (const s of r.spreads) spreads.push(`${s.pointId} (${s.spread.toFixed(3)} m)`);
       for (const p of r.points) {
+        const seen = history.get(p.pointId);
+        if (seen) seen.push({ e: p.e, n: p.n, line: p.line, from: p.from });
+        else history.set(p.pointId, [{ e: p.e, n: p.n, line: p.line, from: p.from }]);
         const before = computed.get(p.pointId);
         // Shot again from another station: a check, and the later shot stands, as the SDR's rule has it.
         if (before) checks.push({ pointId: p.pointId, d: gap(before, p), what: `the shots from stations ${before.from} and ${p.from}` });
@@ -253,11 +275,15 @@ export function parseSdr(text: string, crs: CrsRecord | null = null): SdrRead {
         const at = known(id);
         setup = at ? { line, station: id, e: at.e, n: at.n, z: at.z, instrumentHeight: hi, orientation: null, backsight: null } : null;
         lost = at ? null : id;
-        if (!at) lostStations.set(id, { line, said: false });
+        if (at) noteStation(id, at, line, null);
+        else lostStations.set(id, { line, said: false });
         continue;
       }
       lost = null;
-      if (n !== null && e !== null && (zCell === "" || z !== null)) setup = { line, station: id, e, n, z, instrumentHeight: hi, orientation: null, backsight: null };
+      if (n !== null && e !== null && (zCell === "" || z !== null)) {
+        setup = { line, station: id, e, n, z, instrumentHeight: hi, orientation: null, backsight: null };
+        noteStation(id, { e, n, line }, line, rec.slice(2, 4));
+      }
     }
     if (n === null || e === null || (zCell !== "" && z === null)) {
       issues.push({ code: "NOT_A_NUMBER", severity: "error", line, message: `Line ${line}, point ${id}: a coordinate isn't a plain number in its SDR field.` });
@@ -276,10 +302,12 @@ export function parseSdr(text: string, crs: CrsRecord | null = null): SdrRead {
       if (prior.e !== e || prior.n !== n || prior.z !== z || prior.code !== code) {
         issues.push({ code: "DUPLICATE_POINT_REPLACED", severity: "warning", line, message: `Line ${line}: point ${id} was stored again with different values. The SDR's rule is that the later record replaces the earlier one (line ${prior.line}), so line ${line} is used.` });
         byName.set(id, point);
+        derivation.set(id, { station: type === "02", code: rec.slice(2, 4) });
       }
       continue;
     }
     byName.set(id, point);
+    derivation.set(id, { station: type === "02", code: rec.slice(2, 4) });
     order.push(id);
   }
   flush();
@@ -294,9 +322,32 @@ export function parseSdr(text: string, crs: CrsRecord | null = null): SdrRead {
   if (order.length + fromShots.length > IMPORT_LIMITS.maxRows) {
     return { points: [], issues: [{ code: "TOO_MANY_ROWS", severity: "error", line: null, message: `The file holds more than ${IMPORT_LIMITS.maxRows} points; the limit is ${IMPORT_LIMITS.maxRows}.` }], layout, reduced: null };
   }
-  const given = order.map((id) => byName.get(id)!);
+  // The traverse that closes on a known point: its closure said, and adjusted only by the rule the surveyor chose (ADR 0241).
+  // Control: a station no earlier shot reached, or a record keyed in or given as control. Only control closes a traverse.
+  const control = new Map<string, At>();
+  for (const [id, g] of byName) {
+    const k = derivation.get(id)!;
+    if (k.station ? stations.get(id)?.from === null : CONTROL_DERIVATIONS.has(k.code)) control.set(id, g);
+  }
+  const traverse = closeTraverse(stations, control, history, adjust);
+  if (!traverse.ok) return { points: [], issues: [...issues, traverse.issue], layout, reduced: null };
+  const place = (p: ImportedPoint, from: string | null): ImportedPoint => {
+    const at = traverse.place(p.pointId, p, from);
+    return at === p ? p : { ...p, e: at.e, n: at.n };
+  };
+  // A record the instrument computed from a shot (TP, TV, MC) moves with the station it was shot from; anything else doesn't move.
+  const given = order.map((id) => {
+    const g = byName.get(id)!;
+    const k = derivation.get(id)!;
+    return place(g, !k.station && COMPUTED_DERIVATIONS.has(k.code) ? (carriedShot(g, history.get(id), stations)?.from ?? null) : null);
+  });
   // Worked-out points sit where they were shot, among the given ones; with none, the order is the file's as before.
-  const points: ImportedPoint[] = fromShots.length === 0 ? given : [...given, ...fromShots.map(({ line, pointId, e, n, z, code }) => ({ line, pointId, e, n, z, code }))].sort((a, b) => a.line - b.line);
+  const points: ImportedPoint[] = fromShots.length === 0 ? given : [...given, ...fromShots.map(({ line, pointId, e, n, z, code, from }) => {
+          // A station stands where its setup put it, which everything shot from it hangs on; later shots to it are checks.
+          const st = stations.get(pointId);
+          return place({ line, pointId, e: st ? st.e : e, n: st ? st.n : n, z, code }, from);
+        })].sort((a, b) => a.line - b.line);
+  const adjusted = traverse.closure?.adjusted ? ADJUST_NAMES[traverse.closure.adjusted.method] : null;
 
   // The stations the worked-out points came from: not one whose shots only checked points the file gives.
   const stationsUsed = new Set(fromShots.map((p) => p.from));
@@ -311,12 +362,16 @@ export function parseSdr(text: string, crs: CrsRecord | null = null): SdrRead {
       code: "OBSERVATIONS_REDUCED",
       severity: "warning",
       line: null,
-      message: `${plural(fromShots.length, "point was", "points were")} worked out from the instrument's observations, by radiation from ${plural(stationsUsed.size, "station", "stations")} (${[...stationsUsed].slice(0, 6).join(", ")}${stationsUsed.size > 6 ? " and more" : ""}), with nothing adjusted: ${angle?.name ?? "angles"}, ${scaleText}.${prismText ? ` The instrument's prism constant was ${prismText}, taken as already applied to the recorded distances.` : ""}${heights}`,
+      message: `${plural(fromShots.length, "point was", "points were")} worked out from the instrument's observations, by radiation from ${plural(stationsUsed.size, "station", "stations")} (${[...stationsUsed].slice(0, 6).join(", ")}${stationsUsed.size > 6 ? " and more" : ""})${adjusted ? `, then the traverse adjusted by ${adjusted}, as you chose` : ", with nothing adjusted"}: ${angle?.name ?? "angles"}, ${scaleText}.${prismText ? ` The instrument's prism constant was ${prismText}, taken as already applied to the recorded distances.` : ""}${heights}`,
     });
   }
-  const off = checks.filter((c) => c.d > CHECK_LIMIT_M);
-  const agree = checks.length - off.length;
-  for (const c of off.slice(0, 20)) issues.push({ code: "OBSERVATION_CHECK", severity: "warning", line: null, message: `Point ${c.pointId}: ${c.what} differ by ${c.d.toFixed(3)} m. Check the observations and coordinates: nothing was adjusted.` });
+  issues.push(...traverse.issues);
+  // The traverse's closing point is said with its closure, not again as a check.
+  const said = checks.filter((c) => c.pointId !== traverse.closesOn);
+  const off = said.filter((c) => c.d > CHECK_LIMIT_M);
+  const agree = said.length - off.length;
+  const asShot = adjusted ? "this compares them as shot, before the traverse was adjusted" : "nothing was adjusted";
+  for (const c of off.slice(0, 20)) issues.push({ code: "OBSERVATION_CHECK", severity: "warning", line: null, message: `Point ${c.pointId}: ${c.what} differ by ${c.d.toFixed(3)} m. Check the observations and coordinates: ${asShot}.` });
   if (off.length > 20) issues.push({ code: "OBSERVATION_CHECK", severity: "warning", line: null, message: `${off.length - 20} more points differ the same way.` });
   if (agree > 0) issues.push({ code: "OBSERVATION_CHECK", severity: "warning", line: null, message: `${plural(agree, "check agrees", "checks agree")} within ${CHECK_LIMIT_M * 100} cm: a point given in the file or shot twice, worked out the same.` });
   if (spreads.length > 0) issues.push({ code: "OBSERVATION_CHECK", severity: "warning", line: null, message: `Shots to the same point from one station differ by more than ${CHECK_LIMIT_M * 100} cm, and were averaged: ${spreads.slice(0, 8).join(", ")}${spreads.length > 8 ? " and more" : ""}.` });
@@ -337,5 +392,5 @@ export function parseSdr(text: string, crs: CrsRecord | null = null): SdrRead {
   }
   if (points.length === 0) return { points: [], issues: [...issues, { code: "NO_ROWS", severity: "error", line: null, message: "The SDR file has no coordinate records (08 or 02) and no observations." }], layout, reduced: null };
   if (skippedOther > 0) issues.push({ code: "RECORDS_LEFT_OUT", severity: "warning", line: null, message: `${skippedOther} RTK or latitude-longitude ${skippedOther === 1 ? "record was" : "records were"} left out: they aren't grid coordinates in the job's system.` });
-  return { points, issues, layout, reduced: fromShots.length > 0 ? { points: fromShots.length, stations: stationsUsed.size } : null };
+  return { points, issues, layout, reduced: fromShots.length > 0 || traverse.closure ? { points: fromShots.length, stations: stationsUsed.size, traverse: traverse.closure } : null };
 }

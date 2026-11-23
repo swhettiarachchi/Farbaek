@@ -65,7 +65,7 @@ Each is its own pull request, built and checked the same way:
 6. **Work in the background:** built in stage 229 (ADR 0239, schema v102): Generate Plan is a job with its real stages, shown on the project page after leaving and coming back; resuming a cut-off run waits for part 4.
 7. **More of the field-to-finish:**
    - observations reduced: SDR 09 and 11 built in stage 225, Leica GSI in stage 228 (ADR 0236), by radiation with nothing adjusted;
-   - traverse adjustment, only with the surveyor's choice of method;
+   - traverse closure and adjustment: built in stage 231 (ADR 0241) for a Sokkia SDR job, the closure always said, adjusted only by the compass or transit rule the surveyor chooses; least squares and a field book's legs aren't adjusted;
    - curve and join codes.
 8. **Labels placed like a cartographer would:** candidate positions scored and searched, lot labels at the point farthest from the edges, and what can't be placed reported rather than hidden. The DXF stays on Farbaek's own writer; Sinhala and Tamil get a measured test in the PDF and in CAD programs before they go on a sheet.
 9. **Three modes on one project:** built in stage 227 (ADR 0238): Express (the default), Professional (settings and diagnostics) and Manual CAD (editing geometry), as views of one project.

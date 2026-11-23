@@ -11,17 +11,19 @@ import { CRS_REGISTRY, LOCAL_CRS, crsById } from "@/core/survey/crs";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { LIBRARY_LIMITS, librarySummary, looksLikeCodeLibrary, parseCodeLibrary, type LibraryRead } from "@/core/survey/codelib";
 import { START_LIMITS, gridProblem, kindOfUpload, notReadYet, pointClashes, readSurveyFile, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
+import type { AdjustMethod } from "@/core/survey/adjust";
 import { IMPORT_LIMITS } from "@/core/survey/import/delimited";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { shrink } from "./photo";
+import { TraverseChoice } from "./traverse-choice";
 
 const CRS_OPTIONS = [...CRS_REGISTRY, LOCAL_CRS];
 
 /** One uploaded file and what Farbaek found in it, read here so the surveyor sees it at once. The server reads it all again. */
 type Upload =
-  | { key: string; name: string; size: number; kind: "survey-data"; content: string; read: FileRead | null; problem: string | null; encoding: string | null }
+  | { key: string; name: string; size: number; kind: "survey-data"; content: string; read: FileRead | null; problem: string | null; encoding: string | null; adjust: AdjustMethod | null }
   /** A field sketch, shrunk as it's added so a photo this device can't open is said at once, not after the plan exists. */
   | { key: string; name: string; size: number; kind: "sketch"; photo: Blob | null; problem: string | null }
   | { key: string; name: string; size: number; kind: "document"; reason: string }
@@ -107,7 +109,7 @@ export function AutoSurveyStart({
   const reread = (list: Upload[], chosen = crs): Upload[] =>
     list.map((u) => {
       if (u.kind !== "survey-data") return u;
-      const r = readSurveyFile(u.name, u.content, chosen);
+      const r = readSurveyFile(u.name, u.content, chosen, u.adjust);
       return r.ok ? { ...u, read: r.read, problem: null } : { ...u, read: null, problem: r.problem };
     });
 
@@ -134,7 +136,7 @@ export function AutoSurveyStart({
         continue;
       }
       if (file.size > IMPORT_LIMITS.maxBytes) {
-        added.push({ key, name: file.name, size: file.size, kind, content: "", read: null, problem: `This file is larger than ${IMPORT_LIMITS.maxBytes / 1024 / 1024} MB. Export only this survey's points.`, encoding: null });
+        added.push({ key, name: file.name, size: file.size, kind, content: "", read: null, problem: `This file is larger than ${IMPORT_LIMITS.maxBytes / 1024 / 1024} MB. Export only this survey's points.`, encoding: null, adjust: null });
         continue;
       }
       const { content, encoding } = await decode(file);
@@ -142,7 +144,7 @@ export function AutoSurveyStart({
         added.push({ key, name: file.name, size: file.size, kind: "code-library", content, read: file.size > LIBRARY_LIMITS.bytes ? { ok: false, problem: `This code library is larger than ${LIBRARY_LIMITS.bytes / 1_000} KB.` } : parseCodeLibrary(content) });
         continue;
       }
-      added.push({ key, name: file.name, size: file.size, kind, content, read: null, problem: null, encoding });
+      added.push({ key, name: file.name, size: file.size, kind, content, read: null, problem: null, encoding, adjust: null });
     }
     setUploads((now) => reread([...now, ...added].slice(0, START_LIMITS.files)));
   };
@@ -150,6 +152,12 @@ export function AutoSurveyStart({
   const remove = (key: string) => {
     setResult({ status: "idle" });
     setUploads((now) => now.filter((u) => u.key !== key));
+  };
+
+  // A traverse's rule, chosen for one file (ADR 0241): that file is read again with it, so what's shown is what Generate sends.
+  const chooseAdjust = (key: string, adjust: AdjustMethod | null) => {
+    setResult({ status: "idle" });
+    setUploads((now) => now.map((u) => (u.key === key && u.kind === "survey-data" ? reread([{ ...u, adjust }])[0]! : u)));
   };
 
   const chooseCrs = (id: string) => {
@@ -206,7 +214,7 @@ export function AutoSurveyStart({
     startTransition(async () => {
       setPhase("drawing");
       // A request the server refuses before the action runs (too large to carry) comes back as a thrown error: said, not lost.
-      const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content })), library: library ? { name: library.name, content: library.content } : null, sketches: reading ? sketches.filter((u) => u.photo).length : 0 }).catch(
+      const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content, adjust: u.adjust })), library: library ? { name: library.name, content: library.content } : null, sketches: reading ? sketches.filter((u) => u.photo).length : 0 }).catch(
         (): GenerateState => ({ status: "error", message: "The files couldn't be sent: they may be too large together. Generate from fewer files, then import the rest into the project.", problems: [] }),
       );
       if (r.status !== "done") {
@@ -311,14 +319,17 @@ export function AutoSurveyStart({
                 {/* How points were worked out from observations, and their checks: said, as the reader wrote them (ADR 0236). */}
                 {u.kind === "survey-data" && u.read?.reduction
                   ? u.read.notes
-                      .filter((n) => n.code === "OBSERVATIONS_REDUCED" || n.code === "OBSERVATION_CHECK" || n.code === "RECORDS_LEFT_OUT")
-                      .slice(0, 4)
+                      .filter((n) => n.code === "OBSERVATIONS_REDUCED" || n.code === "TRAVERSE_CLOSURE" || n.code === "OBSERVATION_CHECK" || n.code === "RECORDS_LEFT_OUT")
+                      .slice(0, 5)
                       .map((n, i) => (
                         <p key={i} className="text-sm text-ink-3">
                           {n.message}
                         </p>
                       ))
                   : null}
+                {/* A traverse that closes: kept as shot unless the surveyor chooses a rule (ADR 0241). Still offered when the chosen rule
+                    can't be used, so they can choose again. */}
+                {u.kind === "survey-data" && (u.adjust !== null || u.read?.reduction?.traverse) ? <TraverseChoice value={u.adjust} onChange={(m) => chooseAdjust(u.key, m)} disabled={pending || Boolean(drawn)} /> : null}
               </div>
               <button type="button" onClick={() => remove(u.key)} aria-label={`Remove ${u.name}`} className="tap -mr-1 inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-canvas-2 hover:text-ink">
                 <XIcon size={16} weight="bold" aria-hidden />

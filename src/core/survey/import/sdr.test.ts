@@ -90,7 +90,7 @@ describe("Sokkia SDR observations (stage 225, ADR 0236)", () => {
 
   it("works out each shot by radiation, a traverse station from the shots before it, and checks the backsight", () => {
     const r = parseSdr(job(), crsById("EPSG:5235"));
-    expect(r.reduced).toEqual({ points: 3, stations: 2 });
+    expect(r.reduced).toEqual({ points: 3, stations: 2, traverse: null });
     const at = (id: string) => r.points.find((p) => p.pointId === id)!;
     // Given in the file, so its coordinates stand; the shot to it is a check.
     expect([at("2").n, at("2").e]).toEqual([700100, 500000]);
@@ -188,7 +188,7 @@ describe("Sokkia SDR observations, after the stage 225 review", () => {
 
   it("counts only the stations worked-out points came from", () => {
     const r = parseSdr([header33("111111"), instr("1"), pos33("2", "1000", "1100", "0", "CP"), stn("1", "1000", "1000", "0", "1.5"), bkb("1", "2", "90", "0"), obs("F1", "1", "5", "10", "90", "0"), stn("2", "1000", "1100", "0", "1.5"), bkb("2", "1", "270", "0"), obs("F1", "2", "1", "100", "90", "0")].join("\n"), crsById("LOCAL"));
-    expect(r.reduced).toEqual({ points: 1, stations: 1 });
+    expect(r.reduced).toEqual({ points: 1, stations: 1, traverse: null });
   });
 
   it("stays quick on a large job", () => {

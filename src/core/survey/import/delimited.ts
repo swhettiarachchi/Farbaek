@@ -102,6 +102,10 @@ export type ImportIssueCode =
   | "OBSERVATION_CHECK"
   /** A field book's legs closing on a known point: the misclosure, never adjusted. */
   | "CLOSURE"
+  /** A total station job's traverse closing on a known point: its misclosure, and how it was adjusted when the surveyor chose a rule (ADR 0241). */
+  | "TRAVERSE_CLOSURE"
+  /** A rule chosen to adjust a traverse by that can't be used: nothing to adjust, or the rule doesn't apply (ADR 0241). */
+  | "TRAVERSE_NOT_ADJUSTED"
   /** Something in the file to check by eye: mixed GSI widths, an instrument display setting. */
   | "CHECK_FILE";
 

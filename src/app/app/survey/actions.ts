@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { ADJUST_METHODS, ADJUST_NAMES } from "@/core/survey/adjust";
 import { autoDraft } from "@/core/survey/autodraft";
 import { START_LIMITS, gridProblem, pointClashes, readSurveyFile, startName, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
@@ -98,6 +99,8 @@ const importInput = z.object({
   drawPlan: z.boolean().default(true),
   /** The code list to draw with: the project's, or the Survey Department's (DSR Chapter XXII) when the file uses its codes. */
   codeList: z.enum(["project", "dsr"]).default("project"),
+  /** The rule the surveyor chose to adjust the job's traverse by (ADR 0241); none keeps the points as shot. */
+  adjust: z.enum(ADJUST_METHODS).nullable().default(null),
 });
 
 /**
@@ -122,8 +125,11 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
   if (unreadable) return { status: "error", message: unreadable };
   // A field book's legs may start from or close on points already in the project: read them first.
   const known = i.format === "fieldbook" ? ((await loadSurveyProject(g.w.user, g.w.actor.orgId, i.projectId))?.points ?? []) : [];
-  const result = readPoints(i.format, i.content, { delimiter: i.delimiter as Delimiter, hasHeader: i.hasHeader, columns: i.columns as ColumnRole[], crs: crsById(crsId) ?? null, known });
+  const result = readPoints(i.format, i.content, { delimiter: i.delimiter as Delimiter, hasHeader: i.hasHeader, columns: i.columns as ColumnRole[], crs: crsById(crsId) ?? null, known, adjust: i.adjust });
   const errors = result.issues.filter((x) => x.severity === "error");
+  // A traverse rule that can't be used is said as itself, not as rows that can't be read (ADR 0241).
+  const refused = errors.find((x) => x.code === "TRAVERSE_NOT_ADJUSTED");
+  if (refused) return { status: "error", message: `Nothing was imported. ${refused.message}`, issues: result.issues.slice(0, 50) };
   if (errors.length > 0) return { status: "error", message: `${errors.length} ${errors.length === 1 ? "row" : "rows"} can't be read, so nothing was imported. Fix the file and try again.`, issues: result.issues.slice(0, 50) };
   if (result.points.length === 0) return { status: "error", message: "The file has no points to import.", issues: result.issues.slice(0, 50) };
   const r = await surveyStore.importPoints(g.w.admin, g.w.actor, {
@@ -139,7 +145,9 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
   const repeats = result.issues.filter((x) => x.code === "DUPLICATE_POINT_SAME" && x.line !== null).length;
   const imported = `Imported ${r.value.added} ${r.value.added === 1 ? "point" : "points"}${r.value.skipped ? `; ${r.value.skipped} already here, unchanged` : ""}${repeats ? `; ${repeats} exact ${repeats === 1 ? "repeat" : "repeats"} kept once` : ""}.`;
   // The plan draws itself from the points, when it has no lots yet. The import stands either way.
-  const drawing = i.drawPlan ? await drawFromPoints(g.w, i.projectId, `Drawn from ${i.fileName}`, i.codeList, result.surveyDate) : null;
+  // The rule a traverse was adjusted by goes in the version's note too (ADR 0241); the file name gives way, since a note holds 200 characters.
+  const ruled = result.reduction?.traverse?.adjusted ? `, the traverse adjusted by ${ADJUST_NAMES[result.reduction.traverse.adjusted.method]} as chosen` : "";
+  const drawing = i.drawPlan ? await drawFromPoints(g.w, i.projectId, `Drawn from ${i.fileName.slice(0, 200 - "Drawn from ".length - ruled.length)}${ruled}`, i.codeList, result.surveyDate) : null;
   revalidatePath(`/app/survey/${i.projectId}`);
   if (!drawing) return { status: "done", message: imported };
   if (!drawing.ok) return { status: "done", message: imported, drawError: `The plan wasn't drawn: ${drawing.message} The points are in; draw it again from the Draft step.` };
@@ -182,12 +190,26 @@ export async function drawPlanFromPointsAction(input: { projectId: string }): Pr
   return { status: "done", message: `The plan is drawn as version ${r.version}: check it, then approve.`, version: r.version, drawn: r.drawn, notDrawn: r.notDrawn };
 }
 
+/** The version note's word on a traverse the surveyor chose to adjust (ADR 0241), so the plan's history says how its points were made. */
+function adjustedNote(reads: readonly FileRead[]): string {
+  // The rules, not the file names: a version's note holds 200 characters.
+  const rules = [...new Set(reads.flatMap((r) => (r.reduction?.traverse?.adjusted ? [ADJUST_NAMES[r.reduction.traverse.adjusted.method]] : [])))];
+  return rules.length === 0 ? "" : `, the traverse adjusted by ${rules.join(" and ")} as chosen`;
+}
+
 const generateInput = z.object({
   title: z.string().max(200).default(""),
   /** The grid the start screen showed. Pressing Generate Plan is the surveyor confirming it: the project records who did. */
   crsId: z.string().max(40),
   files: z
-    .array(z.object({ name: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/), content: z.string().max(IMPORT_LIMITS.maxBytes) }))
+    .array(
+      z.object({
+        name: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/),
+        content: z.string().max(IMPORT_LIMITS.maxBytes),
+        /** The rule the surveyor chose for this file's traverse (ADR 0241); none keeps its points as shot. */
+        adjust: z.enum(ADJUST_METHODS).nullable().default(null),
+      }),
+    )
     .min(1)
     .max(START_LIMITS.files),
   /** How many sketch photos the screen will send for reading once the plan is drawn: the job shows that stage (ADR 0239). */
@@ -224,7 +246,7 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const contents: string[] = [];
   const problems: StartProblem[] = [];
   for (const f of i.files) {
-    const r = readSurveyFile(f.name, f.content, crs);
+    const r = readSurveyFile(f.name, f.content, crs, f.adjust);
     if (r.ok) {
       reads.push(r.read);
       contents.push(f.content);
@@ -269,7 +291,7 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const drawing = await drawFromPoints(
     g.w,
     projectId,
-    `Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}`,
+    `Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}${adjustedNote(reads)}`,
     // The Survey Department's list replaces only the common one: never an office library or the surveyor's own checked list.
     codesAreCommonList(document.codes) && drawsWithDsrList(all, document.codes) ? "dsr" : "project",
     statedSurveyDate(reads),
