@@ -58,7 +58,7 @@
 
 Each is its own pull request, built and checked the same way:
 
-2. **Only exceptions to review.** One "Needs you" list (must resolve, please confirm, for information) instead of ticking every drafted item. It changes what approval waits for, so it gets its own decision record.
+2. **Only exceptions to review:** built in stage 224 (ADR 0235). One "Needs you" list (must fix, for you to confirm, for information) instead of ticking every drafted item; only drawn items tested code doubts wait for a confirmation of their own.
 3. **The surveyor profile carries defaults:**
    - an office code library, imported from a Carlson-style CSV;
    - the coordinate system, title defaults and plan numbering, so a returning surveyor sets nothing twice.

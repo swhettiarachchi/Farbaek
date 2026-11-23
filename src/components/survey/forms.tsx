@@ -134,7 +134,7 @@ export function SurveyorProfileForm({ profile, disabledReason }: { profile: { fu
   );
 }
 
-export function ApproveForm({ projectId, version, disabledReason }: { projectId: string; version: number; disabledReason: string | null }) {
+export function ApproveForm({ projectId, version, disabledReason, confirms = [] }: { projectId: string; version: number; disabledReason: string | null; confirms?: readonly string[] }) {
   const [state, action, pending] = useActionState(approveSurveyAction, IDLE);
   return (
     <form action={action} className="grid gap-4">
@@ -142,7 +142,10 @@ export function ApproveForm({ projectId, version, disabledReason }: { projectId:
       <input type="hidden" name="version" value={version} />
       <label className="flex min-h-11 items-start gap-3 rounded-sm border border-line bg-canvas-2 p-3 text-sm text-ink">
         <input type="checkbox" name="confirm" value="yes" disabled={Boolean(disabledReason)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
-        <span>I reviewed version {version} of this plan, its points and its calculations. I understand that approving it in Farbaek records my review and is not a certification: I sign the printed plan.</span>
+        <span>
+          I reviewed version {version} of this plan, its points and its calculations
+          {confirms.length > 0 ? <>, including what Farbaek drew from my field data: {confirms.length === 1 ? confirms[0] : `${confirms.slice(0, -1).join(", ")} and ${confirms.at(-1)}`}</> : null}. I understand that approving it in Farbaek records my review and is not a certification: I sign the printed plan.
+        </span>
       </label>
       <Result state={state} />
       <div className="flex flex-wrap items-center gap-3">

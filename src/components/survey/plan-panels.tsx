@@ -126,9 +126,11 @@ const touched = (d: SurveyDocument, key: string) => {
 function CheckMark({ doc, field, update, readOnly }: { doc: SurveyDocument; field: string; update: Update; readOnly: boolean }) {
   const p = doc.provenance[field];
   if (!p || p.reviewed || p.source === "engine") return null;
+  // A date the field file states is confirmed by approving the plan (ADR 0235): said, not asked.
+  if (p.source === "auto") return <StatusBadge status="info" label="From the field data" />;
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : p.source === "auto" ? "Drawn from the field data, check" : "From your description, check"} />
+      <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : "From your description, check"} />
       <button type="button" disabled={readOnly} onClick={() => update((d) => touched(d, field))} className={buttonClasses("ghost", "sm")}>
         <CheckCircleIcon size={16} weight="bold" aria-hidden />
         Looks right

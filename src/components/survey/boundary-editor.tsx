@@ -52,13 +52,18 @@ interface RoadRow {
   end: string;
 }
 
-function Provenanced({ provenance, k, onAccept, readOnly }: { provenance: Provenance; k: string; onAccept: () => void; readOnly: boolean }) {
+/**
+ * Where an item came from, and whether it waits for the surveyor. A drawn item with nothing to doubt is confirmed by approving the plan
+ * (ADR 0235), so it's labelled without asking for a press; a doubtful one, or one the AI filled in, waits for "Looks right".
+ */
+function Provenanced({ provenance, k, onAccept, readOnly, doubtful }: { provenance: Provenance; k: string; onAccept: () => void; readOnly: boolean; doubtful: ReadonlySet<string> }) {
   const p = provenance[k];
   if (!p || p.source === "engine") return null;
   if (p.reviewed) return <StatusBadge status="done" label="Checked" />;
+  if (p.source === "auto" && !doubtful.has(k)) return <StatusBadge status="info" label="Drawn from the field data" />;
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : p.source === "auto" ? "Drawn from the field data, check" : "From your description, check"} />
+      <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : p.source === "auto" ? "Drawn from the field data, confirm" : "From your description, check"} />
       <button type="button" disabled={readOnly} onClick={onAccept} className={buttonClasses("ghost", "sm")}>
         <CheckCircleIcon size={16} weight="bold" aria-hidden />
         Looks right
@@ -67,7 +72,23 @@ function Provenanced({ provenance, k, onAccept, readOnly }: { provenance: Proven
   );
 }
 
-export function LotsEditor({ projectId, baseVersion, document, points, readOnly }: { projectId: string; baseVersion: number; document: SurveyDocument; points: SurveyPoint[]; readOnly: string | null }) {
+export function LotsEditor({
+  projectId,
+  baseVersion,
+  document,
+  points,
+  readOnly,
+  doubtful: doubts = [],
+}: {
+  projectId: string;
+  baseVersion: number;
+  document: SurveyDocument;
+  points: SurveyPoint[];
+  readOnly: string | null;
+  /** Drawn items tested code doubts (ADR 0235), by provenance key: only these ask for "Looks right". */
+  doubtful?: readonly string[];
+}) {
+  const doubtful = new Set(doubts);
   const router = useRouter();
   const ro = Boolean(readOnly);
   const byNumber = useMemo(() => new Map(points.map((p) => [p.pointId, p])), [points]);
@@ -157,7 +178,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
                     Lot {l.label || "?"}
                     {l.sup ? <sup>{l.sup}</sup> : null}
                   </p>
-                  <Provenanced provenance={provenance} k={`lot:${l.id}`} onAccept={() => reviewed(`lot:${l.id}`)} readOnly={ro} />
+                  <Provenanced provenance={provenance} k={`lot:${l.id}`} onAccept={() => reviewed(`lot:${l.id}`)} readOnly={ro} doubtful={doubtful} />
                 </div>
                 <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2 sm:grid-cols-[6rem_6rem_minmax(0,1fr)_auto]">
                   <label className="grid gap-1.5">
@@ -215,7 +236,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
               <li key={r.id} className="grid gap-3 rounded-md bg-surface p-4 ring-1 ring-line">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-medium text-ink">{r.name || "Road"}</p>
-                  <Provenanced provenance={provenance} k={`road:${r.id}`} onAccept={() => reviewed(`road:${r.id}`)} readOnly={ro} />
+                  <Provenanced provenance={provenance} k={`road:${r.id}`} onAccept={() => reviewed(`road:${r.id}`)} readOnly={ro} doubtful={doubtful} />
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <label className="grid gap-1.5">
@@ -273,7 +294,7 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
             const set = (patch: Partial<Adjoining>) => (setAdjoining((all) => all.map((x, j) => (j === i ? { ...x, ...patch } : x))), reviewed(`adjoining:${a.id}`));
             return (
               <li key={a.id} className="grid gap-3 rounded-md bg-surface p-4 ring-1 ring-line">
-                <Provenanced provenance={provenance} k={`adjoining:${a.id}`} onAccept={() => reviewed(`adjoining:${a.id}`)} readOnly={ro} />
+                <Provenanced provenance={provenance} k={`adjoining:${a.id}`} onAccept={() => reviewed(`adjoining:${a.id}`)} readOnly={ro} doubtful={doubtful} />
                 <label className="grid gap-1.5">
                   <span className={LABEL_CLASSES}>Text</span>
                   <input value={a.text} maxLength={200} disabled={ro} onChange={(e) => set({ text: e.target.value })} className={inputClasses()} />
@@ -357,14 +378,10 @@ export function LotsEditor({ projectId, baseVersion, document, points, readOnly 
         ) : null}
         {features.some((f) => provenance[`feature:${f.id}`]?.reviewed === false) ? (
           <div className="flex flex-wrap items-center gap-3 rounded-sm bg-canvas-2 p-3 ring-1 ring-line">
-            <StatusBadge status="approval" label="Drawn from the field data, check" />
+            <StatusBadge status="info" label="Drawn from the field data" />
             <span className="min-w-0 flex-1 text-sm text-ink-2">
-              {features.filter((f) => provenance[`feature:${f.id}`]?.reviewed === false).length} of these lines were joined from the field codes. Check them on the sheet, remove any that are wrong, then mark them checked.
+              {features.filter((f) => provenance[`feature:${f.id}`]?.reviewed === false).length} of these lines were joined from the field codes. Look at them on the sheet and remove any that are wrong: approving the plan confirms the rest.
             </span>
-            <button type="button" disabled={ro} onClick={() => setProvenance((p) => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, k.startsWith("feature:") ? { ...v, reviewed: true } : v])))} className={buttonClasses("ghost", "sm")}>
-              <CheckCircleIcon size={16} weight="bold" aria-hidden />
-              They look right
-            </button>
           </div>
         ) : null}
         {features.length > 0 ? (
