@@ -1,7 +1,7 @@
 /** Leica GSI (stage 194): lines from Leica's own manuals, and SYNTHETIC GSI-16 lines built to the same layout. */
 import { describe, expect, it } from "vitest";
 import { crsById } from "../crs";
-import { looksLikeGsi, parseGsi } from "./gsi";
+import { angleOf, looksLikeGsi, parseGsi } from "./gsi";
 
 const SLD99 = crsById("EPSG:5235")!;
 // GSI-16 words for a synthetic point: E 450012.345, N 700004.210, H 21.430, code CP.
@@ -36,10 +36,10 @@ describe("Leica GSI files", () => {
     expect(feet.issues[0]!.message).toBe("Line 1, point 7: the easting is in feet. Set the instrument's distance unit to metres and export again: Leica doesn't say which foot.");
   });
 
-  it("refuses raw observations with the reason, using Leica's own observation line", () => {
+  it("refuses raw observations with no station to work them out from, with the reason, using Leica's own observation line", () => {
     const r = parseGsi("110004+0OP-1343 21.002+29147250 22.002+10321850 31...0+00020025");
     expect(r.points).toEqual([]);
-    expect(r.issues[0]!.message).toMatch(/^This file holds raw observations \(angles and distances on 1 line\), not coordinates\./);
+    expect(r.issues.at(-1)!.message).toMatch(/^This file holds raw observations \(angles and distances on 1 line\), and none could be worked out into coordinates: line 1: no station is set up before it\./);
   });
 
   it("doesn't guess which point a code line belongs to", () => {
@@ -70,5 +70,49 @@ describe("Leica GSI files", () => {
     expect(looksLikeGsi("110001+0000A110 81..00+00005387 82..00-00000992")).toBe(true);
     expect(looksLikeGsi(gsi16("1", "450012345", "700004210", "21430"))).toBe(true);
     expect(looksLikeGsi("1,450012.345,700004.210,21.43,CP")).toBe(false);
+  });
+});
+
+describe("Leica GSI observations (stage 228, ADR 0236)", () => {
+  // GSI-16 words built to Leica's layout. Station 1 sits on SLD99's central meridian at height 0, where the grid scale factor is
+  // exactly k0, so expected coordinates are hand arithmetic. SYNTHETIC values.
+  const K0 = 0.9999238418;
+  const f = (wi: string, info: string, digits: string) => `${wi}${info}+${digits.padStart(16, "0")}`;
+  const id = (p: string) => f("11", "0001", p);
+  const job = [
+    `*${id("2")} ${f("81", "..00", "500000000")} ${f("82", "..00", "700100000")} ${f("83", "..00", "0")}`,
+    `*${id("1")} ${f("84", "..00", "500000000")} ${f("85", "..00", "700000000")} ${f("86", "..00", "0")} ${f("88", "..00", "1500")}`,
+    // Backsight to 2 (due north) read on the circle at 30°, angles only: it orients the circle.
+    `*${id("2")} ${f("21", ".003", "3000000")} ${f("22", ".003", "9000000")}`,
+    `*${id("10")} ${f("21", ".003", "12000000")} ${f("22", ".003", "9000000")} ${f("31", "..00", "50000")} ${f("87", "..00", "1600")} ${f("71", "....", "CP")}`,
+    `*${id("2")} ${f("21", ".003", "3000000")} ${f("22", ".003", "9000000")} ${f("31", "..00", "100000")}`,
+  ].join("\n");
+
+  it("reads Leica's own angle decodes: gons, and degrees packed as DDDMMSSs", () => {
+    expect(angleOf({ wi: "22", unit: "2", sign: "+", data: "07567500" })).toBeCloseTo(75.675 * 0.9, 12);
+    expect(angleOf({ wi: "21", unit: "4", sign: "+", data: "21857580" })).toBeCloseTo(218 + 57 / 60 + 58 / 3600, 12);
+    expect(angleOf({ wi: "21", unit: "3", sign: "+", data: "0000000012000000" })).toBe(120);
+    expect(angleOf({ wi: "21", unit: "4", sign: "+", data: "21877580" })).toBeNull();
+  });
+
+  it("orients each station by its first shot to a point the file gives, works out the rest, and checks the others", () => {
+    const r = parseGsi(job, SLD99);
+    expect(r.reduced).toEqual({ points: 1, stations: 1 });
+    const p10 = r.points.find((p) => p.pointId === "10")!;
+    expect(p10.e).toBeCloseTo(500_000 + 50 * K0, 9);
+    expect(p10.n).toBeCloseTo(700_000, 9);
+    expect(p10.z).toBeCloseTo(-0.1, 9);
+    expect(p10.code).toBe("CP");
+    const says = r.issues.map((i) => i.message);
+    expect(says).toContainEqual(expect.stringMatching(/^1 point was worked out from the instrument's observations, by radiation from 1 station \(1\), with nothing adjusted\. Each station's circle was oriented by its first shot to a point the file gives coordinates for;/));
+    // 100 m on the ground is 99.9924 m on the grid: the distance shot to 2 lands 7.6 mm short, within 2 cm.
+    expect(says).toContain("1 check agrees within 2 cm: a point given in the file or shot twice, worked out the same.");
+  });
+
+  it("works out nothing at a station with no shot to a known point, and says why", () => {
+    const blind = job.split("\n").filter((_, i) => i !== 0 && i !== 2 && i !== 4).join("\n");
+    const r = parseGsi(blind, SLD99);
+    expect(r.points.map((p) => p.pointId)).toEqual(["1"]);
+    expect(r.issues.find((i) => i.code === "RECORDS_LEFT_OUT")!.message).toBe("1 shot was left out: station 1 has no shot to a point the file gives coordinates for, so its circle can't be oriented (line 2).");
   });
 });

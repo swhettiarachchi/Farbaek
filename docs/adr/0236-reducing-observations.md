@@ -31,10 +31,18 @@ Differences over 2 cm are named point by point. Adjusting a traverse needs the s
 
 **Recorded with the import:** the raw observations stay in the stored source file byte for byte. Each worked-out point carries the line of the shot it came from. The source's settings record the engine (`reduce/1.0.0`) and how many points and stations. Shots that can't be worked out are listed by reason with their lines, never guessed.
 
+## Leica GSI (stage 228)
+
+Leica GSI files are reduced by the same engine.
+
+- **Stations:** a station line (words 84 to 86, instrument height 88) sets up a station, and later lines with 21 (circle), 22 (zenith angle) and 31 (slope distance, or 32 and 33) are its shots. Reflector height is word 87.
+- **Angle units:** from each word's unit digit: gons and decimal degrees with 5 decimals, degrees, minutes and seconds packed as DDDMMSSs, and mils. The test cases are Leica's own decodes.
+- **Orientation:** GSI doesn't say whether the instrument oriented its circle, so it is never assumed. Each station's orientation is worked out from its first shot (angles only is enough) to a point the file gives coordinates for. Every later shot to such a point is a check. A station with no such shot places nothing, and says so.
+
 ## What it doesn't do
 
 - **No traverse adjustment** (Bowditch, transit, least squares) and **no closure report** beyond the checks above. Those need the surveyor's choice of method.
-- **Leica GSI observations, Topcon GTS-7 raw files and 11 records' heights** are not reduced yet. 11 records' heights are left out because what their vertical distance includes isn't given. The engine is format-independent, so GSI can follow.
+- **Topcon GTS-7 raw files and 11 records' heights** are not reduced. 11 records' heights are left out because what their vertical distance includes isn't given.
 - **Not tried on a real Sokkia job yet:** the tests are synthetic, laid out byte by byte from Sokkia's interface document. Whether a real SET650X job records F1 distances before or after the prism constant needs the surveyor's file. The import says which constant was recorded, and the backsight check shows a systematic error at once.
 
 ## Consequences
