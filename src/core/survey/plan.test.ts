@@ -657,7 +657,7 @@ describe("near misses and the stated extent (stage 192, synthetic)", () => {
     d.sheet.statedExtent = "0 A. 2 R. 20 P.";
     const differ = checkSurvey({ points: SAMPLE_POINTS, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(SAMPLE_POINTS, d.lots), surveyorProfile: false }).find((f) => f.code === "STATED_EXTENT_DIFFERS")!;
     // 100 P = 2,529.29 m²; the difference is 10.35 P (261.88 m², 11.5%).
-    expect(differ.detail).toBe("Stated 2,529.29 m², computed 2,267.41 m²: the stated extent is 10.35 perches (11.5%) more.");
+    expect(differ.detail).toBe("Stated 2,529.29 m², computed 2,267.41 m²: the stated extent is 10.35 perches (11.5%) more. It comes to 100.00 perches, a round figure as a deed's extent usually is: it may be the title's extent, not this survey's.");
     expect(differ.blocks).toEqual([]);
     d.sheet.statedExtent = "about half an acre";
     expect(checkSurvey({ points: SAMPLE_POINTS, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(SAMPLE_POINTS, d.lots), surveyorProfile: false }).map((f) => f.code)).toContain("STATED_EXTENT_UNREAD");

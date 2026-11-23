@@ -7,7 +7,7 @@ import { codeBase, codeOf, lookupCode, type CodeEntry } from "../codes";
 import type { DrawingFeature } from "../document";
 import type { SketchLineStyle, SketchSymbolKind } from "./drawing";
 
-export const LINE_KINDS = ["wall", "fence", "drain", "road", "line"] as const;
+export const LINE_KINDS = ["wall", "fence", "drain", "road", "gate", "line"] as const;
 export type LineKind = (typeof LINE_KINDS)[number];
 
 export interface LineClass {
@@ -24,7 +24,9 @@ export interface LineClass {
 const WORDS: { kind: LineKind; re: RegExp; why: string }[] = [
   // A road's name: "Temple Mawatha", "2nd Lane", "Station Road", or a name run together with an abbreviated Mawatha ("templemw2").
   // "Mw." needs its own pattern: a word boundary can't follow the dot.
-  { kind: "road", re: /\b(road|rd|lane|mawatha|path|street|avenue|veediya|para)\b|[a-z]{3,}\s+mw\.?(?=\s|\d|$)|[a-z]{3,}mw\s?\d|පාර|මාවත|වීදිය|පටුමඟ/i, why: "it names a road" },
+  { kind: "road", re: /\b(road|rd|lane|mawatha|path|street|avenue|veediya|para)\b|[a-z]{3,}\s+mw\.?(?=\s|\d|$)|[a-z]{3,}mw\s?\d|(?:^|\s)(?:පාර|මාවත|වීදිය|පටු\s*මඟ)(?:\s|$)/i, why: "it names a road" },
+  // A gate is an opening in the boundary, between its two posts: part of the lot's side, never a road.
+  { kind: "gate", re: /\b(gate|gateway)\b|ගේට්ටු/i, why: "it names a gate, an opening in the boundary" },
   { kind: "drain", re: /\b(drain|canal|ela|ditch|culvert|gutter)\b|කාණු|ඇළ/i, why: "it names a drain" },
   { kind: "fence", re: /\b(fence|wire|barbed|hedge)\b|වැට/i, why: "it names a fence" },
   { kind: "wall", re: /\b(wall|parapet)\b|බිත්ති|තාප්ප/i, why: "it names a wall" },
@@ -58,7 +60,13 @@ export function classifyLine(label: string, style: SketchLineStyle, codes: reado
 }
 
 /** The drawing layer a kind of line goes on. */
-export const LAYER_OF: Record<LineKind, DrawingFeature["layer"]> = { wall: "WALLS", fence: "FENCES", drain: "DRAINS", road: "ROADS", line: "BUILDINGS" };
+export const LAYER_OF: Record<LineKind, DrawingFeature["layer"]> = { wall: "WALLS", fence: "FENCES", drain: "DRAINS", road: "ROADS", gate: "FENCES", line: "BUILDINGS" };
+
+/** Words that name each kind of symbol, in English and Sinhala: a well (ළිඳ), a tree (ගස), a post (කණුව), a gate (ගේට්ටුව). */
+const KIND_WORDS: Record<SketchSymbolKind, RegExp | null> = { well: /\bwell\b|ළිඳ/i, tree: /\btree\b|(?:^|\s)ගස(?:\s|$)/i, post: /\bpost\b|කණුව/i, gate: /\bgate\b|ගේට්ටු/i, other: null };
+
+/** Whether a symbol's label is a word for its kind ("well", "ළිඳ"). */
+export const namesKind = (kind: SketchSymbolKind, label: string) => Boolean(KIND_WORDS[kind]?.test(label));
 
 /**
  * The code list's entry for a symbol: by its label as a code, else the library's only symbol or mark whose meaning names the kind
@@ -67,20 +75,29 @@ export const LAYER_OF: Record<LineKind, DrawingFeature["layer"]> = { wall: "WALL
 export function symbolEntry(kind: SketchSymbolKind, label: string, codes: readonly CodeEntry[]): { entry: CodeEntry | null; fromLabel: boolean; candidates: CodeEntry[] } {
   const byLabel = label.trim() ? entryOf(label.trim(), codes) : null;
   if (byLabel && (byLabel.kind === "symbol" || byLabel.kind === "mark")) return { entry: byLabel, fromLabel: true, candidates: [byLabel] };
-  const word: Record<SketchSymbolKind, RegExp | null> = { well: /\bwell\b/i, tree: /\btree\b/i, post: /\bpost\b/i, gate: /\bgate\b/i, other: null };
+  const word = KIND_WORDS;
   const re = word[kind];
   const candidates = re ? codes.filter((c) => (c.kind === "symbol" || c.kind === "mark") && re.test(c.meaning)) : [];
   return { entry: candidates.length === 1 ? candidates[0]! : null, fromLabel: false, candidates };
 }
 
-export type AreaKind = "building" | "lot" | "land";
+export type AreaKind = "building" | "lot" | "road" | "land";
 
-/** What a labelled area is: a building (P, house), a lot (its letter, or "lot X"), or someone's land (any other writing). */
+/** A road's name written in an area: English, an abbreviated Mawatha, or Sinhala (පාර, මාවත, වීදිය, පටු මඟ). */
+const ROAD_NAME = /(?:^|\s)(?:road|rd|lane|mawatha|street|avenue|veediya|para|path|mw)\.?(?:\s+(?:no\.?\s*)?\d+[a-z]?)?$|(?:^|\s)(?:පාර|මාවත|වීදිය|පටු\s*මඟ)(?:\s+\d+)?$/i;
+/** Writing about someone's land or a lot, which may name the road beside it: never a road's name. */
+const LAND_WORDS = /^(?:land|lands|property|premises|lot)\b|\b(?:land of|claimed by|owned by|property of)\b|ඉඩම/i;
+
+/** Whether writing is a road's name: it ends in a road word (Temple Road, 2nd Lane, පන්සල පාර), and isn't about someone's land. */
+export const isRoadName = (text: string) => ROAD_NAME.test(text.trim()) && !LAND_WORDS.test(text.trim());
+
+/** What a labelled area is: a building (P, house), a lot (its letter, or "lot X"), a road (its name), or someone's land (any other writing). */
 export function classifyArea(label: string, codes: readonly CodeEntry[]): { kind: AreaKind; name: string; code: CodeEntry | null; why: string } {
   const t = label.trim();
   const entry = entryOf(t, codes);
   if (entry && entry.kind === "outline") return { kind: "building", name: t, code: entry, why: `${t} is the code list's ${entry.meaning.toLowerCase()}` };
   if (/\b(house|building|bldg|shop|shed)\b|ගෙය|නිවස|ගොඩනැගිල්ල/i.test(t)) return { kind: "building", name: t, code: null, why: "it names a building" };
+  if (isRoadName(t)) return { kind: "road", name: t, code: null, why: "it names a road" };
   // "Lot 12", "lot 3A", "Lot B": a lot by name. A single letter ("B") is a lot too, even where it's also a mark's or symbol's code: only
   // an outline's code (P, a building) is read as the outline, above. A longer code (MW, CP2) written in an area isn't a lot's name.
   const named = /^lot\s+(\d{1,4}[A-Z]?|[A-Z]{1,2}\d{0,3})$/i.exec(t);

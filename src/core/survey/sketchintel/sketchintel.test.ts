@@ -141,7 +141,7 @@ describe("the sketch's drawing, joined to the surveyed points", () => {
   it("never invents a position: every proposal's points are the survey's own", () => {
     const surveyed = new Set(SYNTH_POINTS.map((p) => p.id));
     for (const p of run().proposals) {
-      const pts = p.kind === "lot" ? [...p.corners, ...p.onSides] : p.kind === "symbol" ? [p.point] : p.points;
+      const pts = p.kind === "lot" ? [...p.corners, ...p.onSides] : p.kind === "symbol" ? [p.point] : p.kind === "road" ? [...p.edgeA, ...p.edgeB] : p.points;
       for (const x of pts) expect(surveyed.has(x.id)).toBe(true);
     }
     // And the reader's answer has no place for a number other than which photo it's on.
