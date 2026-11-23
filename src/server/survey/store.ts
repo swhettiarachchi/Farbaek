@@ -74,5 +74,8 @@ export const surveyStore = {
   jobStart: (admin: SupabaseClient, a: Actor, i: { projectId: string; stages: unknown }) => rpc(admin, "app_survey_job_start", { p_org: a.orgId, p_actor: a.userId, p_project: i.projectId, p_kind: "generate", p_stages: i.stages }, z.string().uuid()),
   jobUpdate: (admin: SupabaseClient, orgId: string, i: { jobId: string; stages: unknown; state: "running" | "done" | "failed" | "interrupted"; result: unknown }) =>
     rpc(admin, "app_survey_job_update", { p_org: orgId, p_job: i.jobId, p_stages: i.stages, p_state: i.state, p_result: i.result }, z.unknown()),
+  /** One read's sketch photos, kept with the project (v103, ADR 0240). */
+  keepSketches: (admin: SupabaseClient, a: Actor, i: { projectId: string; readAt: string; photos: { name: string; mime: string; sha256: string; content: string }[] }) =>
+    rpc(admin, "app_survey_keep_sketches", { p_org: a.orgId, p_actor: a.userId, p_project: i.projectId, p_read_at: i.readAt, p_photos: i.photos }, z.number().int()),
   archive: (admin: SupabaseClient, a: Actor, projectId: string) => rpc(admin, "app_survey_archive_project", { p_org: a.orgId, p_actor: a.userId, p_project: projectId }, z.unknown()),
 };

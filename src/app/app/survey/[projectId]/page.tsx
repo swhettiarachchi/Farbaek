@@ -51,6 +51,7 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
 import { isoDate, personName, planInputFor } from "@/server/survey/present";
 import { loadLatestJob } from "@/server/survey/jobs";
+import { loadSketchPhotos } from "@/server/survey/sketch-photos";
 import { loadAssistantHistory, loadSurveyDrawing, loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { SAMPLE_PROJECT_ID, sampleProject } from "@/server/survey/sample";
 import { loadAppContext } from "@/server/workspace/context";
@@ -147,6 +148,8 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   const now = new Date();
   const jobClient = !sample && ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const job = jobClient ? await loadLatestJob(jobClient, projectId) : null;
+  // The photos the current readings came from (ADR 0240), for the Draft step's sketch card.
+  const sketchPhotos = step === "draft" && jobClient && doc.sketch ? await loadSketchPhotos(jobClient, projectId, doc.sketch.readAt) : [];
   // Exported means the approved sheet went out: a PDF or DXF of this version made after its approval, not a points list or a draft.
   const exported = Boolean(approval) && data.exports.some((e) => e.drawing_version === data.drawing.version && (e.kind === "pdf" || e.kind === "dxf") && approval !== null && e.created_at >= approval.approved_at);
   const status = planStatus({ drawn, findings: view.findings, approved: Boolean(approval), exported });
@@ -291,6 +294,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           checks={doc.sketch && crs && data.project.crsConfirmedAt ? checkSketch(doc.sketch, data.points, crs) : null}
           readOff={aiOff(readAi)}
           aiCost={draftCost}
+          photos={sketchPhotos}
         />
       ) : null}
 

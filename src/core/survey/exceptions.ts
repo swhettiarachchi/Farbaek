@@ -16,7 +16,7 @@ import { roadWidth } from "./roads";
 export const ROAD_WIDTH_DOUBT_M = 0.5;
 
 /** The project's steps an exception can send the surveyor to. */
-export type ExceptionStep = "import" | "points" | "boundary" | "plan" | "settings";
+export type ExceptionStep = "import" | "points" | "draft" | "boundary" | "plan" | "settings";
 
 const listed = (ids: readonly string[]) => (ids.length <= 6 ? ids.join(", ") : `${ids.slice(0, 5).join(", ")} and ${ids.length - 5} more`);
 
@@ -149,6 +149,8 @@ const holdsText = (blocks: Finding["blocks"]) => (blocks.length > 0 ? `Holds ${b
 function stepFor(f: Finding): ExceptionStep | null {
   if (f.code.startsWith("CRS_") || f.code === "AXES_LOOK_SWAPPED") return "settings";
   if (f.code === "NO_POINTS") return "import";
+  // A sketch's reading is seen beside its photo on the Draft step (ADR 0240).
+  if (f.code.startsWith("SKETCH_")) return "draft";
   if (f.target.kind === "point" || f.code.startsWith("POINTS_")) return "points";
   if (f.target.kind === "lot" || f.target.kind === "boundary" || f.target.kind === "leg" || f.target.kind === "feature" || f.target.kind === "road") return "boundary";
   if (f.target.kind === "field" || f.target.kind === "sheet") return "plan";

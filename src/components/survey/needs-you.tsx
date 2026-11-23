@@ -12,7 +12,7 @@ import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { ConfirmItem } from "./confirm-item";
 import { KeepAsSurveyed } from "./keep-as-surveyed";
 
-const STEP_NAMES: Record<ExceptionStep, string> = { import: "Import", points: "Points", boundary: "Lots", plan: "Plan", settings: "Settings" };
+const STEP_NAMES: Record<ExceptionStep, string> = { import: "Import", points: "Points", draft: "Draft", boundary: "Lots", plan: "Plan", settings: "Settings" };
 
 const BADGE: Record<SurveyException["group"], { status: Status; label: string }> = {
   fix: { status: "blocked", label: "Must fix" },
@@ -65,7 +65,7 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
         {e.keep ? <KeepAsSurveyed projectId={projectId} baseVersion={baseVersion} keyId={e.keep.key} kept={e.keep.kept} readOnly={readOnly} /> : null}
         {e.step && e.step !== "plan" ? (
           <Link href={`${base}?step=${e.step}`} className="inline-flex min-h-10 items-center text-sm font-medium text-accent underline-offset-2 hover:underline">
-            {e.group === "fix" ? "Fix it" : e.confirm ? "Correct it" : "Open"} on the {STEP_NAMES[e.step]} step
+            {e.code.startsWith("SKETCH_") ? "See the sketch" : e.group === "fix" ? "Fix it" : e.confirm ? "Correct it" : "Open"} on the {STEP_NAMES[e.step]} step
           </Link>
         ) : null}
       </div>

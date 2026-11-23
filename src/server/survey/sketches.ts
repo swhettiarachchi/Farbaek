@@ -2,7 +2,8 @@
  * Reading field sketches (stage 223, ADR 0234), metered like "Read an old plan" (survey_read, free while Survey Studio is tested):
  * usage is reserved first and given back if the call fails or Farbaek's own checks fail. What comes back is kept only as `acceptSketch`
  * passes it, as written; the plan's checks compare it with the coordinates at display time, so nothing here moves or adds a point.
- * The photos are sent to the provider and never stored. One audit event records the run, with counts only.
+ * The photos are sent to the provider to be read; once the readings are saved, the action keeps the photos read with the plan
+ * (ADR 0240), replacing an earlier read's. One audit event records the run, with counts only.
  */
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { SKETCH_LIMITS, acceptSketch, sketchRecordSchema, type SketchRecord } from "@/core/survey/autosurvey/sketch";

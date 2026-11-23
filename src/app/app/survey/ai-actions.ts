@@ -5,6 +5,7 @@
  * to review, built on the latest saved version; neither saves anything. The
  * surveyor keeps it by saving it as a new version, which checks it again.
  */
+import { createHash } from "node:crypto";
 import type Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -124,7 +125,7 @@ export type SketchReadState = { status: "idle" } | { status: "error"; message: s
 /**
  * AutoSurvey's sketch reading (stage 223, ADR 0234): Claude reads photos of the surveyor's field sketches into readings, as written,
  * saved with the plan as a new version. The plan's checks then compare each measurement with the coordinates. The photos go to
- * Anthropic only with the surveyor's say-so on this request, and Farbaek doesn't keep them.
+ * Anthropic only with the surveyor's say-so on this request. Farbaek keeps them with the project (ADR 0240), within its limits.
  */
 export async function readSketchesAction(form: FormData): Promise<SketchReadState> {
   const r = await readSketches(form);
@@ -162,7 +163,11 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     const data = Buffer.from(await f.arrayBuffer());
     const mediaType = imageTypeOf(data);
     if (!mediaType) return { status: "error", message: "Use sketch photos or scans saved as JPEG, PNG or WebP." };
-    images.push({ name: sketchFileName(f.name, n), mediaType, data });
+    // Each photo's name is its own: a phone camera names every shot "image.jpg", and a reading opens its photo by name.
+    const base = sketchFileName(f.name, n);
+    let name = base;
+    for (let k = 2; images.some((im) => im.name === name); k++) name = `${base.slice(0, 190)} (${k})`;
+    images.push({ name, mediaType, data });
   }
   const p = await prepare(projectId, baseVersion, "Reading field sketches", "read");
   if ("error" in p) return { status: "error", message: p.error };
@@ -201,7 +206,13 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     await end("failed", `Read, but not saved: ${saved.message}`);
     return { status: "error", message: `The sketches were read, but the readings couldn't be saved: ${saved.message}` };
   }
-  await end("done", `${record.readings.length} things read, saved as version ${saved.value}.`);
+  // The photos read, kept with the plan so each reading can be seen beside its evidence (ADR 0240). Keeping them never undoes the
+  // reading: if they can't be kept (the v103 migration not applied, the project's 50 MB used), the readings stand and that is said.
+  const kept = await surveyStore
+    .keepSketches(p.admin, actor, { projectId, readAt: record.readAt, photos: images.map((im) => ({ name: im.name, mime: im.mediaType, sha256: createHash("sha256").update(im.data).digest("hex"), content: im.data.toString("base64") })) })
+    .catch(() => null);
+  const keptNote = kept?.ok ? "" : " The photos couldn't be kept with the plan, so they aren't shown beside the readings.";
+  await end("done", `${record.readings.length} things read, saved as version ${saved.value}.${keptNote}`);
   revalidatePath(`/app/survey/${projectId}`);
-  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length };
+  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length };
 }

@@ -28,7 +28,8 @@ union all select 'v98 chat workspace', to_regclass('public.chat_conversations') 
 union all select 'v99 chat search index', to_regclass('public.chat_messages_owner_idx') is not null
 union all select 'v100 creative studios', to_regclass('public.studio_media') is not null
 union all select 'v101 chat memory', to_regclass('public.chat_memories') is not null and to_regclass('public.chat_summaries') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_chat_for_share' and prosrc like '%''search''%')
-union all select 'v102 survey jobs', to_regclass('public.survey_jobs') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_survey_job_update');
+union all select 'v102 survey jobs', to_regclass('public.survey_jobs') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_survey_job_update')
+union all select 'v103 survey sketch photos', to_regclass('public.survey_sketch_photos') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_survey_keep_sketches');
 rollback;
 SQL
 '@

@@ -414,7 +414,7 @@ export function AutoSurveyStart({
             <input type="checkbox" checked={consent} disabled={pending || Boolean(drawn)} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
             <span className="grid gap-1">
               <span>
-                Read my {readable === 1 ? "sketch" : readable > 1 ? `${readable} sketches` : "sketches"} with Claude. {readable === 1 ? "The photo goes" : "The photos go"} to Anthropic, outside Sri Lanka, to be read, and Farbaek doesn&apos;t keep them.
+                Read my {readable === 1 ? "sketch" : readable > 1 ? `${readable} sketches` : "sketches"} with Claude. {readable === 1 ? "The photo goes" : "The photos go"} to Anthropic, outside Sri Lanka, to be read. When something is read, Farbaek keeps the photos with this plan, so your team can see what each reading came from, until they&apos;re read again or the workspace is deleted.
               </span>
               <span className="text-ink-3">Claude writes down what&apos;s written, as written. Farbaek&apos;s own checks compare every measurement with your survey data, and the plan shows only what differs. {aiCost}</span>
             </span>
