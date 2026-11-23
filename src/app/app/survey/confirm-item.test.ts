@@ -49,7 +49,7 @@ vi.mock("@/server/survey/read", () => ({
   }),
 }));
 
-const { confirmSurveyItemAction } = await import("./actions");
+const { confirmSurveyItemAction, removeSurveySymbolAction } = await import("./actions");
 
 const PROJECT = "11111111-1111-4111-8111-111111111111";
 const doc = (): SurveyDocument => ({
@@ -94,6 +94,26 @@ describe("confirming an item on the surveyor's list", () => {
       expect(await confirmSurveyItemAction({ projectId: PROJECT, baseVersion: 3, key, confirmed: true })).toMatchObject({ status: "error" });
     }
     expect(await confirmSurveyItemAction({ projectId: PROJECT, baseVersion: 2, key: "lot:lot-1", confirmed: true })).toMatchObject({ status: "error" });
+    expect(saved).toEqual([]);
+  });
+});
+
+describe("removing a symbol the sketch put on the plan", () => {
+  const withWell = (): SurveyDocument => ({ ...doc(), symbols: [{ id: "sk-s-abc", code: "Well", point: POINTS[2]!.id }], provenance: { ...doc().provenance, "symbol:sk-s-abc": { source: "ai_photo", reviewed: false } } });
+
+  it("takes it off as a new version, with its mark, and leaves the plan with no symbols listed as before any were added", async () => {
+    stored.document = withWell();
+    expect(await removeSurveySymbolAction({ projectId: PROJECT, baseVersion: 3, key: "symbol:sk-s-abc" })).toMatchObject({ status: "done", version: 4 });
+    expect(saved[0]!.note).toBe("Removed: A well read from the sketch");
+    expect("symbols" in savedDoc()).toBe(false);
+    expect(savedDoc().provenance["symbol:sk-s-abc"]).toBeUndefined();
+    expect(savedDoc().lots).toEqual(doc().lots);
+  });
+
+  it("refuses anything but a symbol on the plan, and a stale version", async () => {
+    stored.document = withWell();
+    for (const key of ["lot:lot-1", "symbol:gone", "symbol:<x>", "sheet.landName"]) expect(await removeSurveySymbolAction({ projectId: PROJECT, baseVersion: 3, key })).toMatchObject({ status: "error" });
+    expect(await removeSurveySymbolAction({ projectId: PROJECT, baseVersion: 2, key: "symbol:sk-s-abc" })).toMatchObject({ status: "error" });
     expect(saved).toEqual([]);
   });
 });

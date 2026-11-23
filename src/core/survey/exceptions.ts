@@ -11,6 +11,7 @@ import { lotName, provenanceLive, unreviewed, type SurveyDocument } from "./docu
 import type { SurveyPoint } from "./parcel";
 import type { Finding } from "./qc";
 import { roadWidth } from "./roads";
+import { interpretDocument, sketchEvidence } from "./sketchintel/findings";
 
 /** A road whose surveyed edges are further apart in one place than another by more than this may have an edge point on the wrong side. */
 export const ROAD_WIDTH_DOUBT_M = 0.5;
@@ -36,7 +37,15 @@ export function itemOf(doc: SurveyDocument, key: string): { label: string; step:
   if (kind === "feature") {
     const f = doc.features.find((x) => x.id === id);
     const meaning = f ? lookupCode(doc.codes, f.code)?.meaning : undefined;
-    return { label: meaning ? `A ${meaning.toLowerCase()} line joined from the field codes` : "A line joined from the field codes", step: "boundary" };
+    // Read from the sketch's drawing (ADR 0249), or joined from the field codes.
+    const how = id.startsWith("sk-") ? "read from the sketch" : "joined from the field codes";
+    const what = meaning ? meaning.toLowerCase() : f && f.layer !== "BUILDINGS" ? LAYER_WORDS[f.layer] : "";
+    return { label: what ? `A ${what} line ${how}` : `A line ${how}`, step: "boundary" };
+  }
+  if (kind === "symbol") {
+    const s = (doc.symbols ?? []).find((x) => x.id === id);
+    const meaning = s ? lookupCode(doc.codes, s.code)?.meaning : undefined;
+    return { label: `${meaning ? `A ${meaning.toLowerCase()}` : "A symbol"} ${id.startsWith("sk-") ? "read from the sketch" : "on the plan"}`, step: "plan" };
   }
   if (key === "notes") return { label: "The notes", step: "plan" };
   if (key === "codes") return { label: "The code list", step: "plan" };
@@ -161,6 +170,9 @@ const groupOf = (f: Finding): ExceptionGroup => (f.blocks.includes("export") || 
 
 const SOURCE_WORDS: Record<string, string> = { ai_brief: "from your description", ai_photo: "from a photo", ai_assist: "by the assistant" };
 
+/** What a line on a layer is, in words, when its code doesn't say. */
+const LAYER_WORDS: Record<string, string> = { WALLS: "wall", FENCES: "fence", DRAINS: "drain", ROADS: "road edge", UTILITIES: "utility" };
+
 /**
  * The checks' findings as the surveyor's list: the two "items to check" findings are opened up into one entry per item that needs a
  * confirmation, each with its own Confirm; the rest keep their words and gain what they hold back and where they're corrected.
@@ -171,19 +183,25 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
   const context = doubtContext(findings);
   for (const [n, f] of findings.entries()) {
     if (f.code === "AI_ITEMS_UNREVIEWED") {
+      // Items read from the sketch's drawing show the evidence they rest on (ADR 0249): the lines, the matches, the coordinates' fit.
+      const sketch = interpretDocument(doc, points);
       for (const key of pending.filter((k) => doc.provenance[k]?.source !== "auto")) {
         const it = itemOf(doc, key);
+        const ev = sketchEvidence(sketch, key);
+        // What the sketch shows for it, then any open question confirming it answers.
+        const shown = ev ? [...ev.evidence, ...(ev.questions.length > 0 ? ["Open:", ...ev.questions] : [])].join(" ") : "";
         out.confirm.push({
           id: `confirm:${key}`,
           code: f.code,
           group: "confirm",
           severity: f.severity,
-          title: `${it.label}: filled in ${SOURCE_WORDS[doc.provenance[key]!.source] ?? "for you"}, not confirmed yet.`,
+          title: ev ? `${it.label}, not confirmed yet.` : `${it.label}: filled in ${SOURCE_WORDS[doc.provenance[key]!.source] ?? "for you"}, not confirmed yet.`,
           holds: holdsText(f.blocks),
           // The title already names it.
           item: null,
-          evidence: null,
-          next: `Confirm it if it's right, or correct it on the ${it.step === "boundary" ? "Lots" : "Plan"} step.`,
+          evidence: ev ? `${ev.level === "strong" ? "The sketch and the survey agree" : "Check this one"}: ${shown}` : null,
+          // A symbol has no editor of its own: its card removes it.
+          next: key.startsWith("symbol:") ? "Confirm it if it's right, or remove it." : `Confirm it if it's right, or correct it on the ${it.step === "boundary" ? "Lots" : "Plan"} step.`,
           step: it.step,
           confirm: key,
           keep: null,

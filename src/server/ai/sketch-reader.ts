@@ -6,7 +6,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { SketchOutputSchema, type SketchOutput } from "@/core/survey/autosurvey/sketch";
+import { SketchReadSchema, type SketchReadOutput } from "@/core/survey/autosurvey/sketch";
 import type { DraftFailure, ProviderUsage } from "./contract-drafter";
 
 export const SKETCH_READ_PROMPT = `You read photos of a licensed land surveyor's own field sketches from a survey in Sri Lanka, so Farbaek can check what is written on them against the instrument's data. You get one to six images, and JSON naming each image's file.
@@ -17,6 +17,12 @@ For every point number, distance, bearing and label you can read for certain, ad
 - from and to: for a distance or bearing written along a line, the point numbers written at that line's two ends, exactly as written. Leave both empty when the line's ends aren't numbered.
 - near: for anything else, the point number written nearest to it, or empty.
 - image: which photo it's on, counting from 0 in the order given.
+
+Then read the drawing itself, which tells Farbaek which surveyed points are joined and what each line is:
+- lines: every line drawn between numbered points. List the point numbers written along it in order from one end to the other, at least its two ends, and every number written where the line passes a point. Give the writing along or beside it exactly as written (MW, fence, drain, a road's name, an owner's name), and how it is drawn: single, double (two parallel lines, as walls are drawn), dashed, hatched (short marks across it), crossed (x marks along it), curved. A line that turns at a numbered point and carries on is one line through that point. Set closes when it comes back to its first point, and certain only when every number and the line between them are clearly drawn and read.
+- symbols: wells, trees, posts and gates drawn at points, with the point number written at or inside each, or empty.
+- areas: writing inside an area (a lot's letter, P, house, a building's or an owner's name), with the numbered points at its corners in order, as far as the drawing shows them.
+A line whose end has no number can't be used: leave it out. Never estimate a length, an angle or a position from the drawing: Farbaek takes every position from the instrument's data, and only needs to know which numbered points the sketch joins.
 
 If you can see writing but can't read every character of it for certain, don't add it as a reading: describe it in a few words in "unreadable" instead. A wrong number is worse than a missing one.
 Never invent a point number, measurement, name or owner, and never read printed text from a form or background as the surveyor's writing.
@@ -29,7 +35,7 @@ export interface SketchImage {
   data: Buffer;
 }
 
-export type SketchReadOutcome = { ok: true; output: SketchOutput; usage: ProviderUsage } | { ok: false; failure: DraftFailure; usage: ProviderUsage | null };
+export type SketchReadOutcome = { ok: true; output: SketchReadOutput; usage: ProviderUsage } | { ok: false; failure: DraftFailure; usage: ProviderUsage | null };
 
 export interface SketchReader {
   readonly model: string;
@@ -37,7 +43,8 @@ export interface SketchReader {
   read(images: readonly SketchImage[], signal?: AbortSignal): Promise<SketchReadOutcome>;
 }
 
-export const SKETCH_READ_MAX_OUTPUT_TOKENS = 16_000;
+/** The answer's limit, with the model's thinking counted in it: a sketch's lines can run long, and the read streams, so no timeout bites. */
+export const SKETCH_READ_MAX_OUTPUT_TOKENS = 32_000;
 /** Roughly what one shrunk photo costs as input (about 1,600 tokens for a 1,568 px long side), for reserving room. */
 export const SKETCH_TOKENS_PER_IMAGE = 1_700;
 
@@ -55,7 +62,9 @@ export function createAnthropicSketchReader(options: { model: string; client?: A
             model: options.model,
             max_tokens: SKETCH_READ_MAX_OUTPUT_TOKENS,
             thinking: { type: "adaptive" },
-            output_config: { effort: "medium", format: betaZodOutputFormat(SketchOutputSchema) },
+            // Tracing a surveyor's linework is the hardest reading Farbaek asks for: high, the level Anthropic advises at least for work that
+            // needs the model's judgment. xhigh and max cost more and haven't been measured on sketches (ADR 0249).
+            output_config: { effort: "high", format: betaZodOutputFormat(SketchReadSchema) },
             system: SKETCH_READ_PROMPT,
             messages: [
               {
