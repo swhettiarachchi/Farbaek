@@ -50,6 +50,7 @@ import { buildPlan } from "@/core/survey/view";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
 import { isoDate, personName, planInputFor } from "@/server/survey/present";
+import { exportName } from "@/server/survey/report";
 import { loadLatestJob } from "@/server/survey/jobs";
 import { loadSketchPhotos } from "@/server/survey/sketch-photos";
 import { loadAssistantHistory, loadSurveyDrawing, loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
@@ -381,37 +382,41 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
               </div>
             ) : (
               <div className="mt-4 grid gap-2">
-                <a href={`${base}/export/pdf?inline=1`} target="_blank" rel="noopener" className={buttonClasses("primary", "md", "justify-start")}>
+                <a href={`${base}/export/pdf?version=${data.drawing.version}&inline=1`} target="_blank" rel="noopener" className={buttonClasses("primary", "md", "justify-start")}>
                   <PrinterIcon size={16} weight="bold" aria-hidden />
                   Open the PDF to print
                 </a>
-                <a href={`${base}/export/pdf`} className={buttonClasses("secondary", "md", "justify-start")}>
+                <a href={`${base}/export/pdf?version=${data.drawing.version}`} className={buttonClasses("secondary", "md", "justify-start")}>
                   <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                   Download the PDF
                 </a>
-                <a href={`${base}/export/dxf`} className={buttonClasses("secondary", "md", "justify-start")}>
+                <a href={`${base}/export/dxf?version=${data.drawing.version}`} className={buttonClasses("secondary", "md", "justify-start")}>
                   <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                   DXF for CAD (R12, metres)
                 </a>
               </div>
             )}
             <div className="mt-2 grid gap-2">
-              <a href={`${base}/export/csv`} className={buttonClasses("ghost", "md", "justify-start")}>
+              <a href={`${base}/export/csv?version=${data.drawing.version}`} className={buttonClasses("ghost", "md", "justify-start")}>
                 <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                 Points as CSV
               </a>
               {view.blocksData.length === 0 ? (
                 <>
-                  <a href={`${base}/export/lots`} className={buttonClasses("ghost", "md", "justify-start")}>
+                  <a href={`${base}/export/lots?version=${data.drawing.version}`} className={buttonClasses("ghost", "md", "justify-start")}>
                     <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                     Lot schedule as CSV<span className="font-normal text-ink-3 max-sm:hidden">(areas, hectares, A-R-P)</span>
                   </a>
-                  <a href={`${base}/export/geojson`} className={buttonClasses("ghost", "md", "justify-start")}>
+                  <a href={`${base}/export/geojson?version=${data.drawing.version}`} className={buttonClasses("ghost", "md", "justify-start")}>
                     <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
                     Points and lots as GeoJSON
                   </a>
                 </>
               ) : null}
+              <a href={`${base}/export/report?version=${data.drawing.version}&inline=1`} target="_blank" rel="noopener" className={buttonClasses("ghost", "md", "justify-start")}>
+                <ListChecksIcon size={16} weight="bold" aria-hidden />
+                Checks and sources report<span className="font-normal text-ink-3 max-sm:hidden">(PDF to file with the plan)</span>
+              </a>
             </div>
             <p className="mt-4 text-sm text-ink-3">
               Every file is made from version {data.drawing.version} and recorded with its fingerprint in this project&apos;s history.{approval ? "" : " Until the surveyor approves this version, the sheet says DRAFT."}
@@ -530,7 +535,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
               <ul className="mt-3 grid gap-2">
                 {data.exports.map((x, i) => (
                   <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-                    <span className="font-medium text-ink">{x.options["content"] === "lots" ? "Lot schedule" : x.options["content"] === "blockout" ? "Block-out plan" : x.kind.toUpperCase()}</span>
+                    <span className="font-medium text-ink">{exportName(x)}</span>
                     <span className="text-ink-2">version {x.drawing_version}</span>
                     <span className="text-ink-3">
                       {isoDate(x.created_at)}, by {personName(x.created_by, data.profiles, me)}

@@ -105,6 +105,10 @@ function toDrawing(r: z.infer<typeof drawingRow>): SurveyDrawing {
   return { id: r.id, version: r.version, document: parsed ?? emptyDocument(), readable: parsed !== null, note: r.note, createdBy: r.created_by, createdAt: r.created_at };
 }
 
+/** How many versions and exports a project's page reads, newest first. */
+export const VERSIONS_READ = 100;
+export const EXPORTS_READ = 50;
+
 export interface SurveyProjectData {
   project: SurveyProject;
   points: SurveyPoint[];
@@ -150,9 +154,9 @@ export async function loadSurveyProject(client: SupabaseClient, orgId: string, p
     readPoints(client, projectId),
     client.from("survey_sources").select("id, file_name, format, sha256, size_bytes, point_count, settings, created_by, created_at").eq("project_id", projectId).order("created_at"),
     (version ? drawingQuery.eq("version", version) : drawingQuery.order("version", { ascending: false }).limit(1)).maybeSingle(),
-    client.from("survey_drawings").select("version, note, created_by, created_at").eq("project_id", projectId).order("version", { ascending: false }).limit(100),
+    client.from("survey_drawings").select("version, note, created_by, created_at").eq("project_id", projectId).order("version", { ascending: false }).limit(VERSIONS_READ),
     client.from("survey_approvals").select("drawing_version, approved_by, approved_at, content_sha256, surveyor, withdrawn_at").eq("project_id", projectId).order("approved_at", { ascending: false }),
-    client.from("survey_exports").select("kind, drawing_version, sha256, size_bytes, created_by, created_at, options").eq("project_id", projectId).order("created_at", { ascending: false }).limit(50),
+    client.from("survey_exports").select("kind, drawing_version, sha256, size_bytes, created_by, created_at, options").eq("project_id", projectId).order("created_at", { ascending: false }).limit(EXPORTS_READ),
     client.from("survey_surveyor_profiles").select("user_id, full_name, designation, registration, address, contact, updated_at").eq("org_id", orgId),
   ]);
   const d = drawingRow.safeParse(drawing.data);

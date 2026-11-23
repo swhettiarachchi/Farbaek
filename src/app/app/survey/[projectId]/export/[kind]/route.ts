@@ -3,6 +3,7 @@ import { blockOutSheet, readDivision } from "@/core/survey/blockout";
 import { crsById } from "@/core/survey/crs";
 import { writeDxf } from "@/core/survey/export/dxf";
 import { pointsCsv, surveyGeoJson } from "@/core/survey/export/points";
+import { reportPages } from "@/core/survey/export/report";
 import { lotScheduleCsv } from "@/core/survey/export/schedule";
 import { buildPlan } from "@/core/survey/view";
 import { SRI_LANKA_CADASTRAL_V1 } from "@/core/survey/sheet/template";
@@ -11,12 +12,15 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { renderPdf } from "@/server/survey/pdf";
 import { planInputFor } from "@/server/survey/present";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
+import { reportInputFor } from "@/server/survey/report";
 import { SAMPLE_PROJECT_ID, sampleProject } from "@/server/survey/sample";
 import { surveyStore } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
 
 /**
- * GET /app/survey/<project>/export/<pdf|dxf|csv|geojson|lots|blockout>[?version=N][&inline=1][&division=<json>]
+ * GET /app/survey/<project>/export/<pdf|dxf|csv|geojson|lots|blockout|report>[?version=N][&inline=1][&division=<json>]
+ *
+ * The checks and sources report (report.ts, ADR 0245) is made for any version, held back by nothing: it says what holds the plan back.
  *
  * A block-out plan (blockout.ts) is worked out again here from the version and the surveyor's choices in `division`, never from
  * figures the browser computed, and is recorded as a PDF with what it holds in its options.
@@ -38,6 +42,8 @@ const KINDS = {
   lots: { type: "text/csv; charset=utf-8", ext: "csv" },
   // A block-out plan of one lot's division: a PDF, recorded as one with what it holds in its options.
   blockout: { type: "application/pdf", ext: "pdf" },
+  // The version's checks and where everything on it came from: a PDF, recorded as one with what it holds in its options.
+  report: { type: "application/pdf", ext: "pdf" },
 } as const;
 type Kind = keyof typeof KINDS;
 
@@ -73,7 +79,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
   const view = buildPlan(input);
   // The CSV is the points exactly as imported. The GeoJSON waits for checks on the coordinates and the parcel;
   // the PDF and DXF also wait for the sheet's.
-  const blockers = kind === "csv" ? [] : kind === "geojson" || kind === "lots" || kind === "blockout" ? view.blocksData : view.blocksExport;
+  const blockers = kind === "csv" || kind === "report" ? [] : kind === "geojson" || kind === "lots" || kind === "blockout" ? view.blocksData : view.blocksExport;
   if (blockers.length > 0) {
     return plain(409, `This plan can't be exported yet:\n${blockers.map((f) => `- ${f.message} ${f.action}`).join("\n")}`);
   }
@@ -99,6 +105,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
     // The choices that made it, so the record says what was printed (the options column holds 4 KB: a long one keeps only its SHA-256).
     const asked = JSON.stringify(division);
     blockOutOptions = { content: "blockout", lot: made.lot.id, scale: made.sheet.scale, paper: made.sheet.paper, engine: made.result.engine, divisionSha256: createHash("sha256").update(asked).digest("hex"), ...(asked.length <= 2000 ? { division } : {}) };
+  } else if (kind === "report") {
+    // A version whose settings can't be read shows defaults on screen; a report of those defaults would describe a plan that isn't there.
+    if (!data.drawing.readable) return plain(409, "This version's saved settings couldn't be read, so there's no report of it. Save a new version to replace it.");
+    const now = new Date();
+    body = await renderPdf(reportPages(reportInputFor(data, input, view, now)), {
+      title: `Checks and sources report: ${data.project.name} (version ${data.drawing.version})`,
+      subject: "The checks on one version of a survey plan and where everything on it came from; certifies nothing",
+      createdAt: now,
+    });
   } else if (kind === "pdf") {
     body = await renderPdf(view.sheet.pages, {
       title: `${data.drawing.document.sheet.planNumber.trim() || data.project.name} (version ${data.drawing.version})`,
@@ -122,16 +137,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
     const recorded = await surveyStore.recordExport(admin, { orgId: ctx.current.id, userId: ctx.user.id }, {
       projectId,
       version: data.drawing.version,
-      kind: kind === "lots" ? "csv" : kind === "blockout" ? "pdf" : kind,
+      kind: kind === "lots" ? "csv" : kind === "blockout" || kind === "report" ? "pdf" : kind,
       sha256,
       size: body.length,
-      options: blockOutOptions ?? { paper: data.drawing.document.settings.paper, orientation: data.drawing.document.settings.orientation, scale: view.sheet.scale, ...(kind === "lots" ? { content: "lots" } : {}) },
+      options: blockOutOptions ?? (kind === "report" ? { content: "report", paper: "A4", orientation: "portrait" } : { paper: data.drawing.document.settings.paper, orientation: data.drawing.document.settings.orientation, scale: view.sheet.scale, ...(kind === "lots" ? { content: "lots" } : {}) }),
     });
     if (!recorded.ok) return plain(recorded.code === "FORBIDDEN" ? 403 : 500, recorded.message);
   }
 
-  const name = `${fileStem(data, input.approval !== null)}${kind === "lots" ? "-lots" : kind === "blockout" ? "-block-out" : ""}.${KINDS[kind].ext}`;
-  const inline = (kind === "pdf" || kind === "blockout") && url.searchParams.get("inline") === "1";
+  const name = `${fileStem(data, input.approval !== null)}${kind === "lots" ? "-lots" : kind === "blockout" ? "-block-out" : kind === "report" ? "-checks" : ""}.${KINDS[kind].ext}`;
+  const inline = (kind === "pdf" || kind === "blockout" || kind === "report") && url.searchParams.get("inline") === "1";
   return new Response(new Uint8Array(body), {
     headers: {
       "content-type": KINDS[kind].type,
