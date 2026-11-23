@@ -35,3 +35,28 @@ A price read exactly 90 days ago was reported as due when the check ran at midda
 - Context size, release and retirement dates, speed and measured quality are not recorded: they have to be read from the providers' pages or measured, not written from memory.
 - Seven prices have no date: the four Claude models and the three Gemini text models.
 - Nothing shows `pricesToCheck` to staff yet.
+
+# Stage 213, part 2: staff see which prices to read again
+
+- **Date:** 2026-11-23
+- **Branch:** `feat/stage-213-prices-to-check`, from `main`
+- **Decision:** ADR 0229 (no new decision)
+- **Migration:** none. **New dependency:** none.
+
+## What was built
+
+- **The office's Models page lists every model with the day its price was last read** (`src/app/office/(console)/models/page.tsx`): the ones to read again first, then the ones with no day recorded, then the rest. Usage is counted at list price, so a price that has moved makes every allowance wrong; part 1 recorded the days, and nobody was shown them.
+- It is read only. A price still changes in the rate card, in code, with the day it was read.
+- **The registry says where each price stands** (`priceState`, `priceCheckList`), and holds the makers' and uses' names once, for its own page and for the console.
+
+## Verified
+
+- Tests: where a price stands (no day, due, in date) and that it agrees with the list of prices to check; the staff list holds every model once, in the stated order, on a day that has some of each; every maker and use has a name; the registry's page is unchanged.
+- The office's guard test passes: the page still asks for staff before anything else.
+- 532 tests across the registry, billing, the office and the design rules; `pnpm typecheck`; lint on the changed files; `pnpm build`.
+
+## Not done
+
+- **Not seen in a browser.** The staff console needs a staff sign-in, which the demo build doesn't have. The list uses the console's own table and chips.
+- **Seven prices have no day recorded** (the four Claude models and three Gemini ones). Reading them from the providers' pages and dating them is the work this list is for.
+- Both routers reading the registry, instead of the registry reading them.

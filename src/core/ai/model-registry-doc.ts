@@ -4,17 +4,8 @@
  * doesn't. Prices are in it, so nothing a browser loads imports this file.
  */
 import { RATE_CARD } from "@/core/billing/rate-card";
-import { MODEL_REGISTRY, PRICE_CHECK_DAYS, providersFor, type ModelEntry, type ModelProvider, type ModelRole } from "./model-registry";
+import { MODEL_REGISTRY, PRICE_CHECK_DAYS, PROVIDER_NAMES, ROLE_NAMES, providersFor, type ModelEntry, type ModelProvider, type ModelRole } from "./model-registry";
 
-const PROVIDER_NAMES: Record<ModelProvider, string> = { anthropic: "Anthropic", openai: "OpenAI", gemini: "Google" };
-const ROLE_NAMES: Record<ModelRole, string> = {
-  chat: "Chat",
-  build: "Build and drafting",
-  "second-check": "Second check",
-  images: "Image studio",
-  "project-images": "Pictures in projects",
-  video: "Video studio",
-};
 const ROLES: readonly ModelRole[] = ["chat", "build", "second-check", "images", "project-images", "video"];
 
 const usd = (n: number) => `$${n}`;

@@ -19,6 +19,9 @@ import { chatModels, modelAt, type QuestionKind } from "@/core/chat/ladder";
 
 export type ModelProvider = "anthropic" | "openai" | "gemini";
 
+/** Each maker, as people know it. */
+export const PROVIDER_NAMES: Record<ModelProvider, string> = { anthropic: "Anthropic", openai: "OpenAI", gemini: "Google" };
+
 /** What a model produces. */
 export type ModelMakes = "text" | "image" | "video";
 
@@ -36,6 +39,16 @@ export type ModelRole =
   | "project-images"
   /** The video studio. */
   | "video";
+
+/** Each use, in a few words, for the registry's page and the staff console. */
+export const ROLE_NAMES: Record<ModelRole, string> = {
+  chat: "Chat",
+  build: "Build and drafting",
+  "second-check": "Second check",
+  images: "Image studio",
+  "project-images": "Pictures in projects",
+  video: "Video studio",
+};
 
 interface Facts {
   provider: ModelProvider;
@@ -128,4 +141,24 @@ export function priceNeedsCheck(entry: Pick<ModelEntry, "priceReadOn">, today: D
 /** The models whose prices need reading again, for staff to work through. */
 export function pricesToCheck(today: Date, days: number = PRICE_CHECK_DAYS): ModelEntry[] {
   return MODEL_REGISTRY.filter((m) => priceNeedsCheck(m, today, days));
+}
+
+/** Where a model's price stands: no day was ever recorded, the day is too long ago, or it is in date. */
+export type PriceState = "undated" | "due" | "current";
+
+export function priceState(entry: Pick<ModelEntry, "priceReadOn">, today: Date, days: number = PRICE_CHECK_DAYS): PriceState {
+  if (!entry.priceReadOn) return "undated";
+  return priceNeedsCheck(entry, today, days) ? "due" : "current";
+}
+
+const STATE_ORDER: Record<PriceState, number> = { due: 0, undated: 1, current: 2 };
+
+/**
+ * Every model with where its price stands, for the staff console: the ones to read again first, then the ones with no
+ * day recorded, then the rest, each group in the registry's own order.
+ */
+export function priceCheckList(today: Date, days: number = PRICE_CHECK_DAYS): { model: ModelEntry; state: PriceState }[] {
+  return MODEL_REGISTRY.map((model, at) => ({ model, state: priceState(model, today, days), at }))
+    .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || a.at - b.at)
+    .map(({ model, state }) => ({ model, state }));
 }

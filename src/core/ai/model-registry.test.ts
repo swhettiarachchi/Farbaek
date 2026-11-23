@@ -5,7 +5,7 @@ import { TIERS, TIER_MODELS } from "@/core/agent/routing";
 import { MODEL_NAMES, type ModelId } from "@/core/billing/model-names";
 import { RATE_CARD } from "@/core/billing/rate-card";
 import { chatModels } from "@/core/chat/ladder";
-import { MODEL_REGISTRY, modelsWith, priceNeedsCheck, pricesToCheck, providersFor, registeredModel } from "./model-registry";
+import { MODEL_REGISTRY, PROVIDER_NAMES, ROLE_NAMES, modelsWith, priceCheckList, priceNeedsCheck, priceState, pricesToCheck, providersFor, registeredModel } from "./model-registry";
 import { registryDocument } from "./model-registry-doc";
 
 const ids = MODEL_REGISTRY.map((m) => m.id);
@@ -108,6 +108,35 @@ describe("when a price was read", () => {
     expect(due).toContain("claude-sonnet-5-5" satisfies ModelId);
     // A year on, every price is due.
     expect(pricesToCheck(new Date("2027-11-22T12:00:00Z"))).toHaveLength(MODEL_REGISTRY.length);
+  });
+
+  it("says where each price stands: no day recorded, due, or in date", () => {
+    expect(priceState({ priceReadOn: null }, today)).toBe("undated");
+    expect(priceState({ priceReadOn: "2026-11-17" }, today)).toBe("current");
+    expect(priceState({ priceReadOn: "2026-01-01" }, today)).toBe("due");
+    // Agrees with the list of prices to check: everything that isn't in date is on it.
+    for (const m of MODEL_REGISTRY) expect(priceState(m, today) !== "current", m.id).toBe(priceNeedsCheck(m, today));
+  });
+
+  it("lists every model once for staff, the ones to read again first", () => {
+    const later = new Date("2027-02-10T12:00:00Z");
+    const list = priceCheckList(later);
+    expect(list.map((row) => row.model.id).sort()).toEqual(MODEL_REGISTRY.map((m) => m.id).sort());
+    const states = list.map((row) => row.state);
+    const rank = { due: 0, undated: 1, current: 2 } as const;
+    for (let i = 1; i < states.length; i += 1) expect(rank[states[i]!]).toBeGreaterThanOrEqual(rank[states[i - 1]!]);
+    // On that day there is some of each, so the order above is really tested.
+    expect(new Set(states)).toEqual(new Set(["due", "undated", "current"]));
+    // Within a group the registry's own order is kept.
+    const undated = list.filter((row) => row.state === "undated").map((row) => row.model.id);
+    expect(undated).toEqual(MODEL_REGISTRY.filter((m) => m.priceReadOn === null).map((m) => m.id));
+  });
+
+  it("names every maker and every use", () => {
+    for (const m of MODEL_REGISTRY) {
+      expect(PROVIDER_NAMES[m.provider], m.id).toBeTruthy();
+      for (const role of m.roles) expect(ROLE_NAMES[role], `${m.id} ${role}`).toBeTruthy();
+    }
   });
 });
 

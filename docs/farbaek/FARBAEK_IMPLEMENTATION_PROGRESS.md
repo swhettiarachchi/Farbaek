@@ -17,7 +17,8 @@ The running record of the program the owner set on 2026-11-22. Read this first i
 | Stage 212, part 2: every signed-in page in one frame on wide screens, a shorter sidebar in the spaces' colours (ADR 0230) | Built and tested, PR #280 open | The owner merges |
 | Stage 212, what is left: Chat, the studios and Build's workspace sharing the one frame component; "Build" opening one place; one plus menu in Chat | Not started | #280 first |
 | Stage 213, part 1: one registry of the models Farbaek uses (ADR 0229) | Merged as #278 | Nothing |
-| Stage 213, what is left: both routers reading the registry; the prices due for a check shown to staff | Not started | Nothing |
+| Stage 213, part 2: staff see which prices to read again, on the office's Models page | Built and tested, PR open. Not seen in a browser: the console needs a staff sign-in | The owner merges |
+| Stage 213, what is left: both routers reading the registry; dating the seven prices that have no day | Not started | Nothing |
 | Stage 218, part 1: the suggested prices worked out in code, with a page to decide from (ADR 0231) | Built and tested, PR #281 open | The owner merges, then decides the prices, monthly or yearly for the smallest plan, the hours and seats, and what each plan includes |
 | Skills inventory, master audit, the study of the reference products | Written | Nothing |
 | Research on providers and platforms | 2 of 7 notes complete, 5 partial | Finishing the 5, a few at a time |
