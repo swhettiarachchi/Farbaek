@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { archiveSurveyProjectAction } from "../actions";
@@ -32,12 +33,14 @@ import { DrawFromPoints } from "@/components/survey/draw-from-points";
 import { NeedsYou } from "@/components/survey/needs-you";
 import { AssistantProvider } from "@/components/survey/assistant/assistant-context";
 import { PlanEditor } from "@/components/survey/plan-editor";
+import { ModeChoice } from "@/components/survey/mode-choice";
 import { StepNav } from "@/components/survey/step-nav";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { checkSketch } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
+import { SURVEY_MODE_COOKIE, parseMode, stepsFor } from "@/core/survey/modes";
 import { autoDoubt, doubtContext, drawnWithoutDoubt, planStatus, type PlanStatus } from "@/core/survey/exceptions";
 import { readModelKey } from "@/server/ai/workspace-ai";
 import { fmt } from "@/core/survey/sheet/compose";
@@ -136,6 +139,8 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   const draftOff = data.points.length === 0 ? "Import the surveyed points first: the draft names lots by their corner points." : aiOff(draftAi);
   // Where the plan stands, for its header (ADR 0235).
   const drawn = doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0;
+  // Express, Professional or Manual CAD (ADR 0238): which steps are on show, the person's choice, the Sample included.
+  const mode = parseMode((await cookies()).get(SURVEY_MODE_COOKIE)?.value);
   // Exported means the approved sheet went out: a PDF or DXF of this version made after its approval, not a points list or a draft.
   const exported = Boolean(approval) && data.exports.some((e) => e.drawing_version === data.drawing.version && (e.kind === "pdf" || e.kind === "dxf") && approval !== null && e.created_at >= approval.approved_at);
   const status = planStatus({ drawn, findings: view.findings, approved: Boolean(approval), exported });
@@ -153,7 +158,8 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       </div>
       {!data.drawing.readable ? <Notice tone="warning">This version&apos;s saved settings couldn&apos;t be read, so the plan shows defaults. Save a new version to replace it.</Notice> : null}
 
-      <StepNav steps={STEPS.map(({ id, label }) => ({ id, label }))} current={step} base={base} />
+      <ModeChoice mode={mode} />
+      <StepNav steps={stepsFor(mode, STEPS, { drawn, current: step }).map(({ id, label }) => ({ id, label }))} current={step} base={base} />
 
       {step === "import" ? (
         <div className="grid gap-6">

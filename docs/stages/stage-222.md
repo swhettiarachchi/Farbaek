@@ -68,4 +68,4 @@ Each is its own pull request, built and checked the same way:
    - traverse adjustment, only with the surveyor's choice of method;
    - curve and join codes.
 8. **Labels placed like a cartographer would:** candidate positions scored and searched, lot labels at the point farthest from the edges, and what can't be placed reported rather than hidden. The DXF stays on Farbaek's own writer; Sinhala and Tamil get a measured test in the PDF and in CAD programs before they go on a sheet.
-9. **Three modes on one project:** Express (the default), Professional (settings and diagnostics) and Manual CAD (editing geometry).
+9. **Three modes on one project:** built in stage 227 (ADR 0238): Express (the default), Professional (settings and diagnostics) and Manual CAD (editing geometry), as views of one project.
