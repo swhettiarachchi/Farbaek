@@ -43,10 +43,42 @@ describe("field code grammars", () => {
     expect(problems.map((p) => p.message)).toEqual(["Point 4 joins to point 99, which isn't in the survey, so that segment isn't drawn."]);
   });
 
-  it("reads PC and PT, draws the arc as straight segments, and says so", () => {
+  it("draws PC to PT as the curve through its surveyed points (stage 239), and keeps it straight when they don't make one", () => {
+    // On a circle of 20 m round (SYNTHETIC): a straight lead-in, then PC, a point along the curve, and PT.
+    const at = (n: number, deg: number, code: string, r = 20): SurveyPoint => ({ ...pt(n, code), e: 1000 + r * Math.cos((deg * Math.PI) / 180), n: 2000 + r * Math.sin((deg * Math.PI) / 180) });
     const problems: CodeProblem[] = [];
-    expect(lines([pt(1, "MW BEG"), pt(2, "MW PC"), pt(3, "MW"), pt(4, "MW PT END")], GRAMMAR.carlson, commonCodes(), problems)).toEqual(["MW: 1 2 3 4"]);
-    expect(problems.map((p) => p.message)).toEqual(["The arc from point 2 to point 4 is drawn as straight segments between its surveyed points: curves aren't drawn yet."]);
+    const run = [{ ...pt(1, "MW BEG"), e: 1025, n: 1990 }, at(2, 0, "MW PC"), at(3, 30, "MW"), at(4, 60, "MW PT END")];
+    const [wall] = suggestFeatures(run, commonCodes(), GRAMMAR.carlson, problems);
+    expect(wall!.pointNumbers).toEqual(["1", "2", "3", "4"]);
+    expect(wall!.arcs).toEqual([{ from: 1, to: 3 }]);
+    expect(problems).toEqual([]);
+    // Three points that zig-zag (1002,2002), (1003,2000), (1004,2001) lie on a 1.18 m circle, but don't follow one curve: straight.
+    const zig: CodeProblem[] = [];
+    const [zag] = suggestFeatures([pt(1, "MW BEG"), pt(2, "MW PC"), pt(3, "MW"), pt(4, "MW PT END")], commonCodes(), GRAMMAR.carlson, zig);
+    expect(zag!.arcs).toBeUndefined();
+    expect(zig.map((p) => p.message)).toEqual(["The arc from point 2 to point 4 is drawn as straight segments: two of its points in a row are more than a quarter circle apart along it, so its points don't follow one curve."]);
+    // The same with one point 5 cm off the circle, and a run with nothing between PC and PT.
+    const off: CodeProblem[] = [];
+    const [bent] = suggestFeatures([at(1, 0, "MW BEG PC"), at(2, 20, "MW", 20.05), at(3, 40, "MW"), at(4, 60, "MW PT END")], commonCodes(), GRAMMAR.carlson, off);
+    expect(bent!.arcs).toBeUndefined();
+    expect(off.map((p) => p.message)).toEqual(["The arc from point 1 to point 4 is drawn as straight segments: its points don't lie on one circle (one is 0.050 m off the circle through the first, middle and last)."]);
+    const short: CodeProblem[] = [];
+    suggestFeatures([pt(1, "MW BEG"), pt(2, "MW PC"), pt(3, "MW PT END")], commonCodes(), GRAMMAR.carlson, short);
+    expect(short.map((p) => p.message)).toEqual(["The arc from point 2 to point 3 is drawn as straight segments: a curve needs a point between its first and last, and it has none."]);
+  });
+
+  it("ends one curve and begins the next on a point coded PT PC (a reverse curve), and caps a line at 50 curves", () => {
+    const at = (n: number, deg: number, code: string): SurveyPoint => ({ ...pt(n, code), e: 1000 + 20 * Math.cos((deg * Math.PI) / 180), n: 2000 + 20 * Math.sin((deg * Math.PI) / 180) });
+    const problems: CodeProblem[] = [];
+    const [wall] = suggestFeatures([at(1, 0, "MW BEG PC"), at(2, 20, "MW"), at(3, 40, "MW PT PC"), at(4, 60, "MW"), at(5, 80, "MW PT END")], commonCodes(), GRAMMAR.carlson, problems);
+    expect(wall!.arcs).toEqual([{ from: 0, to: 2 }, { from: 2, to: 4 }]);
+    expect(problems).toEqual([]);
+    // 51 curves on one line: the 51st stays straight, said, so the document can still be saved.
+    const capped: CodeProblem[] = [];
+    const ring = Array.from({ length: 153 }, (_, i) => at(i + 1, i * 2, i === 0 ? "MW BEG PC" : i === 152 ? "MW PT END" : i % 3 === 0 ? "MW PT PC" : "MW"));
+    const [long] = suggestFeatures(ring, commonCodes(), GRAMMAR.carlson, capped);
+    expect(long!.arcs).toHaveLength(50);
+    expect(capped.map((p) => p.message)).toEqual([expect.stringContaining("drawn as straight segments: a line holds at most 50 curves.")]);
   });
 
   it("keeps a library code a code where the grammar would read it as a word, and never reads a stake as a begin", () => {
@@ -85,7 +117,7 @@ describe("what reading says, after the stage 234 review", () => {
     ]);
     expect(said([pt(1, "MW BEG"), pt(2, "MW PC"), pt(3, "MW PC"), pt(4, "MW PT END")]).said).toEqual([
       "The arc that begins at point 2 has no end before point 3 begins another, so it's drawn as straight segments.",
-      "The arc from point 3 to point 4 is drawn as straight segments between its surveyed points: curves aren't drawn yet.",
+      "The arc from point 3 to point 4 is drawn as straight segments: a curve needs a point between its first and last, and it has none.",
     ]);
   });
 

@@ -13,7 +13,8 @@ import { BEARING_CONVENTION, formatDms, toDms } from "../angles";
 import { codeOf, codesAreCommonList, lookupCode } from "../codes";
 import type { CrsRecord } from "../crs";
 import { PAPER_SIZES, lotName, usedPointIds, type PaperSize, type SurveyDocument } from "../document";
-import { bounds } from "../geometry";
+import { densify } from "../arcs";
+import { bounds, type Point } from "../geometry";
 import type { PlanLots } from "../lots";
 import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
@@ -88,6 +89,17 @@ export const orBlank = (s: string) => (s.trim() ? s.trim() : BLANK);
 /** The model points the plan shows. */
 export function drawnPoints(doc: SurveyDocument, byId: Map<string, SurveyPoint>): SurveyPoint[] {
   return [...usedPointIds(doc)].map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
+}
+
+/** Everything the drawing reaches: its points, and where a curve bulges past them (ADR 0247), for the scale and the fit. */
+export function drawnExtent(doc: SurveyDocument, byId: Map<string, SurveyPoint>): Point[] {
+  const out: Point[] = drawnPoints(doc, byId);
+  for (const f of doc.features) {
+    if (!f.arcs) continue;
+    const pts = f.points.map((id) => byId.get(id));
+    if (pts.every((p): p is SurveyPoint => Boolean(p))) out.push(...densify(pts, f.arcs, 0.05));
+  }
+  return out;
 }
 
 /** The plan's entire area: the outline's own area when the lots join cleanly, otherwise the sum of the lots it could compute. */
@@ -207,7 +219,7 @@ export function usedCodes(doc: SurveyDocument, lots: PlanLots, points: readonly 
   const codes = new Set<string>();
   for (const r of lots.lots) for (const v of r.parcel?.vertices ?? []) if (codeOf(v.code)) codes.add(codeOf(v.code));
   for (const f of doc.features) if (f.code.trim()) codes.add(f.code.trim());
-  const box = bounds(drawnPoints(doc, new Map(points.map((p) => [p.id, p]))));
+  const box = bounds(drawnExtent(doc, new Map(points.map((p) => [p.id, p]))));
   for (const p of points) {
     const e = lookupCode(doc.codes, codeOf(p.code));
     if (!box || !e || (e.kind !== "mark" && e.kind !== "symbol")) continue;
@@ -263,7 +275,7 @@ function composePanel(input: ComposeInput): ComposedSheet {
   }
 
   const byId = new Map(input.points.map((p) => [p.id, p]));
-  const b = bounds(drawnPoints(doc, byId));
+  const b = bounds(drawnExtent(doc, byId));
   let drawingCtx: DrawCtx | null = null;
   let viewport: Viewport | null = null;
   let suggested: number | null = null;

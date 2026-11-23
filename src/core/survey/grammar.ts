@@ -6,8 +6,8 @@
  *   consecutive points carry its code, so a different code in between ends it.
  * - **Carlson** (Carlson Survey, from Carlson's published help): BEG begins a line, END ends it, CLO closes it, and JPN n joins the
  *   point to point n. SurvPC's ST and EL aren't taken: ST would read a Sri Lankan crew's St (stake) as a begin. A line runs through other codes until it's ended, which is what numbered strings and
- *   begin and end words are for. PC and PT mark an arc's ends: they are read and reported, and the arc is drawn as straight segments
- *   between its surveyed points, since curves aren't drawn yet.
+ *   begin and end words are for. PC and PT mark a curve's ends: since stage 239 (arcs.ts, ADR 0247) the run is drawn as the circle
+ *   through its surveyed points when they make one, and as straight segments, said, when they don't.
  *
  * Civil 3D and Trimble let each firm define its own words, and publish no default spellings, so they have no preset here.
  */

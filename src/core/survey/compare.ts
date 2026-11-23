@@ -154,6 +154,11 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   const ib = ids(before);
   const reshaped = [...ids(after)].filter(([id, r]) => ib.has(id) && ib.get(id) !== r).length;
   if (reshaped > 0) add("Lines and outlines", `${reshaped} ${reshaped === 1 ? "line runs" : "lines run"} through different points.`);
+  // A line drawn as a curve now, or straight again (ADR 0247), through the same points.
+  const curvesOf = (doc: SurveyDocument) => new Map(doc.features.map((f) => [f.id, JSON.stringify(f.arcs ?? [])]));
+  const cb = curvesOf(before);
+  const recurved = [...curvesOf(after)].filter(([id, c]) => cb.has(id) && cb.get(id) !== c && ib.get(id) === ids(after).get(id)).length;
+  if (recurved > 0) add("Lines and outlines", `${recurved} ${recurved === 1 ? "line is" : "lines are"} drawn with different curves through the same points.`);
 
   // The title.
   for (const key of Object.keys(FIELD_LABELS) as (keyof typeof FIELD_LABELS)[]) {

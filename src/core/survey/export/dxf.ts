@@ -12,6 +12,7 @@
  * any other non-ASCII character is written as a \U+XXXX escape.
  */
 import { formatDms, toDms } from "../angles";
+import { bulges, densify } from "../arcs";
 import type { CrsRecord } from "../crs";
 import { legIndex, type LayerId, type SurveyDocument } from "../document";
 import type { PlanLots } from "../lots";
@@ -98,7 +99,7 @@ export function writeDxf(input: DxfInput): string {
       }
     });
   };
-  const polyline = (layer: LayerId, pts: readonly { e: number; n: number }[], closed: boolean) => {
+  const polyline = (layer: LayerId, pts: readonly { e: number; n: number }[], closed: boolean, bulge: readonly number[] = []) => {
     all.push(...pts);
     entities.push((w) => {
       w.pair(0, "POLYLINE");
@@ -108,13 +109,15 @@ export function writeDxf(input: DxfInput): string {
       w.pair(20, "0.0");
       w.pair(30, "0.0");
       w.pair(70, closed ? 1 : 0);
-      for (const p of pts) {
+      pts.forEach((p, i) => {
         w.pair(0, "VERTEX");
         w.pair(8, layer);
         w.pair(10, num(p.e));
         w.pair(20, num(p.n));
         w.pair(30, "0.0");
-      }
+        // A curve to the next vertex (ADR 0247): tan of a quarter of its angle, positive anticlockwise.
+        if (bulge[i]) w.pair(42, num(bulge[i]!, 9));
+      });
       w.pair(0, "SEQEND");
       w.pair(8, layer);
     });
@@ -122,8 +125,17 @@ export function writeDxf(input: DxfInput): string {
 
   for (const f of doc.features) {
     const pts = f.points.map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
-    if (pts.length >= 2) polyline(f.layer, pts, f.closed);
-    if (pts.length >= 2 && f.code.trim()) text(f.layer, (pts[0]!.e + pts[1]!.e) / 2, (pts[0]!.n + pts[1]!.n) / 2, f.code.trim(), h(2.2));
+    const curves = pts.length === f.points.length ? f.arcs : undefined;
+    if (pts.length >= 2) polyline(f.layer, pts, f.closed, bulges(pts, curves));
+    // The extent takes a curve's bulge; the code is written on the line itself, at the middle of the first segment as drawn.
+    const drawnLine = densify(pts, curves, 0.05);
+    if (curves) all.push(...drawnLine);
+    if (pts.length >= 2 && f.code.trim()) {
+      const end = curves ? drawnLine.findIndex((q) => q.e === pts[1]!.e && q.n === pts[1]!.n) : 1;
+      const mid = drawnLine[Math.max(0, Math.floor((end > 0 ? end : 1) / 2))]!;
+      const at = curves && end > 1 ? mid : { e: (pts[0]!.e + pts[1]!.e) / 2, n: (pts[0]!.n + pts[1]!.n) / 2 };
+      text(f.layer, at.e, at.n, f.code.trim(), h(2.2));
+    }
   }
 
   // Every lot's boundary, its corners (once each), leg labels and its label with the raised part as its own text.

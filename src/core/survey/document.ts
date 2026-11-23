@@ -12,6 +12,7 @@
  * documents are upgraded when read (`parseSurveyDocument`).
  */
 import { z } from "zod";
+import { ARCS_PER_LINE } from "./arcs";
 import { sketchRecordSchema } from "./autosurvey/sketch";
 import { codeEntrySchema, commonCodes, type CodeEntry } from "./codes";
 import { GRAMMARS } from "./grammar";
@@ -56,6 +57,8 @@ export const featureSchema = z.object({
   /** Closed outline (a building) or open line (a wall, a drain). */
   closed: z.boolean(),
   points: z.array(pointRef).min(2).max(500),
+  /** Runs of its points drawn as a circular curve (arcs.ts, ADR 0247), by index in `points`; absent when it has none. */
+  arcs: z.array(z.object({ from: z.number().int().min(0).max(499), to: z.number().int().min(0).max(499) })).min(1).max(ARCS_PER_LINE).optional(),
 });
 export type DrawingFeature = z.infer<typeof featureSchema>;
 

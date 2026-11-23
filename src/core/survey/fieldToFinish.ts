@@ -26,6 +26,7 @@
 import { codeText, lookupCode, type CodeEntry, type CodeKind } from "./codes";
 import type { DrawingFeature } from "./document";
 import { GRAMMAR, controlOf, type Control, type Grammar } from "./grammar";
+import { ARCS_PER_LINE, fitArc, type ArcRun } from "./arcs";
 import type { SurveyPoint } from "./parcel";
 
 export interface SuggestedFeature extends Omit<DrawingFeature, "id"> {
@@ -133,7 +134,7 @@ function codesIn(raw: string | null, codes: readonly CodeEntry[], g: Grammar): P
   return { codes: out, orphans, hidden };
 }
 
-type Run = { entry: CodeEntry; tag: string; pts: SurveyPoint[]; closed: boolean; joined: boolean };
+type Run = { entry: CodeEntry; tag: string; pts: SurveyPoint[]; closed: boolean; joined: boolean; arcs: ArcRun[] };
 
 /** What reading the codes found that the surveyor should know: a join to a point that isn't there, a line of one point, an arc drawn straight. */
 export interface CodeProblem {
@@ -153,14 +154,15 @@ export function suggestFeatures(points: readonly SurveyPoint[], codes: readonly 
   const byNumber = new Map(points.map((p) => [p.pointId, p]));
   // Lines being collected, by code and string: a point with two line codes adds to two lines.
   const runs = new Map<string, Run>();
-  // An arc begun on a line, by the line, with the point it began at.
-  const arcs = new Map<string, string>();
+  // An arc begun on a line, by the line, with the point it began at and its place in the line.
+  const arcs = new Map<string, { pointId: string; index: number }>();
   const say = (pointId: string, message: string) => problems.push({ pointId, message });
-  const feature = (entry: CodeEntry, pts: SurveyPoint[], closed: boolean): SuggestedFeature => ({
+  const feature = (entry: CodeEntry, pts: SurveyPoint[], closed: boolean, curves: ArcRun[] = []): SuggestedFeature => ({
     layer: entry.kind === "outline" ? "BUILDINGS" : (LAYER_BY_CODE[entry.code] ?? "WALLS"),
     code: entry.code,
     closed,
     points: pts.map((p) => p.id),
+    ...(curves.length > 0 ? { arcs: curves } : {}),
     pointNumbers: pts.map((p) => p.pointId),
     meaning: entry.meaning,
   });
@@ -169,14 +171,14 @@ export function suggestFeatures(points: readonly SurveyPoint[], codes: readonly 
     const from = arcs.get(tag);
     if (from === undefined) return;
     arcs.delete(tag);
-    say(from, `The arc that begins at point ${from} ${why}, so it's drawn as straight segments.`);
+    say(from.pointId, `The arc that begins at point ${from.pointId} ${why}, so it's drawn as straight segments.`);
   };
   const flush = (tag: string) => {
     const run = runs.get(tag);
     runs.delete(tag);
     openArc(tag, "has no end before its line ends");
     if (!run) return;
-    if (run.pts.length >= 2) out.push(feature(run.entry, run.pts, run.entry.kind === "outline" || (run.closed && run.pts.length >= 3)));
+    if (run.pts.length >= 2) out.push(feature(run.entry, run.pts, run.entry.kind === "outline" || (run.closed && run.pts.length >= 3), run.arcs));
     // A point whose only drawing is a join to another point has its segment: it isn't a line of one point.
     else if (!run.joined) problems.push({ pointId: run.pts[0]!.pointId, id: run.pts[0]!.id, code: run.entry.code, message: `The ${run.entry.meaning.toLowerCase()} line at point ${run.pts[0]!.pointId} has only that point, so it isn't drawn.` });
   };
@@ -197,7 +199,7 @@ export function suggestFeatures(points: readonly SurveyPoint[], codes: readonly 
     for (const h of here) {
       // A begin word starts the line afresh: whatever of it was open ends first.
       if (h.controls.includes("begin")) flush(h.tag);
-      const run = runs.get(h.tag) ?? { entry: h.entry, tag: h.tag, pts: [], closed: false, joined: false };
+      const run = runs.get(h.tag) ?? { entry: h.entry, tag: h.tag, pts: [], closed: false, joined: false, arcs: [] };
       runs.set(h.tag, run);
       run.pts.push(p);
       // Join to a point: one segment from here to that point, beside the line, which carries on from here.
@@ -210,14 +212,23 @@ export function suggestFeatures(points: readonly SurveyPoint[], codes: readonly 
           run.joined = true;
         }
       }
-      if (h.controls.includes("arcStart")) {
-        openArc(h.tag, `has no end before point ${p.pointId} begins another`);
-        arcs.set(h.tag, p.pointId);
-      }
-      if (h.controls.includes("arcEnd")) {
-        const from = arcs.get(h.tag);
-        arcs.delete(h.tag);
-        say(p.pointId, from ? `The arc from point ${from} to point ${p.pointId} is drawn as straight segments between its surveyed points: curves aren't drawn yet.` : `Point ${p.pointId} ends an arc that no point began, so nothing is drawn as an arc.`);
+      // Curve words in the order written, so "PT PC" ends one curve and begins the next at the same point (a reverse curve).
+      for (const c of h.controls) {
+        if (c === "arcStart") {
+          openArc(h.tag, `has no end before point ${p.pointId} begins another`);
+          arcs.set(h.tag, { pointId: p.pointId, index: run.pts.length - 1 });
+        } else if (c === "arcEnd") {
+          const from = arcs.get(h.tag);
+          arcs.delete(h.tag);
+          if (!from) say(p.pointId, `Point ${p.pointId} ends an arc that no point began, so nothing is drawn as an arc.`);
+          else {
+            // The curve through its surveyed points, when they make one (arcs.ts); otherwise straight segments, and why.
+            const to = run.pts.length - 1;
+            const fit = run.arcs.length >= ARCS_PER_LINE ? ({ ok: false, problem: `a line holds at most ${ARCS_PER_LINE} curves` } as const) : fitArc(run.pts.slice(from.index, to + 1));
+            if (fit.ok) run.arcs.push({ from: from.index, to });
+            else say(p.pointId, `The arc from point ${from.pointId} to point ${p.pointId} is drawn as straight segments: ${fit.problem}.`);
+          }
+        }
       }
       // END or CLO: when both are written, the last one counts.
       const stop = [...h.controls].reverse().find((c) => c === "end" || c === "close");
