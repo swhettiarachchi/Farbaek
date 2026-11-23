@@ -377,7 +377,7 @@ const STYLE_LABELS: Record<LineStyle, string> = { solid: "Solid", dashed: "Dashe
 /** What each way of writing line words means, in a sentence. */
 const GRAMMAR_HINTS: Record<GrammarId, string> = {
   farbaek: "A line runs while one point after another carries its code. END after the code ends it, and CLO closes it.",
-  carlson: "BEG begins a line and END ends it, so a line runs on through other points until it ends. CLO closes it, JPN 23 joins the point to point 23, and PC and PT mark an arc, drawn as straight segments for now.",
+  carlson: "BEG begins a line and END ends it, so a line runs on through other points until it ends. CLO closes it, JPN 23 joins the point to point 23, and PC and PT mark a curve, drawn through its surveyed points when they lie on one circle.",
 };
 
 /** The most codes a library holds (codes.ts). */

@@ -8,6 +8,7 @@
  * `overlappingLabels`.
  */
 import { formatDms, toDms } from "../angles";
+import { densify } from "../arcs";
 import { codeOf, lookupCode } from "../codes";
 import type { Adjoining, LayerId, Road, SurveyDocument } from "../document";
 import { roadWidthText } from "../formats";
@@ -127,7 +128,9 @@ export function drawFeatures(ctx: DrawCtx, inside: [number, number] | null): voi
     const pts = f.points.map((id) => ctx.byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
     if (pts.length < 2) continue;
     const entry = lookupCode(doc.codes, f.code);
-    const page = pts.map((p) => atPage(ctx, p));
+    // Curves (ADR 0247) as chords no more than 0.02 mm of paper from the curve, at the plan's scale.
+    // A line missing a point draws no curve: its indexes would point at the wrong points (and the checks stop the plan anyway).
+    const page = densify(pts, pts.length === f.points.length ? f.arcs : undefined, (0.02 / 1000) * ctx.v.scale).map((p) => atPage(ctx, p));
     ctx.out.push({ kind: "path", points: page, closed: f.closed, width: ctx.lines.feature, color: "ink", dash: dashFor(entry?.line), layer: f.layer, entity: `feature:${f.id}` });
     for (let i = 0; i + 1 < page.length; i++) ctx.placer.segment(page[i]!, page[i + 1]!);
     if (!f.code.trim()) continue;

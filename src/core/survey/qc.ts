@@ -4,6 +4,7 @@
  * and what it blocks. Passing every check is not certification or legal
  * compliance: a plan is final only when its surveyor approves a version.
  */
+import { fitArc } from "./arcs";
 import { sketchFindings } from "./autosurvey/sketch";
 import { codeOf, codesAreCommonList, codesAreDsrList, lookupCode } from "./codes";
 import type { CrsRecord } from "./crs";
@@ -342,10 +343,19 @@ export function checkSurvey(input: QcInput): Finding[] {
     add({ code: "ENTIRE_AREA_MISMATCH", severity: "error", message: "The lots' areas don't add up to the entire land's area.", target: { kind: "lot" }, detail: `Sum of lots ${input.lots.sumAreaM2.toFixed(3)} m², entire land ${input.lots.outlineAreaM2.toFixed(3)} m².`, action: "Check for a corner that lies on a neighbour's leg without being one of its corners.", blocks: ["export", "approval"] });
   }
 
+  const pointAt = new Map(input.points.map((p) => [p.id, p]));
   for (const f of doc.features) {
     const missing = f.points.filter((id) => !known.has(id));
     if (missing.length > 0) {
       add({ code: "FEATURE_MISSING_POINTS", severity: "error", message: `A ${f.layer.toLowerCase()} feature uses points that no longer exist.`, target: { kind: "feature", id: f.id }, action: "Remove the feature or choose its points again.", blocks: ["export", "approval"] });
+      continue;
+    }
+    // A curve whose points no longer make one (ADR 0247) is drawn as straight segments: said, never hidden.
+    for (const run of f.arcs ?? []) {
+      const fit = run.to < f.points.length && run.to - run.from >= 2 ? fitArc(f.points.slice(run.from, run.to + 1).map((id) => pointAt.get(id)!)) : ({ ok: false, problem: "its points aren't on the line any more" } as const);
+      if (!fit.ok) {
+        add({ code: "CURVE_DRAWN_STRAIGHT", severity: "warning", message: `A curve on the ${f.code ? `${f.code} line` : "line"} is drawn as straight segments: ${fit.problem}.`, target: { kind: "feature", id: f.id }, action: "Check the points it runs through, or draw the line again from the field codes.", blocks: [] });
+      }
     }
   }
   for (const r of doc.roads) {

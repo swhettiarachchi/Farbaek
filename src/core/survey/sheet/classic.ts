@@ -21,7 +21,7 @@ import { bounds } from "../geometry";
 import type { Finding } from "../qc";
 import { fmt, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
-import { BLANK, commonFindings, drawCtx, drawnPoints, entireAreaM2, overleafPages, plotStamp, usedCodes, type ComposeInput, type ComposedSheet } from "./compose";
+import { BLANK, commonFindings, drawCtx, drawnExtent, entireAreaM2, overleafPages, plotStamp, usedCodes, type ComposeInput, type ComposedSheet } from "./compose";
 import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads, quadsOverlap, textQuad, type DrawCtx } from "./draw";
 import { advanceWidth, textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import { SRI_LANKA_CLASSIC_V1 as T } from "./template";
@@ -113,7 +113,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   const landscape = doc.settings.orientation === "landscape";
   const extract = s.extractOf ? (doc.lots.find((l) => l.id === s.extractOf) ?? null) : null;
   const byId = new Map(input.points.map((p) => [p.id, p]));
-  const b = bounds(drawnPoints(doc, byId));
+  const b = bounds(drawnExtent(doc, byId));
   const used = usedCodes(doc, input.lots, input.points);
 
   // --- Layout for one paper: bands top to bottom, measured from the content.

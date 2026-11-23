@@ -42,7 +42,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Surveyor profile resolver | `autosurvey/defaults.ts`, `server/survey/defaults.ts` | Partly built: carried code list, sheet presentation and grid; no profile table yet |
 | Data normalisation | `import/*` readers, `import/reduce.ts` | Built and tested |
 | CRS resolver | `crs.ts`, the start screen's last-confirmed grid | Built and tested: never inferred, always confirmed; no transformations |
-| Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `grammar.ts`, `codes.ts`, `codelib.ts`, `codehints.ts` | Built and tested: Farbaek's and Carlson's line words (ADR 0243), joins to a point, a code report in the checks, suggestions for unknown codes added in one press (ADR 0246); arcs read but drawn straight |
+| Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `grammar.ts`, `codes.ts`, `codelib.ts`, `codehints.ts` | Built and tested: Farbaek's and Carlson's line words (ADR 0243), joins to a point, a code report in the checks, suggestions for unknown codes added in one press (ADR 0246); PC to PT runs drawn as curves through their points (ADR 0247) |
 | Sketch intelligence | `autosurvey/sketch.ts`, `server/survey/sketches.ts`, `server/ai/sketch-reader.ts` | Built, not proven on real sketches |
 | Source reconciliation | point clashes, sketch-versus-instrument checks, observation checks | Built and tested |
 | Survey computation | `angles.ts`, `geometry.ts`, `cogo.ts`, `units.ts`, `reduce.ts`, `adjust.ts` | Built and tested |
@@ -124,10 +124,11 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 - A traverse's linear misclosure and precision, and the compass and transit rules (ADR 0241).
 - Lot subdivision by a dividing line (`partition.ts`).
 - The stated extent read and compared with the computed area.
+- The circle through a curve's surveyed points, its fit (2 cm), chords for the sheet and exact DXF bulges (`arcs.ts`, ADR 0247).
 
 **Not built:**
 - least squares, and balancing angles before a linear rule;
-- curves;
+- curved lot boundaries and their areas;
 - transformations between coordinate systems;
 - earth curvature and refraction on heights. This last one is said wherever heights are worked out.
 
@@ -206,7 +207,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #298 | 235 (timed jobs, finishing a cut-off run) | Merged, live (build 684f7edfa43f) | none |
 | #299 | 236 (checks and sources report) | Open | none |
 | #300 | 237 (success metrics script) | Open, builds on #299 | none |
-| next | 238 (suggestions for unknown codes) | Open, builds on #300 | none |
+| #301 | 238 (suggestions for unknown codes) | Open, builds on #300 | none |
+| next | 239 (curves from PC to PT) | Open, builds on #301 | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
@@ -214,7 +216,7 @@ Production deploys main by itself. Whether v102 and v103 are applied isn't confi
 
 **Not built:**
 - **Labels and layout:** leader lines and a leg table for dimensions that can't fit; multi-sheet layout.
-- **Codes:** drawing curves (PC/PT arcs are drawn straight, and said); offsets, rectangles and jogs; a firm's own word list.
+- **Codes:** curved lot boundaries (curves are drawn on lines, not lots, since a lot's area would change); a curve's radius and length on the plan; offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
 - **Defaults:** a surveyor profile table (equipment, title block, plan numbering).
 - **Jobs:** resuming a cut-off import or sketch read (a run cut off after its import can be finished since stage 235); a timer for the jobs sweep; incremental regeneration (a correction saves a new version and re-checks the whole plan).

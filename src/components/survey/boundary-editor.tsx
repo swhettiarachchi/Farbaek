@@ -350,7 +350,7 @@ export function LotsEditor({
         </h3>
         <p className="text-sm text-ink-2">Lines and outlines through points already imported, on their own layers.</p>
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" disabled={ro} onClick={() => setSuggestions(suggestFeatures(points, document.codes, GRAMMAR[document.grammar ?? "farbaek"]).filter((s) => !features.some((f) => f.code === s.code && f.points.join() === s.points.join())))} className={buttonClasses("secondary", "sm")}>
+          <button type="button" disabled={ro} onClick={() => setSuggestions(suggestFeatures(points, document.codes, GRAMMAR[document.grammar ?? "farbaek"]).filter((s) => !features.some((f) => f.code === s.code && f.points.join() === s.points.join() && (Boolean(f.arcs) || !s.arcs))))} className={buttonClasses("secondary", "sm")}>
             <ListPlusIcon size={16} weight="bold" aria-hidden />
             Suggest lines from the field codes
           </button>
@@ -367,8 +367,9 @@ export function LotsEditor({
                   <span className="min-w-0 flex-1 text-sm text-ink-2">
                     {s.code}, points {s.pointNumbers.join(" ")}
                     {s.closed ? ", closed" : ""}
+                    {s.arcs ? `, with ${s.arcs.length === 1 ? "a curve" : `${s.arcs.length} curves`}` : ""}
                   </span>
-                  <button type="button" disabled={ro} onClick={() => (setFeatures((f) => [...f, { id: newId("f"), layer: s.layer, code: s.code, closed: s.closed, points: s.points }]), setSuggestions((all) => all?.filter((_, j) => j !== i) ?? null))} className={buttonClasses("ghost", "sm")}>
+                  <button type="button" disabled={ro} onClick={() => (setFeatures((f) => (f.some((x) => !x.arcs && x.code === s.code && x.points.join() === s.points.join()) ? f.map((x) => (!x.arcs && x.code === s.code && x.points.join() === s.points.join() && s.arcs ? { ...x, arcs: s.arcs } : x)) : [...f, { id: newId("f"), layer: s.layer, code: s.code, closed: s.closed, points: s.points, ...(s.arcs ? { arcs: s.arcs } : {}) }])), setSuggestions((all) => all?.filter((_, j) => j !== i) ?? null))} className={buttonClasses("ghost", "sm")}>
                     <PlusIcon size={16} weight="bold" aria-hidden />
                     Add
                   </button>

@@ -228,7 +228,17 @@ export function autoDraft(input: AutoDraftInput): AutoDraftResult {
   // Read with the plan's code grammar (ADR 0243); what reading the codes found is said, a few at a time.
   const codeProblems: CodeProblem[] = [];
   for (const s of suggestFeatures(input.points, codes, GRAMMAR[doc.grammar ?? "farbaek"], codeProblems)) {
-    if (have.has(`${s.code}|${s.points.join(",")}`)) continue;
+    if (have.has(`${s.code}|${s.points.join(",")}`)) {
+      // The same line drawn straight before curves were drawn (stage 239): it becomes the curve, and waits for a look like a new line.
+      const same = next.features.find((f) => !f.arcs && s.arcs && f.code === s.code && f.points.join(",") === s.points.join(","));
+      if (same) {
+        same.arcs = s.arcs;
+        next.provenance[`feature:${same.id}`] = { source: "auto", reviewed: false };
+        drawn.push(`The ${s.meaning.toLowerCase()} line through points ${listed(s.pointNumbers)} is now drawn as the curve through its points.`);
+        shapes++;
+      }
+      continue;
+    }
     if (s.points.length > LIMITS.featurePoints) {
       tooLong++;
       continue;
@@ -237,12 +247,12 @@ export function autoDraft(input: AutoDraftInput): AutoDraftResult {
     do id = `f-auto-${++n}`;
     while (ids.has(id));
     ids.add(id);
-    fresh.push({ id, layer: s.layer, code: s.code, closed: s.closed, points: s.points });
+    fresh.push({ id, layer: s.layer, code: s.code, closed: s.closed, points: s.points, ...(s.arcs ? { arcs: s.arcs } : {}) });
   }
   const room = Math.max(0, LIMITS.features - doc.features.length);
   const kept = fresh.slice(0, room);
   if (kept.length > 0) {
-    next.features = [...doc.features, ...kept];
+    next.features = [...next.features, ...kept];
     // Each line waits for the surveyor's check like the lot: the codes are the crew's, but which points join is inferred.
     for (const f of kept) next.provenance[`feature:${f.id}`] = { source: "auto", reviewed: false };
     shapes++;
