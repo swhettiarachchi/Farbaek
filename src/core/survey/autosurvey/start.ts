@@ -32,9 +32,8 @@ export function kindOfUpload(name: string, mimeType: string): Exclude<UploadKind
   return "survey-data";
 }
 
-/** Why a picture or document isn't read in this part of AutoSurvey: said beside it, so nothing looks read that wasn't. */
-export function notReadYet(kind: "sketch" | "document", name: string): string {
-  if (kind === "sketch") return "Field sketches and photos aren't read yet. This part of AutoSurvey draws from your survey data; reading sketches comes next.";
+/** Why a document isn't read: said beside it, so nothing looks read that wasn't. Sketches are read with Claude (sketch.ts). */
+export function notReadYet(name: string): string {
   if (/\.dxf$/i.test(name)) return "DXF drawings aren't read yet. Upload the survey's points file instead.";
   if (/\.dwg$/i.test(name)) return "DWG drawings can't be read. Upload the survey's points file instead.";
   if (/\.xlsx?$/i.test(name)) return "Excel files aren't read. Save the sheet as CSV and upload that.";

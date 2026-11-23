@@ -15,12 +15,11 @@ import { ReportResult } from "@/components/tasks/report-result";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { shrink } from "./photo";
 import { SheetSvg } from "./sheet-svg";
 
 const BRIEF_MAX = 4_000;
 const PHOTO_MAX = 3;
-/** Claude reads images up to about this long side; larger ones are scaled down anyway, so they're shrunk here first. */
-const PHOTO_SIDE = 1_568;
 
 export interface DraftPanelProps {
   projectId: string;
@@ -47,19 +46,6 @@ interface Photo {
 }
 
 /** A photo shrunk in the browser to what the model reads, as JPEG: smaller to send, and its original never leaves the device. */
-async function shrink(file: File): Promise<Blob> {
-  // A large photo (a 50 MP phone camera) is decoded straight to a smaller width where the browser can, so it doesn't fill a phone's memory.
-  const big = file.size > 4_000_000;
-  const bitmap = await createImageBitmap(file, big ? { imageOrientation: "from-image", resizeWidth: 2 * PHOTO_SIDE, resizeQuality: "high" } : { imageOrientation: "from-image" }).catch(() => createImageBitmap(file, { imageOrientation: "from-image" }));
-  const scale = Math.min(1, PHOTO_SIDE / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("encode"))), "image/jpeg", 0.85));
-}
-
 const KIND_ORDER = ["lot", "road", "adjoining", "sheet", "notes"] as const;
 const KIND_TITLES: Record<(typeof KIND_ORDER)[number], string> = { lot: "Lots", road: "Roads", adjoining: "Adjoining lands", sheet: "Title and boundaries", notes: "Notes" };
 const kindOf = (key: string): (typeof KIND_ORDER)[number] => (key.startsWith("lot:") ? "lot" : key.startsWith("road:") ? "road" : key.startsWith("adjoining:") ? "adjoining" : key === "notes" ? "notes" : "sheet");

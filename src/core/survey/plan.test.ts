@@ -778,11 +778,12 @@ describe("the stage 192 re-check (synthetic)", () => {
     ]);
   });
 
-  it("matches the approval hash formula used before the kept and rules fields existed", async () => {
+  it("matches the approval hash formula used before the kept, rules and sketch fields existed", async () => {
     const d = sampleDocument();
-    const { kept: _k, rules: _r, ...older } = d;
+    const { kept: _k, rules: _r, sketch: _s, ...older } = d;
     void _k;
     void _r;
+    void _s;
     const used = usedPointIds(d);
     const points = SAMPLE_POINTS.filter((x) => used.has(x.id)).map((x) => ({ id: x.id, point: x.pointId, e: x.e, n: x.n, z: x.z, code: x.code })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     const before = await sha256Hex(canonicalize({ engine: SURVEY_ENGINE_VERSION, crs: "EPSG:5235", document: older, points }));

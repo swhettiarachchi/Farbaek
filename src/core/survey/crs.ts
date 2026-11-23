@@ -25,6 +25,11 @@ export interface CrsRecord {
   axisOrder: "E,N";
   /** Rough grid extent of the system's area of use, for the plausibility check only. Null for local grids. */
   plausibleRange: Bounds | null;
+  /**
+   * The Transverse Mercator projection's scale at the central meridian and its false easting, from the definition above. Only to
+   * tell a taped ground distance from a grid distance when comparing them (autosurvey/sketch.ts); no coordinate is ever changed with it.
+   */
+  tm?: { k0: number; falseEasting: number };
   /** Where the definition comes from, and how well it is established. */
   source: string;
   status: "verified_official" | "verified_secondary" | "professional_configuration_required" | "not_verified";
@@ -56,6 +61,7 @@ export const CRS_REGISTRY: readonly CrsRecord[] = [
     axisOrder: "E,N",
     // EPSG's easting extent is about 374,654 to 630,461 m; northings are from the skill's summary, padded.
     plausibleRange: { minE: 370_000, minN: 370_000, maxE: 635_000, maxN: 830_000 },
+    tm: { k0: 0.9999238418, falseEasting: 500_000 },
     source: "EPSG dataset v13.102 (EPSG:5235), read on epsg.io 2026-11-15; agrees with a 2007 Survey Department thesis",
     status: "verified_secondary",
   },
@@ -70,6 +76,7 @@ export const CRS_REGISTRY: readonly CrsRecord[] = [
     axisOrder: "E,N",
     // EPSG's easting extent is about 74,454 to 330,261 m: no overlap with SLD99 eastings. Northings overlap.
     plausibleRange: { minE: 70_000, minN: 70_000, maxE: 335_000, maxN: 530_000 },
+    tm: { k0: 0.9999238418, falseEasting: 200_000 },
     source: "EPSG dataset v13.102 (EPSG:5234), read on epsg.io 2026-11-15",
     status: "verified_secondary",
   },
@@ -83,6 +90,8 @@ export const CRS_REGISTRY: readonly CrsRecord[] = [
     units: "metre",
     axisOrder: "E,N",
     plausibleRange: { minE: 160_000, minN: 0, maxE: 840_000, maxN: 9_400_000 },
+    // Every UTM zone: scale 0.9996 at the central meridian, false easting 500,000 m.
+    tm: { k0: 0.9996, falseEasting: 500_000 },
     source: "EPSG Geodetic Parameter Dataset, EPSG:32644 (standard UTM zone 44N). The plausible range is Farbaek's own broad box for the zone, only for questioning a choice.",
     status: "verified_secondary",
   },

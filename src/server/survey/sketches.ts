@@ -1,0 +1,81 @@
+/**
+ * Reading field sketches (stage 223, ADR 0234), metered like "Read an old plan" (survey_read, free while Survey Studio is tested):
+ * usage is reserved first and given back if the call fails or Farbaek's own checks fail. What comes back is kept only as `acceptSketch`
+ * passes it, as written; the plan's checks compare it with the coordinates at display time, so nothing here moves or adds a point.
+ * The photos are sent to the provider and never stored. One audit event records the run, with counts only.
+ */
+import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
+import { SKETCH_LIMITS, acceptSketch, sketchRecordSchema, type SketchRecord } from "@/core/survey/autosurvey/sketch";
+import { routeModel } from "@/server/ai/routing";
+import { SKETCH_READ_PROMPT, SKETCH_TOKENS_PER_IMAGE, sketchReadMessage, type SketchImage, type SketchReadOutcome, type SketchReader } from "@/server/ai/sketch-reader";
+import { refundUsage, reserveMetered, resolveMetering, settleUsage, type AiUsageDeps, type FreeUsageDeps, type ModelSource } from "@/server/workspace/ai-usage";
+import { fail, requireContributor, type WriteDeps, type WriteResult } from "@/server/workspace/use-cases";
+import type { SurveyDraftDeps } from "./drafting";
+
+export const SKETCH_PHOTOS = { count: SKETCH_LIMITS.photos, bytes: SKETCH_LIMITS.photoBytes, total: SKETCH_LIMITS.totalBytes } as const;
+export const MANUAL_SKETCH_READ = "Check the plan against your sketches yourself: everything else works without AI.";
+
+const FAILURES = {
+  REFUSED: "The AI declined to read these sketches, so it wasn't counted.",
+  INCOMPLETE: "The sketches couldn't be read completely, so it wasn't counted. Try again.",
+  PROVIDER_BUSY: "The AI provider is busy, so it wasn't counted. Try again in a minute.",
+  PROVIDER_ERROR: "Reading the sketches didn't finish, so it wasn't counted. Try again.",
+} as const;
+
+type Deps = WriteDeps & AiUsageDeps & FreeUsageDeps & SurveyDraftDeps;
+
+export async function readFieldSketches(
+  deps: Deps,
+  source: ModelSource<SketchReader>,
+  input: { orgId: string; userId: string; projectId: string; images: readonly SketchImage[]; now: Date },
+): Promise<WriteResult<SketchRecord>> {
+  const role = await requireContributor(deps, input.orgId);
+  if (!role.ok) return role;
+  const { images } = input;
+  if (images.length < 1 || images.length > SKETCH_PHOTOS.count) return fail("INVALID_REQUEST", `Choose one to ${SKETCH_PHOTOS.count} sketch photos.`);
+  if (images.some((i) => i.data.length > SKETCH_PHOTOS.bytes) || images.reduce((s, i) => s + i.data.length, 0) > SKETCH_PHOTOS.total) {
+    return fail("INVALID_REQUEST", "The sketch photos are too large together. Choose them again so Farbaek can shrink them.");
+  }
+
+  const metering = await resolveMetering(deps, input.orgId, "survey_read");
+  if (!metering.ok) return metering;
+  const reader = source.create(routeModel({ plan: metering.value.plan, family: source.family, step: "review", effort: "balanced" }));
+  const promptTokens = approxTokens(SKETCH_READ_PROMPT) + approxTokens(sketchReadMessage(images)) + SKETCH_TOKENS_PER_IMAGE * images.length;
+  const units = reserveUnits(reader.model, promptTokens + 500, reader.maxOutputTokens);
+  const reserved = await reserveMetered(deps, metering.value, { orgId: input.orgId, userId: input.userId, taskId: null, operation: "survey_read", units, manual: MANUAL_SKETCH_READ });
+  if (!reserved.ok) return reserved;
+
+  let outcome: SketchReadOutcome;
+  try {
+    outcome = await reader.read(images);
+  } catch {
+    outcome = { ok: false, failure: "PROVIDER_ERROR", usage: null };
+  }
+  if (!outcome.ok) {
+    await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage, reason: "failed" });
+    return fail(outcome.failure === "PROVIDER_BUSY" ? "AI_BUSY" : outcome.failure === "REFUSED" ? "AI_REFUSED" : "AI_INCOMPLETE", FAILURES[outcome.failure]);
+  }
+  let record: SketchRecord;
+  try {
+    record = sketchRecordSchema.parse(acceptSketch(outcome.output, images.map((i) => i.name), outcome.usage.model, input.now));
+  } catch {
+    // A failure in Farbaek's own checks is never charged.
+    await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage, reason: "failed" });
+    return fail("AI_INCOMPLETE", FAILURES.INCOMPLETE);
+  }
+  await settleUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage });
+  // The audit line is a record, not a gate: the usage is already settled.
+  await deps
+    .recordAiDraft({
+      orgId: input.orgId,
+      actor: input.userId,
+      projectId: input.projectId,
+      operation: "survey_read",
+      model: outcome.usage.model,
+      accepted: Math.min(record.readings.length, 1000),
+      dropped: Math.min(Math.max(outcome.output.readings.length - record.readings.length, 0), 1000),
+      questions: Math.min(record.unreadable.length, 100),
+    })
+    .catch(() => null);
+  return { ok: true, value: record };
+}

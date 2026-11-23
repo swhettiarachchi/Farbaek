@@ -81,7 +81,7 @@ beforeEach(() => {
 describe("Generate Plan", () => {
   it("makes one project with the grid confirmed, imports each file as its own source, draws once and opens the plan", async () => {
     const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }, { name: "extra.csv", content: extra }] });
-    expect(r.redirect).toBe("/app/survey/11111111-1111-4111-8111-111111111111?step=plan&generated=1");
+    expect(r.result).toEqual({ status: "done", projectId: "11111111-1111-4111-8111-111111111111", next: "/app/survey/11111111-1111-4111-8111-111111111111?step=plan&generated=1", version: 2 });
     expect(calls.map((c) => c.kind)).toEqual(["create", "import", "import", "draw"]);
     const create = calls[0]!.input;
     expect(create).toMatchObject({ planType: "cadastral", crsId: "EPSG:5235", confirm: true });
@@ -110,6 +110,13 @@ describe("Generate Plan", () => {
     const tooMuch = await generate({ title: "", crsId: "EPSG:5235", files: [1, 2, 3].map((n) => ({ name: `${n}.csv`, content: big })) });
     expect(tooMuch.result?.status === "error" && tooMuch.result.message).toMatch(/more than 5 MB/);
     expect(calls).toEqual([]);
+  });
+
+  it("opens on the Draft step, on the version the project was created with, when nothing could be drawn", async () => {
+    const plain = ["Point,Easting,Northing,Height,Code", "1,450000.000,700000.000,20.00,Tree", "2,450040.000,700000.000,20.00,Tree"].join("\n");
+    const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "trees.csv", content: plain }] });
+    expect(r.result).toEqual({ status: "done", projectId: "11111111-1111-4111-8111-111111111111", next: "/app/survey/11111111-1111-4111-8111-111111111111?step=draft&generated=1", version: 1 });
+    expect(calls.map((c) => c.kind)).toEqual(["create", "import"]);
   });
 
   it("uses the surveyor's own project name", async () => {

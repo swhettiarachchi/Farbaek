@@ -27,9 +27,9 @@ describe("sorting what a surveyor uploads", () => {
   });
 
   it("says plainly why a picture or document isn't read, so nothing looks read that wasn't", () => {
-    expect(notReadYet("sketch", "a.jpg")).toMatch(/aren't read yet/);
-    expect(notReadYet("document", "a.dwg")).toMatch(/can't be read/);
-    expect(notReadYet("document", "a.xlsx")).toMatch(/Save the sheet as CSV/);
+    expect(notReadYet("a.dwg")).toMatch(/can't be read/);
+    expect(notReadYet("a.xlsx")).toMatch(/Save the sheet as CSV/);
+    expect(notReadYet("a.pdf")).toMatch(/Documents aren't read yet/);
   });
 });
 

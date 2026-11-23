@@ -23,6 +23,7 @@ import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives
 import { LotsEditor } from "@/components/survey/boundary-editor";
 import { FindingsList } from "@/components/survey/findings";
 import { DraftPanel } from "@/components/survey/draft-panel";
+import { SketchPanel } from "@/components/survey/sketch-panel";
 import { ApproveForm, SurveyProjectSettingsForm } from "@/components/survey/forms";
 import { ImportPanel } from "@/components/survey/import-panel";
 import { InverseTool } from "@/components/survey/inverse-tool";
@@ -35,6 +36,7 @@ import { StepNav } from "@/components/survey/step-nav";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { checkSketch } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
 import { readModelKey } from "@/server/ai/workspace-ai";
 import { fmt } from "@/core/survey/sheet/compose";
@@ -245,6 +247,18 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           draftOff={draftOff}
           readOff={aiOff(readAi)}
           provider={readAi?.provider ?? null}
+          aiCost={draftCost}
+        />
+      ) : null}
+
+      {step === "draft" ? (
+        <SketchPanel
+          key={`sketch-${data.drawing.version}`}
+          projectId={projectId}
+          baseVersion={data.drawing.version}
+          sketch={doc.sketch}
+          checks={doc.sketch && crs && data.project.crsConfirmedAt ? checkSketch(doc.sketch, data.points, crs) : null}
+          readOff={aiOff(readAi)}
           aiCost={draftCost}
         />
       ) : null}
