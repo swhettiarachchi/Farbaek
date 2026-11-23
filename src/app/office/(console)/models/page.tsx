@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CpuIcon, ListChecksIcon, PulseIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CpuIcon, ListChecksIcon, PulseIcon, TagIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";
@@ -11,6 +11,7 @@ import { StatusGlyph } from "@/components/ui/status-badge";
 import { CANARY_SUITE } from "@/content/canary-suite";
 import { TIER_MODELS, TIERS, tierModels, type Tier } from "@/core/agent/routing";
 import { pricedModel, type CanarySide } from "@/core/ai/model-canary";
+import { PRICE_CHECK_DAYS, PROVIDER_NAMES, ROLE_NAMES, priceCheckList } from "@/core/ai/model-registry";
 import { findingWords, listedAs } from "@/core/ai/model-watch";
 import { RATE_CARD, USD_PER_UNIT, modelName } from "@/core/billing/rate-card";
 import { estimateSuite } from "@/server/ai/model-canary-runner";
@@ -102,6 +103,8 @@ export default async function OfficeModels() {
   const listedIds = check?.listed.map((m) => m.id) ?? [];
   const candidates = [...new Set([...(Object.keys(RATE_CARD) as string[]).filter((m) => m.startsWith("claude-")), ...listedIds])].sort();
   const now = new Date().getTime();
+  const prices = priceCheckList(new Date(now));
+  const toRead = prices.filter((p) => p.state !== "current").length;
 
   return (
     <div className={PAGE_STACK}>
@@ -218,6 +221,31 @@ export default async function OfficeModels() {
         ) : (
           <Notice>No check has run yet. It runs with the hourly jobs, once a day, when this server has an Anthropic key.</Notice>
         )}
+      </section>
+
+      {/* Usage is metered at list price, so a price that has moved makes every allowance wrong. The day each was read is in the
+          registry (ADR 0229); this is that list for the person who reads the providers' pages. Read only: a price changes in code. */}
+      <section aria-labelledby="prices-heading" className="grid gap-3">
+        <CardTitle id="prices-heading" icon={TagIcon}>
+          Prices to read again
+        </CardTitle>
+        <p className="max-w-[72ch] text-sm text-ink-2">
+          People&apos;s usage is counted at each model&apos;s list price, and providers change prices without notice. Each price is read again from the provider&apos;s own pricing page every {PRICE_CHECK_DAYS} days.{" "}
+          {toRead === 0 ? "None needs reading today." : `${toRead} of ${prices.length} ${toRead === 1 ? "needs" : "need"} reading today.`} A new price goes into the rate card with the day it was read, as a code change.
+        </p>
+        <AdminTable caption="Every model Farbaek uses, who makes it, what it is used for and the day its price was last read" columns={["Model", "Made by", "Used for", "Price read on", "State"]}>
+          {prices.map(({ model, state }) => (
+            <tr key={model.id}>
+              <Cell>{model.name}</Cell>
+              <Cell>{PROVIDER_NAMES[model.provider]}</Cell>
+              <Cell>{model.roles.map((role) => ROLE_NAMES[role]).join(", ")}</Cell>
+              <Cell mono={Boolean(model.priceReadOn)} muted={!model.priceReadOn}>
+                {model.priceReadOn ?? "No day recorded"}
+              </Cell>
+              <Cell>{state === "due" ? <Chip kind="attention">Read it again</Chip> : state === "undated" ? <Chip kind="unverified">Never dated</Chip> : <Chip kind="done">In date</Chip>}</Cell>
+            </tr>
+          ))}
+        </AdminTable>
       </section>
 
       <section aria-labelledby="runs-heading" className="grid gap-4">
