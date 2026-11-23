@@ -32,6 +32,7 @@
     "qa:a11y": "node scripts/qa/a11y-audit.mjs",
     "qa:responsive": "node scripts/qa/responsive-audit.mjs",
     "qa:vitals": "node scripts/qa/vitals.mjs",
+    "bench:survey": "vitest run --config vitest.bench.config.mts --silent=false",
     "security:eval": "node scripts/security-eval.mjs"
   },
   "dependencies": {
