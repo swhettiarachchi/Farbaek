@@ -214,6 +214,13 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
         {check("Slanted lettering", st.slant, (d, v) => void (d.settings.slant = v))}
         {check("Bearings and distances on the face", st.faceDimensions, (d, v) => void (d.settings.faceDimensions = v))}
         {check("Boundaries schedule overleaf", st.overleaf, (d, v) => void (d.settings.overleaf = v))}
+        {/* ADR 0248: only with bearings and distances on the face and the schedule overleaf; off removes the setting entirely. */}
+        {st.faceDimensions && st.overleaf
+          ? check("Leave legs too crowded to letter to the schedule", st.crowdedLegsToSchedule === true, (d, v) => {
+              if (v) d.settings.crowdedLegsToSchedule = true;
+              else delete d.settings.crowdedLegsToSchedule;
+            })
+          : null}
         {check("Development permit box (UDA areas, panel layout)", st.permitBox, (d, v) => void (d.settings.permitBox = v))}
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Extract of one lot</span>

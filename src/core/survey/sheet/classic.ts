@@ -238,7 +238,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
 
     // The drawing band, between the header and the title block, less a strip for the legend and notes.
     const legendRows = used.length > 0 ? used.length + (codesAreCommonList(doc.codes) && !doc.provenance["codes"]?.reviewed ? 1 : 0) : 0;
-    const notes = doc.notes.flatMap((n) => wrap(`${cap.note} ${n}`, z.label, f.fw * 0.4));
+    const notes = [...doc.notes, ...(input.scheduledLegs ? [input.scheduledLegs.note] : [])].flatMap((n) => wrap(`${cap.note} ${n}`, z.label, f.fw * 0.4));
     const legendH = legendRows > 0 || notes.length ? (legendRows > 0 ? z.label * 2.2 + legendRows * z.label * 1.3 : 0) + notes.length * z.label * 1.3 + z.label : 0;
     const bandTop = headerBottom + f.fh * 0.01;
     const vp = { x: f.x0 + f.fw * 0.05, y: bandTop, w: f.fw * 0.8, h: Math.max(0, titleTop - bandTop - legendH) };
@@ -306,7 +306,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     ctx.placer.add([[needle.x - needle.h * 0.2, needle.top], [needle.x + needle.h * 0.2, needle.top], [needle.x + needle.h * 0.2, needle.top + needle.h], [needle.x - needle.h * 0.2, needle.top + needle.h]]);
     if (checkLine) ctx.placer.add([[checkLine.x, checkLine.y - z.small * 2], [checkLine.x + 100, checkLine.y - z.small * 2], [checkLine.x + 100, checkLine.y + 1], [checkLine.x, checkLine.y + 1]]);
     drawRoads(ctx, doc.roads);
-    drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: extract?.id ?? null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals });
+    drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: extract?.id ?? null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals, scheduled: input.scheduledLegs?.keys });
     const first = input.lots.lots.find((r) => r.parcel && r.parcel.vertices.length >= 3)?.parcel;
     drawFeatures(ctx, first ? atPage(ctx, first.labelAt) : null);
     drawCorners(ctx, input.lots, { numbers: doc.settings.faceDimensions, circles: true });

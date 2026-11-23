@@ -181,6 +181,11 @@ export const settingsSchema = z.object({
   slant: z.boolean(),
   /** Bearings and distances beside each leg on the face. The classic layout keeps them overleaf. */
   faceDimensions: z.boolean(),
+  /**
+   * With bearings and distances on the face and the schedule overleaf: a leg whose label can't be placed clear of the others is left
+   * to the schedule, and the face says which (stage 240, ADR 0248). Absent unless chosen.
+   */
+  crowdedLegsToSchedule: z.literal(true).optional(),
 });
 export type DrawingSettings = z.infer<typeof settingsSchema>;
 

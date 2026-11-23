@@ -23,7 +23,7 @@ import { fmt, fromSquareMetres, formatArp, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 import { composeClassic } from "./classic";
 import { LabelSession, solveLabels } from "./labels";
-import { Placer, atPage, textQuad, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawRoads, drawScaleBar, drawSimpleNorth, overlappingLabels, suggestScale, type DrawCtx } from "./draw";
+import { Placer, atPage, textQuad, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawRoads, drawScaleBar, drawSimpleNorth, overlappingEntities, overlappingLabels, suggestScale, type DrawCtx } from "./draw";
 import { textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import type { SheetTemplate } from "./template";
 
@@ -55,6 +55,8 @@ export interface ComposeInput {
   blockOut?: { engine: string };
   /** The labels' placers for this composition (labels.ts): set by `composeSheet` for its two passes. */
   labels?: LabelSession;
+  /** Legs left to the boundaries schedule (ADR 0248), by their corners' ids ("a|b", in order), and the note the face carries. */
+  scheduledLegs?: { keys: ReadonlySet<string>; note: string };
 }
 
 /**
@@ -147,13 +149,85 @@ export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: 
  * the solved places when that improves anything. `greedy` keeps the first pass, each label at its first free place, for comparison.
  */
 export function composeSheet(input: ComposeInput, placement: "solved" | "greedy" = "solved"): ComposedSheet {
-  const once = (labels: LabelSession) => (input.document.settings.template === "classic" ? composeClassic({ ...input, labels }) : composePanel({ ...input, labels }));
-  const first = new LabelSession();
-  const sheet = once(first);
-  if (placement === "greedy") return sheet;
-  const solved = first.placers.map(solveLabels);
-  if (solved.every((x) => x === null)) return sheet;
-  return once(new LabelSession(solved.map((x) => x?.plan ?? null)));
+  const placed = (inp: ComposeInput) => {
+    const once = (labels: LabelSession) => (inp.document.settings.template === "classic" ? composeClassic({ ...inp, labels }) : composePanel({ ...inp, labels }));
+    const first = new LabelSession();
+    const sheet = once(first);
+    if (placement === "greedy") return sheet;
+    const solved = first.placers.map(solveLabels);
+    if (solved.every((x) => x === null)) return sheet;
+    return once(new LabelSession(solved.map((x) => x?.plan ?? null)));
+  };
+  const sheet = placed(input);
+  const st = input.document.settings;
+  if (!st.crowdedLegsToSchedule || !st.faceDimensions || !st.overleaf || input.blockOut || sheet.pages.length < 2 || sheet.scale === null) return sheet;
+  // The scale and paper the crowding was judged at are kept, so the note's own lines can't move the drawing to another scale or paper.
+  const held: ComposeInput = { ...input, document: { ...input.document, settings: { ...st, scale: sheet.scale, paper: sheet.paper } } };
+  const chosen = new Map<string, CrowdedLeg>();
+  let result: ComposedSheet | null = null;
+  // Leaving labels off moves the others, which can crowd legs that were clear: those are added, a few rounds at most. The set only grows.
+  for (let round = 0, current = sheet; round < 4; round++) {
+    const more = crowdedLegs(input.lots, overlappingEntities(current.pages[0]!.items)).filter((l) => !chosen.has(l.key));
+    if (more.length === 0) break;
+    for (const l of more) chosen.set(l.key, l);
+    current = placed({ ...held, scheduledLegs: { keys: new Set(chosen.keys()), note: scheduleNote([...chosen.values()]) } });
+    result = current;
+  }
+  if (!result) return sheet;
+  // Kept only when the face is clearer and nothing new stops the export; otherwise every leg is lettered, and the checks say why.
+  const stops = (s: ComposedSheet) => new Set(s.findings.filter((f) => f.blocks.includes("export")).map((f) => f.code));
+  const before = stops(sheet);
+  const newStop = [...stops(result)].some((c) => !before.has(c));
+  if (newStop || overlappingLabels(result.pages[0]!.items).length >= overlappingLabels(sheet.pages[0]!.items).length) {
+    sheet.findings.push({ code: "LEGS_NOT_SCHEDULED", severity: "information", message: "Leaving the crowded legs to the boundaries schedule didn't make the face clearer at this scale, so every leg is lettered on it.", target: { kind: "sheet" }, action: "Choose a larger scale or sheet, or drag the crowded labels clear in the editor.", blocks: [] });
+    return sheet;
+  }
+  const legs = [...chosen.values()];
+  result.findings.push({ code: "LEGS_IN_SCHEDULE", severity: "information", message: `${legs.length === 1 ? "A leg is" : `${legs.length} legs are`} too crowded to letter clearly on the face, so ${legs.length === 1 ? "its bearing and distance are" : "their bearings and distances are"} left to the boundaries schedule, as the sheet says.`, target: { kind: "sheet" }, detail: `${legs.length === 1 ? "Leg" : "Legs"} ${legList(legs)}.`, action: "Choose a larger scale or sheet to letter them on the face, or turn this off on the Sheet tab.", blocks: [] });
+  return result;
+}
+
+interface CrowdedLeg {
+  key: string;
+  from: string;
+  to: string;
+  distance: number;
+}
+
+/** Every leg, by its corners' numbers: "3 to 4, 5 to 6 and 7 to 8". The plan names each one, never "and 2 more". */
+const legList = (legs: readonly CrowdedLeg[]) => {
+  const named = legs.map((l) => `${l.from} to ${l.to}`);
+  return named.length === 1 ? named[0]! : `${named.slice(0, -1).join(", ")} and ${named.at(-1)}`;
+};
+
+/** The face's note on the legs left to the schedule. */
+const scheduleNote = (legs: readonly CrowdedLeg[]) =>
+  `The bearings and distances of ${legs.length === 1 ? "leg" : "legs"} ${legList(legs)} are in the boundaries schedule: there's no room to letter them clearly at this scale.`;
+
+/**
+ * The legs whose labels overlap another label or a point, fewest first: a leg overlapping a non-leg label is left to the schedule; of
+ * two legs overlapping each other, the shorter (its label is the one squeezed). Each overlap is settled once.
+ */
+function crowdedLegs(lots: PlanLots, pairs: readonly [string | undefined, string | undefined][]): CrowdedLeg[] {
+  const legOf = (entity: string | undefined) => {
+    const m = entity ? /^leg:(.+):(\d+)$/.exec(entity) : null;
+    if (!m) return null;
+    const leg = lots.lots.find((r) => r.lot.id === m[1])?.parcel?.legs[Number(m[2])];
+    if (!leg) return null;
+    const [a, b] = leg.from.id < leg.to.id ? [leg.from, leg.to] : [leg.to, leg.from];
+    return { key: `${a.id}|${b.id}`, from: leg.from.pointId, to: leg.to.pointId, distance: leg.distance };
+  };
+  const out = new Map<string, CrowdedLeg>();
+  for (const [ea, eb] of pairs) {
+    if (ea === eb) continue;
+    const a = legOf(ea);
+    const b = legOf(eb);
+    if (!a && !b) continue;
+    if ((a && out.has(a.key)) || (b && out.has(b.key))) continue;
+    const drop = a && b ? (a.distance <= b.distance ? a : b) : (a ?? b)!;
+    out.set(drop.key, drop);
+  }
+  return [...out.values()];
 }
 
 export class Column {
@@ -297,7 +371,7 @@ function composePanel(input: ComposeInput): ComposedSheet {
       const first = input.lots.lots.find((r) => r.parcel && r.parcel.vertices.length >= 3)?.parcel ?? null;
       drawRoads(ctx, doc.roads);
       drawFeatures(ctx, first ? atPage(ctx, first.labelAt) : null);
-      drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: doc.sheet.extractOf || null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals });
+      drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: doc.sheet.extractOf || null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals, scheduled: input.scheduledLegs?.keys });
       drawCorners(ctx, input.lots, { numbers: true, circles: true });
       drawLoosePoints(ctx, input.points, input.lots);
       drawLotLabels(ctx, input.lots, { extentUnder: input.lots.lots.length === 1 ? (a) => formatArp(toArp(a, doc.settings.perchDecimals)) : null, highlight: doc.sheet.extractOf || null });
@@ -319,6 +393,7 @@ function composePanel(input: ComposeInput): ComposedSheet {
     `${BEARING_CONVENTION} Distances are horizontal grid distances in metres.`,
     scale ? `Scale 1:${fmt(scale, 0)} on ${paper}. Print at 100% (actual size): fitting to the page changes the scale.` : "",
     `Prepared with Farbaek Survey Studio (${SURVEY_ENGINE_VERSION}).`,
+    input.scheduledLegs?.note ?? "",
   ].filter(Boolean);
 
   const panels = buildPanels(input, notes);
