@@ -48,7 +48,7 @@ describe("what a line, symbol or area is", () => {
     expect(classifyLine("MW", "double", codes)).toMatchObject({ kind: "wall", fromWriting: true, code: { code: "MW" } });
     expect(classifyLine("MW2", "single", codes)).toMatchObject({ kind: "wall", code: { code: "MW" } });
     expect(classifyLine("Station Road", "double", codes)).toMatchObject({ kind: "road", fromWriting: true });
-    expect(classifyLine("jayanthamw5", "double", codes)).toMatchObject({ kind: "road" });
+    expect(classifyLine("templemw2", "double", codes)).toMatchObject({ kind: "road" });
     expect(classifyLine("proposed drain", "single", codes)).toMatchObject({ kind: "drain" });
     expect(classifyLine("කාණුව", "single", codes)).toMatchObject({ kind: "drain" });
     expect(classifyLine("", "double", codes)).toMatchObject({ kind: "wall", fromWriting: false });

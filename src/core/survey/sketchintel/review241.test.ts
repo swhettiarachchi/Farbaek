@@ -88,8 +88,8 @@ describe("reading what's written", () => {
   });
 
   it("knows a road abbreviated Mw.", () => {
-    expect(classifyLine("Janatha Mw.", "double", codes)).toMatchObject({ kind: "road", fromWriting: true });
-    expect(classifyLine("Janatha Mw 5", "double", codes)).toMatchObject({ kind: "road" });
+    expect(classifyLine("Temple Mw.", "double", codes)).toMatchObject({ kind: "road", fromWriting: true });
+    expect(classifyLine("Temple Mw 2", "double", codes)).toMatchObject({ kind: "road" });
   });
 
   it("never takes a number in a road's name for its width", () => {

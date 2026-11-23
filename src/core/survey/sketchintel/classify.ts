@@ -22,7 +22,7 @@ export interface LineClass {
 
 /** Words that name a kind of line, in English and Sinhala, tried in this order. */
 const WORDS: { kind: LineKind; re: RegExp; why: string }[] = [
-  // A road's name: "Janatha Mawatha", "5th Lane", "Station Road", or a name run together with an abbreviated Mawatha ("janathamw5").
+  // A road's name: "Temple Mawatha", "2nd Lane", "Station Road", or a name run together with an abbreviated Mawatha ("templemw2").
   // "Mw." needs its own pattern: a word boundary can't follow the dot.
   { kind: "road", re: /\b(road|rd|lane|mawatha|path|street|avenue|veediya|para)\b|[a-z]{3,}\s+mw\.?(?=\s|\d|$)|[a-z]{3,}mw\s?\d|පාර|මාවත|වීදිය|පටුමඟ/i, why: "it names a road" },
   { kind: "drain", re: /\b(drain|canal|ela|ditch|culvert|gutter)\b|කාණු|ඇළ/i, why: "it names a drain" },
