@@ -8,6 +8,7 @@ import { ADJUST_NAMES, type AdjustMethod } from "../adjust";
 import type { CrsRecord } from "../crs";
 import type { TraverseClosure } from "./closure";
 import { parseDelimited, type ColumnRole, type Delimiter, type ImportedPoint, type ImportIssue } from "./delimited";
+import { parseDxfPoints } from "./dxfpoints";
 import type { ImportFormat } from "./detect";
 import { parseFieldBook } from "./fieldbook";
 import { parseGeoJsonPoints } from "./geojson";
@@ -16,6 +17,7 @@ import { parseJobXml } from "./jobxml";
 import { parseLandXml } from "./landxml";
 import { REDUCTION_ENGINE } from "./reduce";
 import { parseSdr } from "./sdr";
+import { parseSokkiaList } from "./sokkialist";
 
 export interface ReadOptions {
   delimiter: Delimiter;
@@ -53,5 +55,7 @@ export function readPoints(format: ImportFormat, text: string, o: ReadOptions): 
   if (format === "landxml") return plain(parseLandXml(text));
   if (format === "jobxml") return parseJobXml(text);
   if (format === "fieldbook") return plain(parseFieldBook(text, o.known ?? []));
+  if (format === "sokkialist") return plain(parseSokkiaList(text));
+  if (format === "dxf") return plain(parseDxfPoints(text));
   return plain(parseDelimited(text, { delimiter: o.delimiter, hasHeader: o.hasHeader, columns: o.columns }));
 }

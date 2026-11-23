@@ -1,12 +1,12 @@
 # Farbaek AutoSurvey: implementation report
 
-The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 241. It keeps four things apart:
+The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 242. It keeps four things apart:
 - **Built and tested:** working in the product, with automated tests.
 - **Built, not proven on real data:** working and tested, but only on synthetic data so far.
 - **Partly built.**
 - **Not built.**
 
-Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-241.md`, and each decision in ADRs 0233 to 0249.
+Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-242.md`, and each decision in ADRs 0233 to 0250.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -106,8 +106,10 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | GeoJSON points | Points with a named EPSG system | Built and tested |
 | Field book (bearings and distances) | Legs from a known point; closure reported, not adjusted | Built and tested |
 | Office code library (.fcl, CSV) | Codes, kinds and layers | Built and tested |
+| Sokkia Link point list (printout) | Points' and stations' North, East, Elev and code, by the printout's own columns; metres only; shots refused (upload the SDR) | Built and tested (stage 242, ADR 0250); a real printout read identical to its SDR |
+| DXF drawing (its points) | POINT entities and blocks, numbered by an attribute or by the text at the offset every point shares; metres only; lines not read | Built and tested (stage 242); a real Sokkia Link DXF read identical to its SDR; needs schema v104 |
 | Field sketch photos (JPEG, PNG, WebP) | Read by Claude with consent: readings, and the drawing's lines, symbols and areas | Built and tested; one real sketch run as transcribed, not yet through the production reader |
-| PDF, Word, DWG, DXF | Listed and said plainly to be unread | Not built |
+| PDF, Word, DWG | Listed and said plainly to be unread | Not built |
 | Topcon GTS-7 raw | Not reduced | Not built |
 
 ## 6. Survey calculation methods
@@ -224,7 +226,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #301 | 238 (suggestions for unknown codes) | Merged, live (build 63bc07a5d93e) | none |
 | #302 | 239 (curves from PC to PT) | Merged, live | none |
 | #303 | 240 (crowded legs left to the schedule) | Merged | none |
-| next | 241 (Sketch Intelligence Engine) | Open | none |
+| #304 | 241 (Sketch Intelligence Engine) | Open | none |
+| next | 242 (point-list printout and DXF points) | Open, builds on #304 | **v104:** the owner applies it before the merge |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
@@ -236,7 +239,7 @@ Production deploys main by itself. Whether v102 and v103 are applied isn't confi
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
 - **Defaults:** a surveyor profile table (equipment, title block, plan numbering).
 - **Jobs:** resuming a cut-off import or sketch read (a run cut off after its import can be finished since stage 235); a timer for the jobs sweep; incremental regeneration (a correction saves a new version and re-checks the whole plan).
-- **Files:** reading PDFs, Word files, DWG and DXF; Topcon raw files; keeping a camera's full-size original.
+- **Files:** reading PDFs, Word files and DWG, and a DXF's lines; Topcon raw files; keeping a camera's full-size original.
 - **Platform:** the success metrics (§26) that production doesn't record: time to first preview, findings across plans, refused exports, and a comparison with the same job by hand (`docs/survey/METRICS.md`, stage 237, says how the rest are read); malware scanning of uploads; signed download links.
 
 ## 14. Remaining risks

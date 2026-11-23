@@ -24,6 +24,7 @@ export const SURVEY_MESSAGES = {
   CRS_CHANGED: "The project's coordinate system changed while you were working. Reload, check it, and try again. Nothing was changed.",
   INVALID_REQUEST: "That request wasn't valid. Nothing was changed.",
   NOT_CONFIGURED: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.",
+  FORMAT_NOT_READY: "This kind of file can be imported once Farbaek's database update v104 is applied. Upload the job's .sdr or a points CSV meanwhile.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 } as const;
 
@@ -35,6 +36,8 @@ export function surveyError(code: SurveyErrorCode): { ok: false; code: SurveyErr
 
 /** The code a database error names, or UNKNOWN. POINT_CONFLICT carries the first point numbers after a colon. */
 export function surveyErrorFrom(message: string): { ok: false; code: SurveyErrorCode; message: string } {
+  // A format the database doesn't list yet (stage 242's Sokkia point list and DXF, before schema v104): said, not "try again".
+  if (message.includes("survey_sources_format_check")) return surveyError("FORMAT_NOT_READY");
   const code = (Object.keys(SURVEY_MESSAGES) as SurveyErrorCode[]).find((c) => message.includes(c)) ?? "UNKNOWN";
   if (code === "POINT_CONFLICT") {
     const ids = /POINT_CONFLICT: ([^\n]+)/.exec(message)?.[1]?.slice(0, 120);

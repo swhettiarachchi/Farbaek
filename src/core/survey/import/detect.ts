@@ -4,13 +4,15 @@
  * Files Farbaek can't read (raw job databases, formats whose layout couldn't
  * be confirmed) are named, with what to export instead.
  */
+import { BINARY_DXF, looksLikeDxf } from "./dxfpoints";
 import { looksLikeFieldBook } from "./fieldbook";
 import { looksLikeGsi } from "./gsi";
 import { looksLikeJobXml } from "./jobxml";
 import { looksLikeLandXml } from "./landxml";
 import { looksLikeSdr } from "./sdr";
+import { looksLikeSokkiaList } from "./sokkialist";
 
-export type ImportFormat = "delimited" | "geojson" | "gsi" | "sdr" | "landxml" | "jobxml" | "fieldbook";
+export type ImportFormat = "delimited" | "geojson" | "gsi" | "sdr" | "landxml" | "jobxml" | "fieldbook" | "sokkialist" | "dxf";
 
 export const IMPORT_FORMATS: { id: ImportFormat; label: string; extensions: readonly string[]; detail: string }[] = [
   { id: "delimited", label: "Point file (CSV, TXT or DAT)", extensions: [".csv", ".txt", ".dat", ".pnezd", ".penzd", ".xyz", ".asc"], detail: "Point number, coordinates, elevation and code, separated by commas, tabs, semicolons or spaces. PNEZC, as the Survey Department asks, and CASS .dat files included." },
@@ -19,12 +21,17 @@ export const IMPORT_FORMATS: { id: ImportFormat; label: string; extensions: read
   { id: "sdr", label: "Sokkia SDR (SDR2x or SDR33)", extensions: [".sdr"], detail: "Coordinate records (08), stations (02) and the instrument's observations (09, 11), in metres. Observations are worked out by radiation, and a traverse that closes can be adjusted by the rule you choose." },
   { id: "landxml", label: "LandXML", extensions: [".xml", ".landxml"], detail: "CgPoints: northing, easting and elevation, with their names and codes." },
   { id: "jobxml", label: "Trimble JobXML", extensions: [".jxl", ".jobxml"], detail: "The job's final grid coordinates, from its reductions." },
+  { id: "sokkialist", label: "Sokkia Link point list (printout)", extensions: [], detail: "The point list Sokkia Link prints from an SDR job: each point's and station's North, East, Elev and code, in metres. A printout listing the instrument's shots is refused: upload the job's .sdr for those." },
+  { id: "dxf", label: "DXF drawing (its points)", extensions: [".dxf"], detail: "The points a survey program exports to CAD: POINT entities or blocks, numbered by an attribute or by the text beside each, in metres. The drawing's lines aren't read." },
   { id: "fieldbook", label: "Bearings and distances (field book)", extensions: [], detail: "Points worked out from a starting point by whole-circle bearings and horizontal distances, unadjusted; a leg onto a known point is a check." },
 ];
 
 export function detectFormat(fileName: string, text: string): ImportFormat {
   const lower = fileName.toLowerCase();
   const start = text.replace(/^\uFEFF/, "").trimStart();
+  // A DXF drawing and Sokkia Link's point list are known by their own first lines (stage 242, ADR 0250).
+  if (lower.endsWith(".dxf") || looksLikeDxf(start)) return "dxf";
+  if (looksLikeSokkiaList(text)) return "sokkialist";
   if (lower.endsWith(".geojson") || (lower.endsWith(".json") && !looksLikeJobXml(start))) return "geojson";
   if (start.startsWith("{") && /"type"\s*:\s*"(?:FeatureCollection|Feature)"/.test(start.slice(0, 4000))) return "geojson";
   if (looksLikeFieldBook(text)) return "fieldbook";
@@ -38,6 +45,8 @@ export function detectFormat(fileName: string, text: string): ImportFormat {
 /** Files Farbaek can't read, with what to export instead; null when the file can be read. */
 export function unreadableFile(fileName: string, text: string): string | null {
   const lower = fileName.toLowerCase();
+  // A binary DXF says what it is, before the job-database rule below takes it for one (stage 242).
+  if (text.startsWith("AutoCAD Binary DXF") || (lower.endsWith(".dxf") && text.includes(String.fromCharCode(0)))) return BINARY_DXF;
   if (/\.(?:dbx|xcf|x\d\d|scd|smd|raw\.bin)$/.test(lower) || text.includes("\u0000")) return "This is an instrument's own job database, which isn't a text export. Export the points from the instrument or its software as CSV (point, northing, easting, height, code), GSI-16, SDR33, LandXML or JobXML.";
   if (lower.endsWith(".dc") && !looksLikeSdr(text)) return "This is a Trimble DC file, whose layout isn't published. Export the job from Trimble Access as JobXML, or as CSV with the point, northing, easting, elevation and code.";
   // Topcon GTS-7: its "GTS-7" version record, or a GTS-7 keyword padded to 8 columns with the comma in column 9. A CSV whose rows start
@@ -47,7 +56,8 @@ export function unreadableFile(fileName: string, text: string): string | null {
   // A printout (stage 198): text laid out for printing, with headings above a table, not one point a line. The SDR, XML and JSON
   // readers know their own files, so only a file that would otherwise go to the point-file reader can be one.
   const printout = printoutSource(text);
-  if (printout && !looksLikeSdr(text) && !/^[<{]/.test(text.replace(/^[﻿\u0002]+/, "").trimStart())) {
+  // Sokkia Link's point list with its record table is read (stage 242); its other reports are still refused, with the job file to upload.
+  if (printout && !looksLikeSdr(text) && !looksLikeSokkiaList(text) && !/^[<{]/.test(text.replace(/^[﻿\u0002]+/, "").trimStart())) {
     if (printout.kind === "sokkia") return sokkiaPrintoutMessage(printout);
     if (detectFormat(fileName, text) === "delimited") {
       const shown = printout.labels.slice(0, 3).join(", ");

@@ -21,9 +21,10 @@ describe("sorting what a surveyor uploads", () => {
     expect(kindOfUpload("IMG_2041.HEIC", "")).toBe("sketch");
     expect(kindOfUpload("scan", "image/png")).toBe("sketch");
     expect(kindOfUpload("old plan.pdf", "application/pdf")).toBe("document");
-    expect(kindOfUpload("drawing.dxf", "")).toBe("document");
+    expect(kindOfUpload("drawing.dwg", "")).toBe("document");
     expect(kindOfUpload("points.xlsx", "")).toBe("document");
-    for (const name of ["points.csv", "job.sdr", "job.gsi", "job.xml", "job.jxl", "points.txt", "pts.dat", "no extension"]) expect(kindOfUpload(name, "")).toBe("survey-data");
+    // A DXF drawing is read for its points since stage 242 (ADR 0250).
+    for (const name of ["drawing.dxf", "points.csv", "job.sdr", "job.gsi", "job.xml", "job.jxl", "points.txt", "pts.dat", "no extension"]) expect(kindOfUpload(name, "")).toBe("survey-data");
   });
 
   it("says plainly why a picture or document isn't read, so nothing looks read that wasn't", () => {

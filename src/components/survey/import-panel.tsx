@@ -283,7 +283,7 @@ export function ImportPanel({
             <br />
             CSV, TXT, DAT, Leica GSI, Sokkia SDR, LandXML, Trimble JobXML or GeoJSON, up to {IMPORT_LIMITS.maxBytes / 1024 / 1024} MB
           </span>
-          <input type="file" accept=".csv,.txt,.dat,.gsi,.sdr,.xml,.landxml,.jxl,.jobxml,.dc,.pnezd,.penzd,.xyz,.asc,.geojson,.json,text/csv,text/plain,application/geo+json,application/json" className="sr-only" disabled={Boolean(readOnly)} onChange={(e) => void onFile(e.target.files?.[0])} />
+          <input type="file" accept=".csv,.txt,.dat,.gsi,.sdr,.xml,.landxml,.jxl,.jobxml,.dc,.dxf,.pnezd,.penzd,.xyz,.asc,.geojson,.json,text/csv,text/plain,application/geo+json,application/json" className="sr-only" disabled={Boolean(readOnly)} onChange={(e) => void onFile(e.target.files?.[0])} />
         </label>
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Or paste rows from a spreadsheet or file</span>
