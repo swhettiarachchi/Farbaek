@@ -36,6 +36,8 @@ export function SketchPanel(props: {
   /** Why reading sketches is off here, or null when it works. */
   readOff: string | null;
   aiCost: string;
+  /** The photos this reading came from, kept with the plan (ADR 0240); empty when they weren't kept. */
+  photos?: { id: string; fileName: string }[];
 }) {
   const router = useRouter();
   const [photos, setPhotos] = useState<{ key: string; name: string; blob: Blob }[]>([]);
@@ -47,6 +49,11 @@ export function SketchPanel(props: {
   const picker = useRef<HTMLInputElement>(null);
   const counter = useRef(0);
   const { sketch, checks } = props;
+  const kept = props.photos ?? [];
+  const photoOf = (file: string) => {
+    const ph = kept.find((x) => x.fileName === file);
+    return ph ? `/app/survey/${props.projectId}/sketch-photo/${ph.id}` : null;
+  };
 
   const add = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -116,6 +123,18 @@ export function SketchPanel(props: {
               ? `${compared.length > 1 ? `${compared.slice(0, -1).join(", ")} and ${compared.at(-1)}` : compared[0]}.`
               : "Confirm the project's coordinate system to compare them with the coordinates."}
           </p>
+          {kept.length > 0 ? (
+            <ul aria-label="The photos read" className="flex flex-wrap gap-2">
+              {kept.map((ph) => (
+                <li key={ph.id}>
+                  <a href={`/app/survey/${props.projectId}/sketch-photo/${ph.id}`} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-sm ring-1 ring-line hover:ring-line-strong">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a private photo from Farbaek's own route, read with the person's session */}
+                    <img src={`/app/survey/${props.projectId}/sketch-photo/${ph.id}`} alt={`Sketch photo ${ph.fileName}`} loading="lazy" className="h-24 w-auto max-w-[10rem] object-cover" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <Disclosure summary="What was read" hint="Every reading as written, and how it compares with the coordinates.">
             <ul className="grid gap-2.5">
               {(checks ?? sketch.readings.map((reading): ReadingCheck => ({ reading, status: "not_checked", detail: "" }))).map((c) => (
@@ -125,7 +144,14 @@ export function SketchPanel(props: {
                     <span className="text-ink">
                       <span className="font-medium">{c.reading.text}</span> {where(c)} <span className="text-ink-3">({STATUS[c.status].label.toLowerCase()})</span>
                     </span>
-                    {c.detail && c.status !== "agrees" ? <span className="text-ink-2">{c.detail}</span> : null}                    <span className="truncate text-ink-3">{c.reading.file}</span>
+                    {c.detail && c.status !== "agrees" ? <span className="text-ink-2">{c.detail}</span> : null}
+                    {photoOf(c.reading.file) ? (
+                      <a href={photoOf(c.reading.file)!} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center truncate text-accent underline-offset-2 hover:underline">
+                        {c.reading.file}
+                      </a>
+                    ) : (
+                      <span className="truncate text-ink-3">{c.reading.file}</span>
+                    )}
                   </span>
                 </li>
               ))}
@@ -156,7 +182,7 @@ export function SketchPanel(props: {
           <label className="flex min-h-11 items-start gap-3 rounded-sm border border-line bg-canvas-2 p-3 text-sm text-ink">
             <input type="checkbox" checked={consent} disabled={pending} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
             <span>
-              Send {photos.length === 1 ? "this photo" : `these ${photos.length} photos`} to Anthropic, outside Sri Lanka, for Claude to read. Farbaek doesn&apos;t keep them. {props.aiCost}
+              Send {photos.length === 1 ? "this photo" : `these ${photos.length} photos`} to Anthropic, outside Sri Lanka, for Claude to read. When something is read, Farbaek keeps them with this plan, beside their readings, until they&apos;re read again or the workspace is deleted. {props.aiCost}
             </span>
           </label>
         ) : null}

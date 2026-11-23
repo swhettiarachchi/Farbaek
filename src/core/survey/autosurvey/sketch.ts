@@ -42,7 +42,7 @@ const short = (max: number) => z.string().max(max);
 
 export const sketchReadingSchema = z.object({
   id: z.string().regex(/^r\d{1,3}$/),
-  /** The photo's file name, as uploaded: the photo itself isn't kept. */
+  /** The photo's file name, unique within a read: the photo as read is kept with the plan under this name (ADR 0240). */
   file: short(200),
   kind: z.enum(SKETCH_KINDS),
   text: short(120).pipe(z.string().min(1)),

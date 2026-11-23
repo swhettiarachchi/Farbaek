@@ -38,7 +38,7 @@ The research for part 1 (`reports/Survey Field to Finish automation.md`) found t
 
 **Only reading writes the readings.** A plan saved from the browser keeps the stored readings, whatever it sends, so none can be made up, changed or removed to clear a difference that holds approval. If the plan was saved while Claude was reading, the readings go onto the newest version once, rather than being lost after the read was counted. "Keep as surveyed" answers are checked against the plan as it's shown, with the project's own confirmation of its coordinate system, so an answer about a sketch survives every save.
 
-**Only with the surveyor's say-so, every time.** At the start and on the Draft step, a box (unticked) says the photos go to Anthropic, outside Sri Lanka, to be read, and that Farbaek doesn't keep them. The server refuses without it. Photos are shrunk in the browser to 1,568 px (one to six, 1.8 MB each, 5.5 MB together), and the server checks each by its bytes (JPEG, PNG or WebP).
+**Only with the surveyor's say-so, every time.** At the start and on the Draft step, a box (unticked) says the photos go to Anthropic, outside Sri Lanka, to be read, and (since ADR 0240) that Farbaek keeps them with the plan. The server refuses without it. Photos are shrunk in the browser to 1,568 px (one to six, 1.8 MB each, 5.5 MB together), and the server checks each by its bytes (JPEG, PNG or WebP).
 
 **Metered like reading an old plan:** operation `survey_read`, free while Survey Studio is tested, within the same 20 reads a day per person on Farbaek's key, and on a workspace's own Claude key when it has one. Usage is reserved first and given back if the call fails or Farbaek's own checks fail. The audit event holds counts only.
 
@@ -47,7 +47,7 @@ The research for part 1 (`reports/Survey Field to Finish automation.md`) found t
 ## What it doesn't do
 
 - No readings carry a place on the photo. Claude's coordinates are approximate, and nothing here relies on them.
-- The photos aren't kept: that is AutoSurvey part 4 (originals in storage on Farbaek's own server).
+- ~~The photos aren't kept.~~ Replaced by ADR 0240 (stage 230): the photos read are kept with the plan, beside their readings.
 - A sketch's line work and shapes aren't read, and nothing is drawn from a sketch.
 
 ## Consequences
