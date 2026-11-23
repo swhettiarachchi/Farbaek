@@ -64,7 +64,7 @@ Each is its own pull request, built and checked the same way:
 5. **Reading sketches:** built in stage 223 (ADR 0234), on Claude at the owner's choice. Each handwritten number or label is kept as written and checked against the instrument data, conflicts are shown with both values, and a sketch is never a source of coordinates. Places on the image are left out: Claude's are approximate.
 6. **Work in the background:** Generate Plan as a resumable job with its real stages shown, so leaving the page loses nothing.
 7. **More of the field-to-finish:**
-   - observations reduced: SDR 09 and 11 built in stage 225 (ADR 0236), by radiation with nothing adjusted; GSI angles next;
+   - observations reduced: SDR 09 and 11 built in stage 225, Leica GSI in stage 228 (ADR 0236), by radiation with nothing adjusted;
    - traverse adjustment, only with the surveyor's choice of method;
    - curve and join codes.
 8. **Labels placed like a cartographer would:** candidate positions scored and searched, lot labels at the point farthest from the edges, and what can't be placed reported rather than hidden. The DXF stays on Farbaek's own writer; Sinhala and Tamil get a measured test in the PDF and in CAD programs before they go on a sheet.

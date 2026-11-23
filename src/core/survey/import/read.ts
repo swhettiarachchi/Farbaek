@@ -36,7 +36,10 @@ export interface PointsRead {
 export function readPoints(format: ImportFormat, text: string, o: ReadOptions): PointsRead {
   const plain = (r: { points: ImportedPoint[]; issues: ImportIssue[] }): PointsRead => ({ points: r.points, issues: r.issues, surveyDate: null });
   if (format === "geojson") return plain(parseGeoJsonPoints(text, o.crs?.epsg ?? null));
-  if (format === "gsi") return plain(parseGsi(text, o.crs));
+  if (format === "gsi") {
+    const r = parseGsi(text, o.crs);
+    return { points: r.points, issues: r.issues, surveyDate: null, reduction: r.reduced ? { engine: REDUCTION_ENGINE, ...r.reduced } : null };
+  }
   if (format === "sdr") {
     const r = parseSdr(text, o.crs);
     return { points: r.points, issues: r.issues, surveyDate: null, reduction: r.reduced ? { engine: REDUCTION_ENGINE, ...r.reduced } : null };
