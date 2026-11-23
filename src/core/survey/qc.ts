@@ -9,6 +9,7 @@ import { codeOf, codesAreCommonList, codesAreDsrList, lookupCode } from "./codes
 import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
 import { legIndex, lotName, unreviewed, type SurveyDocument } from "./document";
+import { autoDoubt, doubtContext } from "./exceptions";
 import { TOUCH_TOLERANCE_M, distance, orient, type Point } from "./geometry";
 import { NEAR_LEG_M, nearKey, type PlanLots } from "./lots";
 import { ACCESS_NOTE, RESERVED_NOTE, minimumText, remindersFor, ruleSetFrom, shortOf, type RuleSet } from "./rules";
@@ -412,8 +413,15 @@ export function checkSurvey(input: QcInput): Finding[] {
   if (open.length > 0) {
     add({ code: "AI_ITEMS_UNREVIEWED", severity: "professional_review", message: `${open.length} ${open.length === 1 ? "item" : "items"} filled in from your description or a photo ${open.length === 1 ? "hasn't" : "haven't"} been checked yet.`, target: { kind: "field", id: "review" }, detail: open.slice(0, 6).join(", ") + (open.length > 6 ? ", and more" : ""), action: "Mark each one as right, or change it: on the Lots step for lots, roads and adjoining lands, on the Plan step for the title and notes.", blocks: ["approval"] });
   }
-  if (drawn.length > 0) {
-    add({ code: "AUTO_ITEMS_UNREVIEWED", severity: "professional_review", message: `${drawn.length} ${drawn.length === 1 ? "item" : "items"} drawn from the field data ${drawn.length === 1 ? "hasn't" : "haven't"} been checked yet.`, target: { kind: "field", id: "review" }, detail: drawn.slice(0, 6).join(", ") + (drawn.length > 6 ? ", and more" : ""), action: "Check each one against your field notes and mark it as right, or change it: on the Lots step for the lot and road, on the Plan step for the survey date.", blocks: ["approval"] });
+  // What the automatic draft made is confirmed by the surveyor's approval of the sheet, unless tested code doubts an item (ADR 0235):
+  // a lot that turns inward, a road whose edges aren't a steady width apart. Only those wait for a confirmation of their own.
+  const context = doubtContext(out);
+  const doubts = drawn.flatMap((k) => {
+    const d = autoDoubt(doc, input.points, k, context);
+    return d ? [d] : [];
+  });
+  if (doubts.length > 0) {
+    add({ code: "AUTO_ITEMS_UNREVIEWED", severity: "professional_review", message: `${doubts.length} ${doubts.length === 1 ? "item" : "items"} drawn from the field data ${doubts.length === 1 ? "needs" : "need"} your confirmation.`, target: { kind: "field", id: "review" }, detail: doubts.slice(0, 4).join(" "), action: "Confirm each one if the drawing is right, or correct it on the Lots step. Everything else drawn from the field data is confirmed when you approve the plan.", blocks: ["approval"] });
   }
 
   if (!doc.surveyorUserId) {

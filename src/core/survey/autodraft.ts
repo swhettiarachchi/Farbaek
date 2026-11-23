@@ -113,6 +113,31 @@ function usable(local: readonly Point[]): boolean {
   return local.length >= 3 && area(local) > 0.01 && !crosses(local);
 }
 
+/** A corner set back from the line between its neighbours by less than this is a mark on a straight leg, not a corner that turns. */
+export const INWARD_TOLERANCE_M = 0.05;
+
+/**
+ * The corners where a ring turns inward, against its own direction, by point number: on a drawn lot, each is either a corner of the
+ * land or a mark inside it, which only the surveyor can say. A mark set back from its neighbours' line by under 5 cm is a mark on a
+ * straight leg and isn't named. Shared by the draft and its check (exceptions.ts), so they agree.
+ */
+export function inwardCorners(ring: readonly SurveyPoint[]): string[] {
+  if (ring.length < 4) return [];
+  const o = ring[0]!;
+  const local = ring.map((p) => ({ e: p.e - o.e, n: p.n - o.n }));
+  const sign = Math.sign(signedArea(local));
+  return ring
+    .filter((_, i) => {
+      const prev = local[(i - 1 + local.length) % local.length]!;
+      const next = local[(i + 1) % local.length]!;
+      const turn = orient(prev, local[i]!, next);
+      const base = distance(prev, next);
+      // Twice the triangle's area over its base: how far the corner stands off its neighbours' line.
+      return Math.sign(turn) === -sign && base > 0 && Math.abs(turn) / base > INWARD_TOLERANCE_M;
+    })
+    .map((p) => p.pointId);
+}
+
 /**
  * The lot's corners: the boundary marks in the order observed, when that's a clean outline; otherwise in order around their centre,
  * when every mark lies on their convex hull. A mark observed again (the same number, or the same place within half a millimetre) counts
@@ -130,17 +155,7 @@ export function outlineFrom(marks: readonly SurveyPoint[]): { ring: SurveyPoint[
   const o = unique[0]!;
   const local = (r: readonly SurveyPoint[]) => r.map((p) => ({ e: p.e - o.e, n: p.n - o.n }));
   const observed = local(unique);
-  if (usable(observed)) {
-    // Inward corners: those that turn against the ring's own direction.
-    const sign = Math.sign(signedArea(observed));
-    const inward = unique.filter((_, i) => {
-      const prev = observed[(i - 1 + observed.length) % observed.length]!;
-      const next = observed[(i + 1) % observed.length]!;
-      const turn = orient(prev, observed[i]!, next);
-      return Math.sign(turn) === -sign && Math.abs(turn) > 1e-6;
-    });
-    return { ring: unique, how: "observed", inward: inward.map((p) => p.pointId) };
-  }
+  if (usable(observed)) return { ring: unique, how: "observed", inward: inwardCorners(unique) };
   // Around the centre only for a convex land: every mark on the hull (within a millimetre), so the order can't be wrong.
   const h = hull(observed);
   const onHull = observed.every((p) => h.some((a, i) => pointSegmentDistance(p, a, h[(i + 1) % h.length]!) <= 0.001));

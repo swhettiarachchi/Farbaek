@@ -37,6 +37,7 @@ import { AssistantDock, type EditorBridge } from "./assistant/assistant-dock";
 import { handoffKey } from "./assistant/handoff";
 import { CodesPanel, SheetFields, describeSelection, type SurveyorOption } from "./plan-panels";
 import { SheetSvg } from "./sheet-svg";
+import { setPlanUnsaved } from "./unsaved-plan";
 
 export type { SurveyorOption } from "./plan-panels";
 
@@ -170,6 +171,12 @@ export function PlanEditor(props: PlanEditorProps) {
       const stack = [...h.stack.slice(0, h.index + 1), next];
       return { stack, index: stack.length - 1, saved: h.saved > stack.length - 1 ? -1 : h.saved, coalesce: null };
     });
+
+  // One-press answers elsewhere on the page wait while the plan has unsaved edits, so saving them never throws the edits away.
+  useEffect(() => {
+    setPlanUnsaved(dirty && !props.readOnly);
+    return () => setPlanUnsaved(false);
+  }, [dirty, props.readOnly]);
 
   // Leaving with unsaved edits asks first: closing the page, and following a link in the app (a step, the tab bar, the sidebar).
   useEffect(() => {

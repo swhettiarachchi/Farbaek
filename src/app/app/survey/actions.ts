@@ -7,7 +7,8 @@ import { autoDraft } from "@/core/survey/autodraft";
 import { START_LIMITS, gridProblem, pointClashes, readSurveyFile, startName, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
 import { dsrCodes } from "@/core/survey/codes";
 import { crsById } from "@/core/survey/crs";
-import { emptyDocument, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
+import { emptyDocument, provenanceLive, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
+import { itemOf } from "@/core/survey/exceptions";
 import { IMPORT_LIMITS, type ColumnRole, type Delimiter, type ImportIssue } from "@/core/survey/import/delimited";
 import { unreadableFile } from "@/core/survey/import/detect";
 import { readPoints } from "@/core/survey/import/read";
@@ -320,6 +321,36 @@ export async function setKeptAsSurveyedAction(input: { projectId: string; baseVe
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };
+}
+
+/**
+ * "Confirm" on the surveyor's list (stage 224, ADR 0235): an item Farbaek drew or filled in, or the code list, confirmed with one
+ * press and saved as a new version so the approval covers it; `confirmed: false` puts it back on the list. Only an item the plan has,
+ * marked as drawn or filled in for the surveyor, can be confirmed: nothing the surveyor typed, and nothing else in the plan changes.
+ */
+export async function confirmSurveyItemAction(input: { projectId: string; baseVersion: number; key: string; confirmed: boolean }): Promise<SurveyFormState> {
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || typeof input.confirmed !== "boolean" || !/^[a-z][\w.:-]{0,79}$/i.test(input.key)) {
+    return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  }
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== input.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be confirmed on it. Reload, or ask support." };
+  const doc = structuredClone(data.drawing.document);
+  const mark = doc.provenance[input.key];
+  const codes = input.key === "codes";
+  // The code list may have no mark yet (the common list as it came); anything else must be an item drawn or filled in that's still on the plan.
+  if (!codes && (!mark || mark.source === "engine" || !provenanceLive(doc, input.key))) return { status: "error", message: "That item isn't waiting for a confirmation any more. Reload to see the plan as it is now." };
+  doc.provenance[input.key] = { source: mark?.source ?? "engine", reviewed: input.confirmed };
+  const { label } = itemOf(doc, input.key);
+  const next = tidy(pruneProvenance(doc), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: next, note: `${input.confirmed ? "Confirmed" : "To check again"}: ${label}`.slice(0, 200) });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${input.projectId}`);
+  return { status: "done", message: `${input.confirmed ? "Confirmed" : "Back on the list"}: ${label}. Saved as version ${r.value}.`, version: r.value };
 }
 
 export async function setSurveyorProfileAction(_prev: SurveyFormState, form: FormData): Promise<SurveyFormState> {

@@ -70,16 +70,23 @@ describe("the automatic draft from field data", () => {
     expect(computeLots(points, d.lots).lots[0]!.parcel!.areaM2).toBeCloseTo(1000, 6);
   });
 
-  it("holds approval until the surveyor checks what it drew", () => {
+  it("leaves what it drew to the approval, unless tested code doubts an item (ADR 0235)", () => {
     const points = field();
     const d = autoDraft({ points, document: emptyDocument() }).document;
-    const qc = (doc: typeof d) => checkSurvey({ points, crs: crsById("EPSG:5235"), crsConfirmed: true, document: doc, lots: computeLots(points, doc.lots), surveyorProfile: true });
-    const f = qc(d).find((x) => x.code === "AUTO_ITEMS_UNREVIEWED")!;
-    expect(f.message).toBe("4 items drawn from the field data haven't been checked yet.");
+    const qc = (doc: typeof d, pts = points) => checkSurvey({ points: pts, crs: crsById("EPSG:5235"), crsConfirmed: true, document: doc, lots: computeLots(pts, doc.lots), surveyorProfile: true });
+    // A rectangle observed in order and a road of steady width: nothing to confirm one by one.
+    expect(qc(d).some((x) => x.code === "AUTO_ITEMS_UNREVIEWED")).toBe(false);
+    // An L-shaped land: the corner that turns inward may be a mark inside the land, so the lot waits for the surveyor.
+    seq = 0;
+    const ell = [pt("1", 0, 0, "CP"), pt("2", 40, 0, "CP"), pt("3", 40, 20, "CP"), pt("4", 20, 20, "CP"), pt("5", 20, 40, "CP"), pt("6", 0, 40, "CP")];
+    const l = autoDraft({ points: ell, document: emptyDocument() }).document;
+    const f = qc(l, ell).find((x) => x.code === "AUTO_ITEMS_UNREVIEWED")!;
+    expect(f.message).toBe("1 item drawn from the field data needs your confirmation.");
+    expect(f.detail).toBe("Lot 1 turns inward at point 4: a corner of the land, or a mark inside it?");
     expect(blocked([f], "approval")).toHaveLength(1);
-    const checked = structuredClone(d);
-    for (const k of Object.keys(checked.provenance)) checked.provenance[k]!.reviewed = true;
-    expect(qc(checked).some((x) => x.code === "AUTO_ITEMS_UNREVIEWED")).toBe(false);
+    const confirmed = structuredClone(l);
+    confirmed.provenance["lot:lot-1"]!.reviewed = true;
+    expect(qc(confirmed, ell).some((x) => x.code === "AUTO_ITEMS_UNREVIEWED")).toBe(false);
   });
 
   it("orders the marks around their centre when they weren't observed in order", () => {
@@ -242,14 +249,13 @@ describe("the stage 194 draft-flow review's cases", () => {
 });
 
 describe("the stage 194 re-check's draft cases", () => {
-  it("marks every line it joins for the surveyor's check", () => {
+  it("marks every line it joins as drawn for the surveyor, confirmed by their approval of the sheet", () => {
     const points = field();
     const d = autoDraft({ points, document: emptyDocument() }).document;
     expect(d.features.length).toBeGreaterThan(0);
     for (const f of d.features) expect(d.provenance[`feature:${f.id}`]).toEqual({ source: "auto", reviewed: false });
-    const lotChecked = { ...d, provenance: { ...d.provenance, "lot:lot-1": { source: "auto" as const, reviewed: true }, "road:road-1": { source: "auto" as const, reviewed: true } } };
-    const qc = checkSurvey({ points, crs: crsById("EPSG:5235"), crsConfirmed: true, document: lotChecked, lots: computeLots(points, lotChecked.lots), surveyorProfile: true });
-    expect(qc.map((x) => x.code)).toContain("AUTO_ITEMS_UNREVIEWED");
+    const qc = checkSurvey({ points, crs: crsById("EPSG:5235"), crsConfirmed: true, document: d, lots: computeLots(points, d.lots), surveyorProfile: true });
+    expect(qc.map((x) => x.code)).not.toContain("AUTO_ITEMS_UNREVIEWED");
   });
 
   it("keeps the code list's check after codes are added to a swapped list", () => {

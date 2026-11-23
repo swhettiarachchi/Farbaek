@@ -29,7 +29,7 @@ import { ImportPanel } from "@/components/survey/import-panel";
 import { InverseTool } from "@/components/survey/inverse-tool";
 import { PartitionPanel } from "@/components/survey/partition-panel";
 import { DrawFromPoints } from "@/components/survey/draw-from-points";
-import { ReviewChecklist } from "@/components/survey/review-checklist";
+import { NeedsYou } from "@/components/survey/needs-you";
 import { AssistantProvider } from "@/components/survey/assistant/assistant-context";
 import { PlanEditor } from "@/components/survey/plan-editor";
 import { StepNav } from "@/components/survey/step-nav";
@@ -38,6 +38,7 @@ import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { checkSketch } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
+import { autoDoubt, doubtContext, drawnWithoutDoubt, planStatus, type PlanStatus } from "@/core/survey/exceptions";
 import { readModelKey } from "@/server/ai/workspace-ai";
 import { fmt } from "@/core/survey/sheet/compose";
 import { compareDocuments, type ChangeArea } from "@/core/survey/compare";
@@ -66,6 +67,16 @@ const STEPS = [
 type StepId = (typeof STEPS)[number]["id"];
 
 const POINTS_SHOWN = 500;
+
+/** The plan's status in its header: blue when it's the surveyor's turn, blocked (as in its list) when something must be fixed. */
+const STATUS_BADGE: Record<PlanStatus, { status: "info" | "blocked" | "approval" | "done"; label: string }> = {
+  not_drawn: { status: "info", label: "Not drawn yet" },
+  needs_correction: { status: "blocked", label: "Needs correction" },
+  needs_confirmation: { status: "approval", label: "Needs your confirmation" },
+  ready: { status: "approval", label: "Ready for your review" },
+  approved: { status: "done", label: "Approved" },
+  exported: { status: "done", label: "Approved and exported" },
+};
 
 export default async function SurveyProjectPage({ params, searchParams }: { params: Promise<{ projectId: string }>; searchParams: Promise<{ step?: string; compare?: string }> }) {
   const [{ projectId }, sp] = await Promise.all([params, searchParams]);
@@ -123,13 +134,20 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   const changes = earlier?.readable ? compareDocuments(earlier.document, doc, data.points) : null;
   const changeAreas = changes ? ([...new Set(changes.map((c) => c.area))] as ChangeArea[]) : [];
   const draftOff = data.points.length === 0 ? "Import the surveyed points first: the draft names lots by their corner points." : aiOff(draftAi);
+  // Where the plan stands, for its header (ADR 0235).
+  const drawn = doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0;
+  // Exported means the approved sheet went out: a PDF or DXF of this version made after its approval, not a points list or a draft.
+  const exported = Boolean(approval) && data.exports.some((e) => e.drawing_version === data.drawing.version && (e.kind === "pdf" || e.kind === "dxf") && approval !== null && e.created_at >= approval.approved_at);
+  const status = planStatus({ drawn, findings: view.findings, approved: Boolean(approval), exported });
+  const doubtContextNow = doubtContext(view.findings);
+  const doubtful = Object.keys(doc.provenance).filter((k) => autoDoubt(doc, data.points, k, doubtContextNow) !== null);
 
   return (
     <div className="grid gap-6">
       <PageHeader title={data.project.name} description={`Land survey plan on ${crs?.name ?? data.project.crsId}. ${data.points.length} ${data.points.length === 1 ? "point" : "points"}, version ${data.drawing.version}.`} />
       <div className="flex flex-wrap items-center gap-2">
         {sample ? <StatusBadge status="simulated" label="Sample" /> : null}
-        {approval ? <StatusBadge status="done" label={`Approved by surveyor, version ${approval.drawing_version}`} /> : <StatusBadge status="info" label="Draft" />}
+        {approval ? <StatusBadge status="done" label={`${status === "exported" ? "Approved and exported" : "Approved by surveyor"}, version ${approval.drawing_version}`} /> : <StatusBadge status={STATUS_BADGE[status].status} label={STATUS_BADGE[status].label} />}
         {sample ? null : data.project.crsConfirmedAt ? <StatusBadge status="verified" label="Coordinate system confirmed" /> : <StatusBadge status="unverified" label="Coordinate system not confirmed" />}
         {view.blocksExport.length > 0 ? <StatusBadge status="blocked" label={`${view.blocksExport.length} ${view.blocksExport.length === 1 ? "check stops" : "checks stop"} export`} /> : null}
       </div>
@@ -275,7 +293,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
             , the assistant makes a lot from the points you pick or name, and sends divisions to the panel below.
           </p>
           <div className="mt-5">
-            {data.points.length === 0 ? <p className="text-sm text-ink-2">Import points first.</p> : <LotsEditor projectId={projectId} baseVersion={data.drawing.version} document={doc} points={data.points} readOnly={readOnly} />}
+            {data.points.length === 0 ? <p className="text-sm text-ink-2">Import points first.</p> : <LotsEditor projectId={projectId} baseVersion={data.drawing.version} document={doc} points={data.points} readOnly={readOnly} doubtful={doubtful} />}
           </div>
         </Card>
       ) : null}
@@ -299,7 +317,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
         </Card>
       ) : null}
 
-      {step === "plan" && (doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0) ? <ReviewChecklist doc={doc} findings={view.findings} base={base} approved={Boolean(approval)} /> : null}
+      {step === "plan" && drawn ? <NeedsYou doc={doc} points={data.points} findings={view.findings} base={base} projectId={projectId} baseVersion={data.drawing.version} readOnly={readOnly} approved={Boolean(approval)} /> : null}
 
       {step === "plan" ? (
         <AssistantProvider earlier={assistHistory}>
@@ -419,7 +437,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
                 ) : !named ? (
                   <p className="text-sm text-ink-2">Choose the responsible surveyor in the Plan step. Only they can approve.</p>
                 ) : named === me ? (
-                  <ApproveForm projectId={projectId} version={data.drawing.version} disabledReason={readOnly ?? (lapsed?.reason === "content_changed" ? "Save a new version first: this one already has an approval that no longer matches." : view.blocksApproval.length > 0 ? `First: ${view.blocksApproval[0]!.message}` : null)} />
+                  <ApproveForm projectId={projectId} version={data.drawing.version} confirms={drawnWithoutDoubt(doc, data.points, view.findings)} disabledReason={readOnly ?? (lapsed?.reason === "content_changed" ? "Save a new version first: this one already has an approval that no longer matches." : view.blocksApproval.length > 0 ? `First: ${view.blocksApproval[0]!.message}` : null)} />
                 ) : (
                   <>
                     <StatusBadge status="pending" label="Waiting" />

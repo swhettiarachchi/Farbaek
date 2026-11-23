@@ -10,6 +10,7 @@ import { lotName, unreviewed, type SurveyDocument } from "../document";
 import { arpClassic, hectares } from "../formats";
 import { computeLots } from "../lots";
 import type { SurveyPoint } from "../parcel";
+import { autoDoubt, doubtContext } from "../exceptions";
 import type { Finding } from "../qc";
 import { toArp } from "../units";
 import type { PlanOp } from "./ops";
@@ -109,8 +110,10 @@ export function answer(op: Extract<PlanOp, { kind: "answer" }>, input: AnswerInp
       const rows: [string, string][] = [];
       const empty = KEY_FIELDS.filter(([k]) => !String(doc.sheet[k] ?? "").trim()).map(([, name]) => name);
       if (empty.length) rows.push(["Title fields still empty", empty.join(", ")]);
-      const waiting = unreviewed(doc).length;
-      if (waiting) rows.push(["Waiting for your check", `${waiting} ${waiting === 1 ? "item" : "items"}`]);
+      // Only what waits for a confirmation of its own (ADR 0235): what the AI filled in, and drawn items tested code doubts.
+      const context = doubtContext(input.findings);
+      const waiting = unreviewed(doc).filter((k) => doc.provenance[k]?.source !== "auto" || autoDoubt(doc, points, k, context) !== null).length;
+      if (waiting) rows.push(["Waiting for your confirmation", `${waiting} ${waiting === 1 ? "item" : "items"}`]);
       if (doc.lots.length === 0) rows.push(["Lots", "None yet"]);
       // Each check that stops approval or export, by what it says, so the surveyor knows what to do, not just how many.
       const blocking = input.findings.filter((f) => f.blocks.includes("approval") || f.blocks.includes("export"));
