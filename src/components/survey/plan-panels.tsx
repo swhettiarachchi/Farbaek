@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { useId, useState } from "react";
 import { formatDms, formatQuadrant, toDms } from "@/core/survey/angles";
+import { CODE_MAX, adoptCode, codeHints, type UnknownCode } from "@/core/survey/codehints";
 import { CODE_KINDS, LINE_STYLES, commonCodes, dsrCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
 import { GRAMMAR, GRAMMARS, type GrammarId } from "@/core/survey/grammar";
 import { runsText, titleSentence } from "@/core/survey/description";
@@ -379,8 +380,80 @@ const GRAMMAR_HINTS: Record<GrammarId, string> = {
   carlson: "BEG begins a line and END ends it, so a line runs on through other points until it ends. CLO closes it, JPN 23 joins the point to point 23, and PC and PT mark an arc, drawn as straight segments for now.",
 };
 
+/** The most codes a library holds (codes.ts). */
+const LIBRARY_MAX = 80;
+
+/**
+ * The codes on the points that the library doesn't know, each with what it might be (codehints.ts, ADR 0246). A press adds the code to
+ * the library with the meaning chosen; the points keep their codes exactly as recorded, and the list's check is undone like any edit.
+ */
+function UnknownCodes({ unknown, doc, edit, readOnly }: { unknown: readonly UnknownCode[]; doc: SurveyDocument; edit: Update; readOnly: boolean }) {
+  if (unknown.length === 0) return null;
+  const full = doc.codes.length >= LIBRARY_MAX;
+  const shown = unknown.slice(0, 12);
+  return (
+    <div className="grid gap-3 rounded-md bg-surface-sunken p-3 ring-1 ring-line">
+      <p className="text-sm text-ink">
+        {unknown.length === 1 ? "One code on your points isn't" : `${unknown.length} codes on your points aren't`} in this list, so the plan can&apos;t say what {unknown.length === 1 ? "it is" : "they are"}. Add each with what it is: the points keep their codes as recorded.
+      </p>
+      {full ? <p className="text-sm text-ink-2">The list holds {LIBRARY_MAX} codes, its most. Remove one you don&apos;t use first.</p> : null}
+      <ul className="grid gap-3">
+        {shown.map((u) => {
+          const tooLong = u.code.length > CODE_MAX;
+          const hints = tooLong || u.not ? [] : codeHints(u.code, doc.codes);
+          // Suggestions with the same reason go under it together, in the order they're offered, so a phone doesn't repeat it under every button.
+          const byWhy = new Map<string, typeof hints>();
+          for (const h of hints) byWhy.set(h.why, [...(byWhy.get(h.why) ?? []), h]);
+          const groups = [...byWhy].map(([why, hs]) => ({ why, hints: hs }));
+          return (
+            <li key={u.code} className="grid gap-1.5 border-t border-line pt-3 first:border-t-0 first:pt-0">
+              <p className="text-sm text-ink">
+                <span className="font-medium">{u.code}</span>
+                <span className="text-ink-2">
+                  {" "}
+                  on {u.count} {u.count === 1 ? "point" : "points"}.
+                </span>
+              </p>
+              {u.not === "road" ? (
+                <p className="text-sm text-ink-2">It reads as a road edge with no side, so the road isn&apos;t drawn. Code the road&apos;s two edges RD1 and RD2, or RDL and RDR.</p>
+              ) : u.not === "word" ? (
+                <p className="text-sm text-ink-2">It&apos;s one of {GRAMMAR[doc.grammar ?? "farbaek"].name}&apos;s line words, written with no code before it, so it ends or joins nothing. Check those points&apos; codes.</p>
+              ) : tooLong ? (
+                <p className="text-sm text-ink-2">It&apos;s longer than {CODE_MAX} letters, so it can&apos;t go in the list. Check how the instrument recorded it.</p>
+              ) : (
+                <div className="grid gap-2">
+                  {groups.map((g) => (
+                    <div key={g.why} className="grid gap-1.5">
+                      <p className="text-sm text-ink-3">{g.why.charAt(0).toUpperCase() + g.why.slice(1)}:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {g.hints.map((h) => (
+                          <button key={`${h.entry.code}-${h.entry.meaning}`} type="button" disabled={readOnly || full} onClick={() => edit((d) => void d.codes.push(adoptCode(u.code, h)))} className={buttonClasses("secondary", "sm")}>
+                            <PlusIcon size={16} weight="bold" aria-hidden />
+                            {h.entry.meaning}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div>
+                    <button type="button" disabled={readOnly || full} onClick={() => edit((d) => void d.codes.push(adoptCode(u.code, null)))} className={buttonClasses("ghost", "sm")}>
+                      <PlusIcon size={16} weight="bold" aria-hidden />
+                      {hints.length > 0 ? "Something else" : "Add it and say what it is"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {unknown.length > shown.length ? <p className="text-sm text-ink-2">And {unknown.length - shown.length} more, shown as these are added.</p> : null}
+    </div>
+  );
+}
+
 /** The code library: what each field code means and how it's drawn. */
-export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; update: Update; readOnly: boolean }) {
+export function CodesPanel({ doc, update, readOnly, unknown = [] }: { doc: SurveyDocument; update: Update; readOnly: boolean; unknown?: readonly UnknownCode[] }) {
   const reviewed = doc.provenance["codes"]?.reviewed === true;
   // Changing a checked list undoes its check: the check was of the list as it was (ADR 0237).
   const edit: Update = (change, key) =>
@@ -391,6 +464,7 @@ export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; upd
   return (
     <div className="grid gap-4 rounded-md bg-surface p-4 ring-1 ring-line">
       <p className="text-sm text-ink-2">Codes your instrument records with each point. The Reference on the plan lists only the codes it uses. The starting list is common Sri Lankan usage, not an official one.</p>
+      <UnknownCodes unknown={unknown} doc={doc} edit={edit} readOnly={readOnly} />
       {/* How the crew writes the words after a code that begin, end or close a line (ADR 0243). */}
       <label className="grid gap-1">
         <span className="text-xs text-ink-3">How your crew writes line words</span>
@@ -449,7 +523,7 @@ export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; upd
         ))}
       </ul>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={readOnly || doc.codes.length >= 80} onClick={() => edit((d) => void d.codes.push({ code: "X", meaning: "Describe it", kind: "mark", line: "solid", legend: true }))} className={buttonClasses("secondary", "sm")}>
+        <button type="button" disabled={readOnly || doc.codes.length >= LIBRARY_MAX} onClick={() => edit((d) => void d.codes.push({ code: "X", meaning: "Describe it", kind: "mark", line: "solid", legend: true }))} className={buttonClasses("secondary", "sm")}>
           <PlusIcon size={16} weight="bold" aria-hidden />
           Add a code
         </button>

@@ -140,7 +140,8 @@ describe("the code report", () => {
 
   it("puts unknown codes and line findings in the plan's checks, for information, without repeating corner codes", () => {
     const doc = sampleDocument();
-    const points = [...SAMPLE_POINTS, pt(90, "TREE"), pt(91, "TREE"), pt(92, "MW")];
+    // Road edges (RD1, RD2) draw the road: never listed as codes the library lacks.
+    const points = [...SAMPLE_POINTS, pt(90, "TREE"), pt(91, "TREE"), pt(92, "MW"), pt(93, "RD1"), pt(94, "RD2")];
     const findings = checkSurvey({ points, crs: crsById("EPSG:5235"), crsConfirmed: true, document: doc, lots: computeLots(points, doc.lots), surveyorProfile: true });
     const codes = findings.find((f) => f.code === "CODES_NOT_IN_LIBRARY");
     expect(codes).toMatchObject({ severity: "information", blocks: [], target: { kind: "field", id: "codes" } });

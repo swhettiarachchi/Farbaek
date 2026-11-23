@@ -20,7 +20,9 @@ import {
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { unknownCodes } from "@/core/survey/codehints";
 import { LAYER_IDS, type LayerId, type SurveyDocument } from "@/core/survey/document";
+import { GRAMMAR } from "@/core/survey/grammar";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
 import type { SceneItem, SceneText, SheetPage } from "@/core/survey/sheet/scene";
@@ -99,6 +101,8 @@ export function PlanEditor(props: PlanEditorProps) {
   const [previewOps, setPreviewOps] = useState<PlanOp[] | null>(null);
   const [marks, setMarks] = useState<string[]>([]);
   const preview = useMemo(() => (previewOps ? applyOps(doc, previewOps, props.points) : null), [doc, previewOps, props.points]);
+  // The codes on the points the library doesn't know, for the Codes tab's suggestions (ADR 0246): worked out only while it's open.
+  const unknown = useMemo(() => (tab === "codes" ? unknownCodes(props.points, doc.codes, GRAMMAR[doc.grammar ?? "farbaek"]) : []), [tab, props.points, doc.codes, doc.grammar]);
   const shown = preview?.ok ? preview.doc : doc;
   const markSet = useMemo(() => new Set(preview?.ok ? preview.touched : marks), [preview, marks]);
 
@@ -652,7 +656,7 @@ export function PlanEditor(props: PlanEditorProps) {
       ) : null}
 
       {tab === "sheet" ? <SheetFields doc={doc} update={update} readOnly={Boolean(props.readOnly)} surveyors={props.surveyors} suggested={plan.sheet.suggestedScale} paper={plan.sheet.paper} /> : null}
-      {tab === "codes" ? <CodesPanel doc={doc} update={update} readOnly={Boolean(props.readOnly)} /> : null}
+      {tab === "codes" ? <CodesPanel doc={doc} update={update} readOnly={Boolean(props.readOnly)} unknown={unknown} /> : null}
     </div>
   );
 
