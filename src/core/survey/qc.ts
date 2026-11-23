@@ -4,6 +4,7 @@
  * and what it blocks. Passing every check is not certification or legal
  * compliance: a plan is final only when its surveyor approves a version.
  */
+import { sketchFindings } from "./autosurvey/sketch";
 import { codeOf, codesAreCommonList, codesAreDsrList, lookupCode } from "./codes";
 import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
@@ -420,6 +421,9 @@ export function checkSurvey(input: QcInput): Finding[] {
   } else if (!input.surveyorProfile) {
     add({ code: "SURVEYOR_NO_PROFILE", severity: "professional_review", message: "The chosen surveyor hasn't entered their details yet.", target: { kind: "field", id: "surveyor" }, action: "The surveyor enters their name, designation and registration under Surveyor details.", blocks: ["approval"] });
   }
+
+  // The field sketches' readings, checked against the coordinates (ADR 0234). Only against a confirmed coordinate system.
+  out.push(...sketchFindings(doc.sketch, points, input.crsConfirmed ? crs : null, new Set(doc.kept)));
 
   return out.sort((x, y) => SEVERITY_ORDER.indexOf(x.severity) - SEVERITY_ORDER.indexOf(y.severity));
 }

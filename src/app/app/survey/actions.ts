@@ -185,7 +185,11 @@ const generateInput = z.object({
     .max(START_LIMITS.files),
 });
 
-export type GenerateState = { status: "idle" } | { status: "error"; message: string; problems: StartProblem[]; projectId?: string };
+export type GenerateState =
+  | { status: "idle" }
+  | { status: "error"; message: string; problems: StartProblem[]; projectId?: string }
+  /** Where the plan opens, and the version on it now, which reading the sketches builds on. */
+  | { status: "done"; projectId: string; next: string; version: number };
 
 /**
  * AutoSurvey's Generate Plan (stage 222, ADR 0233): every survey file read again here with the same tested readers (the browser's
@@ -242,18 +246,23 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const drawing = await drawFromPoints(g.w, projectId, `Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}`, drawsWithDsrList(all, document.codes) ? "dsr" : "project", statedSurveyDate(reads));
   revalidatePath("/app/survey");
   revalidatePath(`/app/survey/${projectId}`);
-  // The points are in either way; when the plan couldn't be drawn, the project opens on the Draft step, which says why.
-  redirect(`/app/survey/${projectId}?step=${drawing.ok && drawing.version ? "plan" : "draft"}&generated=1`);
+  // The points are in either way; when the plan couldn't be drawn, the project opens on the Draft step, which says why. Without a
+  // drawn version the project is still on the one it was created with.
+  const drawn = drawing.ok && drawing.version ? drawing.version : null;
+  return { status: "done", projectId, next: `/app/survey/${projectId}?step=${drawn ? "plan" : "draft"}&generated=1`, version: drawn ?? 1 };
 }
 
 /**
  * A document as it's saved: "keep as surveyed" answers only for near misses
  * the plan has now (none can be added from outside, and none outlives its
  * near miss), so the list stays short and every entry means something.
+ * The plan is checked as it's shown, with the project's own confirmation of its
+ * coordinate system: the sketch checks only run on a confirmed one, so without it
+ * every answer about a sketch would look dead and be dropped.
  */
-function tidy(doc: SurveyDocument, data: { points: SurveyProjectData["points"]; project: { crsId: string } }): SurveyDocument {
+function tidy(doc: SurveyDocument, data: { points: SurveyProjectData["points"]; project: { crsId: string; crsConfirmedAt: string | null } }): SurveyDocument {
   if (doc.kept.length === 0) return doc;
-  const view = buildPlan({ points: data.points, document: doc, crsId: data.project.crsId, crsConfirmation: null, surveyor: null, approval: null });
+  const view = buildPlan({ points: data.points, document: doc, crsId: data.project.crsId, crsConfirmation: data.project.crsConfirmedAt ? "confirmed" : null, surveyor: null, approval: null });
   const live = new Set(view.findings.flatMap((f) => (f.keep ? [f.keep.key] : [])));
   return { ...doc, kept: doc.kept.filter((k) => live.has(k)).slice(0, 200) };
 }
@@ -276,8 +285,11 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
   if (doc.data.surveyorUserId && !data.profiles.some((p) => p.user_id === doc.data.surveyorUserId)) {
     return { status: "error", message: "The chosen surveyor hasn't entered their details in this workspace yet." };
   }
+  // What was read from the sketches is only ever written by reading them (readSketchesAction): a plan saved from the browser keeps
+  // the stored readings, so none can be made up, changed or removed to clear a difference that holds approval.
+  const next = { ...doc.data, sketch: data.drawing.readable ? data.drawing.document.sketch : null };
   // Marks for items no longer on the plan are dropped, so none can hold an approval with nothing to check.
-  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: tidy(pruneProvenance(doc.data), data), note: input.note?.slice(0, 200) ?? null });
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: tidy(pruneProvenance(next), data), note: input.note?.slice(0, 200) ?? null });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };
@@ -290,7 +302,7 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
  * Only a near miss the plan has now can be kept.
  */
 export async function setKeptAsSurveyedAction(input: { projectId: string; baseVersion: number; key: string; keep: boolean }): Promise<SurveyFormState> {
-  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(dup|leg):[0-9a-f:|-]{36,120}$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(?:(?:dup|leg):[0-9a-f:|-]{36,120}|sketch:r\d{1,3})$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
   const g = await writer();
   if (!g.ok) return { status: "error", message: g.message };
   const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);

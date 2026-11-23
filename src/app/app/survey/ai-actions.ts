@@ -5,10 +5,14 @@
  * to review, built on the latest saved version; neither saves anything. The
  * surveyor keeps it by saving it as a new version, which checks it again.
  */
+import type Anthropic from "@anthropic-ai/sdk";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { AcceptedItem } from "@/core/survey/ai-draft";
-import type { SurveyDocument } from "@/core/survey/document";
+import { sketchFileName } from "@/core/survey/autosurvey/sketch";
+import { pruneProvenance, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
+import { createAnthropicSketchReader, type SketchImage } from "@/server/ai/sketch-reader";
 import { createAnthropicSurveyDrafter, type ReadRequest } from "@/server/ai/survey-drafter";
 import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -16,7 +20,8 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { SURVEY_AI_DAILY } from "@/server/survey/assistant";
 import { BRIEF_LIMITS, PHOTO_LIMITS, draftSurveyPlan, imageTypeOf, readSurveyPhotos, type SurveyDraftDeps } from "@/server/survey/drafting";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
-import { SURVEY_MESSAGES } from "@/server/survey/store";
+import { SKETCH_PHOTOS, readFieldSketches } from "@/server/survey/sketches";
+import { SURVEY_MESSAGES, surveyStore } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
@@ -44,6 +49,9 @@ type Prepared =
   | {
       ai: { deps: ReturnType<typeof createSupabaseWriteDeps> & SurveyDraftDeps };
       source: { family: "anthropic"; create: (s: { model: string }) => ReturnType<typeof createAnthropicSurveyDrafter> };
+      admin: SupabaseClient;
+      user: SupabaseClient;
+      client: Anthropic | undefined;
       data: SurveyProjectData;
       common: { orgId: string; userId: string; projectId: string; document: SurveyDocument; points: SurveyProjectData["points"] };
     };
@@ -74,7 +82,7 @@ async function prepare(projectId: string, baseVersion: number, label: string, ki
     if (day.data !== true) return { error: `That's ${SURVEY_AI_DAILY[kind]} ${kind === "draft" ? "drafts" : "photo reads"} today, the most for one person while Survey Studio is being tested. It's back tomorrow; everything without AI still works.` };
   }
   const source = { family: "anthropic" as const, create: (s: { model: string }) => createAnthropicSurveyDrafter({ model: s.model, client: ai.client }) };
-  return { ai, source, data, common: { orgId, userId: ctx.user.id, projectId, document: data.drawing.document, points: data.points } };
+  return { ai, source, admin, user, client: ai.client, data, common: { orgId, userId: ctx.user.id, projectId, document: data.drawing.document, points: data.points } };
 }
 
 /** "Draft the plan": reads the surveyor's description into a draft to review. */
@@ -108,4 +116,57 @@ export async function readOldPlanAction(form: FormData): Promise<SurveyDraftStat
   const r = await readSurveyPhotos(p.ai.deps, p.source, { ...p.common, images });
   if (!r.ok) return { status: "error", message: r.message };
   return { status: "done", source: "ai_photo", baseVersion: p.data.drawing.version, ...r.value };
+}
+
+export type SketchReadState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string; version: number; readings: number; unreadable: number };
+
+/**
+ * AutoSurvey's sketch reading (stage 223, ADR 0234): Claude reads photos of the surveyor's field sketches into readings, as written,
+ * saved with the plan as a new version. The plan's checks then compare each measurement with the coordinates. The photos go to
+ * Anthropic only with the surveyor's say-so on this request, and Farbaek doesn't keep them.
+ */
+export async function readSketchesAction(form: FormData): Promise<SketchReadState> {
+  const projectId = String(form.get("projectId") ?? "");
+  const baseVersion = Number(form.get("baseVersion"));
+  if (form.get("consent") !== "yes") return { status: "error", message: "Sketches are read only when you agree to send their photos to Anthropic for reading." };
+  const files = form.getAll("photo").filter((f): f is File => typeof f === "object" && f !== null && "arrayBuffer" in f);
+  if (files.length < 1 || files.length > SKETCH_PHOTOS.count) return { status: "error", message: `Choose one to ${SKETCH_PHOTOS.count} sketch photos.` };
+  if (files.some((f) => f.size > SKETCH_PHOTOS.bytes) || files.reduce((s, f) => s + f.size, 0) > SKETCH_PHOTOS.total) {
+    return { status: "error", message: "The sketch photos are too large together. Choose them again so Farbaek can shrink them." };
+  }
+  const images: SketchImage[] = [];
+  for (const [n, f] of files.entries()) {
+    const data = Buffer.from(await f.arrayBuffer());
+    const mediaType = imageTypeOf(data);
+    if (!mediaType) return { status: "error", message: "Use sketch photos or scans saved as JPEG, PNG or WebP." };
+    images.push({ name: sketchFileName(f.name, n), mediaType, data });
+  }
+  const p = await prepare(projectId, baseVersion, "Reading field sketches", "read");
+  if ("error" in p) return { status: "error", message: p.error };
+  const source = { family: "anthropic" as const, create: (s: { model: string }) => createAnthropicSketchReader({ model: s.model, client: p.client }) };
+  const r = await readFieldSketches(p.ai.deps, source, { orgId: p.common.orgId, userId: p.common.userId, projectId, images, now: new Date() });
+  if (!r.ok) return { status: "error", message: r.message };
+  const record = r.value;
+  const photos = `${images.length} ${images.length === 1 ? "sketch" : "sketches"}`;
+  // Nothing read for certain is no reason for a new version, and earlier readings stay as they were.
+  if (record.readings.length === 0) return { status: "done", message: `Nothing on the ${photos} could be read for certain, so the plan wasn't changed.`, version: baseVersion, readings: 0, unreadable: record.unreadable.length };
+  // New readings replace earlier ones, and with them any "keep as surveyed" answers to the earlier ones.
+  const withReadings = (document: SurveyDocument) => pruneProvenance({ ...document, sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:")) });
+  const actor = { orgId: p.common.orgId, userId: p.common.userId };
+  const note = `Read ${photos} with Claude: ${record.readings.length} things as written`;
+  const next = withReadings(p.data.drawing.document);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: "The readings didn't pass the plan's own checks, so nothing was saved." };
+  let saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion, document: next, note });
+  if (!saved.ok) {
+    // Reading can take minutes, and the plan may have been saved meanwhile. The readings touch nothing else in it, so they go onto
+    // the newest version once, rather than being lost after the read was counted.
+    const latest = await loadSurveyProject(p.user, p.common.orgId, projectId);
+    if (latest && latest.drawing.readable && latest.drawing.version !== baseVersion) {
+      const again = withReadings(latest.drawing.document);
+      if (surveyDocumentSchema.safeParse(again).success) saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion: latest.drawing.version, document: again, note });
+    }
+  }
+  if (!saved.ok) return { status: "error", message: `The sketches were read, but the readings couldn't be saved: ${saved.message}` };
+  revalidatePath(`/app/survey/${projectId}`);
+  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length };
 }

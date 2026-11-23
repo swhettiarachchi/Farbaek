@@ -12,6 +12,7 @@
  * documents are upgraded when read (`parseSurveyDocument`).
  */
 import { z } from "zod";
+import { sketchRecordSchema } from "./autosurvey/sketch";
 import { codeEntrySchema, commonCodes, type CodeEntry } from "./codes";
 
 export const LAYER_IDS = [
@@ -217,6 +218,8 @@ export const surveyDocumentSchema = z.object({
   kept: z.array(z.string().min(1).max(120)).max(200).default([]),
   /** The planning rules the lots are checked against, or null. Left out of the approval hash while null, so earlier approvals stand. */
   rules: planRulesSchema.nullable().default(null),
+  /** What was read from the surveyor's field sketches (autosurvey/sketch.ts, ADR 0234), or null. Evidence only: nothing is drawn from it. */
+  sketch: sketchRecordSchema.nullable().default(null),
   /** Which member's surveyor profile fills the surveyor block. */
   surveyorUserId: z.string().uuid().nullable(),
 });
@@ -278,6 +281,7 @@ export function emptyDocument(): SurveyDocument {
     provenance: {},
     kept: [],
     rules: null,
+    sketch: null,
     surveyorUserId: null,
   };
 }
@@ -434,6 +438,7 @@ export function parseSurveyDocument(raw: unknown): SurveyDocument | null {
     provenance: {},
     kept: [],
     rules: null,
+    sketch: null,
     surveyorUserId: d.surveyorUserId,
   };
 }

@@ -7,15 +7,18 @@ import { NewSurveyProjectForm } from "@/components/survey/forms";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
 import { startingCrs } from "@/core/survey/autosurvey/start";
+import { readModelKey } from "@/server/ai/workspace-ai";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
 import { loadAppContext } from "@/server/workspace/context";
+import { loadAiAvailability } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "New survey" };
 
 /**
  * AutoSurvey's start (stage 222, ADR 0233): upload everything, press Generate Plan. The coordinate system shown first is the one
  * this surveyor last confirmed in this workspace; the old step-by-step start stays one fold away for choosing columns by hand.
+ * Field sketches are read with Claude when this workspace can use it and the surveyor agrees (stage 223, ADR 0234).
  */
 export default async function NewSurveyPage() {
   const ctx = await loadAppContext();
@@ -30,6 +33,11 @@ export default async function NewSurveyPage() {
   const lastCrs = typeof last.data?.crs_id === "string" ? last.data.crs_id : null;
   const surveyorName = typeof profile.data?.full_name === "string" && profile.data.full_name.trim() ? profile.data.full_name.trim() : null;
   const disabledReason = surveyReadOnlyReason(ctx);
+  // Reading field sketches (stage 223, ADR 0234): on Claude, free while Survey Studio is tested, or on the workspace's own key.
+  const sketchAi = !disabledReason && ctx.mode === "live" ? await loadAiAvailability(ctx, ctx.current, "survey_read").catch(() => null) : null;
+  const sketchOff = disabledReason ?? (sketchAi ? sketchAi.disabledReason : "Reading sketches isn't available right now. The plan is drawn from your data either way.");
+  const ownKey = client && !sketchOff ? await readModelKey(client, ctx.current.id).catch(() => null) : null;
+  const aiCost = ownKey ? "It runs on your workspace's own Claude key." : "It's free while Survey Studio is being tested.";
 
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-6 pt-2 sm:pt-6 lg:gap-8">
@@ -39,7 +47,7 @@ export default async function NewSurveyPage() {
           Upload your survey data and field sketches. Farbaek reads them, draws the plan, and shows only what needs your attention. You check it, approve it and print it.
         </p>
       </div>
-      <AutoSurveyStart startingCrsId={startingCrs(lastCrs)?.id ?? null} surveyorName={surveyorName} disabledReason={disabledReason} />
+      <AutoSurveyStart startingCrsId={startingCrs(lastCrs)?.id ?? null} surveyorName={surveyorName} disabledReason={disabledReason} sketchOff={sketchOff} aiCost={aiCost} />
       <Disclosure summary="Set up the project step by step" hint="Name it, confirm the coordinate system, then choose a file's columns yourself." icon={<SlidersHorizontalIcon size={20} aria-hidden />}>
         <Card>
           <NewSurveyProjectForm disabledReason={disabledReason} />

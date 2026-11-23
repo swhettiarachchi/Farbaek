@@ -64,10 +64,7 @@ Each is its own pull request, built and checked the same way:
    - the coordinate system, title defaults and plan numbering, so a returning surveyor sets nothing twice.
    - It needs a migration.
 4. **Originals kept byte for byte, photos and sketches included,** in storage on Farbaek's own server. It needs a migration and a storage decision.
-5. **Reading sketches:**
-   - Every handwritten number or label becomes a candidate with its place on the image.
-   - Each candidate is matched to the instrument data, and conflicts are shown with both values.
-   - A sketch is never a source of coordinates.
+5. **Reading sketches:** built in stage 223 (ADR 0234), on Claude at the owner's choice. Each handwritten number or label is kept as written and checked against the instrument data, conflicts are shown with both values, and a sketch is never a source of coordinates. Places on the image are left out: Claude's are approximate.
 6. **Work in the background:** Generate Plan as a resumable job with its real stages shown, so leaving the page loses nothing.
 7. **More of the field-to-finish:**
    - observations reduced (SDR 09 and 11, GSI angles);
