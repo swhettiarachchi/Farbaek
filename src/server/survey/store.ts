@@ -70,5 +70,9 @@ export const surveyStore = {
     rpc(admin, "app_survey_approve", { p_org: a.orgId, p_actor: a.userId, p_project: i.projectId, p_version: i.version, p_crs: i.crsId, p_content_sha256: i.sha256 }, z.string().uuid()),
   recordExport: (admin: SupabaseClient, a: Actor, i: { projectId: string; version: number; kind: string; sha256: string; size: number; options: unknown }) =>
     rpc(admin, "app_survey_record_export", { p_org: a.orgId, p_actor: a.userId, p_project: i.projectId, p_version: i.version, p_kind: i.kind, p_sha256: i.sha256, p_size: i.size, p_options: i.options }, z.string().uuid()),
+  /** AutoSurvey's jobs (v102, ADR 0239): one Generate Plan run, its stages, and its end. */
+  jobStart: (admin: SupabaseClient, a: Actor, i: { projectId: string; stages: unknown }) => rpc(admin, "app_survey_job_start", { p_org: a.orgId, p_actor: a.userId, p_project: i.projectId, p_kind: "generate", p_stages: i.stages }, z.string().uuid()),
+  jobUpdate: (admin: SupabaseClient, orgId: string, i: { jobId: string; stages: unknown; state: "running" | "done" | "failed" | "interrupted"; result: unknown }) =>
+    rpc(admin, "app_survey_job_update", { p_org: orgId, p_job: i.jobId, p_stages: i.stages, p_state: i.state, p_result: i.result }, z.unknown()),
   archive: (admin: SupabaseClient, a: Actor, projectId: string) => rpc(admin, "app_survey_archive_project", { p_org: a.orgId, p_actor: a.userId, p_project: projectId }, z.unknown()),
 };
