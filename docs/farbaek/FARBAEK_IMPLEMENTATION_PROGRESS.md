@@ -2,6 +2,8 @@
 
 The running record of the program the owner set on 2026-11-22. Read this first in a new session. Each stage's detail is in `docs/stages/stage-N.md`; what exists today is in `FARBAEK_MASTER_AUDIT.md` and `docs/architecture/current-state.md`.
 
+**The full list is `FARBAEK_REQUIREMENTS_COVERAGE.md`:** every section of both briefs, what is done, partly done and not started, and the full order of work. The stage table below is the plan as it was first written; it left out Telepathy, the three modes, the Research and Audio studios, the X connector, the benchmark engine and new skills, which the coverage page adds.
+
 **Rule for this file:** a line says "done" only when the work is merged or has a test or a live check behind it. Everything else says what it is waiting for.
 
 ## Where it stands (2026-11-23)
