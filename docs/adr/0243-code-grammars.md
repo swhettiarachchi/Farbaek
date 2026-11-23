@@ -34,6 +34,7 @@ Codes the library didn't know were only reported at lot corners. Elsewhere they 
 **Choosing the grammar:**
 - It is set on the Codes step ("How your crew writes line words"), with a sentence saying what each reads.
 - A Carlson code library (`.fcl`) uploaded at AutoSurvey's start brings Carlson's words, and the start screen says so.
+- A returning surveyor's next plan takes the words from their newest plan whose codes they checked (ADR 0237's defaults), when they aren't Farbaek's own, and the start screen says which plan they came from.
 - Changing it asks for the code list to be checked again, like any change to the list.
 - The automatic draft, the lines editor and the import preview all read with the plan's grammar.
 

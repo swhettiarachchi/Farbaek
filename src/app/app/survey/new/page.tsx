@@ -43,6 +43,7 @@ export default async function NewSurveyPage() {
   const carried = {
     codes: defaults.codes ? { from: defaults.codes.from, count: defaults.codes.entries.length } : null,
     sheet: defaults.settings ? { from: defaults.settings.from, paper: defaults.settings.values.paper, orientation: defaults.settings.values.orientation } : null,
+    grammar: "grammar" in defaults ? (defaults.grammar ?? null) : null,
   };
   const aiCost = ownKey ? "It runs on your workspace's own Claude key." : "It's free while Survey Studio is being tested.";
 

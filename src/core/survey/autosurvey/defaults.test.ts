@@ -38,11 +38,21 @@ describe("a new plan's defaults", () => {
     expect(defaultsFrom([{ name: "a", document: plan({ codes: office }) }]).codes).toBeNull();
     expect(defaultsFrom([{ name: "a", document: plan({ codes: commonCodes(), provenance: { codes: { source: "engine", reviewed: true } } }) }]).codes).toBeNull();
     expect(defaultsFrom([{ name: "a", document: plan({ codes: dsrCodes(), provenance: { codes: { source: "engine", reviewed: true } } }) }]).codes).toBeNull();
-    expect(defaultsFrom([])).toEqual({ codes: null, settings: null });
+    expect(defaultsFrom([])).toEqual({ codes: null, settings: null, grammar: null });
     // The newest decision stands: checked on the common list last time, so an older office list isn't carried.
     const newer = plan({ codes: commonCodes(), provenance: { codes: { source: "engine", reviewed: true } } });
     const older = plan({ codes: office, provenance: { codes: { source: "engine", reviewed: true } } });
     expect(defaultsFrom([{ name: "new", document: newer }, { name: "old", document: older }]).codes).toBeNull();
     expect(withDefaults(emptyDocument(), { codes: null, settings: null })).toEqual(emptyDocument());
+  });
+
+  it("carries how the crew writes line words with the codes the surveyor checked last, whichever list, and not Farbaek's own (ADR 0243)", () => {
+    const carlson = plan({ codes: commonCodes(), grammar: "carlson", provenance: { codes: { source: "engine", reviewed: true } } });
+    const d = defaultsFrom([{ name: "Lot 12", document: carlson }]);
+    expect(d.grammar).toEqual({ id: "carlson", from: "Lot 12" });
+    expect(withDefaults(emptyDocument(), d).grammar).toBe("carlson");
+    // Not from a plan whose codes weren't checked, and nothing to carry for Farbaek's own words.
+    expect(defaultsFrom([{ name: "a", document: plan({ grammar: "carlson" }) }]).grammar).toBeNull();
+    expect(defaultsFrom([{ name: "a", document: plan({ grammar: "farbaek", provenance: { codes: { source: "engine", reviewed: true } } }) }]).grammar).toBeNull();
   });
 });

@@ -19,7 +19,7 @@
   - which codes the library doesn't know (`CODES_NOT_IN_LIBRARY`);
   - what reading the line words found (`CODE_LINES_TO_CHECK`), both for information.
 - **The Codes step** asks how the crew writes line words, with a sentence for each choice.
-- **AutoSurvey's start** reads a Carlson library's line words the Carlson way and says so.
+- **AutoSurvey's start** reads a Carlson library's line words the Carlson way and says so. A returning surveyor's next plan takes the words from their newest plan whose codes they checked, and the start screen names that plan.
 - **Every reader uses the plan's grammar:** the automatic draft, the lines editor and the import preview.
 
 ## Verified

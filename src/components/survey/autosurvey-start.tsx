@@ -9,7 +9,7 @@ import { generateSurveyPlanAction, type GenerateState } from "@/app/app/survey/a
 import { commonCodes } from "@/core/survey/codes";
 import { CRS_REGISTRY, LOCAL_CRS, crsById } from "@/core/survey/crs";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
-import { GRAMMAR, grammarForLibrary } from "@/core/survey/grammar";
+import { GRAMMAR, grammarForLibrary, type GrammarId } from "@/core/survey/grammar";
 import { LIBRARY_LIMITS, librarySummary, looksLikeCodeLibrary, parseCodeLibrary, type LibraryRead } from "@/core/survey/codelib";
 import { START_LIMITS, gridProblem, kindOfUpload, notReadYet, pointClashes, readSurveyFile, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
 import type { AdjustMethod } from "@/core/survey/adjust";
@@ -79,7 +79,7 @@ export function AutoSurveyStart({
   /** What reading them costs, in a sentence. */
   aiCost: string;
   /** What a new plan takes from this surveyor's own recent plans (ADR 0237). */
-  carried?: { codes: { from: string; count: number } | null; sheet: { from: string; paper: string; orientation: string } | null };
+  carried?: { codes: { from: string; count: number } | null; sheet: { from: string; paper: string; orientation: string } | null; grammar?: { id: GrammarId; from: string } | null };
 }) {
   const router = useRouter();
   const [uploads, setUploads] = useState<Upload[]>([]);
@@ -414,6 +414,11 @@ export function AutoSurveyStart({
         ) : carried.codes ? (
           <p className="text-sm text-ink-2">
             Codes: the list you checked on <span className="font-medium text-ink">{carried.codes.from}</span> ({carried.codes.count} codes), for you to check once on this plan.
+          </p>
+        ) : null}
+        {carried.grammar && !(library && grammarForLibrary(library.name)) ? (
+          <p className="text-sm text-ink-2">
+            Line words: read the {GRAMMAR[carried.grammar.id].label} way ({GRAMMAR[carried.grammar.id].words}), as on <span className="font-medium text-ink">{carried.grammar.from}</span>.
           </p>
         ) : null}
         {carried.sheet ? (
