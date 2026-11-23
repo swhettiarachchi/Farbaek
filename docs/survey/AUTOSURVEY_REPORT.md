@@ -158,6 +158,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
   - It holds the plan's drawing: lot boundaries and corners, lines, roads and labels.
   - Spot heights go out in the coordinates CSV, not the DXF.
 - **Coordinates CSV, a lots CSV and GeoJSON.**
+- **A checks and sources report** (stage 236, ADR 0245): one version's checks, sources with their SHA-256, what was worked out from each file, who filled what, the sketch read, versions and exports, as a PDF to file with the plan. It certifies nothing, and says so.
 - **Labels on the sheet are placed together** (ADR 0242). Dimensions on short legs are stacked or split across the line, and lot labels stay inside their lot. Geometry never moves, and what can't be cleared is reported.
 
 **Not built:**
@@ -200,8 +201,10 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #293 | 229 (background jobs) | Merged, live | **v102:** the owner applies it; the code works without it |
 | #294 | 230 (sketch photos kept) | Merged, live (build c96322bebc79) | **v103:** the owner applies it; the code works without it |
 | #295 | 231 and 232 (traverse, benchmark) | Merged, live (build 397d43d92a1a) | none |
-| #296 | 233 (label placement) and this report | Open | none |
-| #297 | 234 (line words, code report) | Open, builds on #296 | none |
+| #296 | 233 (label placement) and this report | Merged, live | none |
+| #297 | 234 (line words, code report) | Merged, live (build dbc3fa889203) | none |
+| #298 | 235 (timed jobs, finishing a cut-off run) | Open | none |
+| next | 236 (checks and sources report) | Open, builds on #298 | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
