@@ -167,7 +167,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       </div>
       {!data.drawing.readable ? <Notice tone="warning">This version&apos;s saved settings couldn&apos;t be read, so the plan shows defaults. Save a new version to replace it.</Notice> : null}
 
-      {showJob(job, now) ? <JobProgress job={job} now={now} /> : null}
+      {showJob(job, now) ? <JobProgress job={job} now={now} projectId={projectId} latestVersion={Math.max(data.drawing.version, ...data.versions.map((v) => v.version))} disabledReason={readOnly} /> : null}
       <ModeChoice mode={mode} />
       <StepNav steps={stepsFor(mode, STEPS, { drawn, current: step }).map(({ id, label }) => ({ id, label }))} current={step} base={base} />
 

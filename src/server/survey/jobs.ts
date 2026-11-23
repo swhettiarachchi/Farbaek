@@ -42,7 +42,7 @@ export class JobTracker {
     private readonly orgId: string,
     readonly id: string | null,
     public stages: JobStage[],
-    private result: { next?: string; message?: string } = {},
+    private result: JobRow["result"] = {},
   ) {}
 
   static async start(admin: SupabaseClient, actor: Actor, projectId: string, stages: JobStage[]): Promise<JobTracker> {
@@ -62,22 +62,34 @@ export class JobTracker {
   }
 
   /** One stage changed; the job ends when nothing is left to do, with its result. */
-  async stage(id: JobStageId, state: JobStageState, detail?: string, result: { next?: string; message?: string } = {}): Promise<void> {
-    this.stages = advance(this.stages, id, state, detail);
+  async stage(id: JobStageId, state: JobStageState, detail?: string, result: { next?: string; message?: string } = {}): Promise<boolean> {
+    this.stages = advance(this.stages, id, state, detail, new Date());
     // Nothing to import means nothing more to do: what was still waiting is skipped, so the job ends.
     if (id === "import" && state === "failed") this.stages = this.stages.map((s) => (s.state === "waiting" || (s.state === "running" && s.id !== id) ? { ...s, state: "skipped" as const } : s));
     this.result = { ...this.result, ...result };
     const over = allFinished(this.stages);
     const failed = this.stages.some((s) => s.state === "failed" && (s.id === "import" || s.id === "draw"));
-    await this.write(over ? (failed ? "failed" : "done") : "running");
+    return this.write(over ? (failed ? "failed" : "done") : "running");
   }
 
-  async write(state: "running" | "done" | "failed" | "interrupted"): Promise<void> {
-    if (!this.id) return;
+  /** Writes the job; false when there's no record or it couldn't be written (a record that can't be written never stops the work). */
+  async write(state: "running" | "done" | "failed" | "interrupted"): Promise<boolean> {
+    if (!this.id) return false;
     try {
-      await surveyStore.jobUpdate(this.admin, this.orgId, { jobId: this.id, stages: this.stages, state, result: this.result });
+      const r = await surveyStore.jobUpdate(this.admin, this.orgId, { jobId: this.id, stages: this.stages, state, result: this.result });
+      return r.ok;
     } catch {
-      // A record that can't be written never stops the work.
+      return false;
     }
+  }
+
+  /** The stages now, for a job written in one go. */
+  set(stages: JobStage[]): void {
+    this.stages = stages;
+  }
+
+  /** Adds to the job's result, written with its next update. */
+  mark(result: JobRow["result"]): void {
+    this.result = { ...this.result, ...result };
   }
 }

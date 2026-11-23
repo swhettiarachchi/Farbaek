@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyDocument } from "@/core/survey/document";
 
 // Shared with the stand-ins below, which vitest moves above everything else.
-const { calls, stored, carried, created, jobs } = vi.hoisted(() => ({
+const { calls, stored, carried, created, jobs, cutOff } = vi.hoisted(() => ({
+  // A cut-off run the page shows (stage 235), and whether its record can still be written.
+  cutOff: { job: null as unknown, writable: true, latest: 1, conflict: false, sources: [] as unknown[] },
   carried: { value: { codes: null, settings: null } as unknown },
   created: { document: null as unknown },
   jobs: [] as { kind: string; input: Record<string, unknown> }[],
@@ -54,9 +56,12 @@ vi.mock("@/server/survey/store", async () => {
       },
       jobUpdate: async (_a: unknown, _org: unknown, input: Record<string, unknown>) => {
         jobs.push({ kind: "update", input });
+        if (!cutOff.writable) return { ok: false, message: "NOT_FOUND" };
         return { ok: true, value: null };
       },
       saveDrawing: async (_a: unknown, _b: unknown, input: Record<string, unknown>) => {
+        // Another press saved first: the database refuses a save that doesn't build on the latest version.
+        if (cutOff.conflict) return { ok: false, code: "VERSION_CONFLICT", message: "VERSION_CONFLICT" };
         calls.push({ kind: "draw", input });
         return { ok: true, value: 2 };
       },
@@ -64,12 +69,16 @@ vi.mock("@/server/survey/store", async () => {
   };
 });
 vi.mock("@/server/survey/defaults", () => ({ loadStartingDefaults: async () => carried.value }));
+vi.mock("@/server/survey/jobs", async () => {
+  const actual = await vi.importActual<typeof import("@/server/survey/jobs")>("@/server/survey/jobs");
+  return { ...actual, loadJob: async () => cutOff.job };
+});
 vi.mock("@/server/survey/read", () => ({
   loadSurveyProject: async () => ({
     project: { id: "11111111-1111-4111-8111-111111111111", crsId: "EPSG:5235" },
     points: stored.map((p, i) => ({ id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`, ...p })),
-    sources: [],
-    drawing: { readable: true, document: created.document ?? emptyDocument(), version: 1 },
+    sources: cutOff.sources,
+    drawing: { readable: true, document: created.document ?? emptyDocument(), version: cutOff.latest },
     versions: [],
     approvals: [],
     exports: [],
@@ -98,6 +107,7 @@ beforeEach(() => {
   carried.value = { codes: null, settings: null };
   created.document = null;
   jobs.length = 0;
+  Object.assign(cutOff, { job: null, writable: true, latest: 1, conflict: false, sources: [] });
 });
 
 describe("Generate Plan", () => {
@@ -314,5 +324,112 @@ describe("The detailed import with a traverse (stage 231, ADR 0241)", () => {
     const r = await importSurveyPointsAction({ ...input, fileName: "pts.csv", content: "1,450000,700000\n", format: "delimited", adjust: "compass" });
     expect(r).toMatchObject({ status: "error", message: expect.stringContaining("Nothing was imported. You chose to adjust by the compass rule (Bowditch), and Farbaek adjusts only a Sokkia SDR job") });
     expect(calls).toEqual([]);
+  });
+});
+
+describe("Finishing a cut-off run (stage 235)", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const jobId = "33333333-3333-4333-8333-333333333333";
+  const quiet = new Date(Date.now() - 60 * 60_000).toISOString();
+  const cut = (importing: string, drawing: string) => ({
+    id: jobId,
+    state: "running",
+    stages: [
+      { id: "import", label: "Importing 1 file", state: importing, startedAt: quiet, ms: 900 },
+      { id: "draw", label: "Drawing the plan", state: drawing, startedAt: quiet },
+      { id: "sketches", label: "Reading 2 sketches with Claude", state: "waiting" },
+    ],
+    result: {},
+    started_at: quiet,
+    updated_at: quiet,
+  });
+  const boundaryPoints = () =>
+    stored.push(
+      ...["1,450000.000,700000.000,CP", "2,450040.000,700000.000,CP", "3,450040.000,700030.000,St", "4,450000.000,700030.000,St"].map((l) => {
+        const [pointId, e, n, code] = l.split(",");
+        return { pointId: pointId!, e: Number(e), n: Number(n), z: null, code: code! };
+      }),
+    );
+
+  it("draws the plan from the imported points and finishes the run's own record, the sketches left to read again", async () => {
+    boundaryPoints();
+    cutOff.job = cut("done", "running");
+    cutOff.writable = true;
+    const { finishCutOffRunAction } = await import("./actions");
+    const r = await finishCutOffRunAction({ projectId, jobId });
+    expect(r).toMatchObject({ status: "done", version: 2 });
+    expect(String(calls.find((c) => c.kind === "draw")!.input.note)).toBe("Drawn by AutoSurvey after the run was cut off");
+    const last = jobs.at(-1)!.input as { state: string; stages: { id: string; state: string; detail?: string }[] };
+    expect(jobs.map((j) => j.kind)).toEqual(["update"]);
+    expect(last.state).toBe("done");
+    expect(last.stages.map((x) => [x.id, x.state])).toEqual([["import", "done"], ["draw", "done"], ["sketches", "skipped"]]);
+    expect(last.stages[2]!.detail).toBe("The photos weren't kept by the cut-off run: read them again from the Draft step.");
+    // The drawing is timed now, and the record says it finished later, so its start-to-finish time is never shown or counted.
+    expect((last.stages[1] as { ms?: number }).ms).toBeGreaterThanOrEqual(0);
+    expect((jobs.at(-1)!.input as { result: Record<string, unknown> }).result).toMatchObject({ finishedLater: true });
+  });
+
+  it("offers the survey date the files stated, kept with their import", async () => {
+    boundaryPoints();
+    cutOff.job = cut("done", "running");
+    cutOff.sources = [{ settings: { by: "autosurvey", surveyDate: "2026-11-14" } }];
+    const { finishCutOffRunAction } = await import("./actions");
+    await finishCutOffRunAction({ projectId, jobId });
+    expect((calls.find((c) => c.kind === "draw")!.input.document as { sheet: { surveyDate: string } }).sheet.surveyDate).toBe("2026-11-14");
+  });
+
+  it("never draws over a plan saved since the run stopped, and leaves its record alone", async () => {
+    boundaryPoints();
+    cutOff.job = cut("done", "running");
+    cutOff.latest = 3;
+    const { finishCutOffRunAction } = await import("./actions");
+    const r = await finishCutOffRunAction({ projectId, jobId });
+    expect(r).toMatchObject({ status: "error", message: expect.stringContaining("saved since") });
+    expect(calls.filter((c) => c.kind === "draw")).toEqual([]);
+    expect(jobs).toEqual([]);
+  });
+
+  it("leaves the record to the press that drew first when two presses race", async () => {
+    boundaryPoints();
+    cutOff.job = cut("done", "running");
+    cutOff.conflict = true;
+    const { finishCutOffRunAction } = await import("./actions");
+    const r = await finishCutOffRunAction({ projectId, jobId });
+    expect(r).toMatchObject({ status: "error", message: expect.stringContaining("someone else") });
+    expect(jobs).toEqual([]);
+  });
+
+  it("writes a new record only when the sweep closed the run's own", async () => {
+    boundaryPoints();
+    cutOff.job = { ...cut("done", "running"), state: "interrupted" };
+    cutOff.writable = false;
+    const { finishCutOffRunAction } = await import("./actions");
+    const r = await finishCutOffRunAction({ projectId, jobId });
+    cutOff.writable = true;
+    expect(r).toMatchObject({ status: "done" });
+    expect(jobs.map((j) => j.kind)).toEqual(["update", "start", "update"]);
+    expect((jobs[1]!.input.stages as { id: string; detail?: string }[])[0]!.detail).toBe("Imported before the run was cut off.");
+    expect((jobs[2]!.input as { result: Record<string, unknown> }).result).toMatchObject({ finishedLater: true });
+  });
+
+  it("adds no second record when a still-running record can't be written", async () => {
+    boundaryPoints();
+    cutOff.job = cut("done", "running");
+    cutOff.writable = false;
+    const { finishCutOffRunAction } = await import("./actions");
+    const r = await finishCutOffRunAction({ projectId, jobId });
+    expect(r).toMatchObject({ status: "done" });
+    expect(jobs.map((j) => j.kind)).toEqual(["update"]);
+  });
+
+  it("refuses a run that's finished, still working, or cut off before its files were all imported, drawing nothing", async () => {
+    const { finishCutOffRunAction } = await import("./actions");
+    for (const job of [{ ...cut("done", "done"), state: "done" }, { ...cut("done", "running"), updated_at: new Date().toISOString() }, cut("running", "waiting"), null]) {
+      cutOff.job = job;
+      const r = await finishCutOffRunAction({ projectId, jobId });
+      expect(r.status).toBe("error");
+    }
+    expect(calls.filter((c) => c.kind === "draw")).toEqual([]);
+    expect(jobs).toEqual([]);
   });
 });

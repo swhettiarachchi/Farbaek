@@ -179,7 +179,7 @@ These come from synthetic data only, on the dev PC (Pentium Gold G6400, 4 thread
 - **The deterministic path** (read, draft, check and compose, PDF, DXF) takes about 40 ms for a 320-point job and about 50 ms for a 3,070-point job. The PDF is most of it.
 - **Not measured:** uploads, database writes, the job record, sketch reading with Claude, and the browser's preview.
 
-So the brief's 30-second target can't be called met or missed until a real Generate Plan on production is timed.
+So the brief's 30-second target can't be called met or missed until a real Generate Plan on production is timed. Since stage 235, production times every run's stages itself, and `scripts/vps/autosurvey-timings.ps1` reads them for the owner (ADR 0244).
 
 ## 11. Test results
 
@@ -212,7 +212,7 @@ Production deploys main by itself. Whether v102 and v103 are applied isn't confi
 - **Codes:** drawing curves (PC/PT arcs are drawn straight, and said); offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
 - **Defaults:** a surveyor profile table (equipment, title block, plan numbering).
-- **Jobs:** resuming a cut-off run; a timer for the jobs sweep; incremental regeneration (a correction saves a new version and re-checks the whole plan).
+- **Jobs:** resuming a cut-off import or sketch read (a run cut off after its import can be finished since stage 235); a timer for the jobs sweep; incremental regeneration (a correction saves a new version and re-checks the whole plan).
 - **Files:** reading PDFs, Word files, DWG and DXF; Topcon raw files; keeping a camera's full-size original.
 - **Platform:** tracking the brief's success metrics (§26); malware scanning of uploads; signed download links.
 
