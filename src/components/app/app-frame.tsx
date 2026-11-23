@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { PageTransition } from "@/components/app/page-transition";
+import { STAGE, STAGE_WINDOW, StageLight } from "@/components/ui/stage-window";
 
 /** Where each page's window was left, by address, for Back and Forward. Kept for the visit; nothing is stored. */
 const LEFT_AT = new Map<string, number>();
@@ -60,13 +61,10 @@ export function AppFrame({ sidebar, top, tabBar, children }: { sidebar: React.Re
     );
   }
   return (
-    <div data-signed-in className="relative min-h-[100dvh] bg-canvas lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden lg:bg-canvas-2 lg:p-3 xl:p-4 2xl:p-5">
-      {/* The stage's light, as behind Chat's window: still, drawn with gradients, and only on wide screens. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block">
-        <div className="chat-halo" />
-        <div className="chat-halo-fade absolute inset-0" />
-      </div>
-      <div className="relative bg-canvas lg:grid lg:h-full lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:overflow-hidden lg:rounded-lg lg:border lg:border-line lg:shadow-e2">
+    <div data-signed-in className={`relative min-h-[100dvh] bg-canvas lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden ${STAGE}`}>
+      {/* The stage and the window are the ones Chat, the studios and Build's workspace use (stage-window.tsx). Here the light is still. */}
+      <StageLight />
+      <div className={`relative lg:grid lg:h-full lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:overflow-hidden ${STAGE_WINDOW}`}>
         {sidebar}
         <div ref={scroller} data-app-scroll onScroll={(e) => LEFT_AT.set(pathname ?? "", e.currentTarget.scrollTop)} className="min-w-0 lg:h-full lg:overflow-y-auto lg:overscroll-contain">
           {top}

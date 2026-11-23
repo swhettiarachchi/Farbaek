@@ -8,6 +8,7 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ChatModelOption } from "@/core/chat/models";
+import { STAGE, STAGE_WINDOW, StageLight } from "@/components/ui/stage-window";
 import type { ConversationSummary } from "@/core/chat/protocol";
 import { ConfirmDialog, RenameDialog, SettingsDialog, ShareDialog } from "./dialogs";
 import type { Theme } from "@/core/theme/theme";
@@ -214,15 +215,12 @@ function Shell({ conversations: initial, projects, availability, theme, demo, us
     <ChatContext.Provider value={value}>
       {/* On wide screens Chat is a rounded window on a pale stage, with the spectrum's light glowing from behind its edges
           (stage 202, as the homepage draws it). The light is still; while Farbaek AI answers it travels slowly round. */}
-      <div ref={root} className="chat-root relative h-[var(--chat-vh,100dvh)] overflow-hidden bg-canvas text-ink lg:bg-canvas-2 lg:p-3 xl:p-4 2xl:p-5">
-        <div aria-hidden className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block">
-          <div className="chat-halo" />
-          <div className="chat-halo-fade absolute inset-0" />
-        </div>
+      <div ref={root} className={`chat-root relative h-[var(--chat-vh,100dvh)] overflow-hidden bg-canvas text-ink ${STAGE}`}>
+        <StageLight />
         <a href="#chat-composer" className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm text-on-primary focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
           Skip to the message box
         </a>
-        <div className="relative flex h-full overflow-hidden bg-canvas lg:rounded-lg lg:border lg:border-line lg:shadow-e2">
+        <div className={`relative flex h-full overflow-hidden ${STAGE_WINDOW}`}>
         <div className="hidden h-full shrink-0 lg:flex">{sidebar(false)}</div>
         <Drawer open={drawer} onClose={() => setDrawer(false)}>
           {sidebar(true)}

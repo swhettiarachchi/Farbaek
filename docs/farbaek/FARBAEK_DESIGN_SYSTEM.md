@@ -127,7 +127,7 @@ The black cat (ADR 0226), `public/brand/farbaek-logo-v2.webp`, through `BrandLog
 
 ## The frame
 
-Every signed-in page sits in one frame (ADR 0230), the one Chat began with:
+Every signed-in page sits in one frame (ADR 0230), the one Chat began with. Its stage, window and light are defined once, in `src/components/ui/stage-window.tsx`, and used by the app's frame, Chat, the studios and Build's workspace:
 
 - **Wide screens (1024 px and up):** a rounded window (28 px corners, a hairline, `shadow-e2`) on a pale stage (`canvas-2`), with the spectrum's light glowing from behind its edges. The sidebar is inside the window, 280 px wide. The page scrolls inside the window.
 - **Phones and small tablets:** the page fills the screen and scrolls itself, with a header at the top and five tabs at the bottom: Home, Chat, Build, Approvals, More.
@@ -138,4 +138,4 @@ Every signed-in page sits in one frame (ADR 0230), the one Chat began with:
 
 - Pages outside the public site's layout that no server marks (shared links, the device page, the desktop app's connect page, the page for an address that doesn't exist) in Dark.
 - The iPhone app and the desktop app in Dark.
-- Chat, the studios and Build's workspace still draw their own copy of the frame, and "Build" opens two places.
+- One sidebar across Chat, the studios, Build's workspace and the app's pages; and "Build" starting in one place (it starts in three).

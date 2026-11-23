@@ -30,6 +30,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
+import { STAGE, STAGE_WINDOW, StageLight } from "@/components/ui/stage-window";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
 import { STUDIO_PROMPT_KEY } from "@/core/chat/protocol";
 import { StatusGlyph } from "@/components/ui/status-badge";
@@ -278,10 +279,14 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
   const title = kind === "image" ? "Image studio" : "Video studio";
 
   return (
-    <div className="chat-root relative flex h-[100dvh] overflow-hidden bg-canvas text-ink">
+    // On wide screens the studio is the same window on the same stage as Chat and the rest of the app (ADR 0230); the
+    // light behind it travels while a picture or a film is being made.
+    <div className={`chat-root relative h-[100dvh] overflow-hidden bg-canvas text-ink ${STAGE}`}>
+      <StageLight />
       <a href="#studio-prompt" className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm text-on-primary focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
         Skip to the description
       </a>
+      <div className={`relative flex h-full overflow-hidden ${STAGE_WINDOW}`}>
       <aside aria-label="Your library" className="hidden h-full w-[18.5rem] shrink-0 border-r border-line bg-canvas-2 lg:flex">
         {library(false)}
       </aside>
@@ -497,6 +502,7 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
           </div>
         </div>
       </main>
+      </div>
 
       <Viewer
         kind={kind}
