@@ -88,3 +88,25 @@ For a workspace that hadn't built anything yet, the new main screen showed the g
 - **One sidebar.** Chat keeps its conversations, the studios their library, and Build's workspace has none.
 - **"Build" starts in three places** (`/app/new`, `/app/build`, `/app/workbench`), two of them with the same box, leading into two flows. Choosing the one that is Build is the next step here, and it needs the build flow walked in a browser, not a link changed.
 - **One plus menu in Chat's box.**
+
+# Stage 212, part 4: full screen
+
+- **Date:** 2026-11-23
+- **Branch:** `feat/stage-212-full-screen`, from `main`
+- **Decision:** ADR 0230, "Full screen"
+- **Migration:** none. **New dependency:** none.
+
+## What the owner asked
+
+"Remove the colored line surrounding the platform. make it full screen size", with a screenshot of Home in the window.
+
+## What was built
+
+- The stage, the gap and the coloured light round the window are gone from the app's frame, Chat, the studios and Build's workspace. Every one fills the screen.
+- `src/components/ui/stage-window.tsx` and the light's styles are deleted; the app no longer loads Chat's stylesheet.
+
+## Verified
+
+- **Measured in a browser** at 1440 px in Light and Dark, on Home, Projects, Settings, Chat, Images, Video and Build's workspace: no gap at any edge, no rounded frame, no light; the screen itself doesn't scroll and the page scrolls beside the sidebar. At 375 px, as before. No console errors.
+- **Looked at:** Home in Light and Chat in Dark at 1440 px.
+- `pnpm test`: 4,361 pass, 17 skipped. Typecheck, lint on the changed files and `pnpm build` pass.

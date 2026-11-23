@@ -127,9 +127,9 @@ The black cat (ADR 0226), `public/brand/farbaek-logo-v2.webp`, through `BrandLog
 
 ## The frame
 
-Every signed-in page sits in one frame (ADR 0230), the one Chat began with. Its stage, window and light are defined once, in `src/components/ui/stage-window.tsx`, and used by the app's frame, Chat, the studios and Build's workspace:
+Every signed-in page sits in one frame (ADR 0230), used by the app's frame, Chat, the studios and Build's workspace. Since 2026-11-23 it is full screen, at the owner's request: no stage, gap or coloured light round it.
 
-- **Wide screens (1024 px and up):** a rounded window (28 px corners, a hairline, `shadow-e2`) on a pale stage (`canvas-2`), with the spectrum's light glowing from behind its edges. The sidebar is inside the window, 280 px wide. The page scrolls inside the window.
+- **Wide screens (1024 px and up):** full screen. The sidebar on the left, 280 px wide; the page scrolls beside it.
 - **Phones and small tablets:** the page fills the screen and scrolls itself, with a header at the top and five tabs at the bottom: Home, Chat, Build, Approvals, More.
 - **The sidebar's first list:** Home, Chat, Images, Video, Build, Projects, Approvals. The four spaces carry their colours. Everything else is under More tools, then the account pages.
 - **The main screen** (ADR 0228) is a greeting and one box that asks or builds, then what needs the person.

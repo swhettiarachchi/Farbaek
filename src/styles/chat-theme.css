@@ -88,52 +88,6 @@
   }
 }
 
-/*
- * Chat's stage (stage 202, ADR 0218). On wide screens the chat is a rounded window on a pale stage, and the spectrum's light
- * glows from behind its edges, as the homepage's picture of it shows. The light is one conic gradient on a square larger
- * than the screen; it is still, and while Farbaek AI is answering (an answer is aria-busy) it turns slowly, so the light
- * travels round the window: motion for live state. No filters (ADR 0055); under reduced motion it never moves.
- */
-.chat-halo {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: max(150vw, 150vh);
-  aspect-ratio: 1;
-  translate: -50% -50%;
-  opacity: 0.6;
-  background: conic-gradient(
-    from 300deg,
-    color-mix(in oklab, var(--accent) var(--halo, 44%), transparent),
-    color-mix(in oklab, var(--spark-aqua) var(--halo, 44%), transparent),
-    color-mix(in oklab, var(--spark-leaf) var(--halo, 44%), transparent),
-    color-mix(in oklab, var(--spark-rose) var(--halo, 44%), transparent),
-    color-mix(in oklab, var(--accent) var(--halo, 44%), transparent)
-  );
-  transition: opacity 500ms ease;
-}
-/* The light fades into the stage at the screen's edge, so it reads as glow from behind the window and not a painted frame. */
-.chat-halo-fade {
-  box-shadow: inset 0 0 14px 2px var(--canvas-2);
-}
-.chat-root:has([aria-busy="true"]) .chat-halo {
-  opacity: 1;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .chat-halo {
-    animation: chat-halo-turn 18s linear infinite;
-    animation-play-state: paused;
-  }
-  .chat-root:has([aria-busy="true"]) .chat-halo {
-    animation-play-state: running;
-  }
-}
-@keyframes chat-halo-turn {
-  to {
-    rotate: 360deg;
-  }
-}
-
 /* The message box's light: a soft pool under it and a thin edge round it. Both only fade in and out. */
 .chat-composer-aura,
 .chat-composer-ring {
