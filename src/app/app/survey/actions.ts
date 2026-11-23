@@ -10,7 +10,7 @@ import { START_LIMITS, gridProblem, pointClashes, readSurveyFile, startName, sta
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
 import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
 import { withDefaults } from "@/core/survey/autosurvey/defaults";
-import { generateStages } from "@/core/survey/autosurvey/job";
+import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
 import { emptyDocument, provenanceLive, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
@@ -23,7 +23,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { loadStartingDefaults } from "@/server/survey/defaults";
-import { JobTracker } from "@/server/survey/jobs";
+import { JobTracker, loadJob } from "@/server/survey/jobs";
 import { SURVEY_MESSAGES, surveyStore, type Actor } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
@@ -160,9 +160,11 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
  * codes, the road, the stated survey date and the importing surveyor, each inference marked for checking. Only onto a plan with no
  * lots; nothing is saved when there's nothing to draw.
  */
-async function drawFromPoints(w: Writer, projectId: string, note: string, codeList: "project" | "dsr" = "project", surveyDate: string | null = null): Promise<{ ok: true; version: number | null; drawn: string[]; notDrawn: string[] } | { ok: false; message: string }> {
+async function drawFromPoints(w: Writer, projectId: string, note: string, codeList: "project" | "dsr" = "project", surveyDate: string | null = null, onlyOn: number | null = null): Promise<{ ok: true; version: number | null; drawn: string[]; notDrawn: string[] } | { ok: false; message: string; moved?: true }> {
   const data = await loadSurveyProject(w.user, w.actor.orgId, projectId);
   if (!data) return { ok: false, message: SURVEY_MESSAGES.NOT_FOUND };
+  // Drawing only on a given version: a plan saved since is never drawn over (its save would build on the newer version).
+  if (onlyOn !== null && data.drawing.version !== onlyOn) return { ok: false, message: "the plan has been saved since, so nothing was drawn over it.", moved: true };
   const mine = data.profiles.some((p) => p.user_id === w.actor.userId) ? w.actor.userId : null;
   if (!data.drawing.readable) return { ok: true, version: null, drawn: [], notDrawn: ["Nothing was drawn: the latest version's settings couldn't be read, so Farbaek doesn't draw over it. Save a new version first."] };
   // The Survey Department's code list, when the surveyor chose it for a file written in its codes; only on a plan not yet drawn, and
@@ -175,7 +177,7 @@ async function drawFromPoints(w: Writer, projectId: string, note: string, codeLi
   const parsed = surveyDocumentSchema.safeParse(r.document);
   if (!parsed.success) return { ok: false, message: "the drawn plan didn't pass its own checks, so nothing was saved." };
   const saved = await surveyStore.saveDrawing(w.admin, w.actor, { projectId, baseVersion: data.drawing.version, document: tidy(pruneProvenance(parsed.data), data), note: note.slice(0, 200) });
-  if (!saved.ok) return { ok: false, message: saved.message };
+  if (!saved.ok) return { ok: false, message: saved.message, ...(saved.code === "VERSION_CONFLICT" ? { moved: true as const } : {}) };
   return { ok: true, version: saved.value, drawn: r.drawn, notDrawn: r.notDrawn };
 }
 
@@ -274,14 +276,15 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   if (!created.ok) return { status: "error", message: created.message, problems: [] };
   const projectId = created.value;
   // The run as a job with real stages, so leaving the page and coming back shows where it stands (ADR 0239).
-  const job = await JobTracker.start(g.w.admin, g.w.actor, projectId, generateStages(reads.length, i.sketches));
+  const job = await JobTracker.start(g.w.admin, g.w.actor, projectId, generateStages(reads.length, i.sketches, new Date()));
   for (const [n, r] of reads.entries()) {
     const imported = await surveyStore.importPoints(g.w.admin, g.w.actor, {
       projectId,
       fileName: r.name,
       format: r.format,
       content: contents[n]!,
-      settings: { delimiter: r.delimiter, hasHeader: r.hasHeader, columns: r.columns, units: "metre", crs: crs.id, by: "autosurvey", ...(r.reduction ? { reduction: r.reduction } : {}) },
+      // The date the file states is kept with it, so a run finished after a cut-off offers the same date (stage 235).
+      settings: { delimiter: r.delimiter, hasHeader: r.hasHeader, columns: r.columns, units: "metre", crs: crs.id, by: "autosurvey", ...(r.reduction ? { reduction: r.reduction } : {}), ...(r.surveyDate ? { surveyDate: r.surveyDate } : {}) },
       points: r.points.map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
     });
     if (!imported.ok) {
@@ -307,6 +310,62 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const next = `/app/survey/${projectId}?step=${drawn ? "plan" : "draft"}&generated=1`;
   await job.stage("draw", drawing.ok ? "done" : "failed", !drawing.ok ? drawing.message : drawn ? `Version ${drawn}: ${drawing.drawn.length} ${drawing.drawn.length === 1 ? "thing" : "things"} drawn.` : (drawing.notDrawn[0] ?? "Nothing to draw from the points."), { next });
   return { status: "done", projectId, next, version: drawn ?? 1, jobId: job.id };
+}
+
+/**
+ * Finishes a Generate Plan run that was cut off after its files were imported (stage 235): the project keeps every imported file,
+ * so the plan is drawn from its points now, as the run would have. The run's record says so, or, when it can no longer be written
+ * (the sweep closed it), a new record does. Sketch photos aren't kept until they're read, so a cut-off read is read again from the
+ * Draft step, and the record says that too.
+ */
+export async function finishCutOffRunAction(input: { projectId: string; jobId: string }): Promise<SurveyFormState> {
+  if (!uuid.safeParse(input.projectId).success || !uuid.safeParse(input.jobId).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const job = await loadJob(g.w.user, input.jobId, input.projectId);
+  if (!job) return { status: "error", message: "That run's record isn't there any more. Draw the plan from the Draft step." };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  const latest = Math.max(data.drawing.version, ...data.versions.map((v) => v.version));
+  if (!finishable(job, new Date(), latest)) {
+    return { status: "error", message: latest !== FIRST_VERSION ? "The plan has been saved since this run stopped, so nothing was drawn over it. Open the plan to see it." : "This run can't be finished from here: it's still working, it finished, or its files weren't all imported. What was saved is on the plan." };
+  }
+  // The same code list and survey date the run would have drawn with: the Survey Department's list only in place of the common one, for
+  // files in its codes, and the first date a file stated, kept with its import.
+  const asImported = data.points.map((p) => ({ line: 0, pointId: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code }));
+  const codeList = codesAreCommonList(data.drawing.document.codes) && drawsWithDsrList(asImported, data.drawing.document.codes) ? "dsr" : "project";
+  const surveyDate = data.sources.map((x) => x.settings.surveyDate).find((d): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) ?? null;
+  const began = new Date();
+  const drawing = await drawFromPoints(g.w, input.projectId, "Drawn by AutoSurvey after the run was cut off", codeList, surveyDate, FIRST_VERSION);
+  revalidatePath(`/app/survey/${input.projectId}`);
+  // Another press (a second tab, or someone else) drew it first: that press finishes the record, and this one leaves it alone.
+  if (!drawing.ok && drawing.moved) return { status: "error", message: "The plan has just been drawn or saved by someone else, so nothing was drawn over it. Open the plan to see it." };
+  const drawn = drawing.ok && drawing.version ? drawing.version : null;
+  const detail = !drawing.ok ? drawing.message : drawn ? `Finished after the cut-off: version ${drawn}, ${drawing.drawn.length} ${drawing.drawn.length === 1 ? "thing" : "things"} drawn.` : (drawing.notDrawn[0] ?? "Nothing to draw from the points.");
+  const sketchesLeft = "The photos weren't kept by the cut-off run: read them again from the Draft step.";
+  const ended = new Date();
+  // The drawing as measured now. The run's start-to-finish time includes the hours it lay cut off, so the record is marked finished later.
+  const finish = (stages: JobStage[]) =>
+    stages.map((s) =>
+      s.id === "draw"
+        ? { ...s, state: (drawing.ok ? "done" : "failed") as JobStage["state"], detail, startedAt: began.toISOString(), ms: Math.max(0, Math.min(86_400_000, ended.getTime() - began.getTime())) }
+        : s.id === "sketches" && (s.state === "waiting" || s.state === "running")
+          ? { ...s, state: "skipped" as const, detail: sketchesLeft }
+          : s,
+    );
+  const tracker = JobTracker.resume(g.w.admin, g.w.actor.orgId, job);
+  tracker.set(finish(job.stages));
+  tracker.mark({ finishedLater: true });
+  const written = await tracker.write(drawing.ok ? "done" : "failed");
+  // Only a record the sweep closed gets a new one in its place, so the page shows how the run ended; a write that failed for any other
+  // reason leaves the record as it is rather than adding a second run.
+  if (!written && job.state === "interrupted") {
+    const fresh = await JobTracker.start(g.w.admin, g.w.actor, input.projectId, finish(job.stages.map((s) => (s.id === "import" ? { ...s, detail: "Imported before the run was cut off." } : s))));
+    fresh.mark({ finishedLater: true });
+    await fresh.write(drawing.ok ? "done" : "failed");
+  }
+  if (!drawing.ok) return { status: "error", message: `The plan wasn't drawn: ${drawing.message}` };
+  return drawn ? { status: "done", message: `The plan is drawn as version ${drawn}: check it, then approve.`, version: drawn, drawn: drawing.drawn, notDrawn: drawing.notDrawn } : { status: "error", message: drawing.notDrawn[0] ?? "There was nothing to draw from the points.", issues: [] };
 }
 
 /**

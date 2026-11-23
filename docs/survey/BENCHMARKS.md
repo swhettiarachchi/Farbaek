@@ -19,6 +19,10 @@ The datasets are **synthetic**, made up and reproducible from a fixed seed (`src
 
 Run it again with `pnpm bench:survey`. It has its own config, so `pnpm test` never runs it.
 
+## Production's own times
+
+Since stage 235, every Generate Plan run on production records how long each stage took (ADR 0244). The owner reads them with `scripts/vps/autosurvey-timings.ps1`, which only reads. It gives the last 30 days' runs, how they ended, and the median and slowest times. Those lines belong here, under their date, once real plans have been generated.
+
 ## Not measured
 
 - uploading the files;
