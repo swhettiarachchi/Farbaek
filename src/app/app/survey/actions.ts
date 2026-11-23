@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { autoDraft } from "@/core/survey/autodraft";
 import { START_LIMITS, gridProblem, pointClashes, readSurveyFile, startName, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
-import { dsrCodes } from "@/core/survey/codes";
+import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
+import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
+import { withDefaults } from "@/core/survey/autosurvey/defaults";
 import { crsById } from "@/core/survey/crs";
 import { emptyDocument, provenanceLive, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
 import { itemOf } from "@/core/survey/exceptions";
@@ -16,6 +18,7 @@ import { approvalHash, buildPlan } from "@/core/survey/view";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
+import { loadStartingDefaults } from "@/server/survey/defaults";
 import { SURVEY_MESSAGES, surveyStore, type Actor } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
@@ -184,6 +187,8 @@ const generateInput = z.object({
     .array(z.object({ name: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/), content: z.string().max(IMPORT_LIMITS.maxBytes) }))
     .min(1)
     .max(START_LIMITS.files),
+  /** An office code library uploaded with the files (ADR 0237): read again here, never trusted from the browser. */
+  library: z.object({ name: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/), content: z.string().max(LIBRARY_LIMITS.bytes) }).nullable().default(null),
 });
 
 export type GenerateState =
@@ -204,7 +209,7 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const i = parsed.data;
   const crs = crsById(i.crsId);
   if (!crs) return { status: "error", message: "Choose the coordinate system the survey's points are in.", problems: [] };
-  const bytes = i.files.reduce((sum, f) => sum + f.content.length, 0);
+  const bytes = i.files.reduce((sum, f) => sum + f.content.length, 0) + (i.library?.content.length ?? 0);
   if (bytes > START_LIMITS.dataBytes) return { status: "error", message: `These files hold more than ${START_LIMITS.dataBytes / 1024 / 1024} MB of survey data together. Generate from fewer files, then import the rest into the project.`, problems: [] };
   const g = await writer();
   if (!g.ok) return { status: "error", message: g.message, problems: [] };
@@ -226,7 +231,15 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   if (grid) problems.push(grid);
   if (problems.length > 0) return { status: "error", message: problems.length === 1 ? "One thing needs you before the plan can be drawn. Nothing was saved." : `${problems.length} things need you before the plan can be drawn. Nothing was saved.`, problems };
 
-  const document = emptyDocument();
+  // A returning surveyor's own defaults (ADR 0237): the code list they checked last and their sheet's presentation, read through
+  // row-level security; an office code library uploaded with the files wins over the carried list, and waits for their check.
+  let document = withDefaults(emptyDocument(), await loadStartingDefaults(g.w.user, g.w.actor.orgId, g.w.actor.userId));
+  if (i.library) {
+    const lib = parseCodeLibrary(i.library.content);
+    if (!lib.ok) return { status: "error", message: "One thing needs you before the plan can be drawn. Nothing was saved.", problems: [{ file: i.library.name, problem: lib.problem }] };
+    const taken = libraryFor(lib.entries, all.map((p) => p.code ?? "").filter(Boolean));
+    document = { ...document, codes: taken.codes, provenance: { ...document.provenance, codes: { source: "engine", reviewed: false } } };
+  }
   const created = await surveyStore.createProject(g.w.admin, g.w.actor, { name: startName(i.title, reads[0]?.name ?? null, new Date()), planType: "cadastral", crsId: crs.id, confirm: true, document });
   if (!created.ok) return { status: "error", message: created.message, problems: [] };
   const projectId = created.value;
@@ -244,7 +257,14 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
       return { status: "error", message: `The project was created, but ${r.name} wasn't imported: ${imported.message} Open the project to import it again.`, problems: [], projectId };
     }
   }
-  const drawing = await drawFromPoints(g.w, projectId, `Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}`, drawsWithDsrList(all, document.codes) ? "dsr" : "project", statedSurveyDate(reads));
+  const drawing = await drawFromPoints(
+    g.w,
+    projectId,
+    `Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}`,
+    // The Survey Department's list replaces only the common one: never an office library or the surveyor's own checked list.
+    codesAreCommonList(document.codes) && drawsWithDsrList(all, document.codes) ? "dsr" : "project",
+    statedSurveyDate(reads),
+  );
   revalidatePath("/app/survey");
   revalidatePath(`/app/survey/${projectId}`);
   // The points are in either way; when the plan couldn't be drawn, the project opens on the Draft step, which says why. Without a

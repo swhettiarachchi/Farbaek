@@ -10,6 +10,7 @@ import { startingCrs } from "@/core/survey/autosurvey/start";
 import { readModelKey } from "@/server/ai/workspace-ai";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
+import { loadStartingDefaults } from "@/server/survey/defaults";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
 
@@ -37,6 +38,12 @@ export default async function NewSurveyPage() {
   const sketchAi = !disabledReason && ctx.mode === "live" ? await loadAiAvailability(ctx, ctx.current, "survey_read").catch(() => null) : null;
   const sketchOff = disabledReason ?? (sketchAi ? sketchAi.disabledReason : "Reading sketches isn't available right now. The plan is drawn from your data either way.");
   const ownKey = client && !sketchOff ? await readModelKey(client, ctx.current.id).catch(() => null) : null;
+  // What a new plan takes from this surveyor's own recent plans (ADR 0237), said before they press Generate.
+  const defaults = client ? await loadStartingDefaults(client, ctx.current.id, ctx.user.id) : { codes: null, settings: null };
+  const carried = {
+    codes: defaults.codes ? { from: defaults.codes.from, count: defaults.codes.entries.length } : null,
+    sheet: defaults.settings ? { from: defaults.settings.from, paper: defaults.settings.values.paper, orientation: defaults.settings.values.orientation } : null,
+  };
   const aiCost = ownKey ? "It runs on your workspace's own Claude key." : "It's free while Survey Studio is being tested.";
 
   return (
@@ -47,7 +54,7 @@ export default async function NewSurveyPage() {
           Upload your survey data and field sketches. Farbaek reads them, draws the plan, and shows only what needs your attention. You check it, approve it and print it.
         </p>
       </div>
-      <AutoSurveyStart startingCrsId={startingCrs(lastCrs)?.id ?? null} surveyorName={surveyorName} disabledReason={disabledReason} sketchOff={sketchOff} aiCost={aiCost} />
+      <AutoSurveyStart startingCrsId={startingCrs(lastCrs)?.id ?? null} surveyorName={surveyorName} disabledReason={disabledReason} sketchOff={sketchOff} aiCost={aiCost} carried={carried} />
       <Disclosure summary="Set up the project step by step" hint="Name it, confirm the coordinate system, then choose a file's columns yourself." icon={<SlidersHorizontalIcon size={20} aria-hidden />}>
         <Card>
           <NewSurveyProjectForm disabledReason={disabledReason} />

@@ -54,7 +54,8 @@ const plainHeader = (h: string) =>
     .replace(/ (?:m|metres?|meters?)$/, "")
     .trim();
 
-const roleOfHeader = (h: string): ColumnRole | "x" | "y" | null => {
+/** What a header names, as the points reader takes it (shared with the code-library check, ADR 0237). */
+export const roleOfHeader = (h: string): ColumnRole | "x" | "y" | null => {
   const t = plainHeader(h);
   if (t === "x") return "x";
   if (t === "y") return "y";

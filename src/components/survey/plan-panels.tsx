@@ -375,6 +375,12 @@ const STYLE_LABELS: Record<LineStyle, string> = { solid: "Solid", dashed: "Dashe
 /** The code library: what each field code means and how it's drawn. */
 export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; update: Update; readOnly: boolean }) {
   const reviewed = doc.provenance["codes"]?.reviewed === true;
+  // Changing a checked list undoes its check: the check was of the list as it was (ADR 0237).
+  const edit: Update = (change, key) =>
+    update((d) => {
+      change(d);
+      if (d.provenance["codes"]?.reviewed) d.provenance["codes"] = { source: "engine", reviewed: false };
+    }, key);
   return (
     <div className="grid gap-4 rounded-md bg-surface p-4 ring-1 ring-line">
       <p className="text-sm text-ink-2">Codes your instrument records with each point. The Reference on the plan lists only the codes it uses. The starting list is common Sri Lankan usage, not an official one.</p>
@@ -384,20 +390,20 @@ export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; upd
             <div className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-end gap-2">
               <label className="grid gap-1">
                 <span className="text-xs text-ink-3">Code</span>
-                <input value={c.code} maxLength={12} disabled={readOnly} onChange={(e) => update((d) => void (d.codes[i]!.code = e.target.value), `cc${i}`)} className={inputClasses()} />
+                <input value={c.code} maxLength={12} disabled={readOnly} onChange={(e) => edit((d) => void (d.codes[i]!.code = e.target.value), `cc${i}`)} className={inputClasses()} />
               </label>
               <label className="grid gap-1">
                 <span className="text-xs text-ink-3">Meaning</span>
-                <input value={c.meaning} maxLength={60} disabled={readOnly} onChange={(e) => update((d) => void (d.codes[i]!.meaning = e.target.value), `cm${i}`)} className={inputClasses()} />
+                <input value={c.meaning} maxLength={60} disabled={readOnly} onChange={(e) => edit((d) => void (d.codes[i]!.meaning = e.target.value), `cm${i}`)} className={inputClasses()} />
               </label>
-              <button type="button" aria-label={`Remove ${c.code || "this code"}`} disabled={readOnly} onClick={() => update((d) => void d.codes.splice(i, 1))} className={buttonClasses("ghost", "icon")}>
+              <button type="button" aria-label={`Remove ${c.code || "this code"}`} disabled={readOnly} onClick={() => edit((d) => void d.codes.splice(i, 1))} className={buttonClasses("ghost", "icon")}>
                 <TrashIcon size={16} weight="bold" aria-hidden />
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <label className="grid gap-1">
                 <span className="text-xs text-ink-3">Drawn as</span>
-                <select value={c.kind} disabled={readOnly} onChange={(e) => update((d) => void (d.codes[i]!.kind = e.target.value as CodeKind))} className={inputClasses()}>
+                <select value={c.kind} disabled={readOnly} onChange={(e) => edit((d) => void (d.codes[i]!.kind = e.target.value as CodeKind))} className={inputClasses()}>
                   {CODE_KINDS.map((k) => (
                     <option key={k} value={k}>
                       {KIND_LABELS[k]}
@@ -407,7 +413,7 @@ export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; upd
               </label>
               <label className="grid gap-1">
                 <span className="text-xs text-ink-3">Line</span>
-                <select value={c.line} disabled={readOnly || c.kind === "mark" || c.kind === "symbol"} onChange={(e) => update((d) => void (d.codes[i]!.line = e.target.value as LineStyle))} className={inputClasses()}>
+                <select value={c.line} disabled={readOnly || c.kind === "mark" || c.kind === "symbol"} onChange={(e) => edit((d) => void (d.codes[i]!.line = e.target.value as LineStyle))} className={inputClasses()}>
                   {LINE_STYLES.map((k) => (
                     <option key={k} value={k}>
                       {STYLE_LABELS[k]}
@@ -417,14 +423,14 @@ export function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; upd
               </label>
             </div>
             <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
-              <input type="checkbox" checked={c.legend} disabled={readOnly} onChange={(e) => update((d) => void (d.codes[i]!.legend = e.target.checked))} className="size-5 accent-[var(--color-accent)]" />
+              <input type="checkbox" checked={c.legend} disabled={readOnly} onChange={(e) => edit((d) => void (d.codes[i]!.legend = e.target.checked))} className="size-5 accent-[var(--color-accent)]" />
               In the Reference when used
             </label>
           </li>
         ))}
       </ul>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={readOnly || doc.codes.length >= 80} onClick={() => update((d) => void d.codes.push({ code: "X", meaning: "Describe it", kind: "mark", line: "solid", legend: true }))} className={buttonClasses("secondary", "sm")}>
+        <button type="button" disabled={readOnly || doc.codes.length >= 80} onClick={() => edit((d) => void d.codes.push({ code: "X", meaning: "Describe it", kind: "mark", line: "solid", legend: true }))} className={buttonClasses("secondary", "sm")}>
           <PlusIcon size={16} weight="bold" aria-hidden />
           Add a code
         </button>
