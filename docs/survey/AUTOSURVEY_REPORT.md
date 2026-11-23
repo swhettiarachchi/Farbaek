@@ -203,8 +203,9 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #295 | 231 and 232 (traverse, benchmark) | Merged, live (build 397d43d92a1a) | none |
 | #296 | 233 (label placement) and this report | Merged, live | none |
 | #297 | 234 (line words, code report) | Merged, live (build dbc3fa889203) | none |
-| #298 | 235 (timed jobs, finishing a cut-off run) | Open | none |
-| next | 236 (checks and sources report) | Open, builds on #298 | none |
+| #298 | 235 (timed jobs, finishing a cut-off run) | Merged, live (build 684f7edfa43f) | none |
+| #299 | 236 (checks and sources report) | Open | none |
+| next | 237 (success metrics script) | Open, builds on #299 | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
@@ -217,7 +218,7 @@ Production deploys main by itself. Whether v102 and v103 are applied isn't confi
 - **Defaults:** a surveyor profile table (equipment, title block, plan numbering).
 - **Jobs:** resuming a cut-off import or sketch read (a run cut off after its import can be finished since stage 235); a timer for the jobs sweep; incremental regeneration (a correction saves a new version and re-checks the whole plan).
 - **Files:** reading PDFs, Word files, DWG and DXF; Topcon raw files; keeping a camera's full-size original.
-- **Platform:** tracking the brief's success metrics (§26); malware scanning of uploads; signed download links.
+- **Platform:** the success metrics (§26) that production doesn't record: time to first preview, findings across plans, refused exports, and a comparison with the same job by hand (`docs/survey/METRICS.md`, stage 237, says how the rest are read); malware scanning of uploads; signed download links.
 
 ## 14. Remaining risks
 
