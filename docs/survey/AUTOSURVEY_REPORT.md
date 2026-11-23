@@ -6,7 +6,7 @@ The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, af
 - **Partly built.**
 - **Not built.**
 
-Every dataset used in testing is synthetic: no real survey has gone through AutoSurvey yet. Each stage's own record is in `docs/stages/stage-222.md` to `stage-232.md`, and each decision in ADRs 0233 to 0241.
+Every dataset used in testing is synthetic: no real survey has gone through AutoSurvey yet. Each stage's own record is in `docs/stages/stage-222.md` to `stage-234.md`, and each decision in ADRs 0233 to 0243.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -183,8 +183,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 
 ## 11. Test results
 
-- **`pnpm test` on stage 232's branch:** 4,489 tests pass, 17 skipped, in 498 files.
-- **Survey Studio's own tests:** 528 in 43 files, covering readers, calculations, the draft, checks, exceptions, sketches, jobs, the traverse, Generate Plan and the detailed import. The schema tests run against the real migrations in PGlite.
+- **`pnpm test` on stage 234's branch:** 4,518 tests pass, 17 skipped, in 500 files.
+- **Survey Studio's own tests:** 557 in 45 files, covering readers, calculations, the draft, checks, exceptions, sketches, jobs, the traverse, Generate Plan and the detailed import. The schema tests run against the real migrations in PGlite.
 - **`pnpm lint`, `pnpm typecheck` and `pnpm build` pass.**
 - **A fresh review agent read each stage's risky files after every check had passed.** It found real faults in each stage it read, for example 6 in stage 223, 5 in stage 230 and 9 in stage 231, all fixed with tests.
 - **Not run:**
@@ -200,7 +200,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #293 | 229 (background jobs) | Merged, live | **v102:** the owner applies it; the code works without it |
 | #294 | 230 (sketch photos kept) | Merged, live (build c96322bebc79) | **v103:** the owner applies it; the code works without it |
 | #295 | 231 and 232 (traverse, benchmark) | Merged, live (build 397d43d92a1a) | none |
-| Next PR | 233 (label placement) and this report | Open | none |
+| #296 | 233 (label placement) and this report | Open | none |
+| #297 | 234 (line words, code report) | Open, builds on #296 | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
