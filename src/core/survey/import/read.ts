@@ -12,6 +12,7 @@ import { parseGeoJsonPoints } from "./geojson";
 import { parseGsi } from "./gsi";
 import { parseJobXml } from "./jobxml";
 import { parseLandXml } from "./landxml";
+import { REDUCTION_ENGINE } from "./reduce";
 import { parseSdr } from "./sdr";
 
 export interface ReadOptions {
@@ -28,13 +29,18 @@ export interface PointsRead {
   issues: ImportIssue[];
   /** The survey date the file states (yyyy-mm-dd), when it does: offered to the draft, for the surveyor to check. */
   surveyDate: string | null;
+  /** When points were worked out from observations: the engine and counts, recorded with the import (ADR 0236). */
+  reduction?: { engine: string; points: number; stations: number } | null;
 }
 
 export function readPoints(format: ImportFormat, text: string, o: ReadOptions): PointsRead {
   const plain = (r: { points: ImportedPoint[]; issues: ImportIssue[] }): PointsRead => ({ points: r.points, issues: r.issues, surveyDate: null });
   if (format === "geojson") return plain(parseGeoJsonPoints(text, o.crs?.epsg ?? null));
   if (format === "gsi") return plain(parseGsi(text, o.crs));
-  if (format === "sdr") return plain(parseSdr(text));
+  if (format === "sdr") {
+    const r = parseSdr(text, o.crs);
+    return { points: r.points, issues: r.issues, surveyDate: null, reduction: r.reduced ? { engine: REDUCTION_ENGINE, ...r.reduced } : null };
+  }
   if (format === "landxml") return plain(parseLandXml(text));
   if (format === "jobxml") return parseJobXml(text);
   if (format === "fieldbook") return plain(parseFieldBook(text, o.known ?? []));

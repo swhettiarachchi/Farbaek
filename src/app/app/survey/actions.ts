@@ -125,7 +125,7 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
     fileName: i.fileName,
     format: i.format,
     content: i.content,
-    settings: { delimiter: i.delimiter, hasHeader: i.hasHeader, columns: i.columns, units: i.units, crs: crsId },
+    settings: { delimiter: i.delimiter, hasHeader: i.hasHeader, columns: i.columns, units: i.units, crs: crsId, ...(result.reduction ? { reduction: result.reduction } : {}) },
     points: result.points.map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
   });
   if (!r.ok) return { status: "error", message: r.message };
@@ -236,7 +236,7 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
       fileName: r.name,
       format: r.format,
       content: contents[n]!,
-      settings: { delimiter: r.delimiter, hasHeader: r.hasHeader, columns: r.columns, units: "metre", crs: crs.id, by: "autosurvey" },
+      settings: { delimiter: r.delimiter, hasHeader: r.hasHeader, columns: r.columns, units: "metre", crs: crs.id, by: "autosurvey", ...(r.reduction ? { reduction: r.reduction } : {}) },
       points: r.points.map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
     });
     if (!imported.ok) {

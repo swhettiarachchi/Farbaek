@@ -52,6 +52,8 @@ export interface FileRead {
   /** Notes worth showing (repeats kept once, records left out); never errors. */
   notes: ImportIssue[];
   surveyDate: string | null;
+  /** When points were worked out from observations: recorded with the import (ADR 0236). */
+  reduction: { engine: string; points: number; stations: number } | null;
 }
 
 export type FileReadResult = { ok: true; read: FileRead } | { ok: false; name: string; problem: string };
@@ -94,7 +96,7 @@ export function readSurveyFile(name: string, text: string, crs: CrsRecord | null
     return { ok: false, name, problem: `${where}${first.message}${errors.length > 1 ? ` (${errors.length - 1} more ${errors.length === 2 ? "problem" : "problems"} like this.)` : ""}` };
   }
   if (result.points.length === 0) return { ok: false, name, problem: "This file has no points in it." };
-  return { ok: true, read: { name, format, formatLabel, delimiter, hasHeader, columns, points: result.points, notes: result.issues.filter((i) => i.severity !== "error").slice(0, 20), surveyDate: result.surveyDate } };
+  return { ok: true, read: { name, format, formatLabel, delimiter, hasHeader, columns, points: result.points, notes: result.issues.filter((i) => i.severity !== "error").slice(0, 20), surveyDate: result.surveyDate, reduction: result.reduction ?? null } };
 }
 
 /** A question that stops the start, with the file it's about when there is one. */
