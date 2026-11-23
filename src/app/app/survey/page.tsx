@@ -36,7 +36,7 @@ export default async function SurveyStudioPage() {
             {readOnly ? null : (
               <ButtonLink href="/app/survey/new" size="sm">
                 <PlusIcon size={16} weight="bold" aria-hidden />
-                New survey project
+                New survey
               </ButtonLink>
             )}
           </>
@@ -88,7 +88,7 @@ export default async function SurveyStudioPage() {
           <EmptyState
             icon={CompassToolIcon}
             title="No survey projects yet"
-            action={readOnly ? undefined : <ButtonLink href="/app/survey/new">New survey project</ButtonLink>}
+            action={readOnly ? undefined : <ButtonLink href="/app/survey/new">New survey</ButtonLink>}
           >
             Start one, bring in your points (a file from your instrument, a CSV, or typed in), and Survey Studio draws the plan to scale.
           </EmptyState>

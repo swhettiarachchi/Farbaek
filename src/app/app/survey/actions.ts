@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { autoDraft } from "@/core/survey/autodraft";
+import { START_LIMITS, gridProblem, pointClashes, readSurveyFile, startName, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
 import { dsrCodes } from "@/core/survey/codes";
 import { crsById } from "@/core/survey/crs";
 import { emptyDocument, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
@@ -172,6 +173,77 @@ export async function drawPlanFromPointsAction(input: { projectId: string }): Pr
   if (!r.ok) return { status: "error", message: `The plan wasn't drawn: ${r.message}` };
   if (!r.version) return { status: "error", message: r.notDrawn[0] ?? "There was nothing to draw from the points.", issues: [] };
   return { status: "done", message: `The plan is drawn as version ${r.version}: check it, then approve.`, version: r.version, drawn: r.drawn, notDrawn: r.notDrawn };
+}
+
+const generateInput = z.object({
+  title: z.string().max(200).default(""),
+  /** The grid the start screen showed. Pressing Generate Plan is the surveyor confirming it: the project records who did. */
+  crsId: z.string().max(40),
+  files: z
+    .array(z.object({ name: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/), content: z.string().max(IMPORT_LIMITS.maxBytes) }))
+    .min(1)
+    .max(START_LIMITS.files),
+});
+
+export type GenerateState = { status: "idle" } | { status: "error"; message: string; problems: StartProblem[]; projectId?: string };
+
+/**
+ * AutoSurvey's Generate Plan (stage 222, ADR 0233): every survey file read again here with the same tested readers (the browser's
+ * reading is never trusted), then, only when every file reads cleanly, the points fit the chosen grid and no point number has two
+ * places, the project is created with the grid confirmed by the person pressing, each file is imported as its own source, and the
+ * plan is drawn once from all of them. Anything wrong stops it before a project exists, with one plain problem per file.
+ */
+export async function generateSurveyPlanAction(input: z.input<typeof generateInput>): Promise<GenerateState> {
+  const parsed = generateInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST, problems: [] };
+  const i = parsed.data;
+  const crs = crsById(i.crsId);
+  if (!crs) return { status: "error", message: "Choose the coordinate system the survey's points are in.", problems: [] };
+  const bytes = i.files.reduce((sum, f) => sum + f.content.length, 0);
+  if (bytes > START_LIMITS.dataBytes) return { status: "error", message: `These files hold more than ${START_LIMITS.dataBytes / 1024 / 1024} MB of survey data together. Generate from fewer files, then import the rest into the project.`, problems: [] };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message, problems: [] };
+
+  const reads: FileRead[] = [];
+  // Each read beside the text it came from: two files may share a name.
+  const contents: string[] = [];
+  const problems: StartProblem[] = [];
+  for (const f of i.files) {
+    const r = readSurveyFile(f.name, f.content, crs);
+    if (r.ok) {
+      reads.push(r.read);
+      contents.push(f.content);
+    } else problems.push({ file: r.name, problem: r.problem });
+  }
+  problems.push(...pointClashes(reads));
+  const all = reads.flatMap((r) => r.points);
+  const grid = gridProblem(all, crs);
+  if (grid) problems.push(grid);
+  if (problems.length > 0) return { status: "error", message: problems.length === 1 ? "One thing needs you before the plan can be drawn. Nothing was saved." : `${problems.length} things need you before the plan can be drawn. Nothing was saved.`, problems };
+
+  const document = emptyDocument();
+  const created = await surveyStore.createProject(g.w.admin, g.w.actor, { name: startName(i.title, reads[0]?.name ?? null, new Date()), planType: "cadastral", crsId: crs.id, confirm: true, document });
+  if (!created.ok) return { status: "error", message: created.message, problems: [] };
+  const projectId = created.value;
+  for (const [n, r] of reads.entries()) {
+    const imported = await surveyStore.importPoints(g.w.admin, g.w.actor, {
+      projectId,
+      fileName: r.name,
+      format: r.format,
+      content: contents[n]!,
+      settings: { delimiter: r.delimiter, hasHeader: r.hasHeader, columns: r.columns, units: "metre", crs: crs.id, by: "autosurvey" },
+      points: r.points.map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
+    });
+    if (!imported.ok) {
+      revalidatePath("/app/survey");
+      return { status: "error", message: `The project was created, but ${r.name} wasn't imported: ${imported.message} Open the project to import it again.`, problems: [], projectId };
+    }
+  }
+  const drawing = await drawFromPoints(g.w, projectId, `Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}`, drawsWithDsrList(all, document.codes) ? "dsr" : "project", statedSurveyDate(reads));
+  revalidatePath("/app/survey");
+  revalidatePath(`/app/survey/${projectId}`);
+  // The points are in either way; when the plan couldn't be drawn, the project opens on the Draft step, which says why.
+  redirect(`/app/survey/${projectId}?step=${drawing.ok && drawing.version ? "plan" : "draft"}&generated=1`);
 }
 
 /**
