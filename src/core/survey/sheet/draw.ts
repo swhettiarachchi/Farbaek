@@ -429,7 +429,9 @@ export function drawLoosePoints(ctx: DrawCtx, points: readonly SurveyPoint[], lo
   const corners = new Set(lots.lots.flatMap((r) => r.parcel?.vertices.map((v) => v.id) ?? []));
   for (const p of points) {
     if (corners.has(p.id)) continue;
-    const entry = lookupCode(doc.codes, codeOf(p.code));
+    // A symbol the plan gives a point (a well the sketch shows there, ADR 0249) draws it as that symbol; the point itself is unchanged.
+    const given = (doc.symbols ?? []).find((x) => x.point === p.id)?.code;
+    const entry = lookupCode(doc.codes, given ?? codeOf(p.code));
     if (!entry || (entry.kind !== "mark" && entry.kind !== "symbol")) continue;
     const [x, y] = atPage(ctx, p);
     if (x < ctx.v.x - 5 || x > ctx.v.x + ctx.v.w + 5 || y < ctx.v.y - 5 || y > ctx.v.y + ctx.v.h + 5) continue;

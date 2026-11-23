@@ -6,6 +6,7 @@
  */
 import { fitArc } from "./arcs";
 import { sketchFindings } from "./autosurvey/sketch";
+import { interpretDocument, sketchQuestionFindings } from "./sketchintel/findings";
 import { codeOf, codesAreCommonList, codesAreDsrList, lookupCode } from "./codes";
 import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
@@ -475,6 +476,8 @@ export function checkSurvey(input: QcInput): Finding[] {
 
   // The field sketches' readings, checked against the coordinates (ADR 0234). Only against a confirmed coordinate system.
   out.push(...sketchFindings(doc.sketch, points, input.crsConfirmed ? crs : null, new Set(doc.kept)));
+  // What the sketch's drawing couldn't settle (ADR 0249): asked, never guessed.
+  out.push(...sketchQuestionFindings(interpretDocument(doc, points), doc));
 
   return out.sort((x, y) => SEVERITY_ORDER.indexOf(x.severity) - SEVERITY_ORDER.indexOf(y.severity));
 }

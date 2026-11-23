@@ -468,6 +468,37 @@ export async function confirmSurveyItemAction(input: { projectId: string; baseVe
   return { status: "done", message: `${input.confirmed ? "Confirmed" : "Back on the list"}: ${label}. Saved as version ${r.value}.`, version: r.value };
 }
 
+/**
+ * Takes a symbol off the plan (a well the sketch put at a point, ADR 0249), saved as a new version. Symbols have no editor of their
+ * own, so this is how a wrong one goes; the point itself is never touched, and its own code still draws as it did.
+ */
+export async function removeSurveySymbolAction(input: { projectId: string; baseVersion: number; key: string }): Promise<SurveyFormState> {
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^symbol:[A-Za-z0-9_-]{1,40}$/.test(input.key)) {
+    return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  }
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== input.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be removed from it. Reload, or ask support." };
+  const doc = structuredClone(data.drawing.document);
+  const id = input.key.slice("symbol:".length);
+  if (!(doc.symbols ?? []).some((s) => s.id === id)) return { status: "error", message: "That symbol isn't on the plan any more. Reload to see the plan as it is now." };
+  const { label } = itemOf(doc, input.key);
+  const symbols = (doc.symbols ?? []).filter((s) => s.id !== id);
+  // A plan without symbols has none listed, as before any were added, so its approval fingerprint is the same.
+  if (symbols.length > 0) doc.symbols = symbols;
+  else delete doc.symbols;
+  delete doc.provenance[input.key];
+  const next = tidy(pruneProvenance(doc), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: next, note: `Removed: ${label}`.slice(0, 200) });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${input.projectId}`);
+  return { status: "done", message: `Removed: ${label}. Saved as version ${r.value}.`, version: r.value };
+}
+
 export async function setSurveyorProfileAction(_prev: SurveyFormState, form: FormData): Promise<SurveyFormState> {
   const field = (k: string, max: number) => String(form.get(k) ?? "").trim().slice(0, max);
   const fullName = field("fullName", 120);

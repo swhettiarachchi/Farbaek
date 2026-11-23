@@ -1,12 +1,12 @@
 # Farbaek AutoSurvey: implementation report
 
-The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 234. It keeps four things apart:
+The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 241. It keeps four things apart:
 - **Built and tested:** working in the product, with automated tests.
 - **Built, not proven on real data:** working and tested, but only on synthetic data so far.
 - **Partly built.**
 - **Not built.**
 
-Every dataset used in testing is synthetic: no real survey has gone through AutoSurvey yet. Each stage's own record is in `docs/stages/stage-222.md` to `stage-234.md`, and each decision in ADRs 0233 to 0243.
+Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-241.md`, and each decision in ADRs 0233 to 0249.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -43,7 +43,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Data normalisation | `import/*` readers, `import/reduce.ts` | Built and tested |
 | CRS resolver | `crs.ts`, the start screen's last-confirmed grid | Built and tested: never inferred, always confirmed; no transformations |
 | Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `grammar.ts`, `codes.ts`, `codelib.ts`, `codehints.ts` | Built and tested: Farbaek's and Carlson's line words (ADR 0243), joins to a point, a code report in the checks, suggestions for unknown codes added in one press (ADR 0246); PC to PT runs drawn as curves through their points (ADR 0247) |
-| Sketch intelligence | `autosurvey/sketch.ts`, `server/survey/sketches.ts`, `server/ai/sketch-reader.ts` | Built, not proven on real sketches |
+| Sketch intelligence | `autosurvey/sketch.ts`, `sketchintel/*`, `server/survey/sketches.ts`, `server/ai/sketch-reader.ts` | Built and tested: readings, and the drawing's lines, symbols and areas joined to the survey as proposals with evidence (ADR 0249); run on one real sketch as transcribed, not yet through the production reader |
 | Source reconciliation | point clashes, sketch-versus-instrument checks, observation checks | Built and tested |
 | Survey computation | `angles.ts`, `geometry.ts`, `cogo.ts`, `units.ts`, `reduce.ts`, `adjust.ts` | Built and tested |
 | Geometry construction | `autodraft.ts`, `lots.ts`, `partition.ts`, `roads.ts` | Built and tested |
@@ -87,6 +87,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
   - differences held for the surveyor.
 - **Exceptions only** (ADR 0235): drawn items need a confirmation of their own only when tested code doubts them.
 - **Defaults:** the code list checked last, an office code library (Carlson-style CSV or .fcl) and the sheet's presentation (ADR 0237).
+- **The Sketch Intelligence Engine** (stage 241, ADR 0249): the sketch's drawing (which numbered points each line joins, how it's drawn, what's written along it, symbols, named areas) matched to the survey, classified, tested against the coordinates, and added as items for one-press confirmation. The lot, the walls, strips, the road's side and the well come from it; what the evidence can't settle is asked. No position comes from the sketch.
 - **Background jobs** with stages (ADR 0239, schema v102).
 - **Sketch photos kept** beside their readings, served through row-level security (ADR 0240, schema v103).
 - **A benchmark of the deterministic path** (stage 232).
@@ -105,7 +106,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | GeoJSON points | Points with a named EPSG system | Built and tested |
 | Field book (bearings and distances) | Legs from a known point; closure reported, not adjusted | Built and tested |
 | Office code library (.fcl, CSV) | Codes, kinds and layers | Built and tested |
-| Field sketch photos (JPEG, PNG, WebP) | Read by Claude with consent | Built, not proven on real sketches |
+| Field sketch photos (JPEG, PNG, WebP) | Read by Claude with consent: readings, and the drawing's lines, symbols and areas | Built and tested; one real sketch run as transcribed, not yet through the production reader |
 | PDF, Word, DWG, DXF | Listed and said plainly to be unread | Not built |
 | Topcon GTS-7 raw | Not reduced | Not built |
 
@@ -142,21 +143,34 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
   - a difference holds approval until the surveyor answers it;
   - an unknown point number is said;
   - the photo each reading came from is one tap away.
-- **Never a source of coordinates:** nothing is drawn or moved from a sketch.
+- **The drawing understood** (stage 241, ADR 0249):
+  - lines between numbered points, with their style and what's written along them;
+  - symbols at points, such as a well;
+  - named areas.
+
+  Tested code matches the numbers, classifies each line, and tests it against the coordinates: corners by how far a point lies off the line between its neighbours (0.25 m by default, 0.10 m for strong evidence, said as Farbaek's defaults). It finds the lot as the largest outline the boundary lines close round, with strips, the road's side and the well. Each result goes on the plan as an item waiting for one press, with its evidence. A point between the tolerances, a line with nothing written along it, a missing road width and a building without numbered corners are asked about.
+- **Never a source of coordinates:** every drawn point is a surveyed one; a surveyed point the sketch doesn't number is said, never added; no far edge or outline is guessed.
+- **Compared with a surveyor's own plan** by point numbers (`sketchintel/evaluate.ts`), and run on a real job's folder outside the repository (`real-job.test.ts`).
+
+**The owner's real job (local only, never committed):**
+- 27 of 27 sketch numbers matched;
+- the surveyor's lot, all but one corner lying 0.043 m off the straight side, 132.70 m² against the plan's 132.53 m²;
+- 7 of 8 lines in full, the road edge in part;
+- the well placed.
+
+The sketch was transcribed in the development session in the reader's format; the production reader runs on it only with the owner's consent.
 
 **Not built:**
 - positions on the photo, since Claude's are approximate;
-- line work and shapes;
+- a road from one surveyed edge and a written width; a building's outline from an area without numbered corners;
 - rotated or poor photos are handled only as well as the model reads them, with no preprocessing beyond shrinking.
-
-**Not proven:** no real sketch has been read yet.
 
 ## 8. CAD and PDF output
 
 **Built and tested:**
 - **PDF:** the plan sheet as a vector PDF 1.7. Tests read it back for page size, print scaling off, embedded fonts, and the boundary drawn at exactly the plan's scale, measured from the PDF's own path operators. A block-out plan PDF is also made.
 - **DXF:** Farbaek's own R12 writer. Tests read it back with an independent parser.
-  - It holds the plan's drawing: lot boundaries and corners, lines, roads and labels.
+  - It holds the plan's drawing: lot boundaries and corners, lines, roads, labels, and marks and symbols at points (since stage 241).
   - Spot heights go out in the coordinates CSV, not the DXF.
 - **Coordinates CSV, a lots CSV and GeoJSON.**
 - **A checks and sources report** (stage 236, ADR 0245): one version's checks, sources with their SHA-256, what was worked out from each file, who filled what, the sketch read, versions and exports, as a PDF to file with the plan. It certifies nothing, and says so.
@@ -208,8 +222,9 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #299 | 236 (checks and sources report) | Merged, live | none |
 | #300 | 237 (success metrics script) | Merged, live | none |
 | #301 | 238 (suggestions for unknown codes) | Merged, live (build 63bc07a5d93e) | none |
-| #302 | 239 (curves from PC to PT) | Open | none |
-| next | 240 (crowded legs left to the schedule) | Open, builds on #302 | none |
+| #302 | 239 (curves from PC to PT) | Merged, live | none |
+| #303 | 240 (crowded legs left to the schedule) | Merged | none |
+| next | 241 (Sketch Intelligence Engine) | Open | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
@@ -226,8 +241,8 @@ Production deploys main by itself. Whether v102 and v103 are applied isn't confi
 
 ## 14. Remaining risks
 
-- **No real job has been run end to end.** The SDR reader, the traverse and the sketch reader are proven only on synthetic data built from the manufacturers' documents. The surveyor's Bankuwatta SDR file is the first real test.
-- **Sketch readings can be plausibly wrong.** The instrument check catches a misread number only where there is a coordinate to compare it with. A misread name or note is shown as read, for the surveyor to check.
+- **One real job has been run, on the dev PC.** The owner's real job's SDR read cleanly, and its sketch's drawing (as transcribed) gave the surveyor's lot within one corner. The production reader hasn't read a real sketch, Generate Plan hasn't run a real job on production, and the traverse is proven only on synthetic data built from the manufacturers' documents.
+- **Sketch readings can be plausibly wrong.** The instrument check catches a misread number only where there is a coordinate to compare it with. A misread name or note is shown as read, for the surveyor to check. A misread line is tested against the coordinates and asked about where they disagree, but a wrong line between two real points can look right: each one waits for the surveyor's press.
 - **Telling carried coordinates from control** rests on Sokkia's derivation codes and a tolerance. Codes from instruments newer than Sokkia's 1999 document aren't known. Unknown records never move and never close a traverse, and the closure names its route.
 - **Migrations v102 and v103 are the owner's to apply.** Until then, jobs and kept photos are said not to be saved, but nothing else breaks.
 - **Data leaves Sri Lanka** when sketches are read. It goes only with the surveyor's consent, each time, and that consent says so.

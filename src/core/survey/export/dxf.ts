@@ -13,6 +13,7 @@
  */
 import { formatDms, toDms } from "../angles";
 import { bulges, densify } from "../arcs";
+import { codeOf, lookupCode } from "../codes";
 import type { CrsRecord } from "../crs";
 import { legIndex, type LayerId, type SurveyDocument } from "../document";
 import type { PlanLots } from "../lots";
@@ -181,6 +182,24 @@ export function writeDxf(input: DxfInput): string {
       if (sup) text("LOT_TEXT", parcel.labelAt.e + h(3.2) * 0.62 * (`Lot ${label}`.length / 2 + 0.6), parcel.labelAt.n + h(2) + h(3.2) * 0.42, sup, h(2), 0, false);
       text("LOT_TEXT", parcel.labelAt.e, parcel.labelAt.n - h(2), formatArp(toArp(parcel.areaM2, doc.settings.perchDecimals)), h(2.4));
     }
+  }
+
+  // Marks and symbols at points that aren't lot corners, as the sheet draws them (drawLoosePoints): the point, and the code's mark, or
+  // the symbol's meaning ("Well"). A symbol the plan gives a point (from the sketch, ADR 0249) comes before the point's own code.
+  for (const p of input.points) {
+    if (cornerSeen.has(p.id)) continue;
+    const given = (doc.symbols ?? []).find((x) => x.point === p.id)?.code;
+    const entry = lookupCode(doc.codes, given ?? codeOf(p.code));
+    if (!entry || (entry.kind !== "mark" && entry.kind !== "symbol")) continue;
+    entities.push((w) => {
+      w.pair(0, "POINT");
+      w.pair(8, "POINTS");
+      w.pair(10, num(p.e));
+      w.pair(20, num(p.n));
+      w.pair(30, num(p.z ?? 0));
+    });
+    all.push(p);
+    text("BOUNDARY_MARKS", p.e + h(2), p.n - h(1.5), entry.kind === "symbol" ? entry.meaning : entry.code, h(1.9), 0, false);
   }
 
   // Roads: both edges, the name on the middle line.

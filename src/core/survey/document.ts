@@ -230,8 +230,16 @@ export const surveyDocumentSchema = z.object({
   kept: z.array(z.string().min(1).max(120)).max(200).default([]),
   /** The planning rules the lots are checked against, or null. Left out of the approval hash while null, so earlier approvals stand. */
   rules: planRulesSchema.nullable().default(null),
-  /** What was read from the surveyor's field sketches (autosurvey/sketch.ts, ADR 0234), or null. Evidence only: nothing is drawn from it. */
+  /**
+   * What was read from the surveyor's field sketches (autosurvey/sketch.ts, ADR 0234), or null. Since stage 241 (ADR 0249) its drawing
+   * proposes which surveyed points join and what they are, for the surveyor to confirm; positions never come from it.
+   */
   sketch: sketchRecordSchema.nullable().default(null),
+  /**
+   * Symbols drawn at surveyed points whose own codes don't say what they are, such as a well the sketch shows at a point (stage 241).
+   * The point is unchanged: only how it's drawn. Absent until one is added, so earlier approvals stand.
+   */
+  symbols: z.array(z.object({ id: entityId, code: text(12).pipe(z.string().min(1)), point: pointRef })).max(200).optional(),
   /** How the crew writes line codes (grammar.ts, ADR 0243). Left out of the approval hash while Farbaek's, so earlier approvals stand. */
   grammar: z.enum(GRAMMARS).default("farbaek"),
   /** Which member's surveyor profile fills the surveyor block. */
@@ -303,7 +311,7 @@ export function emptyDocument(): SurveyDocument {
 
 /** Every point a document uses, by id. */
 export function usedPointIds(doc: SurveyDocument): Set<string> {
-  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...doc.features.flatMap((f) => f.points)]);
+  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...doc.features.flatMap((f) => f.points), ...(doc.symbols ?? []).map((s) => s.point)]);
 }
 
 /** A lot's label as plain text, "B1" for B with a raised 1. */
@@ -316,6 +324,7 @@ export function provenanceLive(doc: SurveyDocument, key: string): boolean {
   if (key.startsWith("road:")) return has("road:", doc.roads);
   if (key.startsWith("adjoining:")) return has("adjoining:", doc.adjoining);
   if (key.startsWith("feature:")) return has("feature:", doc.features);
+  if (key.startsWith("symbol:")) return has("symbol:", doc.symbols ?? []);
   return true;
 }
 

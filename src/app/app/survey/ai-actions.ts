@@ -13,6 +13,9 @@ import { z } from "zod";
 import type { AcceptedItem } from "@/core/survey/ai-draft";
 import { sketchFileName } from "@/core/survey/autosurvey/sketch";
 import { pruneProvenance, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
+import type { SurveyPoint } from "@/core/survey/parcel";
+import { applySketch } from "@/core/survey/sketchintel/apply";
+import { interpretDocument, sketchQuestionFindings } from "@/core/survey/sketchintel/findings";
 import { createAnthropicSketchReader, type SketchImage } from "@/server/ai/sketch-reader";
 import { createAnthropicSurveyDrafter, type ReadRequest } from "@/server/ai/survey-drafter";
 import { aiForWorkspace } from "@/server/ai/workspace-ai";
@@ -120,7 +123,7 @@ export async function readOldPlanAction(form: FormData): Promise<SurveyDraftStat
   return { status: "done", source: "ai_photo", baseVersion: p.data.drawing.version, ...r.value };
 }
 
-export type SketchReadState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string; version: number; readings: number; unreadable: number };
+export type SketchReadState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string; version: number; readings: number; unreadable: number; drawn?: number; questions?: number };
 
 /**
  * AutoSurvey's sketch reading (stage 223, ADR 0234): Claude reads photos of the surveyor's field sketches into readings, as written,
@@ -183,23 +186,37 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   }
   const record = r.value;
   const photos = `${images.length} ${images.length === 1 ? "sketch" : "sketches"}`;
+  const drawingParts = (record.drawing?.lines.length ?? 0) + (record.drawing?.symbols.length ?? 0) + (record.drawing?.areas.length ?? 0);
   // Nothing read for certain is no reason for a new version, and earlier readings stay as they were.
-  if (record.readings.length === 0) await end("done", "Nothing on the photos could be read for certain.");
-  if (record.readings.length === 0) return { status: "done", message: `Nothing on the ${photos} could be read for certain, so the plan wasn't changed.`, version: baseVersion, readings: 0, unreadable: record.unreadable.length };
-  // New readings replace earlier ones, and with them any "keep as surveyed" answers to the earlier ones.
-  const withReadings = (document: SurveyDocument) => pruneProvenance({ ...document, sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:")) });
+  if (record.readings.length === 0 && drawingParts === 0) await end("done", "Nothing on the photos could be read for certain.");
+  if (record.readings.length === 0 && drawingParts === 0) return { status: "done", message: `Nothing on the ${photos} could be read for certain, so the plan wasn't changed.`, version: baseVersion, readings: 0, unreadable: record.unreadable.length };
+  // New readings replace earlier ones, and with them any "keep as surveyed" answers to the earlier ones. The drawing's proposals
+  // (ADR 0249) are put on the plan in the same version, each waiting for the surveyor: positions all come from the surveyed points.
+  let drawn = 0;
+  let asked = 0;
+  const withReadings = (document: SurveyDocument, points: readonly SurveyPoint[]) => {
+    const base = pruneProvenance({ ...document, sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:")) });
+    const interpretation = interpretDocument(base, points);
+    if (!interpretation) return base;
+    const applied = applySketch(base, interpretation);
+    drawn = applied.added.length;
+    // Only the questions the plan's checks show: those already answered, or beyond the checks' limit, aren't counted.
+    asked = sketchQuestionFindings(interpretDocument(applied.document, points), applied.document).length;
+    return applied.document;
+  };
   const actor = { orgId: p.common.orgId, userId: p.common.userId };
-  const note = `Read ${photos} with Claude: ${record.readings.length} things as written`;
-  const next = withReadings(p.data.drawing.document);
+  const next = withReadings(p.data.drawing.document, p.data.points);
+  // Said from the version actually saved: the retry below works the drawing out again on the newest version.
+  const noteFor = () => `Read ${photos} with Claude: ${record.readings.length} things as written${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}`.slice(0, 200);
   if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: "The readings didn't pass the plan's own checks, so nothing was saved." };
-  let saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion, document: next, note });
+  let saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion, document: next, note: noteFor() });
   if (!saved.ok) {
     // Reading can take minutes, and the plan may have been saved meanwhile. The readings touch nothing else in it, so they go onto
     // the newest version once, rather than being lost after the read was counted.
     const latest = await loadSurveyProject(p.user, p.common.orgId, projectId);
     if (latest && latest.drawing.readable && latest.drawing.version !== baseVersion) {
-      const again = withReadings(latest.drawing.document);
-      if (surveyDocumentSchema.safeParse(again).success) saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion: latest.drawing.version, document: again, note });
+      const again = withReadings(latest.drawing.document, latest.points);
+      if (surveyDocumentSchema.safeParse(again).success) saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion: latest.drawing.version, document: again, note: noteFor() });
     }
   }
   if (!saved.ok) {
@@ -212,7 +229,9 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     .keepSketches(p.admin, actor, { projectId, readAt: record.readAt, photos: images.map((im) => ({ name: im.name, mime: im.mediaType, sha256: createHash("sha256").update(im.data).digest("hex"), content: im.data.toString("base64") })) })
     .catch(() => null);
   const keptNote = kept?.ok ? "" : " The photos couldn't be kept with the plan, so they aren't shown beside the readings.";
-  await end("done", `${record.readings.length} things read, saved as version ${saved.value}.${keptNote}`);
+  const fromDrawing = drawn > 0 ? ` ${drawn} ${drawn === 1 ? "item was" : "items were"} drawn from the sketch, each waiting for your confirmation.` : "";
+  const questions = asked > 0 ? ` ${asked} ${asked === 1 ? "question" : "questions"} the sketch couldn't settle ${asked === 1 ? "is" : "are"} in the checks.` : "";
+  await end("done", `${record.readings.length} things read${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}, saved as version ${saved.value}.${keptNote}`);
   revalidatePath(`/app/survey/${projectId}`);
-  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length };
+  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${fromDrawing}${questions}${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length, drawn, questions: asked };
 }

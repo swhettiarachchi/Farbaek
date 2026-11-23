@@ -9,6 +9,7 @@
  * research behind stage 222), so no reading is trusted for being read: only its agreement with the instrument's data counts.
  */
 import { z } from "zod";
+import { SketchDrawingOutput, acceptDrawing, sketchDrawingSchema, type DrawingAnswer } from "../sketchintel/drawing";
 import { bearingFromDeltas, formatDms, parseBearing, toDms } from "../angles";
 import type { CrsRecord } from "../crs";
 import { gridScaleFactor } from "../scale";
@@ -38,6 +39,13 @@ export const SketchOutputSchema = z.object({
 });
 export type SketchOutput = z.infer<typeof SketchOutputSchema>;
 
+/**
+ * What the reader is asked for since stage 241 (ADR 0249): the readings, and the drawing itself (lines between numbered points,
+ * symbols, labelled areas), all as drawn and written. A reader that returns only readings still works: the drawing is then empty.
+ */
+export const SketchReadSchema = SketchOutputSchema.extend(SketchDrawingOutput);
+export type SketchReadOutput = SketchOutput & Partial<DrawingAnswer>;
+
 const short = (max: number) => z.string().max(max);
 
 export const sketchReadingSchema = z.object({
@@ -59,10 +67,17 @@ export const sketchRecordSchema = z.object({
   files: z.array(short(200)).max(SKETCH_LIMITS.photos),
   readings: z.array(sketchReadingSchema).max(SKETCH_LIMITS.readings),
   unreadable: z.array(short(200)).max(20),
+  /** The sketch's drawing (stage 241): absent on reads from before it, and from a reader that returned only readings. */
+  drawing: sketchDrawingSchema.optional(),
 });
 export type SketchRecord = z.infer<typeof sketchRecordSchema>;
 
-const clean = (s: string | null | undefined, max: number) => (s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+/** Spaces folded, trimmed and cut to a length, never through the middle of a character written as two halves (a surrogate pair). */
+const clean = (s: string | null | undefined, max: number) => {
+  const cut = (s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const last = cut.charCodeAt(cut.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
+};
 
 /**
  * A photo's file name, safe to show and to send: control characters go, and a name with invisible characters (a right-to-left
@@ -85,7 +100,7 @@ export function sketchFileName(name: string, n: number): string {
  * The model's answer, made safe to keep: readings on a photo that wasn't sent, of an unknown kind, empty, or carrying invisible
  * characters (which could make two point numbers look alike) are dropped. Nothing is reworded.
  */
-export function acceptSketch(output: SketchOutput, given: readonly string[], model: string, now: Date): SketchRecord {
+export function acceptSketch(output: SketchReadOutput, given: readonly string[], model: string, now: Date): SketchRecord {
   const files = given.slice(0, SKETCH_LIMITS.photos).map((f, n) => sketchFileName(f, n));
   const readings: SketchReading[] = [];
   for (const r of output.readings) {
@@ -103,6 +118,7 @@ export function acceptSketch(output: SketchOutput, given: readonly string[], mod
     files,
     readings,
     unreadable: output.unreadable.map((u) => clean(u, 200)).filter((u) => u && !hasInvisible(u)).slice(0, 20),
+    ...(output.lines || output.symbols || output.areas ? { drawing: acceptDrawing({ lines: output.lines ?? [], symbols: output.symbols ?? [], areas: output.areas ?? [] }, files, clean, hasInvisible) } : {}),
   };
 }
 

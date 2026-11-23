@@ -7,7 +7,9 @@
  */
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { SKETCH_LIMITS, acceptSketch, sketchRecordSchema, type SketchRecord } from "@/core/survey/autosurvey/sketch";
+import { TIERS, tierModels } from "@/core/agent/routing";
 import { routeModel } from "@/server/ai/routing";
+import { platformModels } from "@/server/platform/state";
 import { SKETCH_READ_PROMPT, SKETCH_TOKENS_PER_IMAGE, sketchReadMessage, type SketchImage, type SketchReadOutcome, type SketchReader } from "@/server/ai/sketch-reader";
 import { refundUsage, reserveMetered, resolveMetering, settleUsage, type AiUsageDeps, type FreeUsageDeps, type ModelSource } from "@/server/workspace/ai-usage";
 import { fail, requireContributor, type WriteDeps, type WriteResult } from "@/server/workspace/use-cases";
@@ -40,7 +42,10 @@ export async function readFieldSketches(
 
   const metering = await resolveMetering(deps, input.orgId, "survey_read");
   if (!metering.ok) return metering;
-  const reader = source.create(routeModel({ plan: metering.value.plan, family: source.family, step: "review", effort: "balanced" }));
+  // Tracing a surveyor's linework decides the whole plan (ADR 0249): the strongest model the plan allows, and never below the standard
+  // tier, since a fast model can't follow a sketch's lines reliably. Reads are rare and capped per person per day.
+  const choice = routeModel({ plan: metering.value.plan, family: source.family, step: "review", effort: "deep" });
+  const reader = source.create(TIERS.indexOf(choice.tier) < TIERS.indexOf("standard") ? { ...choice, model: tierModels(source.family, platformModels())["standard"] } : choice);
   const promptTokens = approxTokens(SKETCH_READ_PROMPT) + approxTokens(sketchReadMessage(images)) + SKETCH_TOKENS_PER_IMAGE * images.length;
   const units = reserveUnits(reader.model, promptTokens + 500, reader.maxOutputTokens);
   const reserved = await reserveMetered(deps, metering.value, { orgId: input.orgId, userId: input.userId, taskId: null, operation: "survey_read", units, manual: MANUAL_SKETCH_READ });
