@@ -66,6 +66,6 @@ Each is its own pull request, built and checked the same way:
 7. **More of the field-to-finish:**
    - observations reduced: SDR 09 and 11 built in stage 225, Leica GSI in stage 228 (ADR 0236), by radiation with nothing adjusted;
    - traverse closure and adjustment: built in stage 231 (ADR 0241) for a Sokkia SDR job, the closure always said, adjusted only by the compass or transit rule the surveyor chooses; least squares and a field book's legs aren't adjusted;
-   - curve and join codes.
+   - line words as data: built in stage 234 (ADR 0243): Farbaek's END and CLO, and Carlson's BEG, END, CLO, JPN (join to a point) and PC/PT, with a code report in the plan's checks; arcs are read and reported but drawn as straight segments until curves are drawn;
 8. **Labels placed like a cartographer would:** built in stage 233 (ADR 0242): candidate positions scored and searched together, lot labels inside their lot, short legs' dimensions stacked or split, and what can't be placed reported rather than hidden. The DXF stays on Farbaek's own writer; Sinhala and Tamil get a measured test in the PDF and in CAD programs before they go on a sheet.
 9. **Three modes on one project:** built in stage 227 (ADR 0238): Express (the default), Professional (settings and diagnostics) and Manual CAD (editing geometry), as views of one project.

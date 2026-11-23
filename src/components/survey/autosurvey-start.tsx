@@ -9,6 +9,7 @@ import { generateSurveyPlanAction, type GenerateState } from "@/app/app/survey/a
 import { commonCodes } from "@/core/survey/codes";
 import { CRS_REGISTRY, LOCAL_CRS, crsById } from "@/core/survey/crs";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
+import { GRAMMAR, grammarForLibrary } from "@/core/survey/grammar";
 import { LIBRARY_LIMITS, librarySummary, looksLikeCodeLibrary, parseCodeLibrary, type LibraryRead } from "@/core/survey/codelib";
 import { START_LIMITS, gridProblem, kindOfUpload, notReadYet, pointClashes, readSurveyFile, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
 import type { AdjustMethod } from "@/core/survey/adjust";
@@ -250,7 +251,8 @@ export function AutoSurveyStart({
     if (u.kind === "document") return { status: "off", label: "Not read", text: u.reason };
     if (u.kind === "code-library") {
       if (!u.read.ok) return { status: "attention", label: "Needs a look", text: u.read.problem };
-      return { status: "done", label: "Read", text: librarySummary(u.read, points.map((p) => p.code ?? "")) };
+      const words = grammarForLibrary(u.name);
+      return { status: "done", label: "Read", text: `${librarySummary(u.read, points.map((p) => p.code ?? ""))}${words ? ` Line words are read the ${GRAMMAR[words].label} way: ${GRAMMAR[words].words}.` : ""}` };
     }
     if (u.kind === "sketch") {
       if (u.problem) return { status: "attention", label: "Needs a look", text: u.problem };

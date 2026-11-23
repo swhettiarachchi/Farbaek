@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { FEATURE_LAYERS, legIndex, lotName, pruneProvenance, type Adjoining, type DrawingFeature, type Lot, type Provenance, type Road, type SurveyDocument } from "@/core/survey/document";
 import { suggestFeatures } from "@/core/survey/fieldToFinish";
+import { GRAMMAR } from "@/core/survey/grammar";
 import { roadWidthText, arpClassic, hectares } from "@/core/survey/formats";
 import { computeLots } from "@/core/survey/lots";
 import type { SurveyPoint } from "@/core/survey/parcel";
@@ -349,11 +350,11 @@ export function LotsEditor({
         </h3>
         <p className="text-sm text-ink-2">Lines and outlines through points already imported, on their own layers.</p>
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" disabled={ro} onClick={() => setSuggestions(suggestFeatures(points, document.codes).filter((s) => !features.some((f) => f.code === s.code && f.points.join() === s.points.join())))} className={buttonClasses("secondary", "sm")}>
+          <button type="button" disabled={ro} onClick={() => setSuggestions(suggestFeatures(points, document.codes, GRAMMAR[document.grammar ?? "farbaek"]).filter((s) => !features.some((f) => f.code === s.code && f.points.join() === s.points.join())))} className={buttonClasses("secondary", "sm")}>
             <ListPlusIcon size={16} weight="bold" aria-hidden />
             Suggest lines from the field codes
           </button>
-          <span className="text-sm text-ink-3">Consecutive points with the same line code become one line. You add the ones that are right.</span>
+          <span className="text-sm text-ink-3">Points with the same line code become one line, read with {GRAMMAR[document.grammar ?? "farbaek"].name}. You add the ones that are right.</span>
         </div>
         {suggestions ? (
           suggestions.length === 0 ? (

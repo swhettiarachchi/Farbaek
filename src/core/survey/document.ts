@@ -14,6 +14,7 @@
 import { z } from "zod";
 import { sketchRecordSchema } from "./autosurvey/sketch";
 import { codeEntrySchema, commonCodes, type CodeEntry } from "./codes";
+import { GRAMMARS } from "./grammar";
 
 export const LAYER_IDS = [
   "BOUNDARY",
@@ -223,6 +224,8 @@ export const surveyDocumentSchema = z.object({
   rules: planRulesSchema.nullable().default(null),
   /** What was read from the surveyor's field sketches (autosurvey/sketch.ts, ADR 0234), or null. Evidence only: nothing is drawn from it. */
   sketch: sketchRecordSchema.nullable().default(null),
+  /** How the crew writes line codes (grammar.ts, ADR 0243). Left out of the approval hash while Farbaek's, so earlier approvals stand. */
+  grammar: z.enum(GRAMMARS).default("farbaek"),
   /** Which member's surveyor profile fills the surveyor block. */
   surveyorUserId: z.string().uuid().nullable(),
 });
@@ -285,6 +288,7 @@ export function emptyDocument(): SurveyDocument {
     kept: [],
     rules: null,
     sketch: null,
+    grammar: "farbaek",
     surveyorUserId: null,
   };
 }
@@ -442,6 +446,7 @@ export function parseSurveyDocument(raw: unknown): SurveyDocument | null {
     kept: [],
     rules: null,
     sketch: null,
+    grammar: "farbaek",
     surveyorUserId: d.surveyorUserId,
   };
 }

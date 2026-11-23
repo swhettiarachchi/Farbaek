@@ -184,7 +184,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
               , the assistant takes dictated coordinates, or bearings and distances (with its AI on), and brings them here for you to check.
             </p>
             <div className="mt-5">
-              <ImportPanel projectId={projectId} crsId={data.project.crsId} crsName={crs?.name ?? data.project.crsId} codes={doc.codes} planHasLots={doc.lots.length > 0} known={data.points.map((p) => ({ pointId: p.pointId, e: p.e, n: p.n }))} readOnly={readOnly} />
+              <ImportPanel projectId={projectId} crsId={data.project.crsId} crsName={crs?.name ?? data.project.crsId} codes={doc.codes} grammar={doc.grammar} planHasLots={doc.lots.length > 0} known={data.points.map((p) => ({ pointId: p.pointId, e: p.e, n: p.n }))} readOnly={readOnly} />
             </div>
           </Card>
           <Card>

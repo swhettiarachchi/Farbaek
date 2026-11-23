@@ -68,7 +68,8 @@ export async function approvalHash(input: { document: SurveyDocument; crsId: str
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   // A document with no kept near misses, no planning rules and no sketch readings hashes as one saved before those fields existed,
   // so earlier approvals still match.
-  const { kept, rules, sketch, ...rest } = input.document;
-  const document = { ...rest, ...(kept.length > 0 ? { kept } : {}), ...(rules ? { rules } : {}), ...(sketch ? { sketch } : {}) };
+  // The same for the code grammar while it's Farbaek's own (ADR 0243).
+  const { kept, rules, sketch, grammar, ...rest } = input.document;
+  const document = { ...rest, ...(kept.length > 0 ? { kept } : {}), ...(rules ? { rules } : {}), ...(sketch ? { sketch } : {}), ...(grammar && grammar !== "farbaek" ? { grammar } : {}) };
   return sha256Hex(canonicalize({ engine: SURVEY_ENGINE_VERSION, crs: input.crsId, document, points }));
 }

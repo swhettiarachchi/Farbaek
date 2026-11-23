@@ -10,6 +10,8 @@ import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
 import { legIndex, lotName, unreviewed, type SurveyDocument } from "./document";
 import { autoDoubt, doubtContext } from "./exceptions";
+import { codeReport } from "./fieldToFinish";
+import { GRAMMAR } from "./grammar";
 import { TOUCH_TOLERANCE_M, distance, orient, type Point } from "./geometry";
 import { NEAR_LEG_M, nearKey, type PlanLots } from "./lots";
 import { ACCESS_NOTE, RESERVED_NOTE, minimumText, remindersFor, ruleSetFrom, shortOf, type RuleSet } from "./rules";
@@ -404,6 +406,35 @@ export function checkSurvey(input: QcInput): Finding[] {
   const unknown = [...usedCodes].filter((c) => !lookupCode(doc.codes, c));
   if (unknown.length > 0) {
     add({ code: "MARK_CODE_NOT_IN_LEGEND", severity: "information", message: `Corner codes not in the code library: ${unknown.slice(0, 6).join(", ")}${unknown.length > 6 ? "…" : ""}.`, target: { kind: "field", id: "codes" }, action: "Add them to the code library so the Reference explains them.", blocks: [] });
+  }
+
+  // The code report (ADR 0243): every other code the points carry that the library doesn't know, and what reading the line words found.
+  const grammar = GRAMMAR[doc.grammar ?? "farbaek"];
+  const report = codeReport(input.points, doc.codes, grammar);
+  // A line of one point the plan already draws there (by hand, or from another string) isn't missing.
+  const lineProblems = report.problems.filter((p) => !(p.id && p.code && doc.features.some((f) => f.code === p.code && f.points.includes(p.id!))));
+  const strangers = report.counts.filter((c) => c.kind === null && !usedCodes.has(c.code));
+  if (strangers.length > 0) {
+    const pts = (n: number) => `${n} ${n === 1 ? "point" : "points"}`;
+    add({
+      code: "CODES_NOT_IN_LIBRARY",
+      severity: "information",
+      message: `${strangers.length === 1 ? "A code the points carry isn't" : `${strangers.length} codes the points carry aren't`} in the code library, so the plan can't say what ${strangers.length === 1 ? "it is" : "they are"} or draw ${strangers.length === 1 ? "it" : "them"} as a line or symbol: ${strangers.slice(0, 8).map((c) => `${c.code} (${pts(c.count)})`).join(", ")}${strangers.length > 8 ? ", and more" : ""}.`,
+      target: { kind: "field", id: "codes" },
+      action: "Add each to the code library with what it is, or correct the points' codes.",
+      blocks: [],
+    });
+  }
+  if (lineProblems.length > 0) {
+    add({
+      code: "CODE_LINES_TO_CHECK",
+      severity: "information",
+      message: `Reading the line words with ${grammar.name} found ${lineProblems.length === 1 ? "one thing" : `${lineProblems.length} things`} to check.`,
+      target: { kind: "field", id: "codes" },
+      detail: lineProblems.slice(0, 4).map((p) => p.message).join(" ") + (lineProblems.length > 4 ? ` And ${lineProblems.length - 4} more.` : ""),
+      action: "Check the codes on those points, or choose how your crew writes line words on the Codes step.",
+      blocks: [],
+    });
   }
 
   // What the AI filled in, until the surveyor has looked at each item.

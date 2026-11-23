@@ -180,6 +180,8 @@ describe("Generate Plan with a returning surveyor's defaults (stage 226, ADR 023
       ["MW", "Masonry Wall", "line"],
     ]);
     expect(doc.provenance["codes"]).toEqual({ source: "engine", reviewed: false });
+    // A Carlson library brings Carlson's line words (ADR 0243).
+    expect(doc.grammar).toBe("carlson");
   });
 
   it("never lets the Survey Department's list replace an office library, only the common list", async () => {
