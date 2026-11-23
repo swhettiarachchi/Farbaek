@@ -23,7 +23,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { LAYER_IDS, type LayerId, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
-import type { SceneItem, SheetPage } from "@/core/survey/sheet/scene";
+import type { SceneItem, SceneText, SheetPage } from "@/core/survey/sheet/scene";
 import { buildPlan } from "@/core/survey/view";
 import { LAYER_NAMES } from "@/core/survey/assistant/describe";
 import { applyOps, revertPatch, type Applied, type Patch } from "@/core/survey/assistant/apply";
@@ -221,7 +221,7 @@ export function PlanEditor(props: PlanEditorProps) {
   const svgWrap = useRef<HTMLDivElement>(null);
   const drag = useRef<
     | { kind: "pan"; startX: number; startY: number; view: View; moved: boolean; entity: string | null }
-    | { kind: "label"; entity: string; startX: number; startY: number; base: { dx: number; dy: number }; moved: boolean }
+    | { kind: "label"; entity: string; startX: number; startY: number; base: { dx: number; dy: number }; slot: number | undefined; moved: boolean }
     | null
   >(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -311,7 +311,9 @@ export function PlanEditor(props: PlanEditorProps) {
     }
     if (item?.entity && canDrag(item) && (e.pointerType === "mouse" || selected === item.entity)) {
       const base = doc.labelOffsets[item.entity] ?? { dx: 0, dy: 0 };
-      drag.current = { kind: "label", entity: item.entity, startX: e.clientX, startY: e.clientY, base, moved: false };
+      // The place the label is drawn at (ADR 0242): the offset is measured from it, so the label stays where it's dropped.
+      const slot = base.slot ?? (item.kind === "text" ? item.slot : undefined);
+      drag.current = { kind: "label", entity: item.entity, startX: e.clientX, startY: e.clientY, base, slot, moved: false };
     } else {
       drag.current = { kind: "pan", startX: e.clientX, startY: e.clientY, view, moved: false, entity: item?.entity ?? null };
     }
@@ -347,7 +349,7 @@ export function PlanEditor(props: PlanEditorProps) {
     if (d.kind === "pan") {
       if (d.moved) setView([d.view[0] - dx, d.view[1] - dy, d.view[2], d.view[3]]);
     } else if (d.moved) {
-      const next = { dx: Math.max(-200, Math.min(200, d.base.dx + dx)), dy: Math.max(-200, Math.min(200, d.base.dy + dy)) };
+      const next = { dx: Math.max(-200, Math.min(200, d.base.dx + dx)), dy: Math.max(-200, Math.min(200, d.base.dy + dy)), ...(d.slot !== undefined ? { slot: d.slot } : {}) };
       update((doc2) => {
         doc2.labelOffsets[d.entity] = next;
       }, `drag:${d.entity}:${d.startX}:${d.startY}`);
@@ -415,6 +417,11 @@ export function PlanEditor(props: PlanEditorProps) {
     }
     go(step);
   };
+  // An assistant's nudge is measured from the place the label is drawn at now, as a drag is (ADR 0242).
+  const slotOf = (entity: string) => page.items.find((i): i is SceneText => i.kind === "text" && i.entity === entity && i.slot !== undefined)?.slot;
+  function withSlots<T extends PlanOp[] | null>(ops: T): T {
+    return (ops ? ops.map((op) => (op.kind === "label" && op.slot === undefined ? { ...op, slot: slotOf(op.entity) } : op)) : ops) as T;
+  }
   const bridge: EditorBridge = {
     projectId: props.projectId,
     doc,
@@ -426,10 +433,10 @@ export function PlanEditor(props: PlanEditorProps) {
     aiCost: props.assistantAiCost ?? null,
     approved: Boolean(props.approval),
     dirty,
-    setPreview: setPreviewOps,
+    setPreview: (ops) => setPreviewOps(withSlots(ops)),
     apply: (ops): Applied => {
       if (props.readOnly) return { ok: false, error: props.readOnly };
-      const r = applyOps(docRef.current, ops, props.points);
+      const r = applyOps(docRef.current, withSlots(ops), props.points);
       if (r.ok) {
         docRef.current = r.doc;
         pushDocument(r.doc);

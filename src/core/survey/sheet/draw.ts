@@ -1,10 +1,11 @@
 /**
  * Drawing the survey on a sheet, shared by the classic and panel layouts:
  * lots, features, roads, adjoining-land labels, marks, north arrows, the
- * scale bar and the check line. Labels are placed automatically: each label
- * tries a few positions and takes the first that covers no other label, line
- * or point. Geometry is never moved to make room (survey skill, rule 7);
- * whatever still overlaps is reported by `overlappingLabels`.
+ * scale bar and the check line. Each movable label offers its candidate
+ * positions in order of preference, and the sheet's labels are placed
+ * together (labels.ts, ADR 0242). Geometry is never moved to make room
+ * (survey skill, rule 7); whatever still overlaps is reported by
+ * `overlappingLabels`.
  */
 import { formatDms, toDms } from "../angles";
 import { codeOf, lookupCode } from "../codes";
@@ -16,7 +17,10 @@ import type { SurveyPoint } from "../parcel";
 import { roadCentreline, roadWidth } from "../roads";
 import { STANDARD_SCALES, legIndex } from "../document";
 import { fmt, roundTo } from "../units";
+import { Placer, quadsOverlap, type Quad } from "./labels";
 import { advanceWidth, textWidth, toPage, wrap, type SceneColor, type SceneItem, type SceneLayer, type SceneText, type Viewport } from "./scene";
+
+export { Placer, quadsOverlap };
 
 export interface DrawSizes {
   label: number;
@@ -29,22 +33,6 @@ export interface DrawLines {
   boundary: number;
   feature: number;
   thin: number;
-}
-
-type Quad = [number, number][];
-
-/** Everything already on the page that a new label must not cover. */
-export class Placer {
-  private readonly quads: Quad[] = [];
-  add(q: Quad): void {
-    this.quads.push(q);
-  }
-  segment(a: [number, number], b: [number, number]): void {
-    this.quads.push([a, b]);
-  }
-  free(q: Quad): boolean {
-    return !this.quads.some((o) => quadsOverlap(q, o));
-  }
 }
 
 export interface DrawCtx {
@@ -78,9 +66,25 @@ export function readable(angle: number): number {
 /** Whether a box lies inside the context's bounds (always, when there are none). */
 export const inBounds = (ctx: DrawCtx, q: Quad) => !ctx.bounds || q.every(([x, y]) => x >= ctx.bounds![0] && x <= ctx.bounds![2] && y >= ctx.bounds![1] && y <= ctx.bounds![3]);
 export const atPage = (ctx: DrawCtx, p: Point) => toPage(ctx.v, p.e, p.n);
+/** Shapes moved by the surveyor's saved offset for an entity, as `text` draws it. */
+const nudged = (ctx: DrawCtx, entity: string, q: Quad): Quad => {
+  const o = ctx.doc.labelOffsets[entity];
+  return o ? q.map(([x, y]) => [x + o.dx, y + o.dy] as [number, number]) : q;
+};
+
+/**
+ * How a label the surveyor moved by hand is placed (ADR 0242), given the entities its shapes are drawn as, in order: it's pinned; it
+ * stays at the place its offset was measured from (older offsets have none, and take their first free place as before); and each of
+ * its shapes is shifted by its own entity's offset, which is what other labels must avoid. Nothing for a label nobody moved.
+ */
+function moved(ctx: DrawCtx, entities: readonly string[]): { pinned: boolean; slot: number | null; shift?: (q: Quad, k: number) => Quad } {
+  const offsets = entities.map((e) => ctx.doc.labelOffsets[e]);
+  if (!offsets.some(Boolean)) return { pinned: false, slot: null };
+  return { pinned: true, slot: offsets.find((o) => o?.slot !== undefined)?.slot ?? null, shift: (q, k) => nudged(ctx, entities[Math.min(k, entities.length - 1)]!, q) };
+}
 
 /** A text item, nudged by the surveyor's saved offset for its entity. */
-export function text(ctx: DrawCtx, layer: SceneLayer, entity: string, x: number, y: number, value: string, size: number, opts: Partial<{ rotate: number; weight: "regular" | "bold"; anchor: "start" | "middle" | "end"; color: SceneColor; slant: number }> = {}): SceneText {
+export function text(ctx: DrawCtx, layer: SceneLayer, entity: string, x: number, y: number, value: string, size: number, opts: Partial<{ rotate: number; weight: "regular" | "bold"; anchor: "start" | "middle" | "end"; color: SceneColor; slant: number; slot: number }> = {}): SceneText {
   const o = ctx.doc.labelOffsets[entity];
   const item: SceneText = {
     kind: "text",
@@ -96,19 +100,21 @@ export function text(ctx: DrawCtx, layer: SceneLayer, entity: string, x: number,
     layer,
     entity,
     ...(opts.slant ?? ctx.slant ? { slant: opts.slant ?? ctx.slant } : {}),
+    ...(opts.slot !== undefined ? { slot: opts.slot } : {}),
   };
   ctx.out.push(item);
   return item;
 }
 
 /** A label raised suffix: "B" then a smaller "1" above the line, centred together on (x, y). */
-export function supLabel(ctx: DrawCtx, layer: SceneLayer, entity: string, x: number, y: number, base: string, sup: string, size: number, weight: "regular" | "bold" = "regular"): void {
+export function supLabel(ctx: DrawCtx, layer: SceneLayer, entity: string, x: number, y: number, base: string, sup: string, size: number, weight: "regular" | "bold" = "regular", slot?: number): void {
   const ss = size * 0.62;
   const w1 = advanceWidth(base, size);
   const w2 = sup ? advanceWidth(sup, ss) : 0;
   const x0 = x - (w1 + w2) / 2;
-  text(ctx, layer, entity, x0, y, base, size, { anchor: "start", weight });
-  if (sup) text(ctx, layer, entity, x0 + w1 + size * 0.04, y - size * 0.42, sup, ss, { anchor: "start", weight });
+  const at = slot !== undefined ? { slot } : {};
+  text(ctx, layer, entity, x0, y, base, size, { anchor: "start", weight, ...at });
+  if (sup) text(ctx, layer, entity, x0 + w1 + size * 0.04, y - size * 0.42, sup, ss, { anchor: "start", weight, ...at });
 }
 
 const dashFor = (style: string | undefined): number[] | undefined => (style === "dashed" ? [1.6, 0.8] : style === "ticked" ? [0.4, 0.6] : undefined);
@@ -190,15 +196,41 @@ export function drawLots(ctx: DrawCtx, lots: PlanLots, opts: { legLabels: boolea
         const [x1, y1] = atPage(ctx, leg.from);
         const [x2, y2] = atPage(ctx, leg.to);
         const outside: [number, number] = area > 0 ? [y2 - y1, -(x2 - x1)] : area < 0 ? [-(y2 - y1), x2 - x1] : [(x1 + x2) / 2 - cx, (y1 + y2) / 2 - cy];
-        const value = `${formatDms(toDms(leg.bearing, opts.secondDecimals))}  ${fmt(leg.distance, opts.distanceDecimals)}`;
-        // Outside the lot first; inside when that side is taken (two short legs in a row would run their labels together).
+        const bearing = formatDms(toDms(leg.bearing, opts.secondDecimals));
+        const dist = fmt(leg.distance, opts.distanceDecimals);
+        const value = `${bearing}  ${dist}`;
+        const size = ctx.sizes.label;
         const sides: [number, number][] = [outside, [-outside[0], -outside[1]]];
-        const tries = sides.map((side) => besideSegment(x1, y1, x2, y2, side, ctx.sizes.label));
-        const quadAt = (b: { x: number; y: number; theta: number }) => textQuad({ kind: "text", x: b.x, y: b.y, text: value, size: ctx.sizes.label, weight: "regular", font: "sans", anchor: "middle", rotate: b.theta, color: "ink", layer: "DIMENSIONS" });
-        // A label the surveyor nudged keeps the side the nudge was made from.
-        const b = ctx.doc.labelOffsets["leg:" + r.lot.id + ":" + i] ? tries[0]! : (tries.find((x) => ctx.placer.free(quadAt(x))) ?? tries[0]!);
-        const t = text(ctx, "DIMENSIONS", `leg:${r.lot.id}:${i}`, b.x, b.y, value, ctx.sizes.label, { rotate: b.theta });
-        ctx.placer.add(textQuad(t));
+        type Line = { x: number; y: number; value: string; theta: number };
+        // Each way of writing the leg's bearing and distance, every text beside its own leg, in order of preference:
+        // - on one line, outside the lot, then inside (two short legs in a row would run their labels together); on a leg long enough,
+        //   also a third of the way from either end, never past the leg's own ends;
+        // - for a leg shorter than its label: the bearing over the distance, outside then inside, or the bearing on one side of the
+        //   line and the distance on the other, as plans write a short leg.
+        const along = textWidth(value, size) <= Math.hypot(x2 - x1, y2 - y1) * 0.4 ? [0.5, 0.3, 0.7] : [0.5];
+        const ways: Line[][] = along.flatMap((t) => sides.map((side) => [{ ...besideSegment(x1, y1, x2, y2, side, size, t), value }]));
+        const stacked = (side: [number, number]): Line[] => {
+          const b = besideSegment(x1, y1, x2, y2, side, size);
+          // The unit normal towards `side`, as besideSegment takes it, and whether that is up for the text: the bearing reads above.
+          const nl = Math.hypot(x2 - x1, y2 - y1) || 1;
+          let [nx, ny] = [-(y2 - y1) / nl, (x2 - x1) / nl];
+          if (nx * side[0] + ny * side[1] < 0) [nx, ny] = [-nx, -ny];
+          const rad = (b.theta * Math.PI) / 180;
+          const up = nx * Math.sin(rad) - ny * Math.cos(rad) > 0;
+          const step = size * 1.15;
+          return up ? [{ x: b.x + nx * step, y: b.y + ny * step, value: bearing, theta: b.theta }, { x: b.x, y: b.y, value: dist, theta: b.theta }] : [{ x: b.x, y: b.y, value: bearing, theta: b.theta }, { x: b.x + nx * step, y: b.y + ny * step, value: dist, theta: b.theta }];
+        };
+        const split = (bearingSide: [number, number], distSide: [number, number]): Line[] => [
+          { ...besideSegment(x1, y1, x2, y2, bearingSide, size), value: bearing },
+          { ...besideSegment(x1, y1, x2, y2, distSide, size), value: dist },
+        ];
+        ways.push(stacked(sides[0]!), split(sides[0]!, sides[1]!), stacked(sides[1]!), split(sides[1]!, sides[0]!));
+        const quadOf = (l: Line) => textQuad({ kind: "text", x: l.x, y: l.y, text: l.value, size, weight: "regular", font: "sans", anchor: "middle", rotate: l.theta, color: "ink", layer: "DIMENSIONS" });
+        const entity = `leg:${r.lot.id}:${i}`;
+        // A label the surveyor nudged stays at the place the nudge was measured from; an older nudge, without one, on one line outside.
+        const m = moved(ctx, [entity]);
+        const k = ctx.placer.choose(entity, ways.map((w) => w.map(quadOf)), { pinned: m.pinned, slot: m.pinned ? (m.slot ?? 0) : null, ...(m.shift ? { shift: m.shift } : {}) });
+        for (const l of ways[k]!) text(ctx, "DIMENSIONS", entity, l.x, l.y, l.value, size, { rotate: l.theta, slot: k });
       });
     }
   }
@@ -228,20 +260,37 @@ export function drawLotLabels(ctx: DrawCtx, lots: PlanLots, opts: { extentUnder:
     const candidates: [number, number][] = [[cx0, cy0]];
     for (const rad of [3, 6, 9, 13, 18]) for (let k = 0; k < 8; k++) candidates.push([cx0 + Math.cos((k * Math.PI) / 4) * rad, cy0 + Math.sin((k * Math.PI) / 4) * rad]);
     const deep = interiorSamples(ring);
-    candidates.push(...deep);
+    // The 24 deepest: where a label has the most room, and few enough to place a sub division of many lots quickly.
+    candidates.push(...deep.slice(0, 24));
     const box = (x: number, y: number): Quad => [[x - w / 2, y - h / 2], [x + w / 2, y - h / 2], [x + w / 2, y + h / 2], [x - w / 2, y + h / 2]];
     // Inside the lot: every corner inside and no leg through the box, so a label can't straddle a notch.
     const legs: Quad[] = ring.map((p, k) => [p, ring[(k + 1) % ring.length]!]);
     const within = (x: number, y: number) => box(x, y).every(([qx, qy]) => insidePage(qx, qy, ring)) && !legs.some((l) => quadsOverlap(box(x, y), l));
-    const fits = candidates.find(([x, y]) => within(x, y) && ctx.placer.free(box(x, y))) ?? candidates.find(([x, y]) => within(x, y));
+    const admissible = candidates.map(([x, y]) => within(x, y));
     // A label never sits outside its own lot: if it can't fit, it goes at the point deepest inside, and the checks say so.
     const fallback = insidePage(cx0, cy0, ring) ? ([cx0, cy0] as [number, number]) : (deep[0] ?? ([cx0, cy0] as [number, number]));
-    if (!fits) ctx.cramped.push(`${r.lot.label}${r.lot.sup}`);
-    const [cx, cy] = fits ?? fallback;
+    const entity = `lot:${r.lot.id}`;
+    const extentEntity = `lot-extent:${r.lot.id}`;
+    // The label and its extent, each its own shape, since each can be moved by hand on its own.
+    const split = size * 1.1;
+    const shapes = (x: number, y: number): Quad[] => {
+      const [x0, x1, y0, y1] = [x - w / 2, x + w / 2, y - h / 2, y + h / 2];
+      return extent ? [[[x0, y0], [x1, y0], [x1, y0 + split], [x0, y0 + split]], [[x0, y0 + split], [x1, y0 + split], [x1, y1], [x0, y1]]] : [box(x, y)];
+    };
+    const m = moved(ctx, extent ? [entity, extentEntity] : [entity]);
+    let at = fallback;
+    let slot: number | undefined;
+    if (admissible.some(Boolean)) {
+      slot = ctx.placer.choose(entity, candidates.map(([x, y]) => shapes(x, y)), { admissible, pinned: m.pinned, slot: m.slot, ...(m.shift ? { shift: m.shift } : {}) });
+      at = candidates[slot]!;
+    } else {
+      ctx.cramped.push(`${r.lot.label}${r.lot.sup}`);
+      shapes(fallback[0], fallback[1]).forEach((q, k) => ctx.placer.add(m.shift ? m.shift(q, k) : q));
+    }
+    const [cx, cy] = at;
     const top = cy - h / 2;
-    supLabel(ctx, "LOT_TEXT", `lot:${r.lot.id}`, cx, top + size * 0.95, base, r.lot.sup, size, "regular");
-    if (extent) text(ctx, "LOT_TEXT", `lot-extent:${r.lot.id}`, cx, top + size * 1.1 + ctx.sizes.body * 1.15, extent, ctx.sizes.body);
-    ctx.placer.add(box(cx, cy));
+    supLabel(ctx, "LOT_TEXT", entity, cx, top + size * 0.95, base, r.lot.sup, size, "regular", slot);
+    if (extent) text(ctx, "LOT_TEXT", extentEntity, cx, top + size * 1.1 + ctx.sizes.body * 1.15, extent, ctx.sizes.body, slot !== undefined ? { slot } : {});
   }
 }
 
@@ -347,22 +396,20 @@ export function drawCorners(ctx: DrawCtx, lots: PlanLots, opts: { numbers: boole
     const blockW = Math.max(...lines.map((l) => textWidth(l.value, l.size)));
     const r = 1.6 + Math.max(blockW, blockH) / 2;
     const base = Math.atan2(dy, dx);
-    const tries = [0, 1, -1, 2, -2, 3, -3, 4].map((k) => base + (k * Math.PI) / 4);
-    let chosen: [number, number] = [x + dx * r, y + dy * r];
-    for (const a of tries) {
-      const cxy: [number, number] = [x + Math.cos(a) * r, y + Math.sin(a) * r];
-      const q: Quad = [[cxy[0] - blockW / 2, cxy[1] - blockH / 2], [cxy[0] + blockW / 2, cxy[1] - blockH / 2], [cxy[0] + blockW / 2, cxy[1] + blockH / 2], [cxy[0] - blockW / 2, cxy[1] + blockH / 2]];
-      if (ctx.placer.free(q)) {
-        chosen = cxy;
-        break;
-      }
-    }
-    let ty = chosen[1] - blockH / 2;
-    for (const l of lines) {
-      ty += l.size * 1.15;
-      const t = text(ctx, l.layer, l.entity, chosen[0], ty - l.size * 0.2, l.value, l.size, { weight: l.weight, color: l.color });
-      ctx.placer.add(textQuad(t));
-    }
+    // Eight places round the corner, away from its lots first.
+    const tries: [number, number][] = [0, 1, -1, 2, -2, 3, -3, 4].map((k) => base + (k * Math.PI) / 4).map((a) => [x + Math.cos(a) * r, y + Math.sin(a) * r]);
+    // Each line of the block where it's written, as its own shape, since each (number, mark) can be moved by hand on its own.
+    const placed = ([cx, cy]: [number, number]) => {
+      let ty = cy - blockH / 2;
+      return lines.map((l) => {
+        ty += l.size * 1.15;
+        return { l, x: cx, y: ty - l.size * 0.2 };
+      });
+    };
+    const shapeOf = (t: { l: (typeof lines)[number]; x: number; y: number }) => textQuad({ kind: "text", x: t.x, y: t.y, text: t.l.value, size: t.l.size, rotate: 0, weight: t.l.weight, anchor: "middle", font: "sans", color: t.l.color, layer: t.l.layer });
+    const m = moved(ctx, lines.map((l) => l.entity));
+    const k = ctx.placer.choose(`corner:${p.id}`, tries.map((c) => placed(c).map(shapeOf)), { pinned: m.pinned, slot: m.slot, ...(m.shift ? { shift: m.shift } : {}) });
+    for (const t of placed(tries[k]!)) text(ctx, t.l.layer, t.l.entity, t.x, t.y, t.l.value, t.l.size, { weight: t.l.weight, color: t.l.color, slot: k });
   }
 }
 
@@ -392,14 +439,13 @@ export function drawLoosePoints(ctx: DrawCtx, points: readonly SurveyPoint[], lo
     const value = symbol ? entry.meaning : entry.code;
     const size = ctx.sizes.small;
     const w = textWidth(value, size);
-    for (const [dx, dy] of [[r + 1 + w / 2, size * 0.35], [-(r + 1 + w / 2), size * 0.35], [0, -(r + 1)], [0, r + 1 + size]] as const) {
-      const t: SceneText = { kind: "text", x: x + dx, y: y + dy, text: value, size, rotate: 0, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer: "BOUNDARY_MARKS", entity: `mark:${p.id}`, ...(ctx.slant ? { slant: ctx.slant } : {}) };
-      if (ctx.placer.free(textQuad(t)) || (dx === 0 && dy > 0)) {
-        text(ctx, "BOUNDARY_MARKS", `mark:${p.id}`, t.x, t.y, value, size);
-        ctx.placer.add(textQuad(t));
-        break;
-      }
-    }
+    // Right, left, above, then below, which is taken when nothing is free.
+    const entity = `mark:${p.id}`;
+    const tries = ([[r + 1 + w / 2, size * 0.35], [-(r + 1 + w / 2), size * 0.35], [0, -(r + 1)], [0, r + 1 + size]] as const).map(([dx, dy]) => ({ x: x + dx, y: y + dy }));
+    const quad = (t: { x: number; y: number }) => textQuad({ kind: "text", x: t.x, y: t.y, text: value, size, rotate: 0, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer: "BOUNDARY_MARKS", entity, ...(ctx.slant ? { slant: ctx.slant } : {}) });
+    const m = moved(ctx, [entity]);
+    const k = ctx.placer.choose(entity, tries.map((c) => [quad(c)]), { fallback: 3, pinned: m.pinned, slot: m.slot, ...(m.shift ? { shift: m.shift } : {}) });
+    text(ctx, "BOUNDARY_MARKS", entity, tries[k]!.x, tries[k]!.y, value, size, { slot: k });
   }
 }
 
@@ -489,43 +535,44 @@ export function drawAdjoining(ctx: DrawCtx, adjoining: readonly Adjoining[], lot
     const my = (y1 + y2) / 2;
     const ux = (x2 - x1) / len;
     const uy = (y2 - y1) / len;
-    let chosen: [number, number] | null = null;
-    let firstInBounds: [number, number] | null = null;
+    // A block beside the leg, nearest first; then, as surveyors do on side legs, the text written along the leg outside the lot.
+    const blocks: { c: [number, number]; q: Quad }[] = [];
     for (const dist of [3, 6, 10, 15, 21]) {
       for (const shift of [0, 0.25, -0.25]) {
         // The block's centre, far enough out that its nearest side clears the leg.
         const reach = dist + Math.abs(nx) * (w / 2) + Math.abs(ny) * (h / 2);
         const cx = mx + ux * shift * len + nx * reach;
         const cy = my + uy * shift * len + ny * reach;
-        const q: Quad = [[cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]];
-        if (!inBounds(ctx, q)) continue;
-        firstInBounds ??= [cx, cy];
-        if (ctx.placer.free(q)) {
-          chosen = [cx, cy];
-          break;
-        }
+        blocks.push({ c: [cx, cy], q: [[cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]] });
       }
-      if (chosen) break;
     }
-    // No room for a block beside the leg: write it along the leg, outside the lot, as surveyors do on side legs.
-    if (!chosen) {
-      const along = alongLeg(ctx, adj.text, size, [x1, y1], [x2, y2], [nx, ny]);
-      if (along) {
-        for (const t of along) {
-          text(ctx, "ADJOINING", `adjoining:${adj.id}`, t.x, t.y, t.text, size, { rotate: t.rotate });
-          ctx.placer.add(textQuad(t));
-        }
+    const alongs = alongLeg(adj.text, size, [x1, y1], [x2, y2], [nx, ny]);
+    const entity = `adjoining:${adj.id}`;
+    const candidates: Quad[][] = [...blocks.map((b) => [b.q]), ...alongs.map((v) => v.map((t) => textQuad(t)))];
+    // Only places inside the drawing's bounds can be chosen: text past the frame would be cut off.
+    const admissible = [...blocks.map((b) => inBounds(ctx, b.q)), ...alongs.map((v) => v.every((t) => inBounds(ctx, textQuad(t))))];
+    const m = moved(ctx, [entity]);
+    let cx: number;
+    let cy: number;
+    let slot: number | undefined;
+    if (admissible.some(Boolean)) {
+      const k = ctx.placer.choose(entity, candidates, { admissible, pinned: m.pinned, slot: m.slot, ...(m.shift ? { shift: m.shift } : {}) });
+      if (k >= blocks.length) {
+        for (const t of alongs[k - blocks.length]!) text(ctx, "ADJOINING", entity, t.x, t.y, t.text, size, { rotate: t.rotate, slot: k });
         continue;
       }
+      [cx, cy] = blocks[k]!.c;
+      slot = k;
+    } else {
+      // Nowhere inside the bounds: it goes just outside the leg, and the checks say it runs past the frame.
+      ctx.outside.push(adj.text);
+      [cx, cy] = [mx + nx * (6 + w / 2), my + ny * (6 + h / 2)];
+      ctx.placer.add(nudged(ctx, entity, [[cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]]));
     }
-    const fallback: [number, number] = [mx + nx * (6 + w / 2), my + ny * (6 + h / 2)];
-    if (!chosen && !firstInBounds) ctx.outside.push(adj.text);
-    const [cx, cy] = chosen ?? firstInBounds ?? fallback;
     let ty = cy - h / 2;
     for (const line of lines) {
       ty += size * 1.25;
-      const t = text(ctx, "ADJOINING", `adjoining:${adj.id}`, cx, ty - size * 0.25, line, size);
-      ctx.placer.add(textQuad(t));
+      text(ctx, "ADJOINING", entity, cx, ty - size * 0.25, line, size, slot !== undefined ? { slot } : {});
     }
     // Leader from the block's nearest edge to the leg's middle, with an arrowhead at the leg.
     const sx = cx - nx * (Math.abs(nx) * (w / 2) + Math.abs(ny) * (h / 2) + 0.8);
@@ -546,12 +593,12 @@ export function drawAdjoining(ctx: DrawCtx, adjoining: readonly Adjoining[], lot
 
 /**
  * An adjoining-land label written along its leg, just outside the lot, read
- * left to right (or bottom to top), wrapped to the leg's length. Null when no
- * offset keeps it inside the bounds and clear of what's drawn.
+ * left to right (or bottom to top), wrapped to the leg's length: one wording
+ * at each distance out, nearest first. None on a leg too short to write along.
  */
-function alongLeg(ctx: DrawCtx, value: string, size: number, [x1, y1]: [number, number], [x2, y2]: [number, number], [nx, ny]: [number, number]): SceneText[] | null {
+function alongLeg(value: string, size: number, [x1, y1]: [number, number], [x2, y2]: [number, number], [nx, ny]: [number, number]): SceneText[][] {
   const len = Math.hypot(x2 - x1, y2 - y1);
-  if (len < size * 4) return null;
+  if (len < size * 4) return [];
   const angle = readable((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
   const rad = (angle * Math.PI) / 180;
   const [c, s] = [Math.cos(rad), Math.sin(rad)];
@@ -559,18 +606,15 @@ function alongLeg(ctx: DrawCtx, value: string, size: number, [x1, y1]: [number, 
   // The text's "up" is (s, -c) on the page; when the outside of the lot is up, the first line goes farthest out.
   const outIsUp = nx * s - ny * c > 0;
   const [mx, my] = [(x1 + x2) / 2, (y1 + y2) / 2];
-  for (const dist of [1.2, 2.5, 4, 6]) {
-    const items: SceneText[] = lines.map((line, k) => {
+  return [1.2, 2.5, 4, 6].map((dist) =>
+    lines.map((line, k): SceneText => {
       const row = outIsUp ? lines.length - 1 - k : k;
       const off = dist + size * 0.46 + row * size * 1.25;
       const [cx, cy] = [mx + nx * off, my + ny * off];
       // A line's visual middle sits 0.26 of its size above its baseline.
       return { kind: "text", x: cx - 0.26 * size * s, y: cy + 0.26 * size * c, text: line, size, rotate: angle, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer: "ADJOINING" };
-    });
-    const quads = items.map(textQuad);
-    if (quads.every((q) => inBounds(ctx, q) && ctx.placer.free(q))) return items;
-  }
-  return null;
+    }),
+  );
 }
 
 /** The tall needle north arrow seen on Sri Lankan plans: a thin arrow with its head filled on one side and an N worked across the shaft. */
@@ -638,7 +682,7 @@ export function suggestScale(extentE: number, extentN: number, viewportW: number
  * upright, on the side `side` points to, with its nearer edge 1.1 mm clear of
  * the line whichever way up the text is.
  */
-export function besideSegment(x1: number, y1: number, x2: number, y2: number, side: [number, number], size: number): { x: number; y: number; theta: number } {
+export function besideSegment(x1: number, y1: number, x2: number, y2: number, side: [number, number], size: number, along = 0.5): { x: number; y: number; theta: number } {
   const len = Math.hypot(x2 - x1, y2 - y1) || 1;
   const theta = readable((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
   let nx = -(y2 - y1) / len;
@@ -650,7 +694,7 @@ export function besideSegment(x1: number, y1: number, x2: number, y2: number, si
   const rad = (theta * Math.PI) / 180;
   const outIsUp = nx * Math.sin(rad) - ny * Math.cos(rad) > 0;
   const gap = outIsUp ? 1.1 : 1.1 + size * 0.72;
-  return { x: (x1 + x2) / 2 + nx * gap, y: (y1 + y2) / 2 + ny * gap, theta };
+  return { x: x1 + (x2 - x1) * along + nx * gap, y: y1 + (y2 - y1) * along + ny * gap, theta };
 }
 
 /** A text's outline on the page: its estimated width, cap height and descent, turned with it. */
@@ -668,33 +712,6 @@ export function textQuad(t: SceneText): Quad {
     [u0 + inset, t.size * 0.2 - inset],
   ];
   return corners.map(([u, v]) => [t.x + u * c - v * s, t.y + u * s + v * c]);
-}
-
-/** Separating axis test for two convex shapes (a segment counts as a two-corner shape). */
-export function quadsOverlap(a: Quad, b: Quad): boolean {
-  for (const q of [a, b]) {
-    for (let i = 0; i < q.length; i++) {
-      const [x1, y1] = q[i]!;
-      const [x2, y2] = q[(i + 1) % q.length]!;
-      const ax = -(y2 - y1);
-      const ay = x2 - x1;
-      if (ax === 0 && ay === 0) continue;
-      const pa = a.map(([x, y]) => x * ax + y * ay);
-      const pb = b.map(([x, y]) => x * ax + y * ay);
-      if (Math.max(...pa) <= Math.min(...pb) || Math.max(...pb) <= Math.min(...pa)) return false;
-    }
-  }
-  // Two segments (or a segment and a box) can pass every edge-normal test yet be apart along the segment's own direction.
-  for (const q of [a, b]) {
-    if (q.length !== 2) continue;
-    const [[x1, y1], [x2, y2]] = q as [[number, number], [number, number]];
-    const ax = x2 - x1;
-    const ay = y2 - y1;
-    const pa = a.map(([x, y]) => x * ax + y * ay);
-    const pb = b.map(([x, y]) => x * ax + y * ay);
-    if (Math.max(...pa) <= Math.min(...pb) || Math.max(...pb) <= Math.min(...pa)) return false;
-  }
-  return true;
 }
 
 /**

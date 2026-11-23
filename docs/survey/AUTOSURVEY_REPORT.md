@@ -1,6 +1,6 @@
 # Farbaek AutoSurvey: implementation report
 
-The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 232. It keeps four things apart:
+The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 233. It keeps four things apart:
 - **Built and tested:** working in the product, with automated tests.
 - **Built, not proven on real data:** working and tested, but only on synthetic data so far.
 - **Partly built.**
@@ -48,7 +48,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Survey computation | `angles.ts`, `geometry.ts`, `cogo.ts`, `units.ts`, `reduce.ts`, `adjust.ts` | Built and tested |
 | Geometry construction | `autodraft.ts`, `lots.ts`, `partition.ts`, `roads.ts` | Built and tested |
 | CAD drafting | `sheet/*`, `export/dxf.ts` | Built and tested |
-| Annotation and layout | `sheet/compose.ts` (scale, overlap detection) | Partly built: overlaps are found and reported, not solved |
+| Annotation and layout | `sheet/labels.ts`, `sheet/draw.ts`, `sheet/compose.ts` | Built and tested: labels placed together by scored candidates (ADR 0242); what can't be cleared is reported; no leader lines or multi-sheet layout |
 | Independent validation | `qc.ts` | Built and tested |
 | Exception management | `exceptions.ts`, the "Needs you" list | Built and tested |
 | Export and deliverables | `export/*`, `server/survey/pdf.ts`, the export route | Built and tested |
@@ -90,6 +90,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 - **Background jobs** with stages (ADR 0239, schema v102).
 - **Sketch photos kept** beside their readings, served through row-level security (ADR 0240, schema v103).
 - **A benchmark of the deterministic path** (stage 232).
+- **Labels placed together** (stage 233, ADR 0242): every movable label offers candidates, which are scored and searched together. For example, a synthetic row of eight 8 m lots at 1:1000 with every dimension on the face went from 26 overlapping pairs to 9.
 
 ## 5. Working input formats
 
@@ -156,9 +157,10 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
   - It holds the plan's drawing: lot boundaries and corners, lines, roads and labels.
   - Spot heights go out in the coordinates CSV, not the DXF.
 - **Coordinates CSV, a lots CSV and GeoJSON.**
+- **Labels on the sheet are placed together** (ADR 0242). Dimensions on short legs are stacked or split across the line, and lot labels stay inside their lot. Geometry never moves, and what can't be cleared is reported.
 
 **Not built:**
-- automatic label placement that solves overlaps (they are found and reported);
+- leader lines or a table of legs for dimensions that can't fit at the chosen scale (labels are placed together by scored candidates since stage 233, and what can't be cleared is reported);
 - multi-sheet layout;
 - a measured Sinhala and Tamil text test in CAD programs.
 
@@ -196,14 +198,15 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #286 to #292 | 222 to 228 | Merged, live | none |
 | #293 | 229 (background jobs) | Merged, live | **v102:** the owner applies it; the code works without it |
 | #294 | 230 (sketch photos kept) | Merged, live (build c96322bebc79) | **v103:** the owner applies it; the code works without it |
-| #295 | 231 and 232 (traverse, benchmark) | Open | none |
+| #295 | 231 and 232 (traverse, benchmark) | Merged, live (build 397d43d92a1a) | none |
+| Next PR | 233 (label placement) and this report | Open | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
 ## 13. Incomplete capabilities
 
 **Not built:**
-- **Labels and layout:** a label solver (candidate positions, scored and searched); multi-sheet layout.
+- **Labels and layout:** leader lines and a leg table for dimensions that can't fit; multi-sheet layout.
 - **Codes:** curve and join codes.
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
 - **Defaults:** a surveyor profile table (equipment, title block, plan numbering).

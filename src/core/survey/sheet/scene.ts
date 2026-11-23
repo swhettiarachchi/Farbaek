@@ -42,6 +42,8 @@ export interface SceneText extends Tagged {
   color: SceneColor;
   /** Degrees the letters lean right (slanted CAD lettering), about the text's own baseline point. */
   slant?: number;
+  /** Which of its label's places it was drawn at (ADR 0242), so a drag measures its offset from that place. */
+  slot?: number;
 }
 
 export interface SceneCircle extends Tagged {
