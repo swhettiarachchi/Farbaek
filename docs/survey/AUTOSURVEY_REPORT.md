@@ -163,7 +163,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 - **Labels on the sheet are placed together** (ADR 0242). Dimensions on short legs are stacked or split across the line, and lot labels stay inside their lot. Geometry never moves, and what can't be cleared is reported.
 
 **Not built:**
-- leader lines or a table of legs for dimensions that can't fit at the chosen scale (labels are placed together by scored candidates since stage 233, and what can't be cleared is reported);
+- leader lines for dimensions that can't fit at the chosen scale. Since stage 240 (ADR 0248) the surveyor can leave legs too crowded to letter to the boundaries schedule, which the face names;
 - multi-sheet layout;
 - a measured Sinhala and Tamil text test in CAD programs.
 
@@ -205,17 +205,18 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #296 | 233 (label placement) and this report | Merged, live | none |
 | #297 | 234 (line words, code report) | Merged, live (build dbc3fa889203) | none |
 | #298 | 235 (timed jobs, finishing a cut-off run) | Merged, live (build 684f7edfa43f) | none |
-| #299 | 236 (checks and sources report) | Open | none |
-| #300 | 237 (success metrics script) | Open, builds on #299 | none |
-| #301 | 238 (suggestions for unknown codes) | Open, builds on #300 | none |
-| next | 239 (curves from PC to PT) | Open, builds on #301 | none |
+| #299 | 236 (checks and sources report) | Merged, live | none |
+| #300 | 237 (success metrics script) | Merged, live | none |
+| #301 | 238 (suggestions for unknown codes) | Merged, live (build 63bc07a5d93e) | none |
+| #302 | 239 (curves from PC to PT) | Open | none |
+| next | 240 (crowded legs left to the schedule) | Open, builds on #302 | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
 ## 13. Incomplete capabilities
 
 **Not built:**
-- **Labels and layout:** leader lines and a leg table for dimensions that can't fit; multi-sheet layout.
+- **Labels and layout:** leader lines for dimensions that can't fit (crowded legs can be left to the schedule since stage 240); multi-sheet layout.
 - **Codes:** curved lot boundaries (curves are drawn on lines, not lots, since a lot's area would change); a curve's radius and length on the plan; offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
 - **Defaults:** a surveyor profile table (equipment, title block, plan numbering).

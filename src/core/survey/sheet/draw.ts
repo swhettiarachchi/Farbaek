@@ -166,7 +166,7 @@ export function pageArea(ring: [number, number][]): number {
  * bearing and distance of each leg outside its lot. `highlight` draws one
  * lot heavier, as an extract does. Labels come later (`drawLotLabels`).
  */
-export function drawLots(ctx: DrawCtx, lots: PlanLots, opts: { legLabels: boolean; highlight: string | null; secondDecimals: number; distanceDecimals: number }): void {
+export function drawLots(ctx: DrawCtx, lots: PlanLots, opts: { legLabels: boolean; highlight: string | null; secondDecimals: number; distanceDecimals: number; scheduled?: ReadonlySet<string> }): void {
   const { doc } = ctx;
   const drawn = new Set<string>();
   // A leg two lots share is dimensioned once.
@@ -196,6 +196,8 @@ export function drawLots(ctx: DrawCtx, lots: PlanLots, opts: { legLabels: boolea
         const key = leg.from.id < leg.to.id ? `${leg.from.id}|${leg.to.id}` : `${leg.to.id}|${leg.from.id}`;
         if (dimensioned.has(key)) return;
         dimensioned.add(key);
+        // Left to the boundaries schedule (ADR 0248): the face names it in a note instead.
+        if (opts.scheduled?.has(key)) return;
         const [x1, y1] = atPage(ctx, leg.from);
         const [x2, y2] = atPage(ctx, leg.to);
         const outside: [number, number] = area > 0 ? [y2 - y1, -(x2 - x1)] : area < 0 ? [-(y2 - y1), x2 - x1] : [(x1 + x2) / 2 - cx, (y1 + y2) / 2 - cy];
@@ -723,6 +725,15 @@ export function textQuad(t: SceneText): Quad {
  * composer never does (the survey skill's rule 7).
  */
 export function overlappingLabels(items: SceneItem[]): [string, string][] {
+  return overlapping(items).map(([a, b]) => [a.name, b.name]);
+}
+
+/** The drawing entities whose labels overlap another label or a point, in pairs (a point has no entity). */
+export function overlappingEntities(items: SceneItem[]): [string | undefined, string | undefined][] {
+  return overlapping(items).map(([a, b]) => [a.entity, b.entity]);
+}
+
+function overlapping(items: SceneItem[]): [{ name: string; entity?: string }, { name: string; entity?: string }][] {
   const texts = items.filter((i): i is SceneText => i.kind === "text" && i.layer !== "TITLE" && i.layer !== "SHEET");
   const shapes: { name: string; quad: Quad; entity?: string }[] = texts.map((t) => ({ name: t.text, quad: textQuad(t), entity: t.entity }));
   for (const c of items) {
@@ -730,12 +741,12 @@ export function overlappingLabels(items: SceneItem[]): [string, string][] {
     const r = c.r;
     shapes.push({ name: "a point", quad: [[c.cx - r, c.cy - r], [c.cx + r, c.cy - r], [c.cx + r, c.cy + r], [c.cx - r, c.cy + r]] });
   }
-  const out: [string, string][] = [];
+  const out: [{ name: string; entity?: string }, { name: string; entity?: string }][] = [];
   for (let i = 0; i < texts.length; i++) {
     for (let j = i + 1; j < shapes.length; j++) {
       // A label and its own raised suffix touch by design.
       if (j < texts.length && shapes[i]!.entity && shapes[i]!.entity === shapes[j]!.entity && shapes[i]!.entity!.startsWith("lot:")) continue;
-      if (quadsOverlap(shapes[i]!.quad, shapes[j]!.quad)) out.push([shapes[i]!.name, shapes[j]!.name]);
+      if (quadsOverlap(shapes[i]!.quad, shapes[j]!.quad)) out.push([shapes[i]!, shapes[j]!]);
     }
   }
   return out;
