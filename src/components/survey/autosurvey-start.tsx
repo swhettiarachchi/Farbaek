@@ -3,7 +3,7 @@
 import { CameraIcon, FileTextIcon, ImageIcon, InfoIcon, PencilSimpleIcon, UploadSimpleIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { readSketchesAction } from "@/app/app/survey/ai-actions";
 import { generateSurveyPlanAction, type GenerateState } from "@/app/app/survey/actions";
 import { commonCodes } from "@/core/survey/codes";
@@ -83,6 +83,8 @@ export function AutoSurveyStart({
   const [consent, setConsent] = useState(false);
   const [phase, setPhase] = useState<"drawing" | "reading">("drawing");
   const [drawn, setDrawn] = useState<Drawn | null>(null);
+  // Where the drawn plan opens while its sketches are read: the read goes on on the server if the surveyor opens it (ADR 0239).
+  const [opening, setOpening] = useState<string | null>(null);
   const [crsId, setCrsId] = useState<string>(crsById(startingCrsId)?.id ?? "");
   const [changingCrs, setChangingCrs] = useState(!crsById(startingCrsId));
   const [title, setTitle] = useState("");
@@ -92,6 +94,14 @@ export function AutoSurveyStart({
   const picker = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
   const counter = useRef(0);
+  // Once the surveyor has opened the plan or left this screen, a read that finishes later never pulls them back to it (ADR 0239).
+  const left = useRef(false);
+  useEffect(() => {
+    left.current = false;
+    return () => {
+      left.current = true;
+    };
+  }, []);
   const crs = crsById(crsId);
 
   const reread = (list: Upload[], chosen = crs): Upload[] =>
@@ -196,7 +206,7 @@ export function AutoSurveyStart({
     startTransition(async () => {
       setPhase("drawing");
       // A request the server refuses before the action runs (too large to carry) comes back as a thrown error: said, not lost.
-      const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content })), library: library ? { name: library.name, content: library.content } : null }).catch(
+      const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content })), library: library ? { name: library.name, content: library.content } : null, sketches: reading ? sketches.filter((u) => u.photo).length : 0 }).catch(
         (): GenerateState => ({ status: "error", message: "The files couldn't be sent: they may be too large together. Generate from fewer files, then import the rest into the project.", problems: [] }),
       );
       if (r.status !== "done") {
@@ -205,10 +215,12 @@ export function AutoSurveyStart({
       }
       if (toRead.length > 0) {
         setPhase("reading");
+        setOpening(r.next);
         const form = new FormData();
         form.set("projectId", r.projectId);
         form.set("baseVersion", String(r.version));
         form.set("consent", "yes");
+        form.set("jobId", r.jobId ?? "");
         for (const s of toRead) form.append("photo", s.photo, s.name);
         const read = await readSketchesAction(form).catch(() => ({ status: "error" as const, message: "The connection dropped while the sketches were sent." }));
         if (read.status === "error") {
@@ -221,7 +233,7 @@ export function AutoSurveyStart({
           return;
         }
       }
-      router.push(r.next);
+      if (!left.current) router.push(r.next);
     });
   };
 
@@ -425,6 +437,14 @@ export function AutoSurveyStart({
                 : `Generate Plan confirms the points are in ${crs?.name}, and records that you confirmed it.`}
           </p>
         </div>
+        {pending && phase === "reading" && opening ? (
+          <p className="text-sm text-ink-2">
+            <Link href={opening} onClick={() => (left.current = true)} className="font-medium text-accent underline-offset-2 hover:underline">
+              Open the plan now
+            </Link>
+            : the reading carries on, and the plan shows it when it&apos;s done. Keep this tab open until then.
+          </p>
+        ) : null}
         {result.status === "error" ? (
           <div role="alert" className="grid gap-2 rounded-md border border-failed/35 bg-failed/[0.04] p-4">
             <p className="flex items-start gap-2 text-sm font-medium text-ink">

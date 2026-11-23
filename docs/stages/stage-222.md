@@ -62,7 +62,7 @@ Each is its own pull request, built and checked the same way:
 3. **The surveyor profile carries defaults:** built without a migration in stage 226 (ADR 0237): the office code library from a Carlson-style file, the code list the surveyor checked last, and their sheet's presentation; the coordinate system since stage 222. A profile table (equipment, title-block preferences, plan numbering) still needs a migration.
 4. **Originals kept byte for byte, photos and sketches included,** in storage on Farbaek's own server. It needs a migration and a storage decision.
 5. **Reading sketches:** built in stage 223 (ADR 0234), on Claude at the owner's choice. Each handwritten number or label is kept as written and checked against the instrument data, conflicts are shown with both values, and a sketch is never a source of coordinates. Places on the image are left out: Claude's are approximate.
-6. **Work in the background:** Generate Plan as a resumable job with its real stages shown, so leaving the page loses nothing.
+6. **Work in the background:** built in stage 229 (ADR 0239, schema v102): Generate Plan is a job with its real stages, shown on the project page after leaving and coming back; resuming a cut-off run waits for part 4.
 7. **More of the field-to-finish:**
    - observations reduced: SDR 09 and 11 built in stage 225, Leica GSI in stage 228 (ADR 0236), by radiation with nothing adjusted;
    - traverse adjustment, only with the surveyor's choice of method;

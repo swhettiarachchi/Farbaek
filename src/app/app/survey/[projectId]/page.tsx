@@ -33,6 +33,7 @@ import { DrawFromPoints } from "@/components/survey/draw-from-points";
 import { NeedsYou } from "@/components/survey/needs-you";
 import { AssistantProvider } from "@/components/survey/assistant/assistant-context";
 import { PlanEditor } from "@/components/survey/plan-editor";
+import { JobProgress, showJob } from "@/components/survey/job-progress";
 import { ModeChoice } from "@/components/survey/mode-choice";
 import { StepNav } from "@/components/survey/step-nav";
 import { buttonClasses } from "@/components/ui/button";
@@ -49,6 +50,7 @@ import { buildPlan } from "@/core/survey/view";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
 import { isoDate, personName, planInputFor } from "@/server/survey/present";
+import { loadLatestJob } from "@/server/survey/jobs";
 import { loadAssistantHistory, loadSurveyDrawing, loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { SAMPLE_PROJECT_ID, sampleProject } from "@/server/survey/sample";
 import { loadAppContext } from "@/server/workspace/context";
@@ -141,6 +143,10 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   const drawn = doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0;
   // Express, Professional or Manual CAD (ADR 0238): which steps are on show, the person's choice, the Sample included.
   const mode = parseMode((await cookies()).get(SURVEY_MODE_COOKIE)?.value);
+  // The latest Generate Plan run (ADR 0239), shown while it works, when it was cut off, or when a stage failed in the last day.
+  const now = new Date();
+  const jobClient = !sample && ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const job = jobClient ? await loadLatestJob(jobClient, projectId) : null;
   // Exported means the approved sheet went out: a PDF or DXF of this version made after its approval, not a points list or a draft.
   const exported = Boolean(approval) && data.exports.some((e) => e.drawing_version === data.drawing.version && (e.kind === "pdf" || e.kind === "dxf") && approval !== null && e.created_at >= approval.approved_at);
   const status = planStatus({ drawn, findings: view.findings, approved: Boolean(approval), exported });
@@ -158,6 +164,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       </div>
       {!data.drawing.readable ? <Notice tone="warning">This version&apos;s saved settings couldn&apos;t be read, so the plan shows defaults. Save a new version to replace it.</Notice> : null}
 
+      {showJob(job, now) ? <JobProgress job={job} now={now} /> : null}
       <ModeChoice mode={mode} />
       <StepNav steps={stepsFor(mode, STEPS, { drawn, current: step }).map(({ id, label }) => ({ id, label }))} current={step} base={base} />
 

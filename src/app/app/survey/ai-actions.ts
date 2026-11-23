@@ -20,6 +20,7 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { SURVEY_AI_DAILY } from "@/server/survey/assistant";
 import { BRIEF_LIMITS, PHOTO_LIMITS, draftSurveyPlan, imageTypeOf, readSurveyPhotos, type SurveyDraftDeps } from "@/server/survey/drafting";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
+import { JobTracker, loadJob } from "@/server/survey/jobs";
 import { SKETCH_PHOTOS, readFieldSketches } from "@/server/survey/sketches";
 import { SURVEY_MESSAGES, surveyStore } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
@@ -126,6 +127,28 @@ export type SketchReadState = { status: "idle" } | { status: "error"; message: s
  * Anthropic only with the surveyor's say-so on this request, and Farbaek doesn't keep them.
  */
 export async function readSketchesAction(form: FormData): Promise<SketchReadState> {
+  const r = await readSketches(form);
+  // Generate Plan's job never stays open on a read that ended early (a limit, a bad photo, a refused request): its stage says why.
+  if (r.status === "error") await closeSketchStage(String(form.get("jobId") ?? ""), String(form.get("projectId") ?? ""), r.message);
+  return r;
+}
+
+async function closeSketchStage(jobId: string, projectId: string, message: string): Promise<void> {
+  if (!jobId) return;
+  try {
+    const ctx = await loadAppContext();
+    if (!ctx || ctx.mode !== "live" || !ctx.current || !ctx.role || !CONTRIBUTOR_ROLES.includes(ctx.role)) return;
+    const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
+    if (!user || !admin) return;
+    const job = await loadJob(user, jobId, projectId);
+    if (!job || job.state !== "running") return;
+    await JobTracker.resume(admin, ctx.current.id, job).stage("sketches", "failed", message);
+  } catch {
+    // The job is a record: it never stands in the way of the answer.
+  }
+}
+
+async function readSketches(form: FormData): Promise<SketchReadState> {
   const projectId = String(form.get("projectId") ?? "");
   const baseVersion = Number(form.get("baseVersion"));
   if (form.get("consent") !== "yes") return { status: "error", message: "Sketches are read only when you agree to send their photos to Anthropic for reading." };
@@ -143,12 +166,20 @@ export async function readSketchesAction(form: FormData): Promise<SketchReadStat
   }
   const p = await prepare(projectId, baseVersion, "Reading field sketches", "read");
   if ("error" in p) return { status: "error", message: p.error };
+  // Generate Plan's job, when this read is its last stage (ADR 0239): read through row-level security, so only the workspace's own.
+  const jobRow = await loadJob(p.user, String(form.get("jobId") ?? ""), projectId);
+  const job = jobRow && jobRow.state === "running" ? JobTracker.resume(p.admin, p.common.orgId, jobRow) : null;
+  const end = async (state: "done" | "failed", detail: string) => job?.stage("sketches", state, detail);
   const source = { family: "anthropic" as const, create: (s: { model: string }) => createAnthropicSketchReader({ model: s.model, client: p.client }) };
   const r = await readFieldSketches(p.ai.deps, source, { orgId: p.common.orgId, userId: p.common.userId, projectId, images, now: new Date() });
-  if (!r.ok) return { status: "error", message: r.message };
+  if (!r.ok) {
+    await end("failed", r.message);
+    return { status: "error", message: r.message };
+  }
   const record = r.value;
   const photos = `${images.length} ${images.length === 1 ? "sketch" : "sketches"}`;
   // Nothing read for certain is no reason for a new version, and earlier readings stay as they were.
+  if (record.readings.length === 0) await end("done", "Nothing on the photos could be read for certain.");
   if (record.readings.length === 0) return { status: "done", message: `Nothing on the ${photos} could be read for certain, so the plan wasn't changed.`, version: baseVersion, readings: 0, unreadable: record.unreadable.length };
   // New readings replace earlier ones, and with them any "keep as surveyed" answers to the earlier ones.
   const withReadings = (document: SurveyDocument) => pruneProvenance({ ...document, sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:")) });
@@ -166,7 +197,11 @@ export async function readSketchesAction(form: FormData): Promise<SketchReadStat
       if (surveyDocumentSchema.safeParse(again).success) saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion: latest.drawing.version, document: again, note });
     }
   }
-  if (!saved.ok) return { status: "error", message: `The sketches were read, but the readings couldn't be saved: ${saved.message}` };
+  if (!saved.ok) {
+    await end("failed", `Read, but not saved: ${saved.message}`);
+    return { status: "error", message: `The sketches were read, but the readings couldn't be saved: ${saved.message}` };
+  }
+  await end("done", `${record.readings.length} things read, saved as version ${saved.value}.`);
   revalidatePath(`/app/survey/${projectId}`);
   return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length };
 }

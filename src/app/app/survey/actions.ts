@@ -8,6 +8,8 @@ import { START_LIMITS, gridProblem, pointClashes, readSurveyFile, startName, sta
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
 import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
 import { withDefaults } from "@/core/survey/autosurvey/defaults";
+import { generateStages } from "@/core/survey/autosurvey/job";
+import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
 import { emptyDocument, provenanceLive, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
 import { itemOf } from "@/core/survey/exceptions";
@@ -19,6 +21,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { loadStartingDefaults } from "@/server/survey/defaults";
+import { JobTracker } from "@/server/survey/jobs";
 import { SURVEY_MESSAGES, surveyStore, type Actor } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
@@ -187,6 +190,8 @@ const generateInput = z.object({
     .array(z.object({ name: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/), content: z.string().max(IMPORT_LIMITS.maxBytes) }))
     .min(1)
     .max(START_LIMITS.files),
+  /** How many sketch photos the screen will send for reading once the plan is drawn: the job shows that stage (ADR 0239). */
+  sketches: z.number().int().min(0).max(SKETCH_LIMITS.photos).default(0),
   /** An office code library uploaded with the files (ADR 0237): read again here, never trusted from the browser. */
   library: z.object({ name: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/), content: z.string().max(LIBRARY_LIMITS.bytes) }).nullable().default(null),
 });
@@ -195,7 +200,7 @@ export type GenerateState =
   | { status: "idle" }
   | { status: "error"; message: string; problems: StartProblem[]; projectId?: string }
   /** Where the plan opens, and the version on it now, which reading the sketches builds on. */
-  | { status: "done"; projectId: string; next: string; version: number };
+  | { status: "done"; projectId: string; next: string; version: number; jobId: string | null };
 
 /**
  * AutoSurvey's Generate Plan (stage 222, ADR 0233): every survey file read again here with the same tested readers (the browser's
@@ -243,6 +248,8 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const created = await surveyStore.createProject(g.w.admin, g.w.actor, { name: startName(i.title, reads[0]?.name ?? null, new Date()), planType: "cadastral", crsId: crs.id, confirm: true, document });
   if (!created.ok) return { status: "error", message: created.message, problems: [] };
   const projectId = created.value;
+  // The run as a job with real stages, so leaving the page and coming back shows where it stands (ADR 0239).
+  const job = await JobTracker.start(g.w.admin, g.w.actor, projectId, generateStages(reads.length, i.sketches));
   for (const [n, r] of reads.entries()) {
     const imported = await surveyStore.importPoints(g.w.admin, g.w.actor, {
       projectId,
@@ -253,10 +260,12 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
       points: r.points.map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
     });
     if (!imported.ok) {
+      await job.stage("import", "failed", `${r.name}: ${imported.message}`, { message: `${r.name} wasn't imported.` });
       revalidatePath("/app/survey");
       return { status: "error", message: `The project was created, but ${r.name} wasn't imported: ${imported.message} Open the project to import it again.`, problems: [], projectId };
     }
   }
+  await job.stage("import", "done", `${all.length} ${all.length === 1 ? "point" : "points"} from ${reads.length} ${reads.length === 1 ? "file" : "files"}.`);
   const drawing = await drawFromPoints(
     g.w,
     projectId,
@@ -270,7 +279,9 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   // The points are in either way; when the plan couldn't be drawn, the project opens on the Draft step, which says why. Without a
   // drawn version the project is still on the one it was created with.
   const drawn = drawing.ok && drawing.version ? drawing.version : null;
-  return { status: "done", projectId, next: `/app/survey/${projectId}?step=${drawn ? "plan" : "draft"}&generated=1`, version: drawn ?? 1 };
+  const next = `/app/survey/${projectId}?step=${drawn ? "plan" : "draft"}&generated=1`;
+  await job.stage("draw", drawing.ok ? "done" : "failed", !drawing.ok ? drawing.message : drawn ? `Version ${drawn}: ${drawing.drawn.length} ${drawing.drawn.length === 1 ? "thing" : "things"} drawn.` : (drawing.notDrawn[0] ?? "Nothing to draw from the points."), { next });
+  return { status: "done", projectId, next, version: drawn ?? 1, jobId: job.id };
 }
 
 /**

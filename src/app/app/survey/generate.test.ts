@@ -6,9 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyDocument } from "@/core/survey/document";
 
 // Shared with the stand-ins below, which vitest moves above everything else.
-const { calls, stored, carried, created } = vi.hoisted(() => ({
+const { calls, stored, carried, created, jobs } = vi.hoisted(() => ({
   carried: { value: { codes: null, settings: null } as unknown },
   created: { document: null as unknown },
+  jobs: [] as { kind: string; input: Record<string, unknown> }[],
   calls: [] as { kind: string; input: Record<string, unknown> }[],
   stored: [] as { pointId: string; e: number; n: number; z: number | null; code: string | null }[],
 }));
@@ -40,6 +41,14 @@ vi.mock("@/server/survey/store", async () => {
         const points = input.points as { point_id: string; e: number; n: number; z: number | null; code: string }[];
         stored.push(...points.map((p) => ({ pointId: p.point_id, e: p.e, n: p.n, z: p.z, code: p.code || null })));
         return { ok: true, value: { source_id: `source-${calls.length}`, added: points.length, skipped: 0 } };
+      },
+      jobStart: async (_a: unknown, _b: unknown, input: Record<string, unknown>) => {
+        jobs.push({ kind: "start", input });
+        return { ok: true, value: "22222222-2222-4222-8222-222222222222" };
+      },
+      jobUpdate: async (_a: unknown, _org: unknown, input: Record<string, unknown>) => {
+        jobs.push({ kind: "update", input });
+        return { ok: true, value: null };
       },
       saveDrawing: async (_a: unknown, _b: unknown, input: Record<string, unknown>) => {
         calls.push({ kind: "draw", input });
@@ -82,12 +91,19 @@ beforeEach(() => {
   stored.length = 0;
   carried.value = { codes: null, settings: null };
   created.document = null;
+  jobs.length = 0;
 });
 
 describe("Generate Plan", () => {
   it("makes one project with the grid confirmed, imports each file as its own source, draws once and opens the plan", async () => {
     const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }, { name: "extra.csv", content: extra }] });
-    expect(r.result).toEqual({ status: "done", projectId: "11111111-1111-4111-8111-111111111111", next: "/app/survey/11111111-1111-4111-8111-111111111111?step=plan&generated=1", version: 2 });
+    expect(r.result).toEqual({ status: "done", projectId: "11111111-1111-4111-8111-111111111111", next: "/app/survey/11111111-1111-4111-8111-111111111111?step=plan&generated=1", version: 2, jobId: "22222222-2222-4222-8222-222222222222" });
+    // The run as a job: importing, then drawing, then done, since no sketches follow (ADR 0239).
+    const last = jobs.at(-1)!.input as { state: string; stages: { id: string; state: string }[]; result: { next?: string } };
+    expect(jobs.map((j) => j.kind)).toEqual(["start", "update", "update"]);
+    expect(last.state).toBe("done");
+    expect(last.stages.map((x) => [x.id, x.state])).toEqual([["import", "done"], ["draw", "done"], ["sketches", "skipped"]]);
+    expect(last.result.next).toBe("/app/survey/11111111-1111-4111-8111-111111111111?step=plan&generated=1");
     expect(calls.map((c) => c.kind)).toEqual(["create", "import", "import", "draw"]);
     const create = calls[0]!.input;
     expect(create).toMatchObject({ planType: "cadastral", crsId: "EPSG:5235", confirm: true });
@@ -121,7 +137,7 @@ describe("Generate Plan", () => {
   it("opens on the Draft step, on the version the project was created with, when nothing could be drawn", async () => {
     const plain = ["Point,Easting,Northing,Height,Code", "1,450000.000,700000.000,20.00,Tree", "2,450040.000,700000.000,20.00,Tree"].join("\n");
     const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "trees.csv", content: plain }] });
-    expect(r.result).toEqual({ status: "done", projectId: "11111111-1111-4111-8111-111111111111", next: "/app/survey/11111111-1111-4111-8111-111111111111?step=draft&generated=1", version: 1 });
+    expect(r.result).toEqual({ status: "done", projectId: "11111111-1111-4111-8111-111111111111", next: "/app/survey/11111111-1111-4111-8111-111111111111?step=draft&generated=1", version: 1, jobId: "22222222-2222-4222-8222-222222222222" });
     expect(calls.map((c) => c.kind)).toEqual(["create", "import"]);
   });
 
@@ -177,5 +193,16 @@ describe("Generate Plan with a returning surveyor's defaults (stage 226, ADR 023
     const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }], library: { name: "office.fcl", content: "Name,Layer\nIP,MON" } });
     expect(r.result).toMatchObject({ status: "error", problems: [{ file: "office.fcl", problem: "This code library has no Code column in its first line." }] });
     expect(calls).toEqual([]);
+  });
+});
+
+describe("Generate Plan's job (stage 229, ADR 0239)", () => {
+  it("keeps the job running with the sketches stage started when photos follow", async () => {
+    const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }], sketches: 2 });
+    expect(r.result).toMatchObject({ status: "done", jobId: "22222222-2222-4222-8222-222222222222" });
+    const last = jobs.at(-1)!.input as { state: string; stages: { id: string; state: string; label: string }[] };
+    expect(last.state).toBe("running");
+    expect(last.stages.map((x) => [x.id, x.state])).toEqual([["import", "done"], ["draw", "done"], ["sketches", "running"]]);
+    expect(last.stages[2]!.label).toBe("Reading 2 sketches with Claude");
   });
 });
