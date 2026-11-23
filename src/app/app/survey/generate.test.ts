@@ -25,7 +25,13 @@ vi.mock("@/server/workspace/context", () => ({
   loadAppContext: async () => ({ mode: "live", current: { id: "org-1" }, user: { id: "user-1" }, role: "owner", writes: { enabled: true, reason: "" } }),
 }));
 vi.mock("@/server/supabase/admin", () => ({ createSupabaseAdminClient: () => ({}) }));
-vi.mock("@/server/supabase/server", () => ({ createSupabaseServerClient: async () => ({}) }));
+// The person's own reads: only the detailed import asks one (the project's grid), so the chain answers that.
+vi.mock("@/server/supabase/server", () => {
+  const chain: Record<string, unknown> = {};
+  for (const k of ["from", "select", "eq", "is"]) chain[k] = () => chain;
+  chain.maybeSingle = async () => ({ data: { crs_id: "EPSG:5235" } });
+  return { createSupabaseServerClient: async () => chain };
+});
 vi.mock("@/server/survey/store", async () => {
   const actual = await vi.importActual<typeof import("@/server/survey/store")>("@/server/survey/store");
   return {
@@ -204,5 +210,107 @@ describe("Generate Plan's job (stage 229, ADR 0239)", () => {
     expect(last.state).toBe("running");
     expect(last.stages.map((x) => [x.id, x.state])).toEqual([["import", "done"], ["draw", "done"], ["sketches", "running"]]);
     expect(last.stages[2]!.label).toBe("Reading 2 sketches with Claude");
+  });
+});
+
+const { importSurveyPointsAction } = await import("./actions");
+
+describe("Generate Plan with a traverse (stage 231, ADR 0241)", () => {
+  // A SYNTHETIC Sokkia SDR33 loop beside the boundary: control A, east to B, north to C, back to A about 2 cm long.
+  const f16 = (s: string) => s.padEnd(16);
+  const id16 = (s: string) => s.padStart(16);
+  const sdr = [
+    `00NM${f16("SDR33 V04-04.02")}${"".padEnd(4)}${f16("23-Nov-26 09:30")}111111`,
+    `01NM${" ".repeat(46)}1`,
+    `08KI${id16("BS")}${f16("700200.000")}${f16("450100.000")}${f16("20.000")}${f16("TS")}`,
+    `02TP${id16("A")}${f16("700100.000")}${f16("450100.000")}${f16("20.000")}${f16("1.500")}${f16("STN")}`,
+    `03NM${f16("1.500")}`,
+    `07TP${id16("A")}${id16("BS")}${f16("0.0000")}${f16("0.0000")}`,
+    `09F1${id16("A")}${id16("B")}${f16("100.000")}${f16("90.0000")}${f16("90.0000")}${f16("TS")}`,
+    `02TP${id16("B")}${f16("")}${f16("")}${f16("")}${f16("1.500")}${f16("STN")}`,
+    `03NM${f16("1.500")}`,
+    `07TP${id16("B")}${id16("A")}${f16("270.0000")}${f16("0.0000")}`,
+    `09F1${id16("B")}${id16("C")}${f16("100.000")}${f16("90.0000")}${f16("90.0000")}${f16("TS")}`,
+    `02TP${id16("C")}${f16("")}${f16("")}${f16("")}${f16("1.500")}${f16("STN")}`,
+    `03NM${f16("1.500")}`,
+    `07TP${id16("C")}${id16("B")}${f16("180.0000")}${f16("0.0000")}`,
+    `09F1${id16("C")}${id16("A")}${f16("141.441356")}${f16("90.0000")}${f16("45.0000")}${f16("TS")}`,
+  ].join("\n");
+  const traverseOf = (n: number) => ((calls[n]!.input.settings as { reduction: { traverse: Record<string, unknown> } }).reduction.traverse);
+
+  it("keeps the points as shot unless a rule is chosen, then records the rule with the import and in the version's note", async () => {
+    const plain = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }, { name: "job.sdr", content: sdr }] });
+    expect(plain.result).toMatchObject({ status: "done" });
+    expect(traverseOf(2)).toMatchObject({ start: "A", through: ["B", "C"], closesOn: "A", adjusted: null });
+    expect(String(calls.at(-1)!.input.note)).toBe("Drawn by AutoSurvey from 2 files");
+    const shotC = stored.find((p) => p.pointId === "C")!;
+
+    calls.length = 0;
+    stored.length = 0;
+    const adjusted = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }, { name: "job.sdr", content: sdr, adjust: "compass" }] });
+    expect(adjusted.result).toMatchObject({ status: "done" });
+    expect(traverseOf(2)).toMatchObject({ adjusted: { method: "compass", engine: "adjust/1.0.0" } });
+    expect(String(calls.at(-1)!.input.note)).toBe("Drawn by AutoSurvey from 2 files, the traverse adjusted by the compass rule (Bowditch) as chosen");
+    // C moved towards closing the loop, by under a centimetre in each direction.
+    const c = stored.find((p) => p.pointId === "C")!;
+    expect(c.e - shotC.e).toBeGreaterThan(0.005);
+    expect(c.e - shotC.e).toBeLessThan(0.01);
+    expect(stored.find((p) => p.pointId === "A")).toMatchObject({ e: 450100, n: 700100 });
+  });
+
+  it("stops before anything is saved when a rule is chosen for a file it can't adjust", async () => {
+    const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary, adjust: "transit" }] });
+    expect(r.result).toMatchObject({ status: "error", problems: [{ file: "boundary.csv", problem: expect.stringMatching(/adjusts only a Sokkia SDR job's traverse/) }] });
+    expect(calls).toEqual([]);
+  });
+});
+
+describe("The detailed import with a traverse (stage 231, ADR 0241)", () => {
+  const f16 = (s: string) => s.padEnd(16);
+  const id16 = (s: string) => s.padStart(16);
+  // The same SYNTHETIC loop as above, beside the boundary already imported.
+  const sdr = [
+    `00NM${f16("SDR33 V04-04.02")}${"".padEnd(4)}${f16("23-Nov-26 09:30")}111111`,
+    `01NM${" ".repeat(46)}1`,
+    `08KI${id16("BS")}${f16("700200.000")}${f16("450100.000")}${f16("20.000")}${f16("TS")}`,
+    `02TP${id16("A")}${f16("700100.000")}${f16("450100.000")}${f16("20.000")}${f16("1.500")}${f16("STN")}`,
+    `03NM${f16("1.500")}`,
+    `07TP${id16("A")}${id16("BS")}${f16("0.0000")}${f16("0.0000")}`,
+    `09F1${id16("A")}${id16("B")}${f16("100.000")}${f16("90.0000")}${f16("90.0000")}${f16("TS")}`,
+    `02TP${id16("B")}${f16("")}${f16("")}${f16("")}${f16("1.500")}${f16("STN")}`,
+    `03NM${f16("1.500")}`,
+    `07TP${id16("B")}${id16("A")}${f16("270.0000")}${f16("0.0000")}`,
+    `09F1${id16("B")}${id16("C")}${f16("100.000")}${f16("90.0000")}${f16("90.0000")}${f16("TS")}`,
+    `02TP${id16("C")}${f16("")}${f16("")}${f16("")}${f16("1.500")}${f16("STN")}`,
+    `03NM${f16("1.500")}`,
+    `07TP${id16("C")}${id16("B")}${f16("180.0000")}${f16("0.0000")}`,
+    `09F1${id16("C")}${id16("A")}${f16("141.441356")}${f16("90.0000")}${f16("45.0000")}${f16("TS")}`,
+  ].join("\n");
+  const input = { projectId: "11111111-1111-4111-8111-111111111111", fileName: "job.sdr", content: sdr, format: "sdr" as const, delimiter: "," as const, hasHeader: false, columns: ["point", "easting", "northing"] as ("point" | "easting" | "northing")[], units: "metre" as const, crsId: "EPSG:5235" };
+
+  it("adjusts only by the rule chosen, records it with the import and says it in the version's note", async () => {
+    // The boundary is already in the project, so importing the job draws the plan.
+    stored.push(...["1,450000.000,700000.000,CP", "2,450040.000,700000.000,CP", "3,450040.000,700030.000,St", "4,450000.000,700030.000,St"].map((l) => {
+      const [pointId, e, n, code] = l.split(",");
+      return { pointId: pointId!, e: Number(e), n: Number(n), z: null, code: code! };
+    }));
+    const first = await importSurveyPointsAction({ ...input, adjust: "compass" });
+    expect(first).toMatchObject({ status: "done", version: 2 });
+    const settings = calls.find((c) => c.kind === "import")!.input.settings as { reduction: { traverse: { adjusted: { method: string } } } };
+    expect(settings.reduction.traverse.adjusted.method).toBe("compass");
+    expect(String(calls.find((c) => c.kind === "draw")!.input.note)).toBe("Drawn from job.sdr, the traverse adjusted by the compass rule (Bowditch) as chosen");
+
+    calls.length = 0;
+    await importSurveyPointsAction({ ...input, fileName: `${"x".repeat(196)}.sdr`, adjust: "transit" });
+    // A long name gives way: the note stays within the 200 characters a version holds, and still names the rule.
+    const note = String(calls.find((c) => c.kind === "draw")?.input.note ?? "");
+    expect(note.length).toBeLessThanOrEqual(200);
+    expect(note.endsWith("the traverse adjusted by the transit rule as chosen")).toBe(true);
+  });
+
+  it("refuses a rule chosen for a points file, with nothing saved", async () => {
+    const r = await importSurveyPointsAction({ ...input, fileName: "pts.csv", content: "1,450000,700000\n", format: "delimited", adjust: "compass" });
+    expect(r).toMatchObject({ status: "error", message: expect.stringContaining("Nothing was imported. You chose to adjust by the compass rule (Bowditch), and Farbaek adjusts only a Sokkia SDR job") });
+    expect(calls).toEqual([]);
   });
 });

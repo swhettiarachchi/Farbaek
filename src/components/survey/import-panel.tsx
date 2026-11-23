@@ -10,6 +10,7 @@ import { suggestColumns, type ColumnGuess } from "@/core/survey/import/columns";
 import { COLUMN_ORDERS, IMPORT_LIMITS, parseDelimited, previewDelimited, type ColumnOrder, type ColumnRole, type Delimiter, type ImportedPoint, type ImportIssue } from "@/core/survey/import/delimited";
 import { IMPORT_FORMATS, detectFormat, printoutSource, unreadableFile, type ImportFormat } from "@/core/survey/import/detect";
 import { readPoints } from "@/core/survey/import/read";
+import { ADJUST_NAMES, type AdjustMethod } from "@/core/survey/adjust";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { importSurveyPointsAction, type SurveyFormState } from "@/app/app/survey/actions";
 import { DrawnSummary } from "@/components/survey/draw-from-points";
@@ -17,6 +18,7 @@ import { ManualEntry } from "@/components/survey/manual-entry";
 import { useHandoff } from "@/components/survey/assistant/handoff";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PointsTable } from "@/components/survey/points-table";
+import { TraverseChoice } from "@/components/survey/traverse-choice";
 import { buttonClasses } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { LABEL_CLASSES, inputClasses, textareaClasses } from "@/components/ui/field";
@@ -76,6 +78,10 @@ export function ImportPanel({
   const [drawPlan, setDrawPlan] = useState(true);
   const [useDsr, setUseDsr] = useState<boolean | null>(null);
   const [encoding, setEncoding] = useState<string | null>(null);
+  // The rule chosen for a traverse that closes (ADR 0241): none until the surveyor picks one, and cleared with a new file.
+  const [adjust, setAdjust] = useState<AdjustMethod | null>(null);
+  // The rule counts only while the file is read as a Sokkia SDR job: another format, a typed table or the assistant's rows never carry it.
+  const rule = format === "sdr" ? adjust : null;
   const [result, setResult] = useState<SurveyFormState & { issues?: ImportIssue[] }>({ status: "idle" });
   const [pending, start] = useTransition();
   // Rows the drafting assistant read from what was said (stage 195): shown in the typed table for checking, never imported unseen.
@@ -108,6 +114,7 @@ export function ImportPanel({
       setUseDsr(null);
       setEncoding(null);
       setFormatChosen(false);
+      setAdjust(null);
     }
     const f = !fresh && formatChosen ? format : detectFormat(name || "pasted-points.txt", content);
     const changed = f !== format;
@@ -121,6 +128,7 @@ export function ImportPanel({
     setFormat(f);
     setFormatChosen(true);
     setConfirmUnits(false);
+    setAdjust(null);
     if (f === "delimited") guessColumns(text);
     else setGuess(null);
   };
@@ -152,14 +160,14 @@ export function ImportPanel({
     if (!text || unreadable) return null;
     if (format !== "delimited") {
       // Formats that say what each value is (GeoJSON, GSI): no columns to map, the points as read.
-      const r = readPoints(format, text, { delimiter, hasHeader, columns, crs, known });
-      return { rows: r.points.slice(0, 8).map((p) => [p.pointId, metres(p.e), metres(p.n), p.z === null ? "" : metres(p.z), p.code ?? ""]), header: ["Point", "Easting", "Northing", "Elevation", "Code"], parsed: r };
+      const r = readPoints(format, text, { delimiter, hasHeader, columns, crs, known, adjust: rule });
+      return { rows: r.points.slice(0, 8).map((p) => [p.pointId, metres(p.e), metres(p.n), p.z === null ? "" : metres(p.z), p.code ?? ""]), header: ["Point", "Easting", "Northing", "Elevation", "Code"], parsed: r, closure: r.reduction?.traverse ?? null };
     }
     const p = previewDelimited(text);
-    if ("error" in p) return { rows: [], header: [], parsed: { points: [] as ImportedPoint[], issues: [p.error] } };
+    if ("error" in p) return { rows: [], header: [], parsed: { points: [] as ImportedPoint[], issues: [p.error] }, closure: null };
     const parsed = parseDelimited(text, { delimiter, hasHeader, columns });
-    return { rows: p.rows.slice(0, 8), header: p.header, parsed };
-  }, [text, unreadable, format, delimiter, hasHeader, columns, crs, known]);
+    return { rows: p.rows.slice(0, 8), header: p.header, parsed, closure: null };
+  }, [text, unreadable, format, delimiter, hasHeader, columns, crs, known, rule]);
 
   const points = useMemo(() => asPoints(preview?.parsed.points ?? []), [preview]);
   // A file written in the Survey Department's codes (DSR Chapter XXII): offer its list for drawing this plan.
@@ -189,13 +197,14 @@ export function ImportPanel({
   // Everything else a reader wants the surveyor to know: a field book's closure, records left out, a display setting.
   const notes = warnings.filter((w) => !(w.code === "DUPLICATE_POINT_SAME" && w.line !== null));
   const count = preview?.parsed.points.length ?? 0;
+  const closure = preview?.closure ?? null;
   const columnCount = Math.max(columns.length, ...(preview?.rows.map((r) => r.length) ?? [0]));
   const latLong = guess?.latLong ?? false;
   const willDraw = drawPlan && !planHasLots;
 
   const submit = () =>
     start(async () => {
-      const r = await importSurveyPointsAction({ projectId, fileName: fileName || "pasted-points.txt", content: text, format, delimiter, hasHeader, columns, units: "metre", crsId, drawPlan: willDraw, codeList: dsrOn ? "dsr" : "project" });
+      const r = await importSurveyPointsAction({ projectId, fileName: fileName || "pasted-points.txt", content: text, format, delimiter, hasHeader, columns, units: "metre", crsId, drawPlan: willDraw, codeList: dsrOn ? "dsr" : "project", adjust: rule });
       setResult(r);
       if (r.status === "done") {
         clearHandoff();
@@ -203,6 +212,7 @@ export function ImportPanel({
         setFileName("");
         setGuess(null);
         setConfirmUnits(false);
+        setAdjust(null);
       }
     });
 
@@ -219,6 +229,7 @@ export function ImportPanel({
     setConfirmUnits(false);
     setEncoding(null);
     setUseDsr(null);
+    setAdjust(null);
   };
 
   return (
@@ -440,6 +451,18 @@ export function ImportPanel({
               ))}
             </ul>
           ) : null}
+          {/* Still offered when the chosen rule can't be used, so the surveyor can choose again (ADR 0241). */}
+          {format === "sdr" && (adjust !== null || closure) ? (
+            <TraverseChoice
+              value={adjust}
+              onChange={(m) => {
+                setAdjust(m);
+                // What the confirmation below says changes with the rule, so it's asked again.
+                setConfirmUnits(false);
+              }}
+              disabled={pending}
+            />
+          ) : null}
           {errors.length > 0 ? (
             <ul className="grid max-h-48 gap-1 overflow-y-auto rounded-md bg-surface p-3 text-sm ring-1 ring-line">
               {errors.slice(0, 50).map((x, i) => (
@@ -454,7 +477,7 @@ export function ImportPanel({
           <div className="grid gap-2">
             <label className="flex min-h-11 items-start gap-3 rounded-sm border border-line bg-canvas-2 p-3 text-sm text-ink">
               <input type="checkbox" checked={confirmUnits} onChange={(e) => setConfirmUnits(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
-              <span>These coordinates are in metres, in {crsName}{format === "delimited" ? ", and the columns are read right" : ""}. Farbaek stores them exactly as written and never converts, moves or rounds them.</span>
+              <span>These coordinates are in metres, in {crsName}{format === "delimited" ? ", and the columns are read right" : ""}.{rule ? ` Farbaek never converts or rounds them. The traverse's points are placed by ${ADJUST_NAMES[rule]}, as you chose, and the file keeps the observations as shot.` : " Farbaek stores them exactly as written and never converts, moves or rounds them."}</span>
             </label>
             {dsrOffered ? (
               <label className="flex min-h-11 items-start gap-3 p-3 text-sm text-ink">

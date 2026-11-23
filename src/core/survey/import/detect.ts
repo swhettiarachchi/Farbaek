@@ -15,8 +15,8 @@ export type ImportFormat = "delimited" | "geojson" | "gsi" | "sdr" | "landxml" |
 export const IMPORT_FORMATS: { id: ImportFormat; label: string; extensions: readonly string[]; detail: string }[] = [
   { id: "delimited", label: "Point file (CSV, TXT or DAT)", extensions: [".csv", ".txt", ".dat", ".pnezd", ".penzd", ".xyz", ".asc"], detail: "Point number, coordinates, elevation and code, separated by commas, tabs, semicolons or spaces. PNEZC, as the Survey Department asks, and CASS .dat files included." },
   { id: "geojson", label: "GeoJSON points", extensions: [".geojson", ".json"], detail: "Points with a named EPSG coordinate system. Longitude and latitude can't be used yet." },
-  { id: "gsi", label: "Leica GSI (GSI-8 or GSI-16)", extensions: [".gsi"], detail: "Point numbers with easting, northing and height (words 11, 81 to 83) and a remark or code on the same line." },
-  { id: "sdr", label: "Sokkia SDR (SDR2x or SDR33)", extensions: [".sdr"], detail: "Coordinate records (08) and stations (02), in metres." },
+  { id: "gsi", label: "Leica GSI (GSI-8 or GSI-16)", extensions: [".gsi"], detail: "Point numbers with easting, northing and height (words 11, 81 to 83) and a remark or code, and stations with their shots, worked out by radiation from each station." },
+  { id: "sdr", label: "Sokkia SDR (SDR2x or SDR33)", extensions: [".sdr"], detail: "Coordinate records (08), stations (02) and the instrument's observations (09, 11), in metres. Observations are worked out by radiation, and a traverse that closes can be adjusted by the rule you choose." },
   { id: "landxml", label: "LandXML", extensions: [".xml", ".landxml"], detail: "CgPoints: northing, easting and elevation, with their names and codes." },
   { id: "jobxml", label: "Trimble JobXML", extensions: [".jxl", ".jobxml"], detail: "The job's final grid coordinates, from its reductions." },
   { id: "fieldbook", label: "Bearings and distances (field book)", extensions: [], detail: "Points worked out from a starting point by whole-circle bearings and horizontal distances, unadjusted; a leg onto a known point is a check." },
