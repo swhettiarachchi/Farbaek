@@ -96,6 +96,10 @@ export type ImportIssueCode =
   | "RECORDS_LEFT_OUT"
   /** A point stored again with new values, where the format's own rule is that the later record replaces the earlier. */
   | "DUPLICATE_POINT_REPLACED"
+  /** Points worked out from a total station's observations, and how (ADR 0236). */
+  | "OBSERVATIONS_REDUCED"
+  /** A point worked out twice (given in the file and shot, or shot from two stations), and how far apart. */
+  | "OBSERVATION_CHECK"
   /** A field book's legs closing on a known point: the misclosure, never adjusted. */
   | "CLOSURE"
   /** Something in the file to check by eye: mixed GSI widths, an instrument display setting. */

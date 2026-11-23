@@ -11,6 +11,7 @@
 import { z } from "zod";
 import { bearingFromDeltas, formatDms, parseBearing, toDms } from "../angles";
 import type { CrsRecord } from "../crs";
+import { gridScaleFactor } from "../scale";
 import { hasInvisible } from "../import/delimited";
 import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
@@ -125,18 +126,13 @@ function bearingHalfUnit(text: string): number {
   return (unit * 10 ** -decimals) / 2;
 }
 
-/** Mean radius of the Everest 1830 ellipsoid, rounded: only for telling ground from grid in a comparison. */
-const EARTH_RADIUS_M = 6_377_000;
-
 /**
  * Grid distance divided by this gives the ground distance, roughly: the projection's scale where the line is, and the height of the
- * land. Used only to accept a taped distance that differs from the grid distance by the grid's own scale; nothing is converted.
+ * land (`gridScaleFactor`, shared with the reduction of observations). Used here only to accept a taped distance that differs from
+ * the grid distance by the grid's own scale; nothing is converted.
  */
 export function groundFactor(crs: CrsRecord, e: number, heightM: number | null): number {
-  if (!crs.tm) return 1;
-  const x = (e - crs.tm.falseEasting) / crs.tm.k0;
-  const pointScale = crs.tm.k0 * (1 + (x * x) / (2 * EARTH_RADIUS_M * EARTH_RADIUS_M));
-  return pointScale * (EARTH_RADIUS_M / (EARTH_RADIUS_M + (heightM ?? 0)));
+  return gridScaleFactor(crs, e, heightM);
 }
 
 /**

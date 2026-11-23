@@ -47,7 +47,8 @@ async function decode(file: File): Promise<{ content: string; encoding: string |
 function summary(r: FileRead): string {
   const codes = [...new Set(r.points.map((p) => (p.code ?? "").trim()).filter(Boolean))];
   const shown = codes.slice(0, 6).join(", ");
-  return `${r.formatLabel}, ${r.points.length} ${r.points.length === 1 ? "point" : "points"}${codes.length ? `, codes ${shown}${codes.length > 6 ? " and more" : ""}` : ", no codes"}.`;
+  const worked = r.reduction ? ` ${r.reduction.points} of them worked out from the instrument's observations, from ${r.reduction.stations} ${r.reduction.stations === 1 ? "station" : "stations"}.` : "";
+  return `${r.formatLabel}, ${r.points.length} ${r.points.length === 1 ? "point" : "points"}${codes.length ? `, codes ${shown}${codes.length > 6 ? " and more" : ""}` : ", no codes"}.${worked}`;
 }
 
 /**
@@ -273,6 +274,17 @@ export function AutoSurveyStart({
                 </div>
                 <p className="text-sm text-ink-2">{state(u).text}</p>
                 {u.kind === "survey-data" && u.encoding ? <p className="text-sm text-ink-3">{u.encoding}</p> : null}
+                {/* How points were worked out from observations, and their checks: said, as the reader wrote them (ADR 0236). */}
+                {u.kind === "survey-data" && u.read?.reduction
+                  ? u.read.notes
+                      .filter((n) => n.code === "OBSERVATIONS_REDUCED" || n.code === "OBSERVATION_CHECK" || n.code === "RECORDS_LEFT_OUT")
+                      .slice(0, 4)
+                      .map((n, i) => (
+                        <p key={i} className="text-sm text-ink-3">
+                          {n.message}
+                        </p>
+                      ))
+                  : null}
               </div>
               <button type="button" onClick={() => remove(u.key)} aria-label={`Remove ${u.name}`} className="tap -mr-1 inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-canvas-2 hover:text-ink">
                 <XIcon size={16} weight="bold" aria-hidden />
