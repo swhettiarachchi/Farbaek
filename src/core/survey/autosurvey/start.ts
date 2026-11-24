@@ -12,7 +12,7 @@ import { suggestColumns } from "../import/columns";
 import { IMPORT_LIMITS, previewDelimited, type ColumnRole, type Delimiter, type ImportedPoint, type ImportIssue } from "../import/delimited";
 import { IMPORT_FORMATS, detectFormat, unreadableFile, type ImportFormat } from "../import/detect";
 import { readPoints, type PointsRead } from "../import/read";
-import type { AdjustMethod } from "../adjust";
+import type { AdjustMethod, InstrumentPrecision } from "../adjust";
 
 /** What an uploaded file is to AutoSurvey. */
 export type UploadKind = "survey-data" | "sketch" | "document" | "unreadable";
@@ -65,7 +65,7 @@ const NO_COLUMNS: ColumnRole[] = ["point", "easting", "northing"];
  * Reads one survey file with the tested readers, choosing the settings the file itself settles. A points file whose columns the
  * file doesn't settle (no header and two orders fit the grid) isn't guessed: it is a problem with the question to answer.
  */
-export function readSurveyFile(name: string, text: string, crs: CrsRecord | null, adjust: AdjustMethod | null = null): FileReadResult {
+export function readSurveyFile(name: string, text: string, crs: CrsRecord | null, adjust: AdjustMethod | null = null, precision: InstrumentPrecision | null = null): FileReadResult {
   if (text.length > IMPORT_LIMITS.maxBytes) return { ok: false, name, problem: `This file is larger than ${IMPORT_LIMITS.maxBytes / 1024 / 1024} MB. Split it, or export only this survey's points.` };
   if (text.trim() === "") return { ok: false, name, problem: "This file is empty." };
   const unreadable = unreadableFile(name, text);
@@ -90,7 +90,7 @@ export function readSurveyFile(name: string, text: string, crs: CrsRecord | null
   }
   // A field book's legs need points already in a project; a new start has none, so they must be in the same book.
   // A traverse is adjusted only by the rule the surveyor chose for this file (ADR 0241).
-  const result = readPoints(format, text, { delimiter, hasHeader, columns, crs, known: [], adjust });
+  const result = readPoints(format, text, { delimiter, hasHeader, columns, crs, known: [], adjust, precision });
   const errors = result.issues.filter((i) => i.severity === "error");
   if (errors.length > 0) {
     const first = errors[0]!;

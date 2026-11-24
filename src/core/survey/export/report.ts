@@ -9,7 +9,7 @@
  * It certifies nothing, and says so: the licensed surveyor certifies a plan by signing the printed sheet.
  */
 import { z } from "zod";
-import { ADJUST_NAMES, ADJUST_METHODS, precisionText } from "../adjust";
+import { ADJUST_NAMES, ADJUST_METHODS, precisionText, weighedBy } from "../adjust";
 import { HALF_MM } from "../import/closure";
 import type { SurveyDocument } from "../document";
 import type { Finding, Severity } from "../qc";
@@ -66,7 +66,22 @@ const traverseSchema = z.object({
   length: z.number().min(0),
   misclosure: z.object({ dE: z.number(), dN: z.number(), linear: z.number().min(0) }),
   precision: z.number().positive().nullable(),
-  adjusted: z.object({ method: z.enum(ADJUST_METHODS), engine: z.string().max(40), largest: z.number().min(0) }).nullable(),
+  adjusted: z
+    .object({
+      method: z.enum(ADJUST_METHODS),
+      engine: z.string().max(40),
+      largest: z.number().min(0),
+      // Least squares' fit and what it weighed by (ADR 0274), so the report says which precision was used.
+      stats: z
+        .object({
+          sigma0: z.number().min(0),
+          passes: z.boolean(),
+          side: z.enum(["low", "high"]).nullable().optional(),
+          precision: z.object({ angleSeconds: z.number().positive(), distanceMm: z.number().positive(), distancePpm: z.number().min(0), instrument: z.string().max(120).optional() }),
+        })
+        .optional(),
+    })
+    .nullable(),
 });
 const reductionSchema = z.object({ engine: z.string().max(40), points: z.number().int().min(0), stations: z.number().int().min(0), traverse: traverseSchema.nullable().optional() });
 
@@ -85,7 +100,9 @@ export function sourceNotes(settings: Record<string, unknown>): string[] {
     // Below half a millimetre the figures round to nothing: said as the import says it.
     const closed = t.precision === null ? "exactly" : t.misclosure.linear < HALF_MM ? "within half a millimetre" : `with a misclosure of ${metres(t.misclosure.linear)} (${metres(t.misclosure.dE)} east, ${metres(t.misclosure.dN)} north), ${precisionText(t.precision)}`;
     out.push(`Traverse from ${t.start} through ${plural(t.stations, "station", "stations")}, closing on ${t.closesOn}, ${metres(t.length)} long: it closed ${closed}.`);
-    out.push(t.adjusted ? `Adjusted by ${ADJUST_NAMES[t.adjusted.method]}, as the surveyor chose (${t.adjusted.engine}); the largest correction was ${metres(t.adjusted.largest)}.` : "Not adjusted: the points are where the observations put them.");
+    const s = t.adjusted?.stats;
+    const fit = s ? ` Weighted for ${weighedBy(s.precision)}; σ0 ${s.sigma0.toFixed(2)}, ${s.passes ? "within" : s.side === "low" ? "below" : "above"} the χ² test's range at 95%.` : "";
+    out.push(t.adjusted ? `Adjusted by ${ADJUST_NAMES[t.adjusted.method]}, as the surveyor chose (${t.adjusted.engine}); the largest correction was ${metres(t.adjusted.largest)}.${fit}` : "Not adjusted: the points are where the observations put them.");
   }
   return out;
 }

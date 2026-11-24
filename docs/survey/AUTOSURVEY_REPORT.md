@@ -6,7 +6,7 @@ The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, af
 - **Partly built.**
 - **Not built.**
 
-Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-266.md`, and each decision in ADRs 0233 to 0273.
+Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-267.md`, and each decision in ADRs 0233 to 0274.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -127,12 +127,13 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
   - slope to horizontal and vertical;
   - the grid scale factor with height.
 - A traverse's linear misclosure and precision, and the compass and transit rules (ADR 0241).
+- Least squares on a traverse, weighted by the office profile's total station or a typical one, said as such, with σ0, the χ² test, the largest residuals and each station's standard deviation (ADR 0274).
 - Lot subdivision by a dividing line (`partition.ts`).
 - The stated extent read and compared with the computed area.
 - The circle through a curve's surveyed points, its fit (2 cm), chords for the sheet and exact DXF bulges (`arcs.ts`, ADR 0247).
 
 **Not built:**
-- least squares, and balancing angles before a linear rule;
+- balancing angles before a linear rule, and least squares over networks of more than one traverse;
 - curved lot boundaries and their areas;
 - transformations between coordinate systems;
 - earth curvature and refraction on heights. This last one is said wherever heights are worked out.
@@ -257,7 +258,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #320 | 263 (an independent AI check against the sketch) | Merged, live (build 3a8db8f6ff3e) | none |
 | #321 | 264 (points where two lines meet, tape offsets) | Open | none |
 | #322 | 265 (dimension lines, words with their own size and angle) | Open, on #321 | none |
-| next | 266 (leader lines for crowded legs, built as 251 and parked) | Open, on #322 | none |
+| #323 | 266 (leader lines for crowded legs, built as 251 and parked) | Open, on #322 | none |
+| next | 267 (least squares, the instrument's precision in the office profile) | Open, on #323 | none |
 
 Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
@@ -266,7 +268,7 @@ Production deploys main by itself. **v102 and v103 were found missing on 2026-11
 **Not built:**
 - **Labels and layout:** multi-sheet layout; leader lines in the DXF (the sheet and PDF have them since stage 266, ADR 0259). Crowded legs can still be left to the schedule (stage 240) where even leaders don't fit.
 - **Codes:** curved lot boundaries (curves are drawn on lines, not lots, since a lot's area would change); a curve's radius and length on the plan; offsets, rectangles and jogs; a firm's own word list.
-- **Computation:** least squares; balancing angles first; adjusting a field book's legs.
+- **Computation:** least squares over networks and with heights; balancing angles first; adjusting a field book's legs.
 - **Profiles:** learning from corrections (suggestions kept apart until approved), CAD layer and text styles, title-block fields other than the statement, plan numbering.
 - **Jobs:** finishing a cut-off sketch read without the browser that started it (since stage 250 the photos stay in that browser until the read is saved, and the project offers to finish it); server-side resumable uploads in chunks; a timer for the jobs sweep. Incremental regeneration is decided, not built (ADR 0258): the plan is worked out again in about 5 ms, and tests hold that a correction changes only what depends on it.
 - **Files:** reading PDFs, Word files and DWG, and a DXF's lines; Topcon raw files; keeping a camera's full-size original.

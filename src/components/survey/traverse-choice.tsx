@@ -1,20 +1,31 @@
 "use client";
 
 import { CheckIcon } from "@phosphor-icons/react";
-import type { AdjustMethod } from "@/core/survey/adjust";
+import type { AdjustMethod, InstrumentPrecision } from "@/core/survey/adjust";
 
 const CHOICES: { value: AdjustMethod | null; label: string; hint: string }[] = [
   { value: null, label: "Keep as shot", hint: "The points stay where the observations put them, and the misclosure is only reported." },
   { value: "compass", label: "Compass rule", hint: "Bowditch: each station moves in proportion to its distance along the traverse. Suits angles and distances measured with similar care." },
   { value: "transit", label: "Transit rule", hint: "Eastings and northings are corrected in proportion to their own sizes. Suits angles measured with more care than distances." },
+  {
+    value: "least_squares",
+    label: "Least squares",
+    hint: "Angles and distances adjusted together, each weighted by a typical total station's precision (5″ a direction, 2 mm + 2 ppm a distance). It says how well they fit that precision, and how sure each station is.",
+  },
 ];
+
+/** Least squares' hint when the office profile states its total station's precision (ADR 0274). */
+const ownPrecision = (p: InstrumentPrecision) =>
+  `Angles and distances adjusted together, each weighted by the precision your office profile gives for the ${p.instrument ?? "total station"} (${p.angleSeconds}″ a direction, ${p.distanceMm} mm + ${p.distancePpm} ppm a distance). It says how well they fit that precision, and how sure each station is.`;
 
 /**
  * How to treat a traverse that closes on a known point (stage 231, ADR 0241): kept as shot unless the surveyor chooses a rule. The
  * closure itself is said by the reader's note beside this; Farbaek doesn't judge whether it's good enough for the survey's class.
  */
-export function TraverseChoice({ value, onChange, disabled = false }: { value: AdjustMethod | null; onChange: (m: AdjustMethod | null) => void; disabled?: boolean }) {
+export function TraverseChoice({ value, onChange, disabled = false, precision }: { value: AdjustMethod | null; onChange: (m: AdjustMethod | null) => void; disabled?: boolean; precision?: InstrumentPrecision | null }) {
   const chosen = CHOICES.find((c) => c.value === value) ?? CHOICES[0]!;
+  // On the start screen (precision given, or null for none): the profile's own, or where to give it. Elsewhere, the typical one.
+  const hint = chosen.value !== "least_squares" || precision === undefined ? chosen.hint : precision ? ownPrecision(precision) : `${chosen.hint} An office profile can give the precision of the total station that made this file, and Generate Plan then weighs by it.`;
   return (
     <div className="grid gap-1.5">
       <p className="text-label font-medium text-ink-2">Adjust the traverse</p>
@@ -35,7 +46,7 @@ export function TraverseChoice({ value, onChange, disabled = false }: { value: A
         ))}
       </div>
       <p className="text-sm text-ink-3">
-        {chosen.hint} Whether the closure is good enough is for your survey&apos;s class to say: the unadjusted observations stay in the file either way.
+        {hint} Whether the closure is good enough is for your survey&apos;s class to say: the unadjusted observations stay in the file either way.
       </p>
     </div>
   );

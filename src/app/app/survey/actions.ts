@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { ADJUST_METHODS, ADJUST_NAMES } from "@/core/survey/adjust";
+import { ADJUST_METHODS, ADJUST_NAMES, weighedShort } from "@/core/survey/adjust";
 import { grammarForLibrary } from "@/core/survey/grammar";
 import { autoDraft } from "@/core/survey/autodraft";
 import { START_LIMITS, gridProblem, importOrder, importPointsOf, pointClashes, readSurveyFile, readTogether, startName, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
 import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
 import { withDefaults } from "@/core/survey/autosurvey/defaults";
-import { officeProfileBodySchema, profileFromPlan, withProfile, type OfficeProfile } from "@/core/survey/profile";
+import { officeProfileBodySchema, profileFromPlan, profilePrecision, withProfile, type OfficeProfile } from "@/core/survey/profile";
 import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
 import { interpretDocument } from "@/core/survey/sketchintel/findings";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
@@ -200,8 +200,19 @@ export async function drawPlanFromPointsAction(input: { projectId: string }): Pr
 /** The version note's word on a traverse the surveyor chose to adjust (ADR 0241), so the plan's history says how its points were made. */
 function adjustedNote(reads: readonly FileRead[]): string {
   // The rules, not the file names: a version's note holds 200 characters.
-  const rules = [...new Set(reads.flatMap((r) => (r.reduction?.traverse?.adjusted ? [ADJUST_NAMES[r.reduction.traverse.adjusted.method]] : [])))];
+  // Least squares says what it weighed by (ADR 0274): "least squares (5″, 2 mm + 2 ppm, typical)".
+  const named = (a: NonNullable<NonNullable<NonNullable<FileRead["reduction"]>["traverse"]>["adjusted"]>) => (a.method === "least_squares" && a.stats ? `${ADJUST_NAMES[a.method]} (${weighedShort(a.stats.precision)})` : ADJUST_NAMES[a.method]);
+  const rules = [...new Set(reads.flatMap((r) => (r.reduction?.traverse?.adjusted ? [named(r.reduction.traverse.adjusted)] : [])))];
   return rules.length === 0 ? "" : `, the traverse adjusted by ${rules.join(" and ")} as chosen`;
+}
+
+/** The version's note, within its 200 characters: the profile's name is shortened to fit, never its version or the rules before it. */
+function versionNote(head: string, profile: OfficeProfile | null): string {
+  if (!profile) return head.slice(0, 200);
+  const tail = (name: string) => `, with the office profile "${name}" (version ${profile.version})`;
+  const room = 200 - head.length - tail("").length;
+  if (room >= profile.name.length) return head + tail(profile.name);
+  return room >= 8 ? head + tail(`${profile.name.slice(0, room - 1)}…`) : head.slice(0, 200);
 }
 
 const generateInput = z.object({
@@ -250,12 +261,21 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const g = await writer();
   if (!g.ok) return { status: "error", message: g.message, problems: [] };
 
+  // The office profile chosen (ADR 0256), read through row-level security before the files: least squares weighs a traverse by its
+  // total station's stated precision (ADR 0274), as the start screen showed.
+  let profile: OfficeProfile | null = null;
+  if (i.profileId) {
+    profile = (await loadOfficeProfiles(g.w.user, g.w.actor.orgId)).find((p) => p.id === i.profileId) ?? null;
+    if (!profile) return { status: "error", message: "That office profile isn't in this workspace any more. Choose another, or none, and generate again. Nothing was saved.", problems: [] };
+  }
+  const precision = profilePrecision(profile);
+
   const reads: FileRead[] = [];
   // Each read beside the text it came from: two files may share a name.
   const contents: string[] = [];
   const problems: StartProblem[] = [];
   for (const f of i.files) {
-    const r = readSurveyFile(f.name, f.content, crs, f.adjust);
+    const r = readSurveyFile(f.name, f.content, crs, f.adjust, precision);
     if (r.ok) {
       reads.push(r.read);
       contents.push(f.content);
@@ -267,14 +287,8 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   if (grid) problems.push(grid);
   if (problems.length > 0) return { status: "error", message: problems.length === 1 ? "One thing needs you before the plan can be drawn. Nothing was saved." : `${problems.length} things need you before the plan can be drawn. Nothing was saved.`, problems };
 
-  // The office profile chosen (ADR 0256), read through row-level security: its list taken as checked, its sheet and statement. Without
-  // one, a returning surveyor's own defaults (ADR 0237). An office code library uploaded with the files wins over either, and waits for
-  // its check.
-  let profile: OfficeProfile | null = null;
-  if (i.profileId) {
-    profile = (await loadOfficeProfiles(g.w.user, g.w.actor.orgId)).find((p) => p.id === i.profileId) ?? null;
-    if (!profile) return { status: "error", message: "That office profile isn't in this workspace any more. Choose another, or none, and generate again. Nothing was saved.", problems: [] };
-  }
+  // The office profile's list is taken as checked, with its sheet and statement. Without one, a returning surveyor's own defaults
+  // (ADR 0237). An office code library uploaded with the files wins over either, and waits for its check.
   // The surveyor's own carried defaults first, then the profile over them: a profile without a sheet or a code list keeps theirs.
   const carried = await loadStartingDefaults(g.w.user, g.w.actor.orgId, g.w.actor.userId);
   let document = withDefaults(emptyDocument(), { ...carried, ...(profile?.body.codes ? { codes: null, grammar: null } : {}), ...(profile?.body.sheet ? { settings: null } : {}) });
@@ -325,7 +339,7 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const drawing = await drawFromPoints(
     g.w,
     projectId,
-    `Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}${adjustedNote(reads)}${profile ? `, with the office profile "${profile.name}" (version ${profile.version})` : ""}`.slice(0, 200),
+    versionNote(`Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}${adjustedNote(reads)}`, profile),
     // The Survey Department's list replaces only the common one: never an office library or the surveyor's own checked list.
     codesAreCommonList(document.codes) && drawsWithDsrList(all, document.codes) ? "dsr" : "project",
     statedSurveyDate(reads),

@@ -85,7 +85,7 @@ describe("a total station job's traverse", () => {
     expect(at(r, "A")).toEqual(at(plain, "A"));
     expect(at(r, "BS")).toEqual(at(plain, "BS"));
     expect(at(r, "d3").z).toBe(at(plain, "d3").z);
-    expect(r.reduced!.traverse!.adjusted).toMatchObject({ method: "compass", engine: "adjust/1.0.0", largest: expect.closeTo(Math.hypot(kC, kC), 9) });
+    expect(r.reduced!.traverse!.adjusted).toMatchObject({ method: "compass", engine: "adjust/1.1.0", largest: expect.closeTo(Math.hypot(kC, kC), 9) });
     const closure = r.issues.find((i) => i.code === "TRAVERSE_CLOSURE")!.message;
     expect(closure).toBe(
       "The traverse from station A through B and C closes on point A 0.020 m out (easting -0.014 m, northing -0.014 m) over 341.44 m, 1 in 17,072. Adjusted by the compass rule (Bowditch), as you chose: the stations moved by up to 0.012 m, and the points shot from each station moved with it. Angles weren't balanced first, since the angular misclosure isn't worked out, and heights weren't adjusted.",
@@ -218,5 +218,21 @@ describe("a total station job's traverse", () => {
     // The same choice through the one entry point adjusts an SDR job.
     const sdr = readPoints("sdr", loop(), { delimiter: ",", hasHeader: false, columns: ["point", "easting", "northing"], crs: LOCAL ?? null, adjust: "compass" });
     expect(sdr.reduction?.traverse?.adjusted?.method).toBe("compass");
+  });
+
+  it("weighs least squares by a typical instrument and says so, or by the office profile's and names it (ADR 0274)", () => {
+    const note = (r: { issues: { code: string; message: string }[] }) => r.issues.find((x) => x.code === "TRAVERSE_CLOSURE")!.message;
+    const typical = parseSdr(loop(), LOCAL, "least_squares");
+    expect(note(typical)).toContain("5″ directions (7.1″ an angle) and 2 mm + 2 ppm distances, a typical total station's, not necessarily the one used");
+    expect(typical.reduced!.traverse!.adjusted).toMatchObject({ method: "least_squares", stats: { precision: { angleSeconds: 5 } } });
+    const own = { angleSeconds: 1, distanceMm: 1, distancePpm: 1, instrument: "Sokkia X" };
+    const r = readPoints("sdr", loop(), { delimiter: ",", hasHeader: false, columns: ["point", "easting", "northing"], crs: LOCAL ?? null, adjust: "least_squares", precision: own });
+    expect(note(r)).toContain("1″ directions (1.4″ an angle) and 1 mm + 1 ppm distances, as the office profile gives for the Sokkia X");
+    expect(note(r)).not.toContain("typical");
+    // A finer instrument makes the same 2 cm misclosure a worse fit.
+    expect(r.reduction!.traverse!.adjusted!.stats!.sigma0).toBeGreaterThan(typical.reduced!.traverse!.adjusted!.stats!.sigma0);
+    // The rule's other choices never read the precision.
+    const compass = parseSdr(loop(), LOCAL, "compass", own);
+    expect(note(compass)).not.toContain("office profile");
   });
 });

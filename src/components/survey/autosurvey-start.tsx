@@ -3,14 +3,14 @@
 import { ArrowCounterClockwiseIcon, CameraIcon, FileTextIcon, ImageIcon, InfoIcon, PencilSimpleIcon, UploadSimpleIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { readSketchesAction } from "@/app/app/survey/ai-actions";
 import { generateSurveyPlanAction, type GenerateState } from "@/app/app/survey/actions";
 import { commonCodes } from "@/core/survey/codes";
 import { CRS_REGISTRY, LOCAL_CRS, crsById } from "@/core/survey/crs";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { GRAMMAR, grammarForLibrary, type GrammarId } from "@/core/survey/grammar";
-import { profileSummary, resolveProfile, type OfficeProfile } from "@/core/survey/profile";
+import { profilePrecision, profileSummary, resolveProfile, type OfficeProfile } from "@/core/survey/profile";
 import { LIBRARY_LIMITS, libraryFor, librarySummary, looksLikeCodeLibrary, parseCodeLibrary } from "@/core/survey/codelib";
 import { START_LIMITS, gridProblem, importOrder, kindOfUpload, notReadYet, pointClashes, readSurveyFile, readTogether, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
 import type { AdjustMethod } from "@/core/survey/adjust";
@@ -233,7 +233,24 @@ export function AutoSurveyStart({
     setUploads((now) => reread(now, crsById(id)));
   };
 
-  const data = uploads.filter((u): u is Extract<Upload, { kind: "survey-data" }> => u.kind === "survey-data");
+  // The office profile, from the formats the files are in and the last choice (ADR 0256).
+  const formats = uploads.flatMap((u) => (u.kind === "survey-data" && u.read ? [u.read.format] : []));
+  const resolution = resolveProfile(profiles, { formats, lastChosen: lastProfile });
+  const profile = pick === "none" ? null : pick ? (profiles.find((p) => p.id === pick) ?? null) : resolution.chosen;
+  // What's shown is what Generate sends: a traverse adjusted by least squares is weighed by the profile's total station (ADR 0274).
+  const weight = useMemo(() => profilePrecision(profile), [profile]);
+  const shown = useMemo(
+    () =>
+      weight
+        ? uploads.map((u) => {
+            if (u.kind !== "survey-data" || u.adjust !== "least_squares") return u;
+            const r = readSurveyFile(u.name, u.content, crsById(crsId), u.adjust, weight);
+            return r.ok ? { ...u, read: r.read, problem: null } : { ...u, read: null, problem: r.problem };
+          })
+        : uploads,
+    [uploads, weight, crsId],
+  );
+  const data = shown.filter((u): u is Extract<Upload, { kind: "survey-data" }> => u.kind === "survey-data");
   const reads = data.flatMap((u) => (u.read ? [u.read] : []));
   const points = reads.flatMap((r) => r.points);
   const clashes = pointClashes(reads);
@@ -244,8 +261,6 @@ export function AutoSurveyStart({
   const grid = crs ? gridProblem(points, crs) : null;
   const problems = data.filter((u) => u.problem).length + clashes.length + (grid ? 1 : 0);
   const dataBytes = data.reduce((sum, u) => sum + u.content.length, 0);
-  const resolution = resolveProfile(profiles, { formats: reads.map((r) => r.format), lastChosen: lastProfile });
-  const profile = pick === "none" ? null : pick ? (profiles.find((p) => p.id === pick) ?? null) : resolution.chosen;
   // More than one profile and nothing to tell them apart: asked once, never guessed (ADR 0256).
   const mustChoose = profiles.length > 1 && pick === null && !resolution.chosen && data.length > 0;
   // A profile's library longer than a plan keeps: the codes the files use first are kept, and the rest said.
@@ -424,7 +439,7 @@ export function AutoSurveyStart({
 
       {uploads.length > 0 ? (
         <ul aria-label="Your files" className="grid gap-2">
-          {uploads.map((u) => (
+          {shown.map((u) => (
             <li key={u.key} className="flex items-start gap-3 rounded-md border border-line bg-surface p-3 shadow-e1 sm:p-4">
               <span aria-hidden className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-canvas-2 text-ink-2">
                 {u.kind === "sketch" ? <ImageIcon size={20} /> : <FileTextIcon size={20} />}
@@ -449,7 +464,7 @@ export function AutoSurveyStart({
                   : null}
                 {/* A traverse that closes: kept as shot unless the surveyor chooses a rule (ADR 0241). Still offered when the chosen rule
                     can't be used, so they can choose again. */}
-                {u.kind === "survey-data" && (u.adjust !== null || u.read?.reduction?.traverse) ? <TraverseChoice value={u.adjust} onChange={(m) => chooseAdjust(u.key, m)} disabled={pending || Boolean(drawn)} /> : null}
+                {u.kind === "survey-data" && (u.adjust !== null || u.read?.reduction?.traverse) ? <TraverseChoice value={u.adjust} onChange={(m) => chooseAdjust(u.key, m)} disabled={pending || Boolean(drawn)} precision={weight} /> : null}
               </div>
               <button type="button" onClick={() => remove(u.key)} aria-label={`Remove ${u.name}`} className="tap -mr-1 inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-canvas-2 hover:text-ink">
                 <XIcon size={16} weight="bold" aria-hidden />
