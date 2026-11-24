@@ -81,7 +81,7 @@ export function describeSelection(entity: string | null, plan: ReturnType<typeof
         ["Perimeter", `${fmt(p.perimeterM, 3)} m`],
         ["Corners", p.vertices.map((v) => v.pointId).join(", ")],
       ],
-      note: "Grid area by the coordinate method. Change its corners on the Lots step.",
+      note: "Grid area by the coordinate method. Change its corners below, as surveyed point numbers: the area, the legs and the checks follow.",
     };
   }
   if (entity.startsWith("road")) {
@@ -105,13 +105,13 @@ export function describeSelection(entity: string | null, plan: ReturnType<typeof
     if (!a) return null;
     const lot = doc.lots.find((l) => l.id === a.lot);
     const num = (id: string) => points.find((x) => x.id === id)?.pointId ?? "?";
-    return { title: "Adjoining land", rows: [["Text", a.text], ["Beside", lot ? `Lot ${lotName(lot)}, between ${num(a.from)} and ${num(a.to)}` : "No lot"]], note: "Change it on the Lots step." };
+    return { title: "Adjoining land", rows: [["Text", a.text], ["Beside", lot ? `Lot ${lotName(lot)}, between ${num(a.from)} and ${num(a.to)}` : "No lot"]], note: "Change the words below. Which side they're beside is set on the Lots step." };
   }
   if (entity.startsWith("feature:")) {
     const f = doc.features.find((x) => `feature:${x.id}` === entity);
     if (!f) return null;
     const names = f.points.map((id) => points.find((x) => x.id === id)?.pointId ?? "?");
-    return { title: `${LAYER_NAMES[f.layer]} ${f.code}`.trim(), rows: [["Points", names.join(", ")], ["Shape", f.closed ? "Closed outline" : "Open line"]], note: "Change features on the Lots step." };
+    return { title: `${LAYER_NAMES[f.layer]} ${f.code}`.trim(), rows: [["Points", names.join(", ")], ["Shape", f.closed ? "Closed outline" : "Open line"]], note: "Change it below, or on the Lots step. Its points are always surveyed points." };
   }
   return null;
 }
