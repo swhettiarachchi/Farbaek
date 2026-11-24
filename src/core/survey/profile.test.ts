@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { commonCodes, type CodeEntry } from "./codes";
 import { DEFAULT_STATEMENT, emptyDocument } from "./document";
-import { officeProfileBodySchema, profileFromPlan, profileSummary, readOfficeProfile, resolveProfile, withProfile, type OfficeProfile, type OfficeProfileBody } from "./profile";
+import { officeProfileBodySchema, precisionFromText, profileFromPlan, profilePrecision, profileSummary, readOfficeProfile, resolveProfile, withProfile, type OfficeProfile, type OfficeProfileBody } from "./profile";
 
 const body = (o: Partial<OfficeProfileBody> = {}): OfficeProfileBody => ({ crsId: "EPSG:5235", equipment: [], codes: null, sheet: null, statement: "", ...o });
 const profile = (id: string, o: Partial<OfficeProfileBody> = {}): OfficeProfile => ({ id, name: `Profile ${id}`, version: 1, body: body(o), updatedAt: "2026-11-24T00:00:00Z" });
@@ -87,5 +87,45 @@ describe("what a new plan takes from a profile", () => {
 
   it("says what a profile holds in a sentence", () => {
     expect(profileSummary(SOKKIA)).toBe("SLD99 / Sri Lanka Grid 1999; Sokkia CX-105; Farbaek's code list; Farbaek's sheet.");
+    const stated = profile("p", { equipment: [{ ...SOKKIA.body.equipment[0]!, precision: { angleSeconds: 3, distanceMm: 2, distancePpm: 2 } }] });
+    expect(profileSummary(stated)).toBe("SLD99 / Sri Lanka Grid 1999; Sokkia CX-105 (3″, 2 mm + 2 ppm); Farbaek's code list; Farbaek's sheet.");
+  });
+});
+
+describe("a total station's stated precision (stage 267, ADR 0274)", () => {
+  const ts = (make: string, exports: ("sdr" | "gsi")[], precision?: { angleSeconds: number; distanceMm: number; distancePpm: number }) => ({ kind: "total_station" as const, make, model: "X", exports, ...(precision ? { precision } : {}) });
+  const P3 = { angleSeconds: 3, distanceMm: 2, distancePpm: 2 };
+  const P5 = { angleSeconds: 5, distanceMm: 3, distancePpm: 2 };
+
+  it("is kept with the instrument when given, and older profiles without it still read", () => {
+    expect(officeProfileBodySchema.safeParse(body({ equipment: [ts("Sokkia", ["sdr"], P3)] })).success).toBe(true);
+    expect(readOfficeProfile({ id: "x", name: "Old", version: 1, body: SOKKIA.body, updated_at: "t" })?.body.equipment[0]!.precision).toBeUndefined();
+    expect(officeProfileBodySchema.safeParse(body({ equipment: [ts("Sokkia", ["sdr"], { angleSeconds: 0, distanceMm: 2, distancePpm: 2 })] })).success).toBe(false);
+    expect(officeProfileBodySchema.safeParse(body({ equipment: [ts("Sokkia", ["sdr"], { angleSeconds: 5, distanceMm: 2, distancePpm: -1 })] })).success).toBe(false);
+  });
+
+  it("is read from the form as all three figures or none", () => {
+    expect(precisionFromText("", " ", "")).toEqual({ ok: true, value: null });
+    expect(precisionFromText("3", "2", "2")).toEqual({ ok: true, value: P3 });
+    expect(precisionFromText("1.5", "0.8", "1")).toEqual({ ok: true, value: { angleSeconds: 1.5, distanceMm: 0.8, distancePpm: 1 } });
+    expect(precisionFromText("3", "", "2").ok).toBe(false);
+    expect(precisionFromText("3″", "2", "2").ok).toBe(false);
+    expect(precisionFromText("90", "2", "2").ok).toBe(false);
+  });
+
+  it("weighs a file by the total station that exports it, else the only one that states one, never a guess between two", () => {
+    expect(profilePrecision(null)).toBeNull();
+    expect(profilePrecision(SOKKIA)).toBeNull();
+    const one = profile("1", { equipment: [ts("Sokkia", ["sdr"], P3)] });
+    expect(profilePrecision(one)).toEqual({ ...P3, instrument: "Sokkia X" });
+    // Two that state different figures: the one exporting the file's format.
+    const two = profile("2", { equipment: [ts("Sokkia", ["sdr"], P3), ts("Leica", ["gsi"], P5)] });
+    expect(profilePrecision(two, "sdr")).toEqual({ ...P3, instrument: "Sokkia X" });
+    // Neither exports it: two different figures, so none.
+    const other = profile("3", { equipment: [ts("Sokkia", ["gsi"], P3), ts("Leica", ["gsi"], P5)] });
+    expect(profilePrecision(other, "sdr")).toBeNull();
+    // A GNSS receiver or a level never weighs a traverse.
+    const gnss = profile("4", { equipment: [{ kind: "gnss", make: "Any", model: "RTK", exports: ["sdr"], precision: P3 }] });
+    expect(profilePrecision(gnss)).toBeNull();
   });
 });

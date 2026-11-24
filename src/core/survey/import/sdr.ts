@@ -30,7 +30,7 @@ import { codeProblem, guardFile, numberedLines, pointIdProblem } from "./common"
 import { IMPORT_LIMITS, readNumber, type ImportedPoint, type ImportIssue } from "./delimited";
 import { normaliseDegrees } from "../angles";
 import { CHECK_LIMIT_M, gap, reduceSetup, type ReducedPoint, type Setup, type Shot } from "./reduce";
-import { ADJUST_NAMES, type AdjustMethod } from "../adjust";
+import { ADJUST_NAMES, type AdjustMethod, type InstrumentPrecision } from "../adjust";
 import { COMPUTED_DERIVATIONS, CONTROL_DERIVATIONS, carriedShot, closeTraverse, type At, type ShotAt, type StationRecord, type TraverseClosure } from "./closure";
 
 export interface SdrRead {
@@ -67,8 +67,11 @@ const ANGLE_UNITS: Record<string, { name: string; toDegrees: (v: number) => numb
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** `adjust` is the rule the surveyor chose to spread a traverse's misclosure by (ADR 0241); without one, nothing is adjusted. */
-export function parseSdr(text: string, crs: CrsRecord | null = null, adjust: AdjustMethod | null = null): SdrRead {
+/**
+ * `adjust` is the rule the surveyor chose to spread a traverse's misclosure by (ADR 0241); without one, nothing is adjusted.
+ * `precision` is the instrument's, which least squares weighs by (ADR 0274); without one, a typical total station's, and it says so.
+ */
+export function parseSdr(text: string, crs: CrsRecord | null = null, adjust: AdjustMethod | null = null, precision: InstrumentPrecision | null = null): SdrRead {
   const guard = guardFile(text, "This is a binary file, not an SDR text file. Export the job from the instrument or Sokkia's software as an SDR33 or CSV file.");
   if (guard) return { points: [], issues: [guard], layout: null, reduced: null };
   const records = numberedLines(text)
@@ -329,7 +332,7 @@ export function parseSdr(text: string, crs: CrsRecord | null = null, adjust: Adj
     const k = derivation.get(id)!;
     if (k.station ? stations.get(id)?.from === null : CONTROL_DERIVATIONS.has(k.code)) control.set(id, g);
   }
-  const traverse = closeTraverse(stations, control, history, adjust);
+  const traverse = closeTraverse(stations, control, history, adjust, precision);
   if (!traverse.ok) return { points: [], issues: [...issues, traverse.issue], layout, reduced: null };
   const place = (p: ImportedPoint, from: string | null): ImportedPoint => {
     const at = traverse.place(p.pointId, p, from);

@@ -25,14 +25,16 @@ The owner's brief lists least squares among the calculations AutoSurvey doesn't 
   - σ0, the a posteriori standard deviation of unit weight, and whether r·σ0² passes the χ² test at 95% (0.0506 to 7.378 for r = 2);
   - the largest distance and angle residuals;
   - each station's standard deviation, scaled by σ0.
-- **The precision used is always said.** Until an instrument's own is kept with the office profile, it's a typical total station's: 5″ angles, 2 mm + 2 ppm distances. The note says so: "a typical total station's, not necessarily yours".
+- **The instrument's own precision, from the office profile:** a total station in an office profile may state its precision (angles in seconds, distances in mm plus ppm, as its specification gives them). Generate Plan weighs a file's traverse by the profile's total station that exports the file's format, else its only total station that states one. Two that state different figures, and none exports the format: neither is chosen.
+- **The precision used is always said.** The note names the instrument ("as your office profile gives for the Sokkia CX-105"), or, without one, says it's a typical total station's (5″ angles, 2 mm + 2 ppm distances), "not necessarily yours". The start screen reads the file with the same precision, so what it shows is what Generate sends, and the rule's hint says where to give the instrument's own.
+- **Stored as JSON in the profile's body,** which has no shape check in the database: no migration. Older profiles read as before, with no precision.
 - **The engine is `adjust/1.1.0`:** the compass and transit rules are unchanged, but the engine that records them has a new method.
 
 ## Consequences
 
 - A surveyor can adjust a traverse by the method practice expects for careful work, and is told plainly when the misclosure is bigger (or smaller) than the stated precision explains.
 - **Not yet:**
-  - the instrument's own precision in the office profile;
+  - the profile's precision for a file imported into an existing plan (the project doesn't record which profile it started from), so that import weighs by a typical instrument's and says so;
   - networks with more than one traverse or closing azimuths;
   - heights;
   - error ellipses on the sheet.
@@ -45,3 +47,5 @@ The owner's brief lists least squares among the calculations AutoSurvey doesn't 
   - **Independent check:** the adjusted stations' observations recomputed one by one give the σ0 reported, and a smaller weighted sum of squares than the compass rule's.
   - **Refusals:** a precision of nothing, and a leg of no length.
 - The traverse and Generate tests, with the engine's version.
+- **The instrument's precision:** the closure note names the office profile's instrument and never says "typical" when it's used; a finer instrument makes the same misclosure a worse fit; the compass rule never reads it; Generate reads it from the chosen profile on the server and records it with the closure.
+- **The profile:** precision kept with a total station, older profiles still read, out-of-range figures refused, the form's three figures all or none, and the choice between instruments (`profile.test.ts`).

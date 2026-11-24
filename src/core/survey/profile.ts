@@ -12,6 +12,7 @@
  * check, as before.
  */
 import { z } from "zod";
+import type { InstrumentPrecision } from "./adjust";
 import { CARRIED_SETTINGS, type CarriedSettings } from "./autosurvey/defaults";
 import { codeEntrySchema, codesAreCommonList, codesAreDsrList, type CodeEntry } from "./codes";
 import { libraryFor } from "./codelib";
@@ -27,14 +28,54 @@ export const EQUIPMENT_LABEL: Record<EquipmentKind, string> = { total_station: "
 
 const name = (max: number) => z.string().max(max).refine((s) => !/[\u0000-\u001f\u007f]/.test(s), "No control characters.");
 
+/**
+ * A total station's precision as its specification states it (ADR 0274): an angle's standard deviation in seconds, and a distance's in
+ * millimetres plus parts per million. Least squares weighs by it. The bounds hold every instrument made for survey work.
+ */
+export const precisionSchema = z.object({
+  angleSeconds: z.number().min(0.5).max(60),
+  distanceMm: z.number().min(0.1).max(50),
+  distancePpm: z.number().min(0).max(50),
+});
+
 export const equipmentSchema = z.object({
   kind: z.enum(EQUIPMENT_KINDS),
   make: name(40),
   model: name(60),
   /** The files this instrument's office software exports, by Farbaek's readers: how a profile is matched to an upload. */
   exports: z.array(z.enum(IMPORT_FORMAT_IDS)).max(IMPORT_FORMAT_IDS.length),
+  /** A total station's stated precision, when the surveyor gives it (stage 267). Older profiles have none. */
+  precision: precisionSchema.optional(),
 });
 export type Equipment = z.infer<typeof equipmentSchema>;
+
+/**
+ * The precision least squares weighs a file's traverse by: the profile's total station that exports the file's format and states
+ * one, else its only total station that states one. Never a choice between two that differ: then none, and the note says a typical
+ * instrument's was used.
+ */
+export function profilePrecision(profile: OfficeProfile | null, format: ImportFormat = "sdr"): InstrumentPrecision | null {
+  if (!profile) return null;
+  const stated = profile.body.equipment.filter((e) => e.kind === "total_station" && e.precision);
+  const exporting = stated.filter((e) => e.exports.includes(format as (typeof IMPORT_FORMAT_IDS)[number]));
+  const pool = exporting.length > 0 ? exporting : stated;
+  const key = (e: Equipment) => `${e.precision!.angleSeconds}/${e.precision!.distanceMm}/${e.precision!.distancePpm}`;
+  if (pool.length === 0 || new Set(pool.map(key)).size > 1) return null;
+  const e = pool[0]!;
+  const instrument = [e.make, e.model].map((s) => s.trim()).filter(Boolean).join(" ") || "total station";
+  return { ...e.precision!, instrument: pool.length === 1 ? instrument : "total stations" };
+}
+
+/** The three figures as typed on the profile form: all three, or none. */
+export function precisionFromText(angle: string, distance: string, ppm: string): { ok: true; value: z.infer<typeof precisionSchema> | null } | { ok: false; problem: string } {
+  const typed = [angle, distance, ppm].map((s) => s.trim());
+  if (typed.every((s) => s === "")) return { ok: true, value: null };
+  if (typed.some((s) => s === "")) return { ok: false, problem: "Give all three precision figures, or leave all three empty." };
+  const [a, d, p] = typed.map(Number);
+  const parsed = precisionSchema.safeParse({ angleSeconds: a, distanceMm: d, distancePpm: p });
+  if (!parsed.success) return { ok: false, problem: "Precision: angles from 0.5 to 60 seconds, distances from 0.1 to 50 mm plus 0 to 50 ppm, as the instrument's specification states." };
+  return { ok: true, value: parsed.data };
+}
 
 const sheetSchema = settingsSchema.pick(Object.fromEntries(CARRIED_SETTINGS.map((k) => [k, true])) as { [K in (typeof CARRIED_SETTINGS)[number]]: true });
 
@@ -125,7 +166,9 @@ export function profileSummary(p: OfficeProfile): string {
   const b = p.body;
   const parts = [
     b.crsId ? crsById(b.crsId)!.name : "no grid set",
-    b.equipment.length ? b.equipment.map((e) => [e.make, e.model].filter(Boolean).join(" ") || EQUIPMENT_LABEL[e.kind]).join(", ") : "no instruments",
+    b.equipment.length
+      ? b.equipment.map((e) => (([e.make, e.model].filter(Boolean).join(" ") || EQUIPMENT_LABEL[e.kind]) + (e.precision ? ` (${e.precision.angleSeconds}″, ${e.precision.distanceMm} mm + ${e.precision.distancePpm} ppm)` : ""))).join(", ")
+      : "no instruments",
     b.codes ? `${b.codes.entries.length} ${b.codes.entries.length === 1 ? "code" : "codes"}` : "Farbaek's code list",
     b.sheet ? `${b.sheet.template === "classic" ? "classic" : "panel"} sheet, ${b.sheet.paper === "auto" ? "paper to fit" : b.sheet.paper}` : "Farbaek's sheet",
   ];

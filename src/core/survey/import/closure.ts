@@ -104,7 +104,13 @@ export type ClosureResult =
  * Finds the traverse that closes, reports its closure, and when `method` is given, adjusts it. A method with nothing to adjust, or one
  * that doesn't apply, is refused rather than ignored: the surveyor asked for it.
  */
-export function closeTraverse(stations: ReadonlyMap<string, StationRecord>, control: ReadonlyMap<string, At>, shots: ReadonlyMap<string, readonly ShotAt[]>, method: AdjustMethod | null): ClosureResult {
+export function closeTraverse(
+  stations: ReadonlyMap<string, StationRecord>,
+  control: ReadonlyMap<string, At>,
+  shots: ReadonlyMap<string, readonly ShotAt[]>,
+  method: AdjustMethod | null,
+  instrument: InstrumentPrecision | null = null,
+): ClosureResult {
   // The stations from the control one the traverse starts at to `last`, or null when the chain doesn't reach control.
   const chain = (last: string): string[] | null => {
     const path = [last];
@@ -155,7 +161,7 @@ export function closeTraverse(stations: ReadonlyMap<string, StationRecord>, cont
   const miss = linear < HALF_MM ? `within half a millimetre over ${length.toFixed(2)} m` : `${linear.toFixed(3)} m out (easting ${signed(dE)}, northing ${signed(dN)}) over ${length.toFixed(2)} m, ${precisionText(precision)}`;
 
   if (!method) return { ...unchanged, closure, closesOn, issues: [{ code: "TRAVERSE_CLOSURE", severity: "warning", line: shot.line, message: `${route} ${miss}. Nothing was adjusted.` }] };
-  const r = adjustRun(legs, { dE, dN }, method);
+  const r = adjustRun(legs, { dE, dN }, method, instrument ?? DEFAULT_PRECISION);
   if (!r.ok) return { ok: false, issue: { code: "TRAVERSE_NOT_ADJUSTED", severity: "error", line: shot.line, message: `${route} ${miss}, and it can't be adjusted by ${ADJUST_NAMES[method]}: ${r.problem}` } };
 
   const own = new Map(r.corrections.map((c) => [c.station, c]));
@@ -195,7 +201,7 @@ export function closeTraverse(stations: ReadonlyMap<string, StationRecord>, cont
   const s = r.stats;
   const worstSd = s ? Math.max(0, ...s.stations.map((x) => Math.hypot(x.sE, x.sN))) : 0;
   const fit = s
-    ? ` Weighted for ${s.precision.angleSeconds}″ angles and ${s.precision.distanceMm} mm + ${s.precision.distancePpm} ppm distances${s.precision === DEFAULT_PRECISION ? " (a typical total station's, not necessarily yours)" : ""}: σ0 is ${s.sigma0.toFixed(2)}, ${s.passes ? "which passes the χ² test at 95%, so the misclosure is what that precision leads one to expect" : "which fails the χ² test at 95%, so the misclosure is more (or less) than that precision leads one to expect: check the observations, or the precision"}. The largest residuals are ${s.worstDistanceMm.toFixed(1)} mm on a distance and ${s.worstAngleSeconds.toFixed(1)}″ on an angle, and the least certain station has a standard deviation of ${(worstSd * 1000).toFixed(1)} mm.`
+    ? ` Weighted for ${s.precision.angleSeconds}″ angles and ${s.precision.distanceMm} mm + ${s.precision.distancePpm} ppm distances${s.precision === DEFAULT_PRECISION ? " (a typical total station's, not necessarily yours)" : s.precision.instrument ? `, as your office profile gives for the ${s.precision.instrument}` : ""}: σ0 is ${s.sigma0.toFixed(2)}, ${s.passes ? "which passes the χ² test at 95%, so the misclosure is what that precision leads one to expect" : "which fails the χ² test at 95%, so the misclosure is more (or less) than that precision leads one to expect: check the observations, or the precision"}. The largest residuals are ${s.worstDistanceMm.toFixed(1)} mm on a distance and ${s.worstAngleSeconds.toFixed(1)}″ on an angle, and the least certain station has a standard deviation of ${(worstSd * 1000).toFixed(1)} mm.`
     : "";
   const said = said0 + fit;
   return {

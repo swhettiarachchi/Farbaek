@@ -4,7 +4,7 @@
  * shape. The server reads the stored file again with this same code, so what
  * the surveyor previewed is what is imported.
  */
-import { ADJUST_NAMES, type AdjustMethod } from "../adjust";
+import { ADJUST_NAMES, type AdjustMethod, type InstrumentPrecision } from "../adjust";
 import type { CrsRecord } from "../crs";
 import type { TraverseClosure } from "./closure";
 import { parseDelimited, type ColumnRole, type Delimiter, type ImportedPoint, type ImportIssue } from "./delimited";
@@ -28,6 +28,8 @@ export interface ReadOptions {
   known?: readonly { pointId: string; e: number; n: number }[];
   /** The rule the surveyor chose to adjust a traverse by (ADR 0241): only an SDR job's traverse is adjusted, and only when chosen. */
   adjust?: AdjustMethod | null;
+  /** The instrument's precision least squares weighs by (ADR 0274), from the office profile; without it, a typical total station's. */
+  precision?: InstrumentPrecision | null;
 }
 
 export interface PointsRead {
@@ -49,7 +51,7 @@ export function readPoints(format: ImportFormat, text: string, o: ReadOptions): 
     return { points: r.points, issues: r.issues, surveyDate: null, reduction: r.reduced ? { engine: REDUCTION_ENGINE, ...r.reduced } : null };
   }
   if (format === "sdr") {
-    const r = parseSdr(text, o.crs, o.adjust ?? null);
+    const r = parseSdr(text, o.crs, o.adjust ?? null, o.precision ?? null);
     return { points: r.points, issues: r.issues, surveyDate: null, reduction: r.reduced ? { engine: REDUCTION_ENGINE, ...r.reduced } : null };
   }
   if (format === "landxml") return plain(parseLandXml(text));

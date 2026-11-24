@@ -10,7 +10,7 @@ import { START_LIMITS, gridProblem, importOrder, importPointsOf, pointClashes, r
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
 import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
 import { withDefaults } from "@/core/survey/autosurvey/defaults";
-import { officeProfileBodySchema, profileFromPlan, withProfile, type OfficeProfile } from "@/core/survey/profile";
+import { officeProfileBodySchema, profileFromPlan, profilePrecision, withProfile, type OfficeProfile } from "@/core/survey/profile";
 import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
 import { interpretDocument } from "@/core/survey/sketchintel/findings";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
@@ -250,12 +250,21 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const g = await writer();
   if (!g.ok) return { status: "error", message: g.message, problems: [] };
 
+  // The office profile chosen (ADR 0256), read through row-level security before the files: least squares weighs a traverse by its
+  // total station's stated precision (ADR 0274), as the start screen showed.
+  let profile: OfficeProfile | null = null;
+  if (i.profileId) {
+    profile = (await loadOfficeProfiles(g.w.user, g.w.actor.orgId)).find((p) => p.id === i.profileId) ?? null;
+    if (!profile) return { status: "error", message: "That office profile isn't in this workspace any more. Choose another, or none, and generate again. Nothing was saved.", problems: [] };
+  }
+  const precision = profilePrecision(profile);
+
   const reads: FileRead[] = [];
   // Each read beside the text it came from: two files may share a name.
   const contents: string[] = [];
   const problems: StartProblem[] = [];
   for (const f of i.files) {
-    const r = readSurveyFile(f.name, f.content, crs, f.adjust);
+    const r = readSurveyFile(f.name, f.content, crs, f.adjust, precision);
     if (r.ok) {
       reads.push(r.read);
       contents.push(f.content);
@@ -267,14 +276,8 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   if (grid) problems.push(grid);
   if (problems.length > 0) return { status: "error", message: problems.length === 1 ? "One thing needs you before the plan can be drawn. Nothing was saved." : `${problems.length} things need you before the plan can be drawn. Nothing was saved.`, problems };
 
-  // The office profile chosen (ADR 0256), read through row-level security: its list taken as checked, its sheet and statement. Without
-  // one, a returning surveyor's own defaults (ADR 0237). An office code library uploaded with the files wins over either, and waits for
-  // its check.
-  let profile: OfficeProfile | null = null;
-  if (i.profileId) {
-    profile = (await loadOfficeProfiles(g.w.user, g.w.actor.orgId)).find((p) => p.id === i.profileId) ?? null;
-    if (!profile) return { status: "error", message: "That office profile isn't in this workspace any more. Choose another, or none, and generate again. Nothing was saved.", problems: [] };
-  }
+  // The office profile's list is taken as checked, with its sheet and statement. Without one, a returning surveyor's own defaults
+  // (ADR 0237). An office code library uploaded with the files wins over either, and waits for its check.
   // The surveyor's own carried defaults first, then the profile over them: a profile without a sheet or a code list keeps theirs.
   const carried = await loadStartingDefaults(g.w.user, g.w.actor.orgId, g.w.actor.userId);
   let document = withDefaults(emptyDocument(), { ...carried, ...(profile?.body.codes ? { codes: null, grammar: null } : {}), ...(profile?.body.sheet ? { settings: null } : {}) });

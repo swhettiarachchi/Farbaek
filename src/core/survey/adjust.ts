@@ -24,6 +24,8 @@ export interface InstrumentPrecision {
   angleSeconds: number;
   distanceMm: number;
   distancePpm: number;
+  /** The instrument it was given for, when the surveyor gave it (an office profile's, ADR 0274): said with the result. */
+  instrument?: string;
 }
 
 /**
