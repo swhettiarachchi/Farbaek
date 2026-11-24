@@ -549,11 +549,43 @@ export function drawLots(ctx: DrawCtx, lots: PlanLots, opts: { legLabels: boolea
         ];
         ways.push(stacked(sides[0]!), split(sides[0]!, sides[1]!), stacked(sides[1]!), split(sides[1]!, sides[0]!));
         const quadOf = (l: Line) => textQuad({ kind: "text", x: l.x, y: l.y, text: l.value, size, weight: "regular", font: "sans", anchor: "middle", rotate: l.theta, color: "ink", layer: "DIMENSIONS" });
+        // When nothing against the leg is clear (a crowded frontage at the plan's scale), the same words a little way out, joined to the
+        // leg's middle by a leader line (stage 251, ADR 0259), on the lot's outside. They always start at place LEADER_FROM, whatever
+        // the leg's length, so a label dragged from a leader place keeps it; the places in between are never chosen. They cost more than
+        // crossing a line (LEADER_COST), and the first pass never takes one: only the solver does, when it clears another label.
+        const ordinary = ways.length;
+        const leaders = leaderWays(x1, y1, x2, y2, [sides[0]!], size, value, quadOf);
+        while (ways.length < LEADER_FROM) ways.push(ways[0]!);
+        ways.push(...leaders.map((l) => [l.line]));
+        const leaderOf = (j: number) => (j >= LEADER_FROM ? leaders[j - LEADER_FROM]! : null);
+        // A leader place's shapes: its words, its leader and its dot. The dot sits on the leg, so every leader place pays for crossing
+        // that one line alike, and nothing placed after may cover the dot.
+        const dotsAt = new Set<Quad>();
+        const shapes = ways.map((w, j) => {
+          const l = leaderOf(j);
+          if (!l) return w.map(quadOf);
+          const [cx, cy, d] = [l.from[0], l.from[1], LEADER_DOT];
+          const dot: Quad = [[cx - d, cy - d], [cx + d, cy - d], [cx + d, cy + d], [cx - d, cy + d]];
+          dotsAt.add(dot);
+          return [...w.map(quadOf), [l.start, l.end] as Quad, dot];
+        });
+        const admissible = shapes.map((s, j) => j < ordinary || (j >= LEADER_FROM && s.every((q) => inBounds(ctx, q))));
+        const base = ways.map((_, j) => (j < ordinary ? (ordinary > 1 ? j / (ordinary - 1) : 0) : j < LEADER_FROM ? 0 : LEADER_COST + (j - LEADER_FROM) / Math.max(1, leaders.length - 1)));
         const entity = `leg:${r.lot.id}:${i}`;
         // A label the surveyor nudged stays at the place the nudge was measured from; an older nudge, without one, on one line outside.
         const m = moved(ctx, [entity]);
-        const k = ctx.placer.choose(entity, ways.map((w) => w.map(quadOf)), { pinned: m.pinned, slot: m.pinned ? (m.slot ?? 0) : null, ...(m.shift ? { shift: m.shift } : {}) });
+        // A dragged leader moves only at the words' end, and its dot not at all: both stay on the leg.
+        const shift = m.shift ? (q: Quad, n: number) => (dotsAt.has(q) ? q : q.length === 2 ? ([q[0]!, m.shift!(q, n)[1]!] as Quad) : m.shift!(q, n)) : undefined;
+        const k = ctx.placer.choose(entity, shapes, { admissible, base, firstUpTo: ordinary, pinned: m.pinned, slot: m.pinned ? (m.slot ?? 0) : null, ...(shift ? { shift } : {}) });
         for (const l of ways[k]!) text(ctx, "DIMENSIONS", entity, l.x, l.y, l.value, size, { rotate: l.theta, slot: k });
+        const lead = leaderOf(k);
+        if (lead) {
+          // Drawn from the leg's middle to the words, following them when the surveyor drags them; a dot marks the leg it belongs to.
+          // The placer already holds both, as shapes of the chosen place.
+          const o = ctx.doc.labelOffsets[entity];
+          ctx.out.push({ kind: "path", points: [lead.from, [lead.end[0] + (o?.dx ?? 0), lead.end[1] + (o?.dy ?? 0)]], closed: false, width: ctx.lines.thin, color: "ink", layer: "DIMENSIONS", entity });
+          ctx.out.push({ kind: "circle", cx: lead.from[0], cy: lead.from[1], r: LEADER_DOT, width: ctx.lines.thin, color: "ink", fill: "ink", layer: "DIMENSIONS", entity });
+        }
       });
     }
   }
@@ -1047,6 +1079,60 @@ export function besideSegment(x1: number, y1: number, x2: number, y2: number, si
   return { x: x1 + (x2 - x1) * along + nx * gap, y: y1 + (y2 - y1) * along + ny * gap, theta };
 }
 
+/** How far beyond the place against a leg a leader's words may stand, mm, nearest first. */
+export const LEADER_OUT = [5, 9, 13, 17] as const;
+/** The place number a leg label's leader places start at, whatever the leg's length, so a place a label was dragged from keeps it. */
+export const LEADER_FROM = 10;
+/**
+ * What a leader place costs the label solver before what it covers. Its dot always crosses its own leg (6 more), so a leader place
+ * costs 8 in all: more than a place against the leg that crosses a line, less than covering a label (30).
+ */
+export const LEADER_COST = 2;
+/** The dot that marks where a leader meets its leg, mm. */
+export const LEADER_DOT = 0.35;
+
+/**
+ * A leg's leader places (stage 251, ADR 0259): its words on one line, parallel to the leg, a little way out on each side given (the
+ * drawing gives only the lot's outside), straight out or shifted along the leg by half their width and a little more, or twice that. Each with its leader:
+ * from the leg's middle to the nearest edge of the words, stopping just short, and where it's checked from, just along it.
+ */
+export function leaderWays<L extends { x: number; y: number; value: string; theta: number }>(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  sides: readonly [number, number][],
+  size: number,
+  value: string,
+  quadOf: (l: L) => Quad,
+): { line: L; from: [number, number]; start: [number, number]; end: [number, number] }[] {
+  const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+  const [ux, uy] = [(x2 - x1) / len, (y2 - y1) / len];
+  const from: [number, number] = [(x1 + x2) / 2, (y1 + y2) / 2];
+  const half = textWidth(value, size) / 2 + 2;
+  const out: { line: L; from: [number, number]; start: [number, number]; end: [number, number] }[] = [];
+  for (const side of sides) {
+    let [nx, ny] = [-uy, ux];
+    if (nx * side[0] + ny * side[1] < 0) [nx, ny] = [-nx, -ny];
+    const base = besideSegment(x1, y1, x2, y2, side, size);
+    for (const away of LEADER_OUT) {
+      for (const along of [0, half, -half, 2 * half, -2 * half]) {
+        const line = { x: base.x + nx * away + ux * along, y: base.y + ny * away + uy * along, value, theta: base.theta } as L;
+        const q = quadOf(line);
+        // The middle of the words' edge nearest the leg's middle.
+        const edges = q.map((p, k) => [(p[0] + q[(k + 1) % q.length]![0]) / 2, (p[1] + q[(k + 1) % q.length]![1]) / 2] as [number, number]);
+        const near = edges.reduce((a, b) => (Math.hypot(b[0] - from[0], b[1] - from[1]) < Math.hypot(a[0] - from[0], a[1] - from[1]) ? b : a));
+        const d = Math.hypot(near[0] - from[0], near[1] - from[1]) || 1;
+        const end: [number, number] = [near[0] - ((near[0] - from[0]) / d) * 0.4, near[1] - ((near[1] - from[1]) / d) * 0.4];
+        // Checked from 1.2 mm along the line as drawn, so the leg it starts on never counts as covered.
+        const s = Math.hypot(end[0] - from[0], end[1] - from[1]) || 1;
+        out.push({ line, from, start: [from[0] + ((end[0] - from[0]) / s) * 1.2, from[1] + ((end[1] - from[1]) / s) * 1.2], end });
+      }
+    }
+  }
+  return out;
+}
+
 /** A text's outline on the page: its estimated width, cap height and descent, turned with it. */
 export function textQuad(t: SceneText): Quad {
   const w = textWidth(t.text, t.size, t.font);
@@ -1081,16 +1167,19 @@ export function overlappingEntities(items: SceneItem[]): [string | undefined, st
 function overlapping(items: SceneItem[]): [{ name: string; entity?: string }, { name: string; entity?: string }][] {
   const texts = items.filter((i): i is SceneText => i.kind === "text" && i.layer !== "TITLE" && i.layer !== "SHEET");
   const shapes: { name: string; quad: Quad; entity?: string }[] = texts.map((t) => ({ name: t.text, quad: textQuad(t), entity: t.entity }));
+  const square = (cx: number, cy: number, r: number): Quad => [[cx - r, cy - r], [cx + r, cy - r], [cx + r, cy + r], [cx - r, cy + r]];
   for (const c of items) {
-    if (c.kind !== "circle" || c.layer !== "POINTS") continue;
-    const r = c.r;
-    shapes.push({ name: "a point", quad: [[c.cx - r, c.cy - r], [c.cx + r, c.cy - r], [c.cx + r, c.cy + r], [c.cx - r, c.cy + r]] });
+    if (c.kind === "circle" && c.layer === "POINTS") shapes.push({ name: "a point", quad: square(c.cx, c.cy, c.r) });
+    // A leg label's leader and its dot (ADR 0259): covering either is as bad as covering the words.
+    else if (c.kind === "circle" && c.layer === "DIMENSIONS" && c.entity?.startsWith("leg:")) shapes.push({ name: "a leader's dot", quad: square(c.cx, c.cy, c.r), entity: c.entity });
+    else if (c.kind === "path" && c.layer === "DIMENSIONS" && c.entity?.startsWith("leg:") && c.points.length === 2) shapes.push({ name: "a leader", quad: [c.points[0]!, c.points[1]!], entity: c.entity });
   }
   const out: [{ name: string; entity?: string }, { name: string; entity?: string }][] = [];
   for (let i = 0; i < texts.length; i++) {
     for (let j = i + 1; j < shapes.length; j++) {
-      // A label and its own raised suffix touch by design.
-      if (j < texts.length && shapes[i]!.entity && shapes[i]!.entity === shapes[j]!.entity && shapes[i]!.entity!.startsWith("lot:")) continue;
+      const same = Boolean(shapes[i]!.entity) && shapes[i]!.entity === shapes[j]!.entity;
+      // A label and its own raised suffix touch by design, and a leader reaches its own words.
+      if (same && (j >= texts.length || shapes[i]!.entity!.startsWith("lot:"))) continue;
       if (quadsOverlap(shapes[i]!.quad, shapes[j]!.quad)) out.push([shapes[i]!, shapes[j]!]);
     }
   }

@@ -28,6 +28,9 @@ const pointsOf = (r: Row): SurveyPoint[] =>
     { id: id(k + 101), pointId: String(k + 101), e: 500_000 + k * (r.width - 0.003), n: 600_000 + r.depth + k * 0.009, z: null, code: "St" },
   ]).flat();
 const pts = pointsOf(EIGHT);
+// Since stage 251 the row of eight is lettered clear with leader lines; frontages of 5 mm on the sheet are still too tight to letter.
+const TWELVE: Row = { count: 12, width: 5, depth: 18, scale: 1000, paper: "A4" };
+const tight = pointsOf(TWELVE);
 function rowOfLots(template: "classic" | "panel", choose: boolean, overleaf = true, r: Row = EIGHT): SurveyDocument {
   const doc = sampleDocument();
   doc.roads = [];
@@ -44,8 +47,8 @@ const texts = (items: readonly { kind: string }[]) => items.filter((i): i is Sce
 describe("legs too crowded to letter, left to the schedule", () => {
   for (const template of ["classic", "panel"] as const) {
     it(`clears overlapping leg labels on the ${template} layout, says which legs on the face, and keeps them in the schedule`, () => {
-      const before = compose(rowOfLots(template, false));
-      const after = compose(rowOfLots(template, true));
+      const before = compose(rowOfLots(template, false, true, TWELVE), tight);
+      const after = compose(rowOfLots(template, true, true, TWELVE), tight);
       expect(overlappingLabels(after.pages[0]!.items).length).toBeLessThan(overlappingLabels(before.pages[0]!.items).length);
       const finding = after.findings.find((f) => f.code === "LEGS_IN_SCHEDULE")!;
       expect(finding).toMatchObject({ severity: "information", blocks: [] });
@@ -53,7 +56,7 @@ describe("legs too crowded to letter, left to the schedule", () => {
       expect(front).toContain("are in the boundaries schedule: there's no room to letter them clearly at this scale.");
       // Every leg left to the schedule is still there, with its distance, overleaf.
       const overleaf = texts(after.pages.slice(1).flatMap((p) => p.items)).map((t) => t.text);
-      const lots = computeLots(pts, rowOfLots(template, true).lots);
+      const lots = computeLots(tight, rowOfLots(template, true, true, TWELVE).lots);
       for (const r of lots.lots) for (const leg of r.parcel!.legs) expect(overleaf).toContain(fmt(leg.distance, 2));
       expect(before.findings.find((f) => f.code === "LEGS_IN_SCHEDULE")).toBeUndefined();
       console.info(`${template}: overlapping label pairs at 1:1000, ${overlappingLabels(before.pages[0]!.items).length} lettering every leg, ${overlappingLabels(after.pages[0]!.items).length} with ${finding.detail}`);
