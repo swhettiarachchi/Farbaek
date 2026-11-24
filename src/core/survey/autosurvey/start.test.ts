@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { commonCodes } from "../codes";
 import { crsById } from "../crs";
-import { gridProblem, kindOfUpload, notReadYet, pointClashes, readSurveyFile, startName, startingCrs, statedSurveyDate, drawsWithDsrList, type FileRead } from "./start";
+import { gridProblem, importOrder, importPointsOf, kindOfUpload, notReadYet, pointClashes, readSurveyFile, readTogether, startName, startingCrs, statedSurveyDate, drawsWithDsrList, type FileRead } from "./start";
 
 const SLD99 = crsById("EPSG:5235")!;
 const LOCAL = crsById("LOCAL")!;
@@ -93,7 +93,69 @@ describe("the files read together", () => {
     const clashes = pointClashes([a, moved]);
     expect(clashes).toHaveLength(1);
     expect(clashes[0]!.file).toBe("c.csv");
-    expect(clashes[0]!.problem).toMatch(/^Point 1 is at different coordinates here and in a\.csv\./);
+    expect(clashes[0]!.problem).toMatch(/^Point 1 is at a different place here and in a\.csv\./);
+  });
+
+  // Stage 252: one survey exported three ways, as a real job's instrument file, printed list and DXF were.
+  const H = "Point,Easting,Northing,Height,Code";
+  const file = (name: string, rows: string[], header = H) => read(name, [header, ...rows].join("\n"));
+  const kept = (rs: FileRead[]) => readTogether(importOrder(rs)).kept;
+
+  it("reads one survey exported three ways (instrument file, printed list, drawing) as one set of points", () => {
+    // The instrument's file has codes and no heights; the list prints 0 heights; the drawing has neither codes nor heights, one point fewer.
+    const instrument = file("job.csv", ["1,450012.345,700004.210,CP", "2,450043.912,700007.884,CP", "3,450040.100,699980.500,CP"], "Point,Easting,Northing,Code");
+    const list = file("job-list.csv", ["1,450012.345,700004.210,0,CP", "2,450043.912,700007.884,0,CP", "3,450040.100,699980.500,0,CP"]);
+    const drawing = file("job-drawing.csv", ["1,450012.345,700004.210,0,", "2,450043.912,700007.884,0,"]);
+    expect(pointClashes([instrument, list, drawing])).toEqual([]);
+    const ordered = importOrder([instrument, list, drawing]);
+    const together = readTogether(ordered);
+    expect(together.kept.size).toBe(3);
+    expect(together.repeats.map((r) => [r.file, r.count, r.of])).toEqual([
+      ["job.csv", 0, []],
+      ["job-list.csv", 3, ["job.csv"]],
+      ["job-drawing.csv", 2, ["job.csv"]],
+    ]);
+    // Every file sends each point exactly as kept, so the database keeps it once; the drawing's missing codes take the instrument's.
+    const sent = ordered.map((_, i) => importPointsOf(ordered, i, together.kept));
+    for (const s of sent.slice(1)) for (const p of s) expect([p.e, p.n, p.z, p.code]).toEqual([sent[0]!.find((q) => q.pointId === p.pointId)!.e, sent[0]!.find((q) => q.pointId === p.pointId)!.n, sent[0]!.find((q) => q.pointId === p.pointId)!.z, sent[0]!.find((q) => q.pointId === p.pointId)!.code]);
+    expect(sent[2]!.map((p) => p.code)).toEqual(["CP", "CP"]);
+  });
+
+  it("keeps a point's height from the file that has one, whichever comes first", () => {
+    const flat = file("flat.csv", ["1,450012.345,700004.210,0,CP"]);
+    const withHeights = read("heights.csv", csv);
+    expect(importOrder([flat, withHeights]).map((r) => r.name)).toEqual(["heights.csv", "flat.csv"]);
+    expect(pointClashes([flat, withHeights])).toEqual([]);
+    expect(kept([flat, withHeights]).get("1")!.z).toBe(21.43);
+    // A height missing for one point of a file with heights is filled from another file that gives it.
+    const gap = file("gap.csv", ["1,450012.345,700004.210,,CP", "2,450043.912,700007.884,21.88,BM1"]);
+    const full = file("full.csv", ["1,450012.345,700004.210,21.43,CP"]);
+    expect(pointClashes([gap, full])).toEqual([]);
+    expect(kept([gap, full]).get("1")!.z).toBe(21.43);
+  });
+
+  it("finds a real height difference whatever order the files come in", () => {
+    const drawing = file("drawing.csv", ["1,450012.345,700004.210,0,CP"]);
+    const a = file("a.csv", ["1,450012.345,700004.210,21.432,CP"]);
+    const b = file("b.csv", ["1,450012.345,700004.210,21.430,CP"]);
+    for (const order of [[drawing, a, b], [a, drawing, b], [b, a, drawing]]) expect(pointClashes(order)).toHaveLength(1);
+    expect(pointClashes([drawing, a, b])[0]!.problem).toMatch(/^Point 1 has a different height here/);
+  });
+
+  it("tells files apart by their place, not their name: two uploads called points.csv", () => {
+    const noHeights = file("points.csv", ["1,450012.345,700004.210,CP"], "Point,Easting,Northing,Code");
+    const zeros = file("points.csv", ["1,450012.345,700004.210,0,CP"]);
+    const ordered = importOrder([noHeights, zeros]);
+    const together = readTogether(ordered);
+    expect(together.clashes).toEqual([]);
+    expect(importPointsOf(ordered, 1, together.kept)[0]!.z).toBe(importPointsOf(ordered, 0, together.kept)[0]!.z);
+  });
+
+  it("still stops on a real difference, and says which: a place 2 mm off, another code, or another height", () => {
+    const a = read("a.csv", csv);
+    expect(pointClashes([a, file("off.csv", ["1,450012.347,700004.210,21.43,CP"])])[0]!.problem).toMatch(/^Point 1 is at a different place here and in a\.csv\./);
+    expect(pointClashes([a, file("code.csv", ["1,450012.345,700004.210,21.43,EP"])])[0]!.problem).toMatch(/^Point 1 has the code EP here and CP in a\.csv\./);
+    expect(pointClashes([a, file("height.csv", ["1,450012.345,700004.210,22.43,CP"])])[0]!.problem).toMatch(/^Point 1 has a different height here \(22\.43\) and in a\.csv \(21\.43\)\./);
   });
 
   it("checks the points fit the chosen grid, and never fixes swapped columns by itself", () => {

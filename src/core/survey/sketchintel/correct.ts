@@ -8,11 +8,53 @@
  *   taken off, and what it now proposes is put on, waiting for the surveyor as before. An item the surveyor confirmed or edited is
  *   never changed; when the correction would change it, it's named, for them to correct on the Lots step.
  */
+import type { SketchReading } from "../autosurvey/sketch";
 import type { SurveyDocument } from "../document";
+import { numberKey, type SketchCorrection } from "./corrected";
 import { applySketch, sketchItemId } from "./apply";
 import type { SketchInterpretation } from "./interpret";
+import type { SurveyPoint } from "../parcel";
+import { interpretDocument } from "./findings";
 
 export { correctedDrawing, correctedReadings, numberKey, type SketchCorrection } from "./corrected";
+
+/**
+ * The corrections Farbaek makes itself when a sketch is read (stage 252, ADR 0260): only the plain ones the engine would offer in one
+ * press (a number written where another surveyed point belongs, whose own number isn't written, and which exactly one point has).
+ * Recorded with no person (`by: null`), so every screen says they're Farbaek's; what they draw waits for the surveyor like everything
+ * the sketch draws, and each is put back in one press. One round only: a correction never leads to another without the surveyor.
+ */
+export function autoCorrections(questions: readonly { suggest?: { file: string; reading: string; label: string; to: string } }[], readings: readonly SketchReading[], at: Date): SketchCorrection[] {
+  const out: SketchCorrection[] = [];
+  // A number written more than once on its photo can't be corrected at one place: a correction renumbers every copy.
+  const written = (file: string, text: string) => readings.filter((r) => r.file === file && r.kind === "point" && numberKey(r.text) === numberKey(text)).length;
+  for (const q of questions) {
+    const s = q.suggest;
+    if (!s) continue;
+    const raw = readings.find((r) => r.id === s.reading && r.file === s.file && r.kind === "point");
+    if (!raw || written(s.file, raw.text) > 1 || out.some((c) => c.file === s.file && numberKey(c.label) === numberKey(raw.text))) continue;
+    out.push({ file: s.file, label: raw.text, to: s.to, by: null, at: at.toISOString() });
+  }
+  // Two numbers on one photo corrected to the same point would join two corners into one: neither is made.
+  return out.filter((c) => out.filter((x) => x.file === c.file && numberKey(x.to) === numberKey(c.to)).length === 1);
+}
+
+/**
+ * A sketch just read, with Farbaek's plain corrections made (ADR 0260), when they help: kept only if the corrected reading still draws
+ * at least as many lots and asks no more questions than the reading as read. Otherwise the reading stays as read, and the questions ask.
+ */
+export function withAutoCorrections(doc: SurveyDocument, points: readonly SurveyPoint[], at: Date): { document: SurveyDocument; corrections: SketchCorrection[] } {
+  const sketch = doc.sketch;
+  const asRead = interpretDocument(doc, points);
+  if (!sketch || !asRead) return { document: doc, corrections: [] };
+  const plain = autoCorrections(asRead.questions, sketch.readings, at);
+  if (plain.length === 0) return { document: doc, corrections: [] };
+  const corrected: SurveyDocument = { ...doc, sketch: { ...sketch, corrections: [...(sketch.corrections ?? []), ...plain] } };
+  const after = interpretDocument(corrected, points);
+  const lots = (i: SketchInterpretation | null) => i?.proposals.filter((p) => p.kind === "lot").length ?? 0;
+  if (!after || lots(after) < lots(asRead) || after.questions.length > asRead.questions.length) return { document: doc, corrections: [] };
+  return { document: corrected, corrections: plain };
+}
 
 /** Whether an item on the plan was put there by the sketch and is still waiting for the surveyor (never confirmed, never edited). */
 const waiting = (doc: SurveyDocument, key: string) => doc.provenance[key]?.source === "ai_photo" && doc.provenance[key]?.reviewed === false;

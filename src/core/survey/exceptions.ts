@@ -154,7 +154,7 @@ export interface SurveyException {
    * For an item the sketch drew (stage 249): what the sketch shows for it, one point a line; the open questions confirming it answers;
    * and the corrections of a misread number the surveyor can make in one press.
    */
-  sketch?: { lead: string; evidence: string[]; questions: string[]; fixes: { file: string; reading: string; label: string; to: string }[] };
+  sketch?: { lead: string; evidence: string[]; questions: string[]; fixes: { file: string; reading: string; label: string; to: string; undo?: true }[] };
 }
 
 const BLOCK_WORDS: Record<Finding["blocks"][number], string> = { plan: "the plan", export: "export", approval: "approval" };
@@ -192,7 +192,11 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
       const sketch = interpretDocument(doc, points);
       for (const key of pending.filter((k) => doc.provenance[k]?.source !== "auto")) {
         const it = itemOf(doc, key);
-        const ev = sketchEvidence(sketch, key);
+        const found = sketchEvidence(sketch, key);
+        // A number Farbaek corrected when it read the sketch (ADR 0260), where this item uses it: said, with the press that puts it back.
+        const own = found ? farbaekCorrections(doc, points, key, found.file) : [];
+        // Drawn through a number Farbaek corrected: never "the sketch and the survey agree".
+        const ev = found ? { ...found, ...(own.length > 0 ? { level: "check" as const } : {}), evidence: [...found.evidence, ...own.map((c) => c.said)], fixes: [...own.flatMap((c) => (c.undo ? [c.undo] : [])), ...found.fixes] } : null;
         // What the sketch shows for it, then any open question confirming it answers.
         const shown = ev ? [...ev.evidence, ...(ev.questions.length > 0 ? ["Open:", ...ev.questions] : [])].join(" ") : "";
         out.confirm.push({
@@ -267,4 +271,39 @@ export function planStatus(input: { drawn: boolean; findings: readonly Finding[]
   if (input.findings.some((f) => groupOf(f) === "fix")) return "needs_correction";
   if (input.findings.some((f) => f.blocks.includes("approval"))) return "needs_confirmation";
   return "ready";
+}
+
+/**
+ * The numbers Farbaek corrected when it read the sketch (ADR 0260) that an item drawn from the sketch uses: each said in a sentence, with
+ * the press that puts the number back as read. A surveyor's own correction (`by` set) is theirs, and isn't repeated here.
+ */
+function farbaekCorrections(doc: SurveyDocument, points: readonly SurveyPoint[], key: string, file: string): { said: string; undo: { file: string; reading: string; label: string; to: string; undo: true } | null }[] {
+  const sketch = doc.sketch;
+  if (!sketch?.corrections?.length) return [];
+  const id = key.slice(key.indexOf(":") + 1);
+  const used = new Set(
+    key.startsWith("lot:")
+      ? (doc.lots.find((l) => l.id === id)?.points ?? [])
+      : key.startsWith("feature:")
+        ? (doc.features.find((x) => x.id === id)?.points ?? [])
+        : key.startsWith("road:")
+          ? ((r) => (r ? [...r.edgeA, ...r.edgeB] : []))(doc.roads.find((r) => r.id === id))
+          : key.startsWith("symbol:")
+            ? [(doc.symbols ?? []).find((s) => s.id === id)?.point ?? ""]
+            : [],
+  );
+  return sketch.corrections
+    // Only on the photo the item was drawn from: the same point written right on another photo is that photo's.
+    .filter((c) => c.by === null && c.file === file)
+    .flatMap((c) => {
+      const point = points.filter((p) => p.pointId === c.to);
+      if (point.length !== 1 || !used.has(point[0]!.id)) return [];
+      const reading = sketch.readings.find((r) => r.file === c.file && r.kind === "point" && r.text === c.label);
+      return [
+        {
+          said: `Drawn with ${c.to} where the sketch was read as ${c.label}: the ${c.label} is written where point ${c.to} would be, so Farbaek read it as ${c.to}.`,
+          undo: reading ? { file: c.file, reading: reading.id, label: c.to, to: c.label, undo: true as const } : null,
+        },
+      ];
+    });
 }

@@ -217,12 +217,13 @@ export function SketchReportView({ report: r, photoUrl }: { report: SketchReport
 
       {r.corrections.length > 0 ? (
         <Card>
-          <CardTitle icon={PencilSimpleIcon}>Corrected by you</CardTitle>
+          <CardTitle icon={PencilSimpleIcon}>Numbers corrected</CardTitle>
           <p className="mt-1 text-sm text-ink-2">The sketch is read with these corrections. What was read stays as read, beside them.</p>
           <ul className="mt-3 grid list-disc gap-1 pl-5 text-sm text-ink-2">
             {r.corrections.map((c) => (
               <li key={`${c.file}:${c.label}`}>
-                The number read as {c.label} on {c.file} is {c.to}, corrected <LocalTime iso={c.at} date />.
+                The number read as {c.label} on {c.file} is read as {c.to},{" "}
+                {c.by === "farbaek" ? "by Farbaek, from where it's written on the sketch: put it back on the plan if it's wrong" : "by you"}, <LocalTime iso={c.at} date />.
               </li>
             ))}
           </ul>

@@ -15,6 +15,7 @@ import { sketchFileNames } from "@/core/survey/autosurvey/sketch";
 import { pruneProvenance, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { applySketch } from "@/core/survey/sketchintel/apply";
+import { withAutoCorrections } from "@/core/survey/sketchintel/correct";
 import { interpretDocument, sketchQuestionFindings } from "@/core/survey/sketchintel/findings";
 import { createAnthropicSketchReader, type SketchImage } from "@/server/ai/sketch-reader";
 import { createAnthropicSurveyDrafter, type ReadRequest } from "@/server/ai/survey-drafter";
@@ -192,8 +193,14 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   // (ADR 0249) are put on the plan in the same version, each waiting for the surveyor: positions all come from the surveyed points.
   let drawn = 0;
   let asked = 0;
+  let corrected: string[] = [];
   const withReadings = (document: SurveyDocument, points: readonly SurveyPoint[]) => {
-    const base = pruneProvenance({ ...document, sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:")) });
+    const read = pruneProvenance({ ...document, sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:")) });
+    // The plain misreads the engine would offer to correct in one press are corrected now, as Farbaek's, before anything is drawn, when
+    // that helps (ADR 0260): what they draw waits for the surveyor as everything from a sketch does, and each is put back in one press.
+    const auto = withAutoCorrections(read, points, new Date());
+    corrected = auto.corrections.map((c) => `${c.label} as ${c.to}`);
+    const base: SurveyDocument = auto.document;
     const interpretation = interpretDocument(base, points);
     if (!interpretation) return base;
     const applied = applySketch(base, interpretation);
@@ -205,7 +212,7 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   const actor = { orgId: p.common.orgId, userId: p.common.userId };
   const next = withReadings(p.data.drawing.document, p.data.points);
   // Said from the version actually saved: the retry below works the drawing out again on the newest version.
-  const noteFor = () => `Read ${photos} with Claude: ${record.readings.length} things as written${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}`.slice(0, 200);
+  const noteFor = () => `Read ${photos} with Claude: ${record.readings.length} things as written${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}${corrected.length > 0 ? `; Farbaek read ${corrected.join(" and ")}` : ""}`.slice(0, 200);
   if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: "The readings didn't pass the plan's own checks, so nothing was saved." };
   let saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion, document: next, note: noteFor() });
   if (!saved.ok) {
@@ -228,8 +235,9 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     .catch(() => null);
   const keptNote = kept?.ok ? "" : " The photos couldn't be kept with the plan, so they aren't shown beside the readings.";
   const fromDrawing = drawn > 0 ? ` ${drawn} ${drawn === 1 ? "item was" : "items were"} drawn from the sketch, each waiting for your confirmation.` : "";
+  const fixed = corrected.length > 0 ? ` Farbaek read ${corrected.join(" and ")}, from where ${corrected.length === 1 ? "it's" : "they're"} written: check ${corrected.length === 1 ? "it" : "them"} on the plan.` : "";
   const questions = asked > 0 ? ` ${asked} ${asked === 1 ? "question" : "questions"} the sketch couldn't settle ${asked === 1 ? "is" : "are"} in the checks.` : "";
   await end("done", `${record.readings.length} things read${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}, saved as version ${saved.value}.${keptNote}`);
   revalidatePath(`/app/survey/${projectId}`);
-  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${fromDrawing}${questions}${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length, drawn, questions: asked };
+  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${fromDrawing}${fixed}${questions}${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length, drawn, questions: asked };
 }

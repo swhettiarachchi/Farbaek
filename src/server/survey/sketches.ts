@@ -7,6 +7,8 @@
  */
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { SKETCH_LIMITS, acceptSketch, sketchRecordSchema, type SketchRecord } from "@/core/survey/autosurvey/sketch";
+import { mergeSketchReads } from "@/core/survey/autosurvey/sketch-merge";
+import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import { TIERS, tierModels } from "@/core/agent/routing";
 import { routeModel } from "@/server/ai/routing";
 import { platformModels } from "@/server/platform/state";
@@ -16,6 +18,21 @@ import { fail, requireContributor, type WriteDeps, type WriteResult } from "@/se
 import type { SurveyDraftDeps } from "./drafting";
 
 export const SKETCH_PHOTOS = { count: SKETCH_LIMITS.photos, bytes: SKETCH_LIMITS.photoBytes, total: SKETCH_LIMITS.totalBytes } as const;
+
+/** How many times the photos are read, side by side, and merged (ADR 0260). */
+export const READS = 2;
+
+/** Several calls' usage as one, under the first call's model: what the run cost. Null when none reported any. */
+function sumUsage(all: readonly ProviderUsage[]): ProviderUsage | null {
+  if (all.length === 0) return null;
+  return all.reduce((a, b) => ({
+    model: a.model,
+    inputTokens: a.inputTokens + b.inputTokens,
+    outputTokens: a.outputTokens + b.outputTokens,
+    cacheWriteTokens: (a.cacheWriteTokens ?? 0) + (b.cacheWriteTokens ?? 0),
+    cacheReadTokens: (a.cacheReadTokens ?? 0) + (b.cacheReadTokens ?? 0),
+  }));
+}
 export const MANUAL_SKETCH_READ = "Check the plan against your sketches yourself: everything else works without AI.";
 
 const FAILURES = {
@@ -47,20 +64,22 @@ export async function readFieldSketches(
   const choice = routeModel({ plan: metering.value.plan, family: source.family, step: "review", effort: "deep" });
   const reader = source.create(TIERS.indexOf(choice.tier) < TIERS.indexOf("standard") ? { ...choice, model: tierModels(source.family, platformModels())["standard"] } : choice);
   const promptTokens = approxTokens(SKETCH_READ_PROMPT) + approxTokens(sketchReadMessage(images)) + SKETCH_TOKENS_PER_IMAGE * images.length;
-  const units = reserveUnits(reader.model, promptTokens + 500, reader.maxOutputTokens);
+  // Read twice, side by side (stage 252, ADR 0260): a model misses a different line each time, and what either read saw is kept, merged.
+  const units = READS * reserveUnits(reader.model, promptTokens + 500, reader.maxOutputTokens);
   const reserved = await reserveMetered(deps, metering.value, { orgId: input.orgId, userId: input.userId, taskId: null, operation: "survey_read", units, manual: MANUAL_SKETCH_READ });
   if (!reserved.ok) return reserved;
 
-  let outcome: SketchReadOutcome;
-  try {
-    outcome = await reader.read(images);
-  } catch {
-    outcome = { ok: false, failure: "PROVIDER_ERROR", usage: null };
+  const once = (): Promise<SketchReadOutcome> => reader.read(images).catch((): SketchReadOutcome => ({ ok: false, failure: "PROVIDER_ERROR", usage: null }));
+  const outcomes = await Promise.all(Array.from({ length: READS }, once));
+  // Every read's usage is counted, a failed one's too; one read that worked is used alone.
+  const usage = sumUsage(outcomes.flatMap((o) => (o.usage ? [o.usage] : [])));
+  const worked = outcomes.filter((o): o is Extract<SketchReadOutcome, { ok: true }> => o.ok);
+  if (worked.length === 0) {
+    const first = outcomes[0] as Extract<SketchReadOutcome, { ok: false }>;
+    await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage, reason: "failed" });
+    return fail(first.failure === "PROVIDER_BUSY" ? "AI_BUSY" : first.failure === "REFUSED" ? "AI_REFUSED" : "AI_INCOMPLETE", FAILURES[first.failure]);
   }
-  if (!outcome.ok) {
-    await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage: outcome.usage, reason: "failed" });
-    return fail(outcome.failure === "PROVIDER_BUSY" ? "AI_BUSY" : outcome.failure === "REFUSED" ? "AI_REFUSED" : "AI_INCOMPLETE", FAILURES[outcome.failure]);
-  }
+  const outcome = { ok: true as const, output: mergeSketchReads(worked[0]!.output, worked[1]?.output ?? null), usage: usage ?? worked[0]!.usage };
   let record: SketchRecord;
   try {
     record = sketchRecordSchema.parse(acceptSketch(outcome.output, images.map((i) => i.name), outcome.usage.model, input.now));

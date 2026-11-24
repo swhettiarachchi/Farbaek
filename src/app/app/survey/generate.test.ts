@@ -209,7 +209,7 @@ describe("Generate Plan", () => {
     const moved = boundary.replace("1,450000.000", "1,450000.010").split("\n").slice(0, 2).join("\n");
     const clash = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }, { name: "moved.csv", content: moved }] });
     expect(clash.result).toMatchObject({ status: "error" });
-    expect(clash.result?.status === "error" && clash.result.problems[0]!.problem).toMatch(/^Point 1 is at different coordinates/);
+    expect(clash.result?.status === "error" && clash.result.problems[0]!.problem).toMatch(/^Point 1 is at a different place/);
     const wrongGrid = await generate({ title: "", crsId: "EPSG:5234", files: [{ name: "boundary.csv", content: boundary }] });
     expect(wrongGrid.result?.status === "error" && wrongGrid.result.problems.at(-1)!.problem).toMatch(/outside the area Kandawala/);
     expect(calls).toEqual([]);
