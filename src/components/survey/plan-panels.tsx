@@ -64,7 +64,7 @@ export function describeSelection(entity: string | null, plan: ReturnType<typeof
         ["Elevation", pt.z === null ? "None" : `${fmt(pt.z, 3)} m`],
         ["Code", pt.code ?? "None"],
       ],
-      note: "Imported, so it can't be edited here. Its label can be moved.",
+      note: "Imported, so it never moves. Below: what it's drawn as, and words beside it. Its label can be dragged.",
     };
   }
   if (entity.startsWith("lot:") || entity.startsWith("lot-extent:")) {
@@ -106,6 +106,12 @@ export function describeSelection(entity: string | null, plan: ReturnType<typeof
     const lot = doc.lots.find((l) => l.id === a.lot);
     const num = (id: string) => points.find((x) => x.id === id)?.pointId ?? "?";
     return { title: "Adjoining land", rows: [["Text", a.text], ["Beside", lot ? `Lot ${lotName(lot)}, between ${num(a.from)} and ${num(a.to)}` : "No lot"]], note: "Change the words below. Which side they're beside is set on the Lots step." };
+  }
+  if (entity.startsWith("text:")) {
+    const t = (doc.texts ?? []).find((x) => `text:${x.id}` === entity);
+    if (!t) return null;
+    const num = (id: string) => points.find((x) => x.id === id)?.pointId ?? "?";
+    return { title: "Words on the plan", rows: [["Words", t.text], ["Where", t.along ? `Along ${num(t.at)} to ${num(t.along)}` : `Beside ${num(t.at)}`]], note: "Drag them on the sheet to move them. Nothing is measured from them." };
   }
   if (entity.startsWith("feature:")) {
     const f = doc.features.find((x) => `feature:${x.id}` === entity);

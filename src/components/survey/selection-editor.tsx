@@ -7,6 +7,7 @@ import { FEATURE_LAYERS, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
+import { PointEditor, TextEditor } from "./point-editor";
 
 /** The sheet's own texts, edited as fields on the Sheet tab: tapping one opens them there. */
 const SHEET_TEXTS = new Set(["title", "heading", "plan-number", "dates", "extent", "boundaries", "notes", "surveyor", "signature", "legend", "region", "scale"]);
@@ -242,6 +243,23 @@ export function SelectionEditor(props: {
           <input type="checkbox" checked={f.closed} disabled={readOnly || f.points.length < 3} onChange={(e) => update((d) => void ((d.features.find((x) => x.id === f.id)!.closed = e.target.checked), reviewed(d, key)))} className="size-5 shrink-0 accent-[var(--color-accent)]" />
           A closed outline, such as a building
         </label>
+        <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={f.dashed === true}
+            disabled={readOnly}
+            onChange={(e) =>
+              update((d) => {
+                const x = d.features.find((y) => y.id === f.id)!;
+                if (e.target.checked) x.dashed = true;
+                else delete x.dashed;
+                reviewed(d, key);
+              })
+            }
+            className="size-5 shrink-0 accent-[var(--color-accent)]"
+          />
+          Drawn dashed, such as a roof&apos;s edge
+        </label>
         <Corners
           key={f.points.join()}
           label="Points, in order"
@@ -274,6 +292,13 @@ export function SelectionEditor(props: {
     if (!a) return null;
     return <AdjoiningWords key={a.id} id={a.id} text={a.text} provenanceKey={`adjoining:${a.id}`} readOnly={props.readOnly} update={update} reviewed={reviewed} unchecked={unchecked(`adjoining:${a.id}`, props.readOnly)} remove={remove("these words", (d) => void ((d.adjoining = d.adjoining.filter((x) => x.id !== a.id)), delete d.labelOffsets[`adjoining:${a.id}`]), props.readOnly)} />;
   }
+
+  // A surveyed point: how it's drawn, and words beside it (stage 255). Words on the plan: changed or removed.
+  if (entity.startsWith("pt:") || entity.startsWith("mark:") || entity.startsWith("corner:")) {
+    const p = points.find((x) => x.id === id);
+    return p ? <PointEditor key={p.id} point={p} doc={doc} points={points} update={update} readOnly={props.readOnly} /> : null;
+  }
+  if (entity.startsWith("text:")) return <TextEditor key={id} id={id} doc={doc} update={update} readOnly={props.readOnly} onRemoved={props.onRemoved} />;
 
   return null;
 }

@@ -39,6 +39,11 @@ export interface Misplaced {
    * from where its own point would be.
    */
   likelyWritten: boolean;
+  /**
+   * Whether the same number is written again at its own point's place (stage 254): that one is the point's, so this one is most likely
+   * another number misread as it, and is said rather than asked about.
+   */
+  alsoAtOwn: boolean;
 }
 
 /**
@@ -158,21 +163,51 @@ function consensus(pairs: readonly Pair[], limits: typeof PLACEMENT): { f: Frame
   return fit;
 }
 
+/** The numbers written on one photo, matched to the survey, and the fit most of them agree with; null when too few agree. */
+function photoFit(here: readonly PlacedNumber[], index: ReturnType<typeof indexPoints>, limits: typeof PLACEMENT) {
+  // A label written twice on one photo can't say which place is its own, and a number two surveyed points share can't say which
+  // point is its own: neither is fitted, and a shared number is never said to be out of place.
+  const counts = new Map<string, number>();
+  for (const p of here) counts.set(p.label, (counts.get(p.label) ?? 0) + 1);
+  const matched = here.map((p) => ({ ...p, m: matchPoint(p.label, index) })).filter((x) => x.m.how !== "ambiguous");
+  const pairs = matched.filter((x) => x.m.point && counts.get(x.label) === 1).map((x) => ({ p: x.m.point!, x: x.x, y: x.y }));
+  if (pairs.length < limits.minNumbers) return null;
+  const fit = consensus(pairs, limits);
+  return fit ? { fit, matched, counts } : null;
+}
+
+/**
+ * Where each surveyed point is on one photo (stage 254, ADR 0262): where its number is written, when it's written there once and agrees
+ * with the fit of the others, else where the fit puts it. Null when too few numbers agree. Only to say which drawn area a label is
+ * written in, never a position on the ground.
+ */
+export function photoPlaces(placed: readonly PlacedNumber[], points: readonly SurveyPoint[], file: string, limits = PLACEMENT): ((p: SurveyPoint) => { x: number; y: number }) | null {
+  const got = photoFit(
+    placed.filter((p) => p.file === file),
+    indexPoints(points),
+    limits,
+  );
+  if (!got) return null;
+  const { fit, matched, counts } = got;
+  return (p) => {
+    const at = placeOf(fit.f, fit.a, p);
+    const own = matched.find((x) => x.m.point?.id === p.id && counts.get(x.label) === 1);
+    return own && Math.hypot(own.x - at.x, own.y - at.y) <= limits.agreeWithin ? { x: own.x, y: own.y } : at;
+  };
+}
+
 /** The numbers on each photo written where a different surveyed point would be, by the fit of all the others. */
 export function misplacedNumbers(placed: readonly PlacedNumber[], points: readonly SurveyPoint[], limits = PLACEMENT): Misplaced[] {
   const index = indexPoints(points);
   const out: Misplaced[] = [];
   for (const file of [...new Set(placed.map((p) => p.file))]) {
-    const here = placed.filter((p) => p.file === file);
-    // A label written twice on one photo can't say which place is its own, and a number two surveyed points share can't say which
-    // point is its own: neither is fitted, and a shared number is never said to be out of place.
-    const counts = new Map<string, number>();
-    for (const p of here) counts.set(p.label, (counts.get(p.label) ?? 0) + 1);
-    const matched = here.map((p) => ({ ...p, m: matchPoint(p.label, index) })).filter((x) => x.m.how !== "ambiguous");
-    const pairs = matched.filter((x) => x.m.point && counts.get(x.label) === 1).map((x) => ({ p: x.m.point!, x: x.x, y: x.y }));
-    if (pairs.length < limits.minNumbers) continue;
-    const fit = consensus(pairs, limits);
-    if (!fit) continue;
+    const got = photoFit(
+      placed.filter((p) => p.file === file),
+      index,
+      limits,
+    );
+    if (!got) continue;
+    const { fit, matched } = got;
     // Every surveyed point's place on this photo, worked out once.
     const places = points.map((p) => ({ p, ...placeOf(fit.f, fit.a, p) }));
     const placeOfId = new Map(places.map((q) => [q.p.id, q] as const));
@@ -180,6 +215,9 @@ export function misplacedNumbers(placed: readonly PlacedNumber[], points: readon
       const own = x.m.point ? placeOfId.get(x.m.point.id)! : null;
       const off = own ? Math.hypot(own.x - x.x, own.y - x.y) : Infinity;
       if (off < limits.outOfPlace) continue;
+      // The same number written again at its own point's place (stage 254): that one is the point's, so this one is most likely another
+      // number misread as it (a 23 read as 22).
+      const alsoAtOwn = own !== null && matched.some((o) => o !== x && o.m.point?.id === x.m.point!.id && Math.hypot(own.x - o.x, own.y - o.y) < limits.outOfPlace);
       let nearest: { p: SurveyPoint; x: number; y: number; d: number } | null = null;
       for (const q of places) {
         if (q.p.id === x.m.point?.id || q.p.pointId === x.label) continue;
@@ -192,7 +230,7 @@ export function misplacedNumbers(placed: readonly PlacedNumber[], points: readon
       const likelyWritten = matched.some((o) => o !== x && o.m.point?.id === near.p.id && Math.hypot(o.x - near.x, o.y - near.y) <= limits.nearOther);
       // A number the survey doesn't have, beside another that's written too, is already asked about as not in the survey.
       if (!x.m.point && likelyWritten) continue;
-      out.push({ label: x.label, file, x: x.x, y: x.y, ...(x.id ? { id: x.id } : {}), pointId: x.m.point?.pointId ?? null, off, likely: near.p.pointId, likelyOff: near.d, likelyWritten });
+      out.push({ label: x.label, file, x: x.x, y: x.y, ...(x.id ? { id: x.id } : {}), pointId: x.m.point?.pointId ?? null, off, likely: near.p.pointId, likelyOff: near.d, likelyWritten, alsoAtOwn });
     }
   }
   return out;

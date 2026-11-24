@@ -78,7 +78,7 @@ const nudged = (ctx: DrawCtx, entity: string, q: Quad): Quad => {
  * stays at the place its offset was measured from (older offsets have none, and take their first free place as before); and each of
  * its shapes is shifted by its own entity's offset, which is what other labels must avoid. Nothing for a label nobody moved.
  */
-function moved(ctx: DrawCtx, entities: readonly string[]): { pinned: boolean; slot: number | null; shift?: (q: Quad, k: number) => Quad } {
+export function moved(ctx: DrawCtx, entities: readonly string[]): { pinned: boolean; slot: number | null; shift?: (q: Quad, k: number) => Quad } {
   const offsets = entities.map((e) => ctx.doc.labelOffsets[e]);
   if (!offsets.some(Boolean)) return { pinned: false, slot: null };
   return { pinned: true, slot: offsets.find((o) => o?.slot !== undefined)?.slot ?? null, shift: (q, k) => nudged(ctx, entities[Math.min(k, entities.length - 1)]!, q) };
@@ -131,7 +131,7 @@ export function drawFeatures(ctx: DrawCtx, inside: [number, number] | null): voi
     // Curves (ADR 0247) as chords no more than 0.02 mm of paper from the curve, at the plan's scale.
     // A line missing a point draws no curve: its indexes would point at the wrong points (and the checks stop the plan anyway).
     const page = densify(pts, pts.length === f.points.length ? f.arcs : undefined, (0.02 / 1000) * ctx.v.scale).map((p) => atPage(ctx, p));
-    ctx.out.push({ kind: "path", points: page, closed: f.closed, width: ctx.lines.feature, color: "ink", dash: dashFor(entry?.line), layer: f.layer, entity: `feature:${f.id}` });
+    ctx.out.push({ kind: "path", points: page, closed: f.closed, width: ctx.lines.feature, color: "ink", dash: dashFor(f.dashed ? "dashed" : entry?.line), layer: f.layer, entity: `feature:${f.id}` });
     for (let i = 0; i + 1 < page.length; i++) ctx.placer.segment(page[i]!, page[i + 1]!);
     if (!f.code.trim()) continue;
     const size = ctx.sizes.label;

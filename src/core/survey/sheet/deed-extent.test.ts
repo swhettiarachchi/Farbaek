@@ -88,7 +88,7 @@ describe("the deed's extent on the face", () => {
     expect(writtenPerchDecimals("0 A. 0 R. 05.00 P.")).toBe(2);
     expect(writtenPerchDecimals("A. 0 R. 2 P. 04.6")).toBe(1);
     expect(writtenPerchDecimals("10 perches")).toBe(0);
-    expect(writtenPerchDecimals("0.01265 Hectares")).toBeNull();
+    expect(writtenPerchDecimals("0.02345 Hectares")).toBeNull();
   });
 
   it("words the stated-extent check by whether the schedule is on", () => {

@@ -10,7 +10,7 @@ import { readStatedExtent } from "../extent";
 import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
 import { same, sketchItemId } from "./apply";
-import { isRoadName } from "./classify";
+import { classifyLine, isGateWord, isRoadName } from "./classify";
 import { correctedDrawing, correctedReadings } from "./corrected";
 import { interpretSketch, writtenWidth, type Question, type SketchInterpretation } from "./interpret";
 
@@ -34,7 +34,14 @@ export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPo
   // Every doubtful road writing that isn't a width: a name read with doubt keeps an area of the same name from naming the road too.
   const doubtfulWidths = unsure.filter((r) => writtenWidth(r.text) !== null).map((r) => r.text);
   const doubtfulRoadNames = unsure.filter((r) => writtenWidth(r.text) === null).map((r) => r.text);
-  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames, placed: placedNumbers(readings) });
+  // Where other writing is on each photo (to say which drawn area a label is in), and where a gate is written or drawn (stage 254).
+  const labels = readings.filter((r) => r.kind !== "point" && r.photo).map((r) => ({ text: r.text, file: r.file, x: r.photo!.x, y: r.photo!.y }));
+  const gates = [
+    ...readings.filter((r) => r.kind !== "point" && r.near && isGateWord(r.text)).map((r) => [r.near]),
+    ...drawing.symbols.filter((s) => s.kind === "gate" && s.at).map((s) => [s.at]),
+    ...drawing.lines.filter((l) => classifyLine(l.label, l.style, doc.codes).kind === "gate").map((l) => l.points),
+  ];
+  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames, placed: placedNumbers(readings), labels, gates });
 }
 
 /** The point numbers the reader placed on a photo (stage 247): evidence for a question, never a position. */

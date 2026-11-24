@@ -23,6 +23,7 @@ import type { Finding } from "../qc";
 import { fmt, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 import { BLANK, commonFindings, drawCtx, drawnExtent, entireAreaM2, overleafPages, plotStamp, usedCodes, type ComposeInput, type ComposedSheet } from "./compose";
+import { drawTexts } from "./texts";
 import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads, quadsOverlap, textQuad, type DrawCtx } from "./draw";
 import { advanceWidth, textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import { SRI_LANKA_CLASSIC_V1 as T } from "./template";
@@ -318,6 +319,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     drawLoosePoints(ctx, input.points, input.lots);
     drawLotLabels(ctx, input.lots, { extentUnder: null, highlight: extract?.id ?? null });
     drawAdjoining(ctx, doc.adjoining, input.lots);
+    drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
     front.push(...drawing);
   }
   // North needle, right of the drawing band.

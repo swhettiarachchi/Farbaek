@@ -42,6 +42,7 @@ import { CodesPanel, SheetFields, describeSelection, type SurveyorOption } from 
 import { SheetSvg } from "./sheet-svg";
 import { setPlanUnsaved } from "./unsaved-plan";
 import { DrawLineBar, SelectionEditor, cannotFinish, nextDrawing, type Drawing } from "./selection-editor";
+import { FindPoint } from "./point-editor";
 
 export type { SurveyorOption } from "./plan-panels";
 
@@ -536,7 +537,7 @@ export function PlanEditor(props: PlanEditorProps) {
     <div
       role="toolbar"
       aria-label="Plan tools"
-      className={`z-20 flex items-center gap-2 ${full ? "" : "sticky top-14 -mx-4 bg-canvas/90 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:top-0 lg:mx-0 lg:rounded-full lg:px-0"}`}
+      className={`z-20 flex flex-wrap items-center gap-2 ${full ? "" : "sticky top-14 -mx-4 bg-canvas/90 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:top-0 lg:mx-0 lg:rounded-full lg:px-0"}`}
     >
       <ToolButton label="Undo" onClick={undo} disabled={history.index === 0} icon={<ArrowArcLeftIcon size={16} weight="bold" aria-hidden />} />
       <ToolButton label="Redo" onClick={redo} disabled={history.index >= history.stack.length - 1} icon={<ArrowArcRightIcon size={16} weight="bold" aria-hidden />} />
@@ -690,6 +691,7 @@ export function PlanEditor(props: PlanEditorProps) {
           ) : (
             <div className="grid gap-3">
               <p className="text-sm text-ink-2">Tap a line, point, lot or label on the sheet to see where its figures come from and change what can be changed. On a touch screen, tap a label before dragging it.</p>
+              <FindPoint points={props.points} onFound={(id) => (setPicked([]), setSelected(`pt:${id}`))} />
               {props.readOnly || drawing ? null : (
                 <button type="button" onClick={() => startDrawing(true)} className={buttonClasses("secondary", "sm", "w-fit")}>
                   <LineSegmentsIcon size={16} weight="bold" aria-hidden /> Draw a line

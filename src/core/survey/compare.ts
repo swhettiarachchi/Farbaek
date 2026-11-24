@@ -9,7 +9,7 @@ import { lotName, type DrawingSettings, type SheetFields, type SurveyDocument } 
 import type { SurveyPoint } from "./parcel";
 import { minimumText } from "./rules";
 
-export type ChangeArea = "Lots" | "Roads" | "Adjoining lands" | "Lines and outlines" | "Title" | "Sheet" | "Codes" | "Notes" | "Checks";
+export type ChangeArea = "Lots" | "Roads" | "Adjoining lands" | "Lines and outlines" | "Words and symbols" | "Title" | "Sheet" | "Codes" | "Notes" | "Checks";
 export interface Change {
   area: ChangeArea;
   text: string;
@@ -161,6 +161,27 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   const cb = curvesOf(before);
   const recurved = [...curvesOf(after)].filter(([id, c]) => cb.has(id) && cb.get(id) !== c && ib.get(id) === ids(after).get(id)).length;
   if (recurved > 0) add("Lines and outlines", `${recurved} ${recurved === 1 ? "line is" : "lines are"} drawn with different curves through the same points.`);
+
+  // Lines drawn dashed now, or no longer (stage 254).
+  const dashedOf = (doc: SurveyDocument) => new Map(doc.features.map((f) => [f.id, f.dashed === true]));
+  const db = dashedOf(before);
+  const redashed = [...dashedOf(after)].filter(([id, d]) => db.has(id) && db.get(id) !== d).length;
+  if (redashed > 0) add("Lines and outlines", `${redashed} ${redashed === 1 ? "line is" : "lines are"} drawn dashed now, or no longer.`);
+
+  // Words on the plan and symbols given to points (stage 255).
+  const placeOf = (x: NonNullable<SurveyDocument["texts"]>[number]) => (x.along ? `along ${ring([x.at])} to ${ring([x.along])}` : `beside ${ring([x.at])}`);
+  const words = pair(before.texts ?? [], after.texts ?? [], (x) => x.text);
+  for (const [was, x] of words.matched) {
+    if (was.text !== x.text) add("Words and symbols", `"${short(was.text)}" now reads "${short(x.text)}".`);
+    if (placeOf(was) !== placeOf(x)) add("Words and symbols", `"${short(x.text)}" is now ${placeOf(x)}.`);
+  }
+  for (const x of words.added) add("Words and symbols", `"${short(x.text)}" added, ${placeOf(x)}.`);
+  for (const x of words.removed) add("Words and symbols", `"${short(x.text)}" removed.`);
+  const symbolsOf = (doc: SurveyDocument) => new Map((doc.symbols ?? []).map((s) => [s.point, s.code]));
+  const sb = symbolsOf(before);
+  const sa = symbolsOf(after);
+  for (const [point, code] of sa) if (sb.get(point) !== code) add("Words and symbols", `Point ${ring([point])} is drawn as ${code}${sb.has(point) ? ` (was ${sb.get(point)})` : ""}.`);
+  for (const [point, code] of sb) if (!sa.has(point)) add("Words and symbols", `Point ${ring([point])} is no longer drawn as ${code}.`);
 
   // The title.
   for (const key of Object.keys(FIELD_LABELS) as (keyof typeof FIELD_LABELS)[]) {

@@ -3,7 +3,9 @@
  * files and a job.json naming them. A real client's land data never enters the repository or CI; without the variable this is skipped.
  *
  * job.json: { "survey": ["file.sdr", ...], "crs": "LOCAL" | "EPSG:5235", "sketch": "sketch-read.json", "reference": "reference.json",
- *             "statedExtent": "0.01265 Hectares" }
+ *             "statedExtent": "0.02000 Hectares", "sketchFile": "the photo's name as read" }
+ *
+ * Several survey files of one job are read together as Generate Plan reads them: a point number already read keeps its first place.
  *
  * It runs what Generate Plan and the sketch read run, in order: every survey file read with the same readers, the automatic draft from
  * the field codes, the sketch's drawing interpreted and applied, the plan checked; then it compares the result with the reference (the
@@ -21,6 +23,7 @@ import { emptyDocument, surveyDocumentSchema, type DrawingSettings } from "../do
 import type { SurveyPoint } from "../parcel";
 import { buildPlan } from "../view";
 import { applySketch } from "./apply";
+import { withAutoCorrections } from "./correct";
 import { evaluatePlan, type PlanReference } from "./evaluate";
 import { interpretDocument } from "./findings";
 import { sketchReport, sketchReportMarkdown } from "./report";
@@ -32,7 +35,7 @@ const trapezoid = (ring: readonly { e: number; n: number }[]) => Math.abs(ring.r
 
 describe.skipIf(!DIR || !existsSync(join(DIR, "job.json")))("a real job, end to end (local only)", () => {
   it("reads, draws, interprets the sketch, checks and compares with the surveyor's plan", () => {
-    const job = JSON.parse(readFileSync(join(DIR, "job.json"), "utf8")) as { survey: string[]; crs: string; sketch: string; reference: string; statedExtent?: string; settings?: Partial<DrawingSettings>; surveyorNotes?: string[] };
+    const job = JSON.parse(readFileSync(join(DIR, "job.json"), "utf8")) as { survey: string[]; crs: string; sketch: string; reference: string; statedExtent?: string; sketchFile?: string; settings?: Partial<DrawingSettings>; surveyorNotes?: string[] };
     const crs = crsById(job.crs);
     expect(crs).not.toBeNull();
     const out: string[] = [`# Real job evaluation`, "", `Run ${new Date().toISOString()} on ${job.survey.join(", ")} and ${job.sketch}.`, ""];
@@ -42,7 +45,7 @@ describe.skipIf(!DIR || !existsSync(join(DIR, "job.json")))("a real job, end to 
     for (const name of job.survey) {
       const r = readSurveyFile(name, readFileSync(join(DIR, name), "latin1"), crs, null);
       out.push(r.ok ? `- ${name}: ${r.read.points.length} points read (${r.read.format}).` : `- ${name}: refused: ${r.problem}`);
-      if (r.ok) for (const p of r.read.points) points.push({ id: `00000000-0000-4000-8000-${String(points.length + 1).padStart(12, "0")}`, pointId: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? null });
+      if (r.ok) for (const p of r.read.points.filter((q) => !points.some((x) => x.pointId === q.pointId))) points.push({ id: `00000000-0000-4000-8000-${String(points.length + 1).padStart(12, "0")}`, pointId: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? null });
     }
     expect(points.length).toBeGreaterThan(0);
 
@@ -55,8 +58,12 @@ describe.skipIf(!DIR || !existsSync(join(DIR, "job.json")))("a real job, end to 
 
     // 3. The sketch's drawing, interpreted and applied as the sketch read does.
     const answer = JSON.parse(readFileSync(join(DIR, job.sketch), "utf8")) as SketchReadOutput;
-    const record = acceptSketch(answer, ["sketch.jpg"], "claude (as read for this evaluation)", new Date());
+    const record = acceptSketch(answer, [job.sketchFile ?? "sketch.jpg"], "claude (as read for this evaluation)", new Date());
     doc = { ...doc, sketch: record };
+    // Farbaek's plain corrections, as a new read gets them (ADR 0260).
+    const corrected = withAutoCorrections(doc, points, new Date());
+    doc = corrected.document;
+    out.push("", "## Farbaek's corrections", "", ...(corrected.corrections.length ? corrected.corrections.map((c) => `- ${c.label} read as ${c.to}`) : ["None."]));
     const interpretation = interpretDocument(doc, points)!;
     const applied = applySketch(doc, interpretation);
     doc = applied.document;

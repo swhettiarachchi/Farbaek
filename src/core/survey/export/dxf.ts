@@ -100,11 +100,13 @@ export function writeDxf(input: DxfInput): string {
       }
     });
   };
-  const polyline = (layer: LayerId, pts: readonly { e: number; n: number }[], closed: boolean, bulge: readonly number[] = []) => {
+  const polyline = (layer: LayerId, pts: readonly { e: number; n: number }[], closed: boolean, bulge: readonly number[] = [], dashed = false) => {
     all.push(...pts);
     entities.push((w) => {
       w.pair(0, "POLYLINE");
       w.pair(8, layer);
+      // A line drawn dashed whatever its layer (stage 254): its own line type, over the layer's.
+      if (dashed) w.pair(6, "DASHED");
       w.pair(66, 1);
       w.pair(10, "0.0");
       w.pair(20, "0.0");
@@ -127,7 +129,7 @@ export function writeDxf(input: DxfInput): string {
   for (const f of doc.features) {
     const pts = f.points.map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
     const curves = pts.length === f.points.length ? f.arcs : undefined;
-    if (pts.length >= 2) polyline(f.layer, pts, f.closed, bulges(pts, curves));
+    if (pts.length >= 2) polyline(f.layer, pts, f.closed, bulges(pts, curves), f.dashed === true);
     // The extent takes a curve's bulge; the code is written on the line itself, at the middle of the first segment as drawn.
     const drawnLine = densify(pts, curves, 0.05);
     if (curves) all.push(...drawnLine);
@@ -200,6 +202,20 @@ export function writeDxf(input: DxfInput): string {
     });
     all.push(p);
     text("BOUNDARY_MARKS", p.e + h(2), p.n - h(1.5), entry.kind === "symbol" ? entry.meaning : entry.code, h(1.9), 0, false);
+  }
+
+  // Words the surveyor wrote on the plan (stage 255): on the Text layer, at the point or the middle of the line, turned to read along it.
+  for (const t of doc.texts ?? []) {
+    const a = byId.get(t.at);
+    if (!a) continue;
+    const b = t.along ? byId.get(t.along) : undefined;
+    const at = b ? { e: (a.e + b.e) / 2, n: (a.n + b.n) / 2 } : a;
+    let turn = b ? (Math.atan2(b.n - a.n, b.e - a.e) * 180) / Math.PI : 0;
+    // Read left to right: a line drawn leftwards is lettered from its other end.
+    if (turn > 90) turn -= 180;
+    if (turn <= -90) turn += 180;
+    all.push(at);
+    text("TEXT", at.e, at.n, t.text, h(2.2), turn);
   }
 
   // Roads: both edges, the name on the middle line.

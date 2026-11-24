@@ -77,6 +77,7 @@ export function applySketch(doc: SurveyDocument, interpretation: SketchInterpret
         closed: p.kind === "building" ? true : p.closed,
         points: pts,
         ...(p.kind === "line" && p.arcs.length > 0 ? { arcs: p.arcs } : {}),
+        ...(p.kind === "line" && p.dashed ? { dashed: true } : {}),
       });
       mark(`feature:${id}`, p.kind);
     } else if (p.kind === "road") {
