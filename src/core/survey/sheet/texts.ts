@@ -15,7 +15,8 @@ export function drawTexts(ctx: DrawCtx, inside: [number, number] | null): void {
     const b = t.along ? ctx.byId.get(t.along) : undefined;
     const entity = `text:${t.id}`;
     // In the practice style, lettered as small as the walls' codes, as gate and drain notes are on practising surveyors' plans (stage 261).
-    const size = doc.settings.wallTicks === true ? ctx.sizes.small * 0.6 : ctx.sizes.small;
+    // The surveyor's own size for these words (stage 265), on the usual one.
+    const size = (doc.settings.wallTicks === true ? ctx.sizes.small * 0.6 : ctx.sizes.small) * (t.size ?? 1);
     const [x1, y1] = atPage(ctx, a);
     let tries: { x: number; y: number; rotate: number }[];
     let order: number[] | undefined;
@@ -44,6 +45,8 @@ export function drawTexts(ctx: DrawCtx, inside: [number, number] | null): void {
       const w = textWidth(t.text, size);
       tries = ([[1.5 + w / 2, size * 0.35], [-(1.5 + w / 2), size * 0.35], [0, -1.5], [0, 1.5 + size]] as const).map(([dx, dy]) => ({ x: x1 + dx, y: y1 + dy, rotate: 0 }));
     }
+    // The surveyor's own angle (stage 265) turns every place the same way, so the solver judges them as they're drawn.
+    if (t.turn !== undefined) tries = tries.map((c) => ({ ...c, rotate: t.turn! }));
     const quad = (c: { x: number; y: number; rotate: number }) =>
       textQuad({ kind: "text", x: c.x, y: c.y, text: t.text, size, rotate: c.rotate, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer: "TEXT", entity, ...(ctx.slant ? { slant: ctx.slant } : {}) });
     const m = moved(ctx, [entity]);

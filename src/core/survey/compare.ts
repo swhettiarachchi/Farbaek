@@ -185,6 +185,14 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   if (cornersAdded > 0) add("Lines and outlines", cornersAdded === 1 ? "A point that wasn't surveyed was added." : `${cornersAdded} points that weren't surveyed were added.`);
   if (cornersGone > 0) add("Lines and outlines", cornersGone === 1 ? "A point that wasn't surveyed was taken out." : `${cornersGone} points that weren't surveyed were taken out.`);
   if (cornersSquared > 0) add("Lines and outlines", cornersSquared === 1 ? "A point that wasn't surveyed is worked out differently now." : `${cornersSquared} points that weren't surveyed are worked out differently now.`);
+  const dimsOf = (d: SurveyDocument) => new Map((d.dimensions ?? []).map((x) => [x.id, `${ring([x.from, x.to])}|${x.offset}`]));
+  const [db0, da0] = [dimsOf(before), dimsOf(after)];
+  const dimsAdded = [...da0.keys()].filter((k) => !db0.has(k)).length;
+  const dimsGone = [...db0.keys()].filter((k) => !da0.has(k)).length;
+  const dimsMoved = [...da0].filter(([k, v]) => db0.has(k) && db0.get(k) !== v).length;
+  if (dimsAdded > 0) add("Lines and outlines", dimsAdded === 1 ? "A dimension line was added." : `${dimsAdded} dimension lines were added.`);
+  if (dimsGone > 0) add("Lines and outlines", dimsGone === 1 ? "A dimension line was taken out." : `${dimsGone} dimension lines were taken out.`);
+  if (dimsMoved > 0) add("Lines and outlines", dimsMoved === 1 ? "A dimension line is drawn differently now." : `${dimsMoved} dimension lines are drawn differently now.`);
   if (rerun > 0) add("Lines and outlines", `${rerun} ${rerun === 1 ? "line is" : "lines are"} drawn on past ${rerun === 1 ? "its" : "their"} ends differently.`);
 
   // Words on the plan and symbols given to points (stage 255).
@@ -193,6 +201,7 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   for (const [was, x] of words.matched) {
     if (was.text !== x.text) add("Words and symbols", `"${short(was.text)}" now reads "${short(x.text)}".`);
     if (placeOf(was) !== placeOf(x)) add("Words and symbols", `"${short(x.text)}" is now ${placeOf(x)}.`);
+    if ((was.size ?? 1) !== (x.size ?? 1) || was.turn !== x.turn) add("Words and symbols", `"${short(x.text)}" is drawn at another size or angle.`);
   }
   for (const x of words.added) add("Words and symbols", `"${short(x.text)}" added, ${placeOf(x)}.`);
   for (const x of words.removed) add("Words and symbols", `"${short(x.text)}" removed.`);

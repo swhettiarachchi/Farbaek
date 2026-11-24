@@ -170,6 +170,50 @@ export function TextEditor(props: { id: string; doc: SurveyDocument; update: (ch
         />
       </label>
       {value.trim() === "" ? <p className="text-sm text-ink-3">Words can&apos;t be empty: the plan keeps the last ones. Remove them instead.</p> : null}
+      <div className="grid grid-cols-2 gap-2">
+        <label className="grid gap-1">
+          <span className={LABEL_CLASSES}>Size</span>
+          <select
+            value={String(t.size ?? 1)}
+            disabled={readOnly}
+            onChange={(e) =>
+              props.update((d) => {
+                const x = (d.texts ?? []).find((y) => y.id === t.id)!;
+                const v = Number(e.target.value);
+                if (v === 1) delete x.size;
+                else x.size = v;
+              })
+            }
+            className={inputClasses()}
+          >
+            <option value="0.8">Smaller</option>
+            <option value="1">As usual</option>
+            <option value="1.3">Larger</option>
+            <option value="1.6">Largest</option>
+          </select>
+        </label>
+        <label className="grid gap-1">
+          <span className={LABEL_CLASSES}>Angle, degrees clockwise</span>
+          <input
+            type="number"
+            step={1}
+            min={-180}
+            max={180}
+            value={t.turn ?? ""}
+            placeholder={t.along ? "Along its line" : "Level"}
+            disabled={readOnly}
+            onChange={(e) =>
+              props.update((d) => {
+                const x = (d.texts ?? []).find((y) => y.id === t.id)!;
+                const v = e.target.value.trim() === "" ? NaN : Number(e.target.value);
+                if (Number.isFinite(v)) x.turn = Math.max(-180, Math.min(180, v));
+                else delete x.turn;
+              }, `text-turn:${t.id}`)
+            }
+            className={inputClasses()}
+          />
+        </label>
+      </div>
       {confirming ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-ink-2">Remove these words from the plan?</span>

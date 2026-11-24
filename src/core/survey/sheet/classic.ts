@@ -13,6 +13,7 @@
  * nothing smaller fits.
  */
 import { BEARING_CONVENTION } from "../angles";
+import { drawDimensions } from "./dimensions";
 import { codesAreCommonList } from "../codes";
 import { lotName, PAPER_SIZES, type PaperSize } from "../document";
 import { titleSentence, regionLine, type Run } from "../description";
@@ -336,6 +337,8 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     drawLoosePoints(ctx, input.points, input.lots);
     if (doc.settings.noLotLetters !== true) drawLotLabels(ctx, input.lots, { extentUnder: null, highlight: extract?.id ?? null });
     drawAdjoining(ctx, doc.adjoining, input.lots);
+    // The surveyor's dimension lines (stage 265, ADR 0273), before the words, which keep clear of them.
+    drawDimensions(ctx, doc.dimensions ?? [], doc.settings.distanceDecimals);
     drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
     front.push(...drawing);
   }

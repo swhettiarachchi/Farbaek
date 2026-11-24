@@ -43,6 +43,7 @@ import { CodesPanel, SheetFields, describeSelection, type SurveyorOption } from 
 import { SheetSvg } from "./sheet-svg";
 import { setPlanUnsaved } from "./unsaved-plan";
 import { DrawLineBar, SelectionEditor, cannotFinish, nextDrawing, type Drawing } from "./selection-editor";
+import { AddDimension } from "./dimension-editor";
 import { FindPoint } from "./point-editor";
 
 export type { SurveyorOption } from "./plan-panels";
@@ -809,6 +810,7 @@ export function PlanEditor(props: PlanEditorProps) {
             <div className="grid gap-3">
               <p className="text-sm text-ink-2">Tap a line, point, lot or label on the sheet to see where its figures come from and change what can be changed. On a touch screen, tap a label before dragging it.</p>
               <FindPoint points={props.points} onFound={(id) => (setPicked([]), setSelected(`pt:${id}`))} />
+              <AddDimension doc={doc} points={props.points} update={update} readOnly={Boolean(props.readOnly)} onAdded={(id) => (setPicked([]), setSelected(`dim:${id}`))} />
               {props.readOnly || drawing ? null : (
                 <button type="button" onClick={() => startDrawing(true)} className={buttonClasses("secondary", "sm", "w-fit")}>
                   <LineSegmentsIcon size={16} weight="bold" aria-hidden /> Draw a line
