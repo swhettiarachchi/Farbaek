@@ -6,7 +6,7 @@ import { z } from "zod";
 import { ADJUST_METHODS, ADJUST_NAMES } from "@/core/survey/adjust";
 import { grammarForLibrary } from "@/core/survey/grammar";
 import { autoDraft } from "@/core/survey/autodraft";
-import { START_LIMITS, gridProblem, pointClashes, readSurveyFile, startName, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
+import { START_LIMITS, gridProblem, importOrder, importPointsOf, pointClashes, readSurveyFile, readTogether, startName, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
 import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
 import { withDefaults } from "@/core/survey/autosurvey/defaults";
@@ -295,15 +295,19 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   await surveyStore.chooseOfficeProfile(g.w.admin, g.w.actor, profile?.id ?? null).catch(() => null);
   // The run as a job with real stages, so leaving the page and coming back shows where it stands (ADR 0239).
   const job = await JobTracker.start(g.w.admin, g.w.actor, projectId, generateStages(reads.length, i.sketches, new Date()));
-  for (const [n, r] of reads.entries()) {
+  // The same survey uploaded as its instrument file, its printed list and its drawing is one set of points (stage 252): files with heights
+  // first, each point imported once, and every file kept as it was uploaded, as a source that agrees.
+  const ordered = importOrder(reads);
+  const together = readTogether(ordered);
+  for (const [index, r] of ordered.entries()) {
     const imported = await surveyStore.importPoints(g.w.admin, g.w.actor, {
       projectId,
       fileName: r.name,
       format: r.format,
-      content: contents[n]!,
+      content: contents[reads.indexOf(r)]!,
       // The date the file states is kept with it, so a run finished after a cut-off offers the same date (stage 235).
       settings: { delimiter: r.delimiter, hasHeader: r.hasHeader, columns: r.columns, units: "metre", crs: crs.id, by: "autosurvey", ...(r.reduction ? { reduction: r.reduction } : {}), ...(r.surveyDate ? { surveyDate: r.surveyDate } : {}) },
-      points: r.points.map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
+      points: importPointsOf(ordered, index, together.kept).map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
     });
     if (!imported.ok) {
       await job.stage("import", "failed", `${r.name}: ${imported.message}`, { message: `${r.name} wasn't imported.` });
@@ -311,7 +315,13 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
       return { status: "error", message: `The project was created, but ${r.name} wasn't imported: ${imported.message} Open the project to import it again.`, problems: [], projectId };
     }
   }
-  await job.stage("import", "done", `${all.length} ${all.length === 1 ? "point" : "points"} from ${reads.length} ${reads.length === 1 ? "file" : "files"}.`);
+  const repeated = together.repeats.filter((x) => x.count > 0);
+  const kept = together.kept.size;
+  await job.stage(
+    "import",
+    "done",
+    `${kept} ${kept === 1 ? "point" : "points"} from ${reads.length} ${reads.length === 1 ? "file" : "files"}.${repeated.length > 0 ? ` ${repeated.map((x) => `${x.file} repeats ${x.count} of ${x.of.join(" and ")}'s points`).join("; ")}: each is kept once, and every file as a source.` : ""}`.slice(0, 500),
+  );
   const drawing = await drawFromPoints(
     g.w,
     projectId,

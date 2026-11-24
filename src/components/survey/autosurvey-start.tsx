@@ -12,7 +12,7 @@ import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { GRAMMAR, grammarForLibrary, type GrammarId } from "@/core/survey/grammar";
 import { profileSummary, resolveProfile, type OfficeProfile } from "@/core/survey/profile";
 import { LIBRARY_LIMITS, libraryFor, librarySummary, looksLikeCodeLibrary, parseCodeLibrary } from "@/core/survey/codelib";
-import { START_LIMITS, gridProblem, kindOfUpload, notReadYet, pointClashes, readSurveyFile, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
+import { START_LIMITS, gridProblem, importOrder, kindOfUpload, notReadYet, pointClashes, readSurveyFile, readTogether, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
 import type { AdjustMethod } from "@/core/survey/adjust";
 import { IMPORT_LIMITS } from "@/core/survey/import/delimited";
 import { buttonClasses } from "@/components/ui/button";
@@ -237,6 +237,10 @@ export function AutoSurveyStart({
   const reads = data.flatMap((u) => (u.read ? [u.read] : []));
   const points = reads.flatMap((r) => r.points);
   const clashes = pointClashes(reads);
+  // The same survey as its instrument file, printed list and drawing: said beside each file that repeats another (stage 252).
+  // By the read itself, never its name: two uploads may share one.
+  const ordered = importOrder(reads);
+  const repeats = new Map(readTogether(ordered).repeats.flatMap((x) => (x.count > 0 ? [[ordered[x.index]!, x] as const] : [])));
   const grid = crs ? gridProblem(points, crs) : null;
   const problems = data.filter((u) => u.problem).length + clashes.length + (grid ? 1 : 0);
   const dataBytes = data.reduce((sum, u) => sum + u.content.length, 0);
@@ -353,7 +357,10 @@ export function AutoSurveyStart({
       return { status: "pending", label: "Read next", text: "Claude reads what's written on it once the plan is drawn, and Farbaek checks each measurement against your data." };
     }
     if (u.problem) return { status: "attention", label: "Needs a look", text: u.problem };
-    if (u.read) return { status: "done", label: "Read", text: summary(u.read) };
+    if (u.read) {
+      const same = repeats.get(u.read);
+      return { status: "done", label: "Read", text: `${summary(u.read)}${same ? ` ${same.count === u.read.points.length ? "They're" : `${same.count} of them are`} the same as ${same.of.join(" and ")}'s, so each is imported once.` : ""}` };
+    }
     return { status: "working", label: "Reading", text: `${size(u.size)}.` };
   };
 

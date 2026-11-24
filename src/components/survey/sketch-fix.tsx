@@ -52,7 +52,7 @@ export function SketchFixResult({ projectId }: { projectId: string }) {
  * One press to correct a number the sketch was read with (stage 249, ADR 0257): "the number read as 10 is 20". The correction is kept
  * beside the reading as the surveyor's, and what the sketch drew from it is redrawn, waiting for them as before.
  */
-export function SketchFix({ projectId, baseVersion, file, reading, label, to, readOnly }: { projectId: string; baseVersion: number; file: string; reading: string; label: string; to: string; readOnly: string | null }) {
+export function SketchFix({ projectId, baseVersion, file, reading, label, to, readOnly, undo = false }: { projectId: string; baseVersion: number; file: string; reading: string; label: string; to: string; readOnly: string | null; undo?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +72,7 @@ export function SketchFix({ projectId, baseVersion, file, reading, label, to, re
     <div className="grid gap-1.5">
       <button type="button" onClick={run} disabled={off} className={buttonClasses("secondary", "sm", "w-fit")}>
         <PencilSimpleIcon size={16} weight="bold" aria-hidden />
-        {pending ? "Redrawing…" : `It's ${to}: use ${to} for the ${label} read`}
+        {pending ? "Redrawing…" : undo ? `Put back ${to}, as read` : `It's ${to}: use ${to} for the ${label} read`}
       </button>
       {unsaved && !readOnly ? <p className="text-sm text-ink-3">{PLAN_UNSAVED_REASON}</p> : null}
       {error ? (

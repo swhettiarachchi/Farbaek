@@ -9,7 +9,8 @@ import { crsById } from "../crs";
 import { emptyDocument, type SurveyDocument } from "../document";
 import type { SurveyPoint } from "../parcel";
 import { applySketch } from "./apply";
-import { correctedDrawing, correctedReadings, numberKey, redrawFromCorrection, type SketchCorrection } from "./correct";
+import { autoCorrections, correctedDrawing, correctedReadings, numberKey, redrawFromCorrection, withAutoCorrections, type SketchCorrection } from "./correct";
+import { interpretDocument } from "./findings";
 import type { SketchDrawing, SketchLine } from "./drawing";
 import { interpretSketch } from "./interpret";
 
@@ -119,5 +120,51 @@ describe("faults a fresh review found (stage 249)", () => {
     const fixed = checkSketch({ ...sketch, corrections: [FIX] }, PTS, local)[0]!;
     expect(fixed).toMatchObject({ status: "agrees", corrected: true, reading: { id: "r2", to: "4" } });
     expect(sketchFindings({ ...sketch, corrections: [FIX] }, PTS, local, new Set()).some((f) => f.code === "SKETCH_DIFFERS")).toBe(false);
+  });
+});
+
+describe("corrections Farbaek makes when it reads a sketch (stage 252)", () => {
+  const readings: SketchReading[] = [
+    { id: "r1", file: "s.jpg", kind: "point", text: "7", from: "", to: "", near: "" },
+    { id: "r2", file: "t.jpg", kind: "point", text: "7", from: "", to: "", near: "" },
+  ];
+  it("makes only the plain ones the engine offers, as written, as Farbaek's, once per number on each photo", () => {
+    const at = new Date("2026-11-24T10:00:00Z");
+    const qs = [{ suggest: { file: "s.jpg", reading: "r1", label: "7", to: "4" } }, { suggest: { file: "s.jpg", reading: "r1", label: "7", to: "4" } }, {}, { suggest: { file: "s.jpg", reading: "r9", label: "8", to: "2" } }];
+    expect(autoCorrections(qs, readings, at)).toEqual([{ file: "s.jpg", label: "7", to: "4", by: null, at: "2026-11-24T10:00:00.000Z" }]);
+    expect(autoCorrections([], readings, at)).toEqual([]);
+  });
+});
+
+describe("Farbaek's corrections are made only when they're safe and help (stage 252 review)", () => {
+  const at = new Date("2026-11-24T10:00:00Z");
+  it("never corrects a number written twice on its photo, or two numbers to the same point", () => {
+    const twice: SketchReading[] = [
+      { id: "r1", file: "s.jpg", kind: "point", text: "7", from: "", to: "", near: "" },
+      { id: "r2", file: "s.jpg", kind: "point", text: "7", from: "", to: "", near: "" },
+    ];
+    expect(autoCorrections([{ suggest: { file: "s.jpg", reading: "r1", label: "7", to: "4" } }], twice, at)).toEqual([]);
+    const two: SketchReading[] = [
+      { id: "r1", file: "s.jpg", kind: "point", text: "3", from: "", to: "", near: "" },
+      { id: "r2", file: "s.jpg", kind: "point", text: "5", from: "", to: "", near: "" },
+    ];
+    expect(autoCorrections([{ suggest: { file: "s.jpg", reading: "r1", label: "3", to: "7" } }, { suggest: { file: "s.jpg", reading: "r2", label: "5", to: "7" } }], two, at)).toEqual([]);
+  });
+
+  it("draws a square lot right when its corner 4 was written as 9, a point in the middle, and keeps the reading as read", () => {
+    const pt = (id: string, e: number, n: number): SurveyPoint => ({ id: `00000000-0000-4000-8000-${id.padStart(12, "0")}`, pointId: id, e: 500_000 + e, n: 600_000 + n, z: null, code: null });
+    const points = [pt("1", 0, 0), pt("2", 20, 0), pt("3", 20, 20), pt("4", 0, 20), pt("5", 10, -5), pt("6", 25, 10), pt("7", 10, 25), pt("8", -5, 10), pt("9", 10, 10)];
+    const place = (label: string, at: string, id: string): SketchReading => {
+      const p = points.find((x) => x.pointId === at)!;
+      return { id, file: "s.jpg", kind: "point", text: label, from: "", to: "", near: "", photo: { x: Math.round(100 + (p.e - 500_000) * 20), y: Math.round(900 - (p.n - 600_000) * 20) } };
+    };
+    const readings = [place("1", "1", "r1"), place("2", "2", "r2"), place("3", "3", "r3"), place("5", "5", "r5"), place("6", "6", "r6"), place("7", "7", "r7"), place("8", "8", "r8"), place("9", "4", "r9")];
+    const sketch: SketchRecord = { model: "claude-sonnet-5-5", readAt: "2026-11-24T10:00:00Z", files: ["s.jpg"], readings, unreadable: [], drawing: { lines: [line(["1", "2", "3"]), line(["3", "9", "1"])], symbols: [], areas: [] } };
+    const doc: SurveyDocument = { ...emptyDocument(), sketch };
+    const r = withAutoCorrections(doc, points, at);
+    expect(r.corrections).toEqual([{ file: "s.jpg", label: "9", to: "4", by: null, at: "2026-11-24T10:00:00.000Z" }]);
+    expect(r.document.sketch!.readings).toEqual(readings);
+    const drawn = applySketch(r.document, interpretDocument(r.document, points)!).document;
+    expect(new Set(drawn.lots[0]!.points)).toEqual(new Set(["1", "2", "3", "4"].map((n) => points.find((p) => p.pointId === n)!.id)));
   });
 });

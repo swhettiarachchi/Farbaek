@@ -81,7 +81,7 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
             </div>
           ) : null}
           {e.sketch.fixes.map((f) => (
-            <SketchFix key={`${f.file}:${f.reading}`} projectId={projectId} baseVersion={baseVersion} file={f.file} reading={f.reading} label={f.label} to={f.to} readOnly={readOnly} />
+            <SketchFix key={`${f.file}:${f.reading}`} projectId={projectId} baseVersion={baseVersion} file={f.file} reading={f.reading} label={f.label} to={f.to} readOnly={readOnly} undo={f.undo === true} />
           ))}
         </div>
       ) : e.evidence ? (

@@ -107,25 +107,106 @@ export interface StartProblem {
   problem: string;
 }
 
+/** Where two files put the same point number within half a millimetre: their numbers are written to the millimetre. */
+const SAME_PLACE_M = 0.0005;
+
 /**
- * The files read together: one point number given two different places by two files (or two places in one) stops the start,
- * since imported points are never changed; an exact repeat is kept once.
+ * Whether a file has heights: one whose every height is 0 (or missing) was exported without them, as a 2D drawing or an instrument's
+ * printed list of a survey shot without heights is, so its zeros say nothing about the ground.
  */
-export function pointClashes(reads: readonly FileRead[]): StartProblem[] {
-  const seen = new Map<string, { e: number; n: number; z: number | null; file: string }>();
+export const hasHeights = (r: FileRead) => r.points.some((p) => p.z !== null && p.z !== 0);
+
+/** Whether a file has codes: a drawing or list exported without them says nothing about a point's code. */
+export const hasCodes = (r: FileRead) => r.points.some((p) => (p.code ?? "").trim() !== "");
+
+/**
+ * The order files are imported in: those with heights first, otherwise as given, so the files that say most about a point come first.
+ * The checks run in this order too, so what's checked is what's imported.
+ */
+export const importOrder = (reads: readonly FileRead[]): FileRead[] => [...reads.filter(hasHeights), ...reads.filter((r) => !hasHeights(r))];
+
+/** One point number across the files that give it (stage 252): the value kept, and every file that gave it, by its place in the order. */
+export interface KeptPoint {
+  e: number;
+  n: number;
+  /** The height, from the first file with heights that gives one; null when none does. */
+  z: number | null;
+  /** The code, from the first file with codes that gives one; null when none does. */
+  code: string | null;
+  /** The files that give it, by their place in `importOrder`. */
+  files: number[];
+}
+
+/**
+ * The files read together, as one survey (stage 252): each point number given once or more, compared across every file that gives it.
+ * The same survey uploaded as its instrument file, its printed list and its drawing is one set of points: each point is imported once,
+ * with the best each file says (its place, a height from a file with heights, a code from a file with codes), and every file is kept as
+ * a source. Files are told apart by their place in the order, never by name: two uploads may share one.
+ */
+export function readTogether(ordered: readonly FileRead[]): { kept: Map<string, KeptPoint>; clashes: StartProblem[]; repeats: { index: number; file: string; count: number; of: string[] }[] } {
+  const kept = new Map<string, KeptPoint>();
   const clashes: StartProblem[] = [];
-  for (const r of reads) {
+  const heights = ordered.map(hasHeights);
+  const codes = ordered.map(hasCodes);
+  const said = new Set<string>();
+  const clash = (file: string, text: string) => {
+    if (clashes.length < 5 && !said.has(text)) {
+      said.add(text);
+      clashes.push({ file, problem: text });
+    }
+  };
+  const repeats = ordered.map((r, index) => ({ index, file: r.name, count: 0, of: new Set<string>() }));
+  ordered.forEach((r, i) => {
     for (const p of r.points) {
-      const before = seen.get(p.pointId);
-      if (!before) {
-        seen.set(p.pointId, { e: p.e, n: p.n, z: p.z, file: r.name });
+      const k = kept.get(p.pointId);
+      const z = heights[i] ? p.z : null;
+      const code = codes[i] && (p.code ?? "").trim() !== "" ? p.code! : null;
+      if (!k) {
+        kept.set(p.pointId, { e: p.e, n: p.n, z, code, files: [i] });
         continue;
       }
-      if (before.e === p.e && before.n === p.n && before.z === p.z) continue;
-      if (clashes.length < 5) clashes.push({ file: r.name, problem: `Point ${p.pointId} is at different coordinates here and in ${before.file === r.name ? "an earlier line of the same file" : before.file}. Imported points are never changed: check which is right, and give a corrected point a new number.` });
+      const where = (j: number) => (j === i ? "an earlier line of the same file" : ordered[j]!.name);
+      const first = k.files[0]!;
+      if (Math.abs(k.e - p.e) >= SAME_PLACE_M || Math.abs(k.n - p.n) >= SAME_PLACE_M) {
+        clash(r.name, `Point ${p.pointId} is at a different place here and in ${where(first)}. Imported points are never changed: check which is right, and give a corrected point a new number.`);
+        continue;
+      }
+      if (z !== null && k.z !== null && Math.abs(k.z - z) >= SAME_PLACE_M) {
+        clash(r.name, `Point ${p.pointId} has a different height here (${z}) and in ${where(k.files.find((j) => heights[j]) ?? first)} (${k.z}). Imported points are never changed: check which is right.`);
+        continue;
+      }
+      if (code !== null && k.code !== null && code !== k.code) {
+        clash(r.name, `Point ${p.pointId} has the code ${code} here and ${k.code} in ${where(k.files.find((j) => codes[j]) ?? first)}. Imported points are never changed: check which is right.`);
+        continue;
+      }
+      // The same point: what this file adds (a height, a code) is kept with it.
+      kept.set(p.pointId, { ...k, z: k.z ?? z, code: k.code ?? code, files: k.files.includes(i) ? k.files : [...k.files, i] });
+      if (first !== i) {
+        repeats[i]!.count++;
+        repeats[i]!.of.add(ordered[first]!.name);
+      }
     }
-  }
-  return clashes;
+  });
+  return { kept, clashes, repeats: repeats.map((x) => ({ ...x, of: [...x.of] })) };
+}
+
+/**
+ * The points to import from the file at `index` in the order: every point as it's kept, so the first file stores it with the best the
+ * files say and every later file's copy is the same, which the database keeps once. The file itself is kept as it was uploaded.
+ */
+export function importPointsOf(ordered: readonly FileRead[], index: number, kept: ReadonlyMap<string, KeptPoint>): FileRead["points"] {
+  return ordered[index]!.points.map((p) => {
+    const k = kept.get(p.pointId);
+    return k ? { ...p, e: k.e, n: k.n, z: k.z, code: k.code } : p;
+  });
+}
+
+/**
+ * The files read together: one point number given two different places, codes or heights by two files (or two places in one) stops the
+ * start, since imported points are never changed. Checked in the order files are imported, against every file that gave the point.
+ */
+export function pointClashes(reads: readonly FileRead[]): StartProblem[] {
+  return readTogether(importOrder(reads)).clashes;
 }
 
 /**

@@ -107,8 +107,11 @@ export interface SketchReport {
   unclear: UnclearItem[];
   questions: string[];
   unreadable: string[];
-  /** The surveyor's corrections of numbers as read (stage 249): the report reads the sketch with them, and lists them as theirs. */
-  corrections: { file: string; label: string; to: string; at: string }[];
+  /**
+   * The corrections of numbers as read: the surveyor's (stage 249), and Farbaek's own plain ones made when it read the sketch (stage 252,
+   * ADR 0260). The report reads the sketch with them, and lists each as whose it is.
+   */
+  corrections: { file: string; label: string; to: string; at: string; by: "surveyor" | "farbaek" }[];
 }
 
 const DRAWN: Record<SketchLineStyle, string> = {
@@ -293,7 +296,7 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
     unclear: ranked.sort((a, b) => a.rank - b.rank).map((x) => x.item),
     questions: document ? sketchQuestionFindings(interpretation, document).map((f) => [f.message, f.detail].filter(Boolean).join(" ")) : (interpretation?.questions ?? []).map((q) => [q.text, ...q.evidence].join(" ")),
     unreadable: sketch.unreadable,
-    corrections: corrections.map((c) => ({ file: c.file, label: c.label, to: c.to, at: c.at })),
+    corrections: corrections.map((c) => ({ file: c.file, label: c.label, to: c.to, at: c.at, by: c.by === null ? ("farbaek" as const) : ("surveyor" as const) })),
   };
 }
 
@@ -387,7 +390,7 @@ export function sketchReportMarkdown(r: SketchReport, title = "Sketch interpreta
     out.push("", "### Also read with doubt", "", "Labels and notes, and measurements the survey agrees with exactly as read. Not used as facts either.", "");
     for (const u of quiet) out.push(`- **${cell(u.what)}** (${where(u)}): ${cell(u.reasons.join(" "))}`);
   }
-  if (r.corrections.length > 0) out.push("", "## Corrected by the surveyor", "", ...r.corrections.map((c) => `- ${cell(`The number read as ${c.label} on ${c.file} is ${c.to}.`)}`));
+  if (r.corrections.length > 0) out.push("", "## Numbers corrected", "", ...r.corrections.map((c) => `- ${cell(`The number read as ${c.label} on ${c.file} is read as ${c.to}, ${c.by === "farbaek" ? "by Farbaek, from where it's written: not yet confirmed" : "by the surveyor"}.`)}`));
   if (r.questions.length > 0) out.push("", "## What the engine asks", "", ...r.questions.map((q) => `- ${cell(q)}`));
   if (r.unreadable.length > 0) out.push("", "## Seen but not read", "", ...r.unreadable.map((u) => `- ${cell(u)}`));
   return out.join(LF);
