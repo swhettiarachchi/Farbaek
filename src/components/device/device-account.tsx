@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { forgetAll, keepOnly } from "@/components/survey/staging";
 import { claimDevice, forgetDevice } from "./device-store";
 
-/** On every signed-in page: copies another account kept in this browser are removed (ADR 0192). Renders nothing. */
+/**
+ * On every signed-in page: copies another account kept in this browser are removed (ADR 0192), and so are AutoSurvey files another
+ * account kept until its plan was generated or its sketches read (ADR 0258). Renders nothing.
+ */
 export function DeviceOwner({ userId }: { userId: string }) {
   useEffect(() => {
     claimDevice(userId).catch(() => undefined);
+    keepOnly(userId).catch(() => undefined);
   }, [userId]);
   return null;
 }
@@ -22,6 +27,7 @@ export function SignOutForm({ action, className, children }: { action: () => Pro
       className={className}
       action={async () => {
         await forgetDevice().catch(() => undefined);
+        await forgetAll().catch(() => undefined);
         await action();
       }}
     >

@@ -57,13 +57,13 @@ export function JobProgress({ job, now, projectId, latestVersion, disabledReason
       </ol>
       {state === "interrupted" && canFinish ? (
         <>
-          <p className="mt-3 text-sm text-ink-2">This run stopped after its files were imported, before the plan was drawn. The project keeps every file, so Farbaek can draw the plan from them now. Sketch photos aren&apos;t kept until they&apos;re read: read them again from the Draft step.</p>
+          <p className="mt-3 text-sm text-ink-2">This run stopped after its files were imported, before the plan was drawn. The project keeps every file, so Farbaek can draw the plan from them now. Sketch photos stay in the browser that sent them until they&apos;re read, and that browser offers to read them here; on another device, read them again from the Draft step.</p>
           <FinishRun projectId={projectId} jobId={job.id} disabledReason={disabledReason} />
         </>
       ) : savedSince ? (
         <p className="mt-3 text-sm text-ink-2">This run stopped before its record said the plan was drawn, and the plan has been saved since, so there&apos;s nothing to finish here: what was saved is on the plan. Read the sketches again from the Draft step.</p>
       ) : state === "interrupted" ? (
-        <p className="mt-3 text-sm text-ink-2">This run stopped before it finished: the photos may not have reached Farbaek, or the server restarted. What was saved is on the plan: read the sketches again from the Draft step, or import a file again on the Import step.</p>
+        <p className="mt-3 text-sm text-ink-2">This run stopped before it finished: the photos may not have reached Farbaek, or the server restarted. What was saved is on the plan. Sketch photos stay in the browser that sent them, which offers to read them here; otherwise read them again from the Draft step, or import a file again on the Import step.</p>
       ) : null}
       <LiveRefresh active={running} />
     </Card>

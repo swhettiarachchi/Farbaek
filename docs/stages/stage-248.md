@@ -82,6 +82,7 @@ Stage 249's run of the database tests found v105 wouldn't load: the review fix f
 - **Verified:** the whole database suite, 661 tests in 92 files, runs again on the real migrations.
 - **The read-back script** (`scripts/vps/check-migrations.ps1`) now checks v104 and v105 too.
 - **Lesson:** the database tests run after the last change to a migration, not before the review's fixes.
+- **Applied (2026-11-24):** the owner ran the fixed file's line. The migration went through, but the line's read-back was a bare expression, which the script's read-back step refused while still printing "Done". `check-migrations.ps1` then read v105 back as `t`. Stage 250 makes the script wrap a bare check and fail loudly when the read-back fails.
 
 ## Not done, and why
 

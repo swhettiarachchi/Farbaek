@@ -31,6 +31,9 @@ if ($name -notmatch '^(\d{14})_([a-z0-9_]+)$') { Write-Host "That isn't a migrat
 $version = $Matches[1]
 $label = $Matches[2]
 if ($Check -match "[`r`n]") { Write-Host "The check must be one line. Nothing changed." -ForegroundColor Red; exit 1 }
+# The read-back is one SQL statement. A bare yes-or-no expression is wrapped, so it prints check|t or check|f (v105's line was bare).
+if ($Check -ne "" -and $Check -notmatch "^\s*(select|with)\b") { $Check = "select 'check', (" + $Check.Trim().TrimEnd(';').TrimEnd() + ");" }
+if ($Check -ne "" -and $Check -notmatch ";\s*$") { $Check = "$Check;" }
 $ssh = @("-i", $Key, "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=20")
 $remoteFile = "/tmp/farbaek-migration-$version.sql"
 $OutputEncoding = New-Object System.Text.UTF8Encoding $false
@@ -60,7 +63,7 @@ if ($code -ne 0) { Write-Host "The database refused it (the ERROR line above say
 Write-Host "3 of 3: recording it and reading back" -ForegroundColor Cyan
 # Production's database (self-hosted) has no migration ledger, so it's recorded only where one exists.
 $record = @'
-docker exec -i supabase-db psql -U postgres -d postgres -Atq <<'SQL'
+docker exec -i supabase-db psql -U postgres -d postgres -Atq -v ON_ERROR_STOP=1 <<'SQL'
 do $$ begin
   if to_regclass('supabase_migrations.schema_migrations') is not null then
     insert into supabase_migrations.schema_migrations (version, name) values ('__VERSION__', '__LABEL__') on conflict do nothing;

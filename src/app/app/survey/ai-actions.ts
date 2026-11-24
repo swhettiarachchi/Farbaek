@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { AcceptedItem } from "@/core/survey/ai-draft";
-import { sketchFileName } from "@/core/survey/autosurvey/sketch";
+import { sketchFileNames } from "@/core/survey/autosurvey/sketch";
 import { pruneProvenance, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { applySketch } from "@/core/survey/sketchintel/apply";
@@ -162,15 +162,13 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     return { status: "error", message: "The sketch photos are too large together. Choose them again so Farbaek can shrink them." };
   }
   const images: SketchImage[] = [];
+  // Each photo's name is its own: a phone camera names every shot "image.jpg", and a reading opens its photo by name.
+  const names = sketchFileNames(files.map((f) => f.name));
   for (const [n, f] of files.entries()) {
     const data = Buffer.from(await f.arrayBuffer());
     const mediaType = imageTypeOf(data);
     if (!mediaType) return { status: "error", message: "Use sketch photos or scans saved as JPEG, PNG or WebP." };
-    // Each photo's name is its own: a phone camera names every shot "image.jpg", and a reading opens its photo by name.
-    const base = sketchFileName(f.name, n);
-    let name = base;
-    for (let k = 2; images.some((im) => im.name === name); k++) name = `${base.slice(0, 190)} (${k})`;
-    images.push({ name, mediaType, data });
+    images.push({ name: names[n]!, mediaType, data });
   }
   const p = await prepare(projectId, baseVersion, "Reading field sketches", "read");
   if ("error" in p) return { status: "error", message: p.error };
