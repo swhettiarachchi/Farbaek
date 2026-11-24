@@ -12,6 +12,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusGlyph } from "@/components/ui/status-badge";
 import { shrink } from "./photo";
+import { sketchesKey, stage, unstage } from "./staging";
 
 const STATUS: Record<ReadingStatus, { glyph: "done" | "info" | "attention" | "off"; label: string }> = {
   agrees: { glyph: "done", label: "Agrees" },
@@ -39,6 +40,9 @@ export function SketchPanel(props: {
   aiCost: string;
   /** The photos this reading came from, kept with the plan (ADR 0240); empty when they weren't kept. */
   photos?: { id: string; fileName: string }[];
+  /** Whose photos these are, in which workspace: kept in this browser until their read is saved (ADR 0258); null keeps nothing. */
+  userId?: string | null;
+  orgId?: string;
 }) {
   const router = useRouter();
   const [photos, setPhotos] = useState<{ key: string; name: string; blob: Blob }[]>([]);
@@ -95,8 +99,12 @@ export function SketchPanel(props: {
     form.set("consent", "yes");
     for (const p of photos) form.append("photo", p.blob, p.name);
     startTransition(async () => {
+      // Kept in this browser until the read is saved, so a read cut off by a refresh can be finished without choosing them again.
+      const key = props.userId && props.orgId ? sketchesKey(props.orgId, props.userId, props.projectId) : null;
+      if (key) await stage(key, { v: 1, jobId: null, before: sketch?.readAt ?? null, photos: photos.map((p) => ({ name: p.name, blob: p.blob })) });
       const r = await readSketchesAction(form).catch((): SketchReadState => ({ status: "error", message: "The connection dropped while the sketches were sent. Try again." }));
       setResult(r);
+      if (r.status === "done" && key) await unstage(key);
       if (r.status === "done") {
         setPhotos([]);
         setConsent(false);

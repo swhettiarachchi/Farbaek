@@ -141,6 +141,21 @@ export function sketchFileName(name: string, n: number): string {
 }
 
 /**
+ * The names a read gives its photos, in the order sent: each its own, since a phone camera names every shot "image.jpg" and a reading
+ * opens its photo by name. The server names them so, and a browser that kept the photos (stage 250) compares by the same rule.
+ */
+export function sketchFileNames(names: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const [n, raw] of names.entries()) {
+    const base = sketchFileName(raw, n);
+    let name = base;
+    for (let k = 2; out.includes(name); k++) name = `${base.slice(0, 190)} (${k})`;
+    out.push(name);
+  }
+  return out;
+}
+
+/**
  * The model's answer, made safe to keep: readings on a photo that wasn't sent, of an unknown kind, empty, or carrying invisible
  * characters (which could make two point numbers look alike) are dropped. Nothing is reworded.
  */

@@ -1,6 +1,6 @@
 "use client";
 
-import { CameraIcon, FileTextIcon, ImageIcon, InfoIcon, PencilSimpleIcon, UploadSimpleIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, CameraIcon, FileTextIcon, ImageIcon, InfoIcon, PencilSimpleIcon, UploadSimpleIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -11,7 +11,7 @@ import { CRS_REGISTRY, LOCAL_CRS, crsById } from "@/core/survey/crs";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { GRAMMAR, grammarForLibrary, type GrammarId } from "@/core/survey/grammar";
 import { profileSummary, resolveProfile, type OfficeProfile } from "@/core/survey/profile";
-import { LIBRARY_LIMITS, libraryFor, librarySummary, looksLikeCodeLibrary, parseCodeLibrary, type LibraryRead } from "@/core/survey/codelib";
+import { LIBRARY_LIMITS, libraryFor, librarySummary, looksLikeCodeLibrary, parseCodeLibrary } from "@/core/survey/codelib";
 import { START_LIMITS, gridProblem, kindOfUpload, notReadYet, pointClashes, readSurveyFile, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
 import type { AdjustMethod } from "@/core/survey/adjust";
 import { IMPORT_LIMITS } from "@/core/survey/import/delimited";
@@ -19,18 +19,12 @@ import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { shrink } from "./photo";
+import { sketchesKey, stage, staged, startKey, unstage } from "./staging";
+import { fromKept, toKept, type Upload } from "./start-uploads";
 import { TraverseChoice } from "./traverse-choice";
 
 const CRS_OPTIONS = [...CRS_REGISTRY, LOCAL_CRS];
 
-/** One uploaded file and what Farbaek found in it, read here so the surveyor sees it at once. The server reads it all again. */
-type Upload =
-  | { key: string; name: string; size: number; kind: "survey-data"; content: string; read: FileRead | null; problem: string | null; encoding: string | null; adjust: AdjustMethod | null }
-  /** A field sketch, shrunk as it's added so a photo this device can't open is said at once, not after the plan exists. */
-  | { key: string; name: string; size: number; kind: "sketch"; photo: Blob | null; problem: string | null }
-  | { key: string; name: string; size: number; kind: "document"; reason: string }
-  /** An office code library (ADR 0237): read here to show, and again on the server. */
-  | { key: string; name: string; size: number; kind: "code-library"; content: string; read: LibraryRead };
 
 /**
  * After Generate Plan, when the screen stays to say something about the sketches: they couldn't be read, or nothing on them could
@@ -74,7 +68,13 @@ export function AutoSurveyStart({
   profiles = [],
   lastProfile = null,
   lastCrsId = null,
+  userId = null,
+  orgId = null,
 }: {
+  /** Whose files these are, so what's kept in this browser until the plan is generated is theirs alone (ADR 0258); null keeps nothing. */
+  userId?: string | null;
+  /** The workspace the files are chosen in: kept files never come back in another workspace. */
+  orgId?: string | null;
   /** The workspace's office profiles (ADR 0256): one is picked by the files' formats, the one used last, or the only one. */
   profiles?: OfficeProfile[];
   lastProfile?: string | null;
@@ -125,8 +125,63 @@ export function AutoSurveyStart({
       return r.ok ? { ...u, read: r.read, problem: null } : { ...u, read: null, problem: r.problem };
     });
 
+  // What was chosen before a refresh or a dropped connection comes back, kept in this browser until the plan is generated (ADR 0258).
+  // Nothing is kept until what was there has been looked at, so an empty screen never wipes it.
+  const [restored, setRestored] = useState<{ count: number; sent: boolean } | null>(null);
+  const [ready, setReady] = useState(false);
+  // Files added before what was kept had been looked at win: nothing kept is brought back over them.
+  const touched = useRef(false);
+  // Once the plan exists, its files are the project's: nothing on this screen is kept again.
+  const generated = useRef(false);
+  const key = userId && orgId ? startKey(orgId, userId) : null;
+  useEffect(() => {
+    if (!key) return;
+    let live = true;
+    void staged(key).then((s) => {
+      if (!live) return;
+      // Only a look that worked lets this screen keep files: a failed look never counts as nothing kept, so it can't wipe them.
+      if (s.status === "failed") return;
+      setReady(true);
+      const back = s.status === "found" && !touched.current ? fromKept(s.value, () => `${(counter.current += 1)}-kept`) : null;
+      if (!back || back.uploads.length === 0) return;
+      const chosen = crsById(back.crsId) ?? crsById(startingCrsId);
+      setUploads(
+        back.uploads.map((u) => {
+          if (u.kind !== "survey-data") return u;
+          const r = readSurveyFile(u.name, u.content, chosen, u.adjust);
+          return r.ok ? { ...u, read: r.read, problem: null } : { ...u, read: null, problem: r.problem };
+        }),
+      );
+      setRestored({ count: back.uploads.length, sent: back.sent });
+      if (chosen) {
+        setCrsId(chosen.id);
+        setChangingCrs(false);
+      }
+      setTitle(back.title);
+    });
+    return () => {
+      live = false;
+    };
+  }, [key, startingCrsId]);
+  useEffect(() => {
+    if (!key || !ready || pending || drawn || generated.current) return;
+    // A moment after the last change, so typing a title doesn't write every file again on each key.
+    const timer = setTimeout(() => {
+      if (uploads.length === 0) void unstage(key);
+      else void stage(key, toKept(uploads, title, crsId));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [key, ready, pending, drawn, uploads, title, crsId]);
+  const forget = () => {
+    setRestored(null);
+    setUploads([]);
+    setTitle("");
+    if (key) void unstage(key);
+  };
+
   const add = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    touched.current = true;
     setResult({ status: "idle" });
     const added: Upload[] = [];
     for (const file of Array.from(files)) {
@@ -235,17 +290,30 @@ export function AutoSurveyStart({
     const toRead = reading ? sketches.flatMap((u) => (u.photo ? [{ name: u.name, photo: u.photo }] : [])) : [];
     startTransition(async () => {
       setPhase("drawing");
+      // Marked as sent first: a refresh before the answer can't tell whether the plan was made, and the screen says so if they come back.
+      if (key) await stage(key, toKept(uploads, title, crsId, Date.now()));
       // A request the server refuses before the action runs (too large to carry) comes back as a thrown error: said, not lost.
       const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content, adjust: u.adjust })), library: library ? { name: library.name, content: library.content } : null, sketches: reading ? sketches.filter((u) => u.photo).length : 0, profileId: profile?.id ?? null }).catch(
         (): GenerateState => ({ status: "error", message: "The files couldn't be sent: they may be too large together. Generate from fewer files, then import the rest into the project.", problems: [] }),
       );
       if (r.status !== "done") {
+        // A project made before a file failed to import is the place to finish: these files aren't kept as if nothing was made.
+        if (r.status === "error" && r.projectId) {
+          generated.current = true;
+          if (key) void unstage(key);
+        }
         setResult(r);
         return;
       }
+      // The files are in the project now. The photos stay in this browser until their read is saved, so a read cut off by a refresh
+      // or a dropped connection can be finished from the project without choosing them again (ADR 0258).
+      generated.current = true;
+      if (key) void unstage(key);
+      const photosKey = userId && orgId ? sketchesKey(orgId, userId, r.projectId) : null;
       if (toRead.length > 0) {
         setPhase("reading");
         setOpening(r.next);
+        if (photosKey) await stage(photosKey, { v: 1, jobId: r.jobId, before: null, photos: toRead.map((s) => ({ name: s.name, blob: s.photo })) });
         const form = new FormData();
         form.set("projectId", r.projectId);
         form.set("baseVersion", String(r.version));
@@ -253,6 +321,7 @@ export function AutoSurveyStart({
         form.set("jobId", r.jobId ?? "");
         for (const s of toRead) form.append("photo", s.photo, s.name);
         const read = await readSketchesAction(form).catch(() => ({ status: "error" as const, message: "The connection dropped while the sketches were sent." }));
+        if (read.status === "done" && photosKey) void unstage(photosKey);
         if (read.status === "error") {
           setDrawn({ next: r.next, failed: true, message: read.message });
           return;
@@ -324,6 +393,27 @@ export function AutoSurveyStart({
         <input ref={picker} type="file" multiple className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void add(e.target.files).then(() => (e.target.value = ""))} />
         <input ref={camera} type="file" accept="image/*" capture="environment" multiple className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void add(e.target.files).then(() => (e.target.value = ""))} />
       </div>
+
+      {restored && uploads.length > 0 ? (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md bg-canvas-2 px-4 py-3 text-sm text-ink-2">
+          <p className="flex min-w-0 items-start gap-2">
+            <ArrowCounterClockwiseIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+            <span>
+              The {restored.count === 1 ? "file" : `${restored.count} files`} you chose before {restored.count === 1 ? "is" : "are"} back.{" "}
+              {restored.sent ? (
+                <>
+                  Generate Plan had been pressed with {restored.count === 1 ? "it" : "them"}, so the plan may already be in your <Link href="/app/survey" className="font-medium text-accent underline-offset-2 hover:underline">survey projects</Link>: look there before generating again.
+                </>
+              ) : (
+                `${restored.count === 1 ? "It stays" : "They stay"} in this browser until the plan is generated, for a week at most.`
+              )}
+            </span>
+          </p>
+          <button type="button" onClick={forget} className={buttonClasses("ghost", "sm")}>
+            Start again
+          </button>
+        </div>
+      ) : null}
 
       {uploads.length > 0 ? (
         <ul aria-label="Your files" className="grid gap-2">

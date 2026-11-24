@@ -63,6 +63,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
   - Generate Plan.
 - **The traverse's closure and the rule to adjust it by,** beside each instrument file (stage 231).
 - **Sketch reading** on the start screen and on the Draft step, with the surveyor's consent each time (stage 223). The photos read are shown beside their readings (stage 230).
+- **Nothing lost on a refresh** (stage 250, ADR 0258): the start screen keeps its files in the browser until the plan is generated, and sketch photos until their read is saved; a read that didn't finish is offered on the project, with its consent.
 - **Progress from the server:** Generate Plan runs as a job with real stages, shown again after leaving and coming back. No percentages are made up (stage 229).
 - **One "Needs you" list** replaces ticking every drafted item (stage 224):
   - its groups are must fix, confirm, and for information;
@@ -243,10 +244,11 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #308 | 245 (the sketch interpretation report) | Merged, live | none |
 | #309 | 246 (doubt where it's real, crossing lines) | Merged, live (build 98cc285939fc) | none |
 | #310 | 247 (where each number is written) | Merged, live | none |
-| #311 | 248 (office profiles) | Merged, live (build bd331357bdeb) | **v105** isn't applied: until it is, profiles can't be saved and say so, and Generate Plan works as before |
-| #312 | 248 fix (v105 loads again) | Open | **v105:** the owner applies the fixed file with the line in the PR; the one in #311 had a dollar quote lost in a review fix, and the database refused it |
+| #311 | 248 (office profiles) | Merged, live (build bd331357bdeb) | **v105** applied 2026-11-24 from #312's fixed file, read back `t` by `check-migrations.ps1` |
+| #312 | 248 fix (v105 loads again) | Merged, live (build 3f4f19669543) | **v105:** applied by the owner with the line in the PR, read back `t` |
 
-| next | 249 (a misread number corrected in one press) | Open, on #312 | none |
+| #313 | 249 (a misread number corrected in one press) | Merged, live (build 28d7ba63e260); pressed on the owner's real job in production | none |
+| next | 250 (nothing lost on a refresh) | Open | none |
 
 Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
@@ -257,7 +259,7 @@ Production deploys main by itself. **v102 and v103 were found missing on 2026-11
 - **Codes:** curved lot boundaries (curves are drawn on lines, not lots, since a lot's area would change); a curve's radius and length on the plan; offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
 - **Profiles:** learning from corrections (suggestions kept apart until approved), CAD layer and text styles, title-block fields other than the statement, plan numbering.
-- **Jobs:** resuming a cut-off import or sketch read (a run cut off after its import can be finished since stage 235); a timer for the jobs sweep; incremental regeneration (a correction saves a new version and re-checks the whole plan).
+- **Jobs:** finishing a cut-off sketch read without the browser that started it (since stage 250 the photos stay in that browser until the read is saved, and the project offers to finish it); server-side resumable uploads in chunks; a timer for the jobs sweep. Incremental regeneration is decided, not built (ADR 0258): the plan is worked out again in about 5 ms, and tests hold that a correction changes only what depends on it.
 - **Files:** reading PDFs, Word files and DWG, and a DXF's lines; Topcon raw files; keeping a camera's full-size original.
 - **Platform:** the success metrics (§26) that production doesn't record: time to first preview, findings across plans, refused exports, and a comparison with the same job by hand (`docs/survey/METRICS.md`, stage 237, says how the rest are read); malware scanning of uploads; signed download links.
 

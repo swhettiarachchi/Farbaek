@@ -24,6 +24,8 @@ import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives
 import { LotsEditor } from "@/components/survey/boundary-editor";
 import { FindingsList } from "@/components/survey/findings";
 import { DraftPanel } from "@/components/survey/draft-panel";
+import { ResumeSketches } from "@/components/survey/resume-sketches";
+import { jobState } from "@/core/survey/autosurvey/job";
 import { SketchPanel } from "@/components/survey/sketch-panel";
 import { ApproveForm, SurveyProjectSettingsForm } from "@/components/survey/forms";
 import { ImportPanel } from "@/components/survey/import-panel";
@@ -169,6 +171,20 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       {!data.drawing.readable ? <Notice tone="warning">This version&apos;s saved settings couldn&apos;t be read, so the plan shows defaults. Save a new version to replace it.</Notice> : null}
 
       {showJob(job, now) ? <JobProgress job={job} now={now} projectId={projectId} latestVersion={Math.max(data.drawing.version, ...data.versions.map((v) => v.version))} disabledReason={readOnly} /> : null}
+      {/* Sketch photos this browser kept from a read that didn't finish (ADR 0258): where a run lands and where sketches live. Off the
+          Draft step the read's availability is checked when it's pressed, and said if it's off. */}
+      {(step === "plan" || step === "draft") && !sample ? (
+        <ResumeSketches
+          projectId={projectId}
+          orgId={ctx.current.id}
+          userId={ctx.mode === "live" ? me : null}
+          baseVersion={data.drawing.version}
+          runningJobId={job && jobState(job, now) === "running" ? job.id : null}
+          record={doc.sketch ? { readAt: doc.sketch.readAt, files: doc.sketch.files, readings: doc.sketch.readings.length } : null}
+          readOff={step === "draft" ? aiOff(readAi) : readOnly}
+          aiCost={draftCost}
+        />
+      ) : null}
       <ModeChoice mode={mode} />
       <StepNav steps={stepsFor(mode, STEPS, { drawn, current: step }).map(({ id, label }) => ({ id, label }))} current={step} base={base} />
 
@@ -296,6 +312,8 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           readOff={aiOff(readAi)}
           aiCost={draftCost}
           photos={sketchPhotos}
+          orgId={ctx.current.id}
+          userId={ctx.mode === "live" ? me : null}
         />
       ) : null}
 
