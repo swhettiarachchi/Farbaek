@@ -43,7 +43,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Data normalisation | `import/*` readers, `import/reduce.ts` | Built and tested |
 | CRS resolver | `crs.ts`, the start screen's last-confirmed grid | Built and tested: never inferred, always confirmed; no transformations |
 | Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `grammar.ts`, `codes.ts`, `codelib.ts`, `codehints.ts` | Built and tested: Farbaek's and Carlson's line words (ADR 0243), joins to a point, a code report in the checks, suggestions for unknown codes added in one press (ADR 0246); PC to PT runs drawn as curves through their points (ADR 0247) |
-| Sketch intelligence | `autosurvey/sketch.ts`, `sketchintel/*`, `server/survey/sketches.ts`, `server/ai/sketch-reader.ts` | Built and tested: readings, and the drawing's lines, symbols and areas joined to the survey as proposals with evidence (ADR 0249); run on one real sketch as transcribed, not yet through the production reader |
+| Sketch intelligence | `autosurvey/sketch.ts`, `sketchintel/*`, `server/survey/sketches.ts`, `server/ai/sketch-reader.ts` | Built and tested: readings, and the drawing's lines, symbols and areas joined to the survey as proposals with evidence (ADR 0249); the owner's real sketch read by the production reader three times (stages 244 to 246); a number written where another point belongs is asked about (ADR 0255) |
 | Source reconciliation | point clashes, sketch-versus-instrument checks, observation checks | Built and tested |
 | Survey computation | `angles.ts`, `geometry.ts`, `cogo.ts`, `units.ts`, `reduce.ts`, `adjust.ts` | Built and tested |
 | Geometry construction | `autodraft.ts`, `lots.ts`, `partition.ts`, `roads.ts` | Built and tested |
@@ -108,7 +108,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Office code library (.fcl, CSV) | Codes, kinds and layers | Built and tested |
 | Sokkia Link point list (printout) | Points' and stations' North, East, Elev and code, by the printout's own columns; metres only; shots refused (upload the SDR) | Built and tested (stage 242, ADR 0250); a real printout read identical to its SDR |
 | DXF drawing (its points) | POINT entities and blocks, numbered by an attribute or by the text at the offset every point shares; metres only; lines not read | Built and tested (stage 242); a real Sokkia Link DXF read identical to its SDR; schema v104 applied 2026-11-24 |
-| Field sketch photos (JPEG, PNG, WebP) | Read by Claude with consent: readings, and the drawing's lines, symbols and areas | Built and tested; one real sketch run as transcribed, not yet through the production reader |
+| Field sketch photos (JPEG, PNG, WebP) | Read by Claude with consent: readings, and the drawing's lines, symbols and areas | Built and tested; the owner's real sketch read in production (stages 245 to 247 notes) |
 | PDF, Word, DWG | Listed and said plainly to be unread | Not built |
 | Topcon GTS-7 raw | Not reduced | Not built |
 
@@ -214,9 +214,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 - **`pnpm lint`, `pnpm typecheck` and `pnpm build` pass.**
 - **A fresh review agent read each stage's risky files after every check had passed.** It found real faults in each stage it read, for example 6 in stage 223, 5 in stage 230 and 9 in stage 231, all fixed with tests.
 - **Not run:**
-  - Generate Plan against a real database, since the demo workspace can't save and this PC runs no database;
   - a real instrument file;
-  - a real sketch.
+  - many real sketches: one real job has been read in production so far.
 
 ## 12. Build and deployment
 
@@ -238,9 +237,11 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #305 | 242 (point-list printout and DXF points) | Merged through #306, live | **v104** applied 2026-11-24 with the owner's go, read back: the format check allows sokkialist and dxf |
 | #306 | 243 (reading sketches as surveyors do) | Merged, live (build 1ba637a86eb5), with 242 | none |
 | #307 | 244 (the deed's extent on the face) | Merged, live (build 73408c17ac24) | none |
-| #308 | 245 (the sketch interpretation report) | Open | none |
+| #308 | 245 (the sketch interpretation report) | Merged, live | none |
+| #309 | 246 (doubt where it's real, crossing lines) | Merged, live (build 98cc285939fc) | none |
+| next | 247 (where each number is written) | Open | none |
 
-Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
+Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
 ## 13. Incomplete capabilities
 
@@ -255,9 +256,8 @@ Production deploys main by itself. Whether v102 and v103 are applied isn't confi
 
 ## 14. Remaining risks
 
-- **One real job has been run, on the dev PC.** The owner's real job's SDR read cleanly, and its sketch's drawing (as transcribed) gave the surveyor's lot within one corner. The production reader hasn't read a real sketch, Generate Plan hasn't run a real job on production, and the traverse is proven only on synthetic data built from the manufacturers' documents.
+- **One real job has been run,** locally and, with the owner's go, in production (2026-11-24): Generate Plan on its SDR and sketch, and the production reader on the sketch three times. Read by hand, the sketch gives the surveyor's lot within one corner; the production reader's best read gave a lot of 112.26 m² against 132.70 m², wrong through two misread numbers that the crossing and placement checks now ask about. The traverse is proven only on synthetic data built from the manufacturers' documents.
 - **Sketch readings can be plausibly wrong.** The instrument check catches a misread number only where there is a coordinate to compare it with. A misread name or note is shown as read, for the surveyor to check. A misread line is tested against the coordinates and asked about where they disagree, but a wrong line between two real points can look right: each one waits for the surveyor's press.
 - **Telling carried coordinates from control** rests on Sokkia's derivation codes and a tolerance. Codes from instruments newer than Sokkia's 1999 document aren't known. Unknown records never move and never close a traverse, and the closure names its route.
-- **Migrations v102 and v103 are the owner's to apply.** Until then, jobs and kept photos are said not to be saved, but nothing else breaks.
 - **Data leaves Sri Lanka** when sketches are read. It goes only with the surveyor's consent, each time, and that consent says so.
 - **The brief's 30-second target** depends on the network and the database, which haven't been timed.
