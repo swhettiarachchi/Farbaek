@@ -20,7 +20,7 @@ import type { PlanLots } from "../lots";
 import type { SurveyPoint } from "../parcel";
 import { roadCentreline } from "../roads";
 import { RUN_ON_MM } from "../sheet/draw";
-import { formatArp, roundTo, toArp } from "../units";
+import { fmt, formatArp, roundTo, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 
 /** AutoCAD colour index and line type per layer. */
@@ -229,7 +229,32 @@ export function writeDxf(input: DxfInput): string {
     if (turn > 90) turn -= 180;
     if (turn <= -90) turn += 180;
     all.push(at);
-    text("TEXT", at.e, at.n, t.text, h(2.2), turn);
+    text("TEXT", at.e, at.n, t.text, h(2.2) * (t.size ?? 1), t.turn !== undefined ? -t.turn : turn);
+  }
+
+  // The surveyor's dimension lines (stage 265, ADR 0273): the line, its extension lines and its distance from the coordinates, at
+  // the sheet's offset turned into ground units at the plan's scale.
+  for (const d of doc.dimensions ?? []) {
+    const a = byId.get(d.from);
+    const b = byId.get(d.to);
+    if (!a || !b) continue;
+    const len = Math.hypot(b.e - a.e, b.n - a.n);
+    if (len < 0.005) continue;
+    const [lx, ly] = [-(b.n - a.n) / len, (b.e - a.e) / len];
+    const o = h(d.offset);
+    const [a2, b2] = [{ e: a.e + lx * o, n: a.n + ly * o }, { e: b.e + lx * o, n: b.n + ly * o }];
+    polyline("DIMENSIONS", [a, a2], false);
+    polyline("DIMENSIONS", [b, b2], false);
+    polyline("DIMENSIONS", [a2, b2], false);
+    let turn = (Math.atan2(b.n - a.n, b.e - a.e) * 180) / Math.PI;
+    if (turn > 90) turn -= 180;
+    if (turn <= -90) turn += 180;
+    // The text stands on its baseline: where its tops face the line, it goes a text's height further out, so it never crosses it.
+    const away = Math.sign(d.offset || 1);
+    const rad = (turn * Math.PI) / 180;
+    const facesOut = (-Math.sin(rad) * lx + Math.cos(rad) * ly) * away >= 0;
+    const out = (facesOut ? h(1.2) : h(1.2) + h(1.9)) * away;
+    text("DIMENSIONS", (a2.e + b2.e) / 2 + lx * out, (a2.n + b2.n) / 2 + ly * out, fmt(len, doc.settings.distanceDecimals), h(1.9), turn);
   }
 
   // Roads: both edges, the name on the middle line.

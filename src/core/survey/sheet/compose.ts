@@ -10,6 +10,7 @@
  * fit is reported as a finding instead.
  */
 import { BEARING_CONVENTION, formatDms, toDms } from "../angles";
+import { drawDimensions } from "./dimensions";
 import { codeOf, codesAreCommonList, lookupCode } from "../codes";
 import type { CrsRecord } from "../crs";
 import { deedExtentFace, entireAreaM2 } from "../deed-extent";
@@ -393,6 +394,8 @@ function composePanel(input: ComposeInput): ComposedSheet {
       drawLoosePoints(ctx, input.points, input.lots);
       if (doc.settings.noLotLetters !== true) drawLotLabels(ctx, input.lots, { extentUnder: input.lots.lots.length === 1 ? (a) => formatArp(toArp(a, doc.settings.perchDecimals)) : null, highlight: doc.sheet.extractOf || null });
       drawAdjoining(ctx, doc.adjoining, input.lots);
+      // The surveyor's dimension lines (stage 265, ADR 0273), before the words, which keep clear of them.
+      drawDimensions(ctx, doc.dimensions ?? [], doc.settings.distanceDecimals);
       drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
       drawSimpleNorth(ctx, viewport.x + viewport.w - 10, viewport.y + 12, input.crs?.kind === "local");
       drawScaleBar(ctx, viewport.x + 4, viewport.y + viewport.h - 6, true);

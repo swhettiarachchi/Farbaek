@@ -113,6 +113,13 @@ export function describeSelection(entity: string | null, plan: ReturnType<typeof
     const num = (id: string) => points.find((x) => x.id === id)?.pointId ?? "?";
     return { title: "Words on the plan", rows: [["Words", t.text], ["Where", t.along ? `Along ${num(t.at)} to ${num(t.along)}` : `Beside ${num(t.at)}`]], note: "Drag them on the sheet to move them. Nothing is measured from them." };
   }
+  if (entity.startsWith("dim:")) {
+    const d = (doc.dimensions ?? []).find((x) => `dim:${x.id}` === entity);
+    if (!d) return null;
+    const a = points.find((x) => x.id === d.from);
+    const b = points.find((x) => x.id === d.to);
+    return { title: "Dimension line", rows: [["Between", `${a?.pointId ?? "?"} and ${b?.pointId ?? "?"}`], ["Distance", a && b ? `${Math.hypot(b.e - a.e, b.n - a.n).toFixed(doc.settings.distanceDecimals)} m` : "A point is missing"]], note: "Worked out from the coordinates, never typed. Drag the figure to move it." };
+  }
   if (entity.startsWith("feature:")) {
     const f = doc.features.find((x) => `feature:${x.id}` === entity);
     if (!f) return null;

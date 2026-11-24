@@ -440,6 +440,10 @@ export function checkSurvey(input: QcInput): Finding[] {
       blocks: [],
     });
   }
+  // A dimension line between points no longer in the survey isn't drawn: said, so a plan never loses one quietly (ADR 0273).
+  for (const d of doc.dimensions ?? [])
+    if (!known.has(d.from) || !known.has(d.to))
+      add({ code: "DIMENSION_MISSING_POINTS", severity: "error", message: "A dimension line uses points that no longer exist.", target: { kind: "project" }, action: "Remove it, or add it again between surveyed points.", blocks: ["export", "approval"] });
   for (const r of doc.roads) {
     if ([...r.edgeA, ...r.edgeB].some((id) => !known.has(id))) {
       add({ code: "ROAD_MISSING_POINTS", severity: "error", message: `The road ${r.name || "without a name"} uses points that no longer exist.`, target: { kind: "road", id: r.id }, action: "Choose its edge points again.", blocks: ["export", "approval"] });

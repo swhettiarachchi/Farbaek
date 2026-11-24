@@ -278,7 +278,26 @@ export const surveyDocumentSchema = z.object({
    * Words the surveyor writes on the plan (stage 255, ADR 0263): beside a surveyed point, or along the line from it to another, such as
    * "Gate" or "Proposed Drain". Presentation only: nothing is measured from them. Absent until the first, so earlier approvals stand.
    */
-  texts: z.array(z.object({ id: entityId, text: text(80).pipe(z.string().trim().min(1)), at: pointRef, along: pointRef.optional() })).max(100).optional(),
+  texts: z
+    .array(
+      z.object({
+        id: entityId,
+        text: text(80).pipe(z.string().trim().min(1)),
+        at: pointRef,
+        along: pointRef.optional(),
+        /** Drawn this many times the usual size, and turned to this angle on paper, degrees (stage 265, ADR 0273): absent unless set. */
+        size: z.number().min(0.5).max(3).optional(),
+        turn: z.number().min(-180).max(180).optional(),
+      }),
+    )
+    .max(100)
+    .optional(),
+  /**
+   * Dimension lines the surveyor adds between two surveyed points (stage 265, ADR 0273): drawn beside the line between them, `offset`
+   * millimetres of paper to its left looking from `from` to `to` (negative: its right), with the distance worked out from the
+   * coordinates, never typed. Absent until the first, so earlier approvals stand.
+   */
+  dimensions: z.array(z.object({ id: entityId, from: pointRef, to: pointRef, offset: z.number().min(-40).max(40) })).max(100).optional(),
   /**
    * Corners a sketch draws square that nobody surveyed (stage 262, ADR 0270), as recipes from surveyed points (construct.ts), never
    * coordinates. Only lines and outlines use them; a lot's corner is always surveyed. Absent until the first, so earlier approvals stand.
@@ -374,12 +393,12 @@ export function usedPointIds(doc: SurveyDocument): Set<string> {
     const c = made.get(id);
     return c ? recipeInputs(c) : [id];
   });
-  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...lines, ...(doc.symbols ?? []).map((s) => s.point), ...(doc.texts ?? []).flatMap((t) => (t.along ? [t.at, t.along] : [t.at]))]);
+  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...lines, ...(doc.symbols ?? []).map((s) => s.point), ...(doc.texts ?? []).flatMap((t) => (t.along ? [t.at, t.along] : [t.at])), ...(doc.dimensions ?? []).flatMap((x) => [x.from, x.to])]);
 }
 
 /** Every point the drawing draws, constructed corners too, but not the points a corner is only squared to: for its extent. */
 export function drawnPointIds(doc: SurveyDocument): Set<string> {
-  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...doc.features.flatMap((f) => f.points), ...(doc.symbols ?? []).map((s) => s.point), ...(doc.texts ?? []).flatMap((t) => (t.along ? [t.at, t.along] : [t.at]))]);
+  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...doc.features.flatMap((f) => f.points), ...(doc.symbols ?? []).map((s) => s.point), ...(doc.texts ?? []).flatMap((t) => (t.along ? [t.at, t.along] : [t.at])), ...(doc.dimensions ?? []).flatMap((x) => [x.from, x.to])]);
 }
 
 /** The document without constructed corners no line uses any more, and without the field once none is left (so approvals stand). */

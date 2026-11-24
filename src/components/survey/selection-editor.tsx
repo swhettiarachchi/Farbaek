@@ -9,6 +9,7 @@ import type { SurveyPoint } from "@/core/survey/parcel";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { ConstructPoint } from "./construct-point";
+import { DimensionEditor } from "./dimension-editor";
 import { PointEditor, TextEditor } from "./point-editor";
 
 /** The sheet's own texts, edited as fields on the Sheet tab: tapping one opens them there. */
@@ -392,6 +393,8 @@ export function SelectionEditor(props: {
     return p ? <PointEditor key={p.id} point={p} doc={doc} points={points} update={update} readOnly={props.readOnly} /> : null;
   }
   if (entity.startsWith("text:")) return <TextEditor key={id} id={id} doc={doc} update={update} readOnly={props.readOnly} onRemoved={props.onRemoved} />;
+  // A dimension line (stage 265, ADR 0273).
+  if (entity.startsWith("dim:")) return <DimensionEditor key={id} id={id} doc={doc} points={points} update={update} readOnly={props.readOnly} onRemoved={props.onRemoved} />;
 
   return null;
 }
