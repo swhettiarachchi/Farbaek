@@ -724,7 +724,7 @@ export async function answerProfileSuggestionAction(input: z.input<typeof sugges
   if (!profile) return { status: "error", message: "That profile has been archived, or isn't in this workspace any more. Reload the page." };
   if (profile.version !== i.baseVersion) return { status: "error", message: "Someone saved a newer version of this profile while you were working. Reload to see it. Nothing was saved." };
   const recent = await loadRecentPlans(g.w.user, g.w.actor.orgId, g.w.actor.userId);
-  const body = i.accept ? applySuggestion(profile.body, recent, i.key) : declineSuggestion(profile.body, recent, i.key);
+  const body = i.accept ? applySuggestion(profile, recent, i.key) : declineSuggestion(profile, recent, i.key);
   if (!body) return { status: "error", message: "That suggestion no longer applies: your plans or the profile have changed since the page was opened. Reload to see what's suggested now. Nothing was saved." };
   const r = await saveOfficeProfileAction({ profileId: profile.id, baseVersion: profile.version, name: profile.name, body });
   if (r.status !== "done") return r;

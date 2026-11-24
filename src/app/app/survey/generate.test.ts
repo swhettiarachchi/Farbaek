@@ -132,6 +132,8 @@ describe("suggestions learned from the surveyor's plans (stage 270, ADR 0277)", 
   const ticked = (name: string) => {
     const d = emptyDocument();
     d.settings.wallTicks = true;
+    // Started from the profile (ADR 0277): only such plans are learned from.
+    d.fromProfile = { id: PROFILE.id, version: 1 };
     return { name, document: d };
   };
 

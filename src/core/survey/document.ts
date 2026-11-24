@@ -281,6 +281,11 @@ export const surveyDocumentSchema = z.object({
    */
   sketch: sketchRecordSchema.nullable().default(null),
   /**
+   * The office profile the plan was started from, and its version (stage 270, ADR 0277): what the surveyor's corrections on it are
+   * learned against. Absent for a plan started without one, so earlier plans and approvals are unchanged.
+   */
+  fromProfile: z.object({ id: z.string().uuid(), version: z.number().int().min(1) }).optional(),
+  /**
    * Symbols drawn at surveyed points whose own codes don't say what they are, such as a well the sketch shows at a point (stage 241).
    * The point is unchanged: only how it's drawn. Absent until one is added, so earlier approvals stand.
    */

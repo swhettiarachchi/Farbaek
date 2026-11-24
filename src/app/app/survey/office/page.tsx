@@ -57,9 +57,9 @@ export default async function OfficeProfilesPage() {
             .
           </p>
           <div className="mt-4 grid gap-3">
-            <ProfileSuggestions profileId={p.id} version={p.version} suggestions={suggestionsFor(p.body, recentPlans)} disabledReason={disabledReason} />
+            <ProfileSuggestions profileId={p.id} version={p.version} suggestions={suggestionsFor(p, recentPlans)} disabledReason={disabledReason} />
             <Disclosure summary="Change it" hint="Saving makes a new version; the earlier ones are kept.">
-              <OfficeProfileForm profile={p} disabledReason={disabledReason} />
+              <OfficeProfileForm key={`${p.id}:${p.version}`} profile={p} disabledReason={disabledReason} />
             </Disclosure>
             {(versions[i] ?? []).length > 1 ? (
               <Disclosure summary="Earlier versions" hint="What each new plan started from can always be read again.">

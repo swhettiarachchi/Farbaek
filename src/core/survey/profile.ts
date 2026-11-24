@@ -152,6 +152,8 @@ export function withProfile(doc: SurveyDocument, profile: OfficeProfile, usedCod
     ...(codes ? { codes, grammar: b.codes!.grammar, provenance: { ...doc.provenance, codes: { source: "engine" as const, reviewed: true } } } : {}),
     ...(b.sheet ? { settings: { ...doc.settings, ...b.sheet } } : {}),
     ...(b.statement.trim() ? { sheet: { ...doc.sheet, statement: b.statement.trim() } } : {}),
+    // Which profile and version it started from (ADR 0277), so what the surveyor then corrects is learned against this profile only.
+    fromProfile: { id: profile.id, version: profile.version },
   };
 }
 
@@ -169,6 +171,12 @@ export function profileFromPlan(doc: SurveyDocument, crsId: string | null): Offi
   };
 }
 
+/** The drafting choices a profile's sheet carries (ADR 0277), as the summary says them: ", 2 drafting choices". */
+const drafting = (sheet: NonNullable<OfficeProfileBody["sheet"]>) => {
+  const n = DRAFTING_SETTINGS.filter((k) => sheet[k] === true).length;
+  return n === 0 ? "" : `, ${n} drafting ${n === 1 ? "choice" : "choices"}`;
+};
+
 /** What a profile holds, in a sentence, for the start screen and the profile list. */
 export function profileSummary(p: OfficeProfile): string {
   const b = p.body;
@@ -178,7 +186,7 @@ export function profileSummary(p: OfficeProfile): string {
       ? b.equipment.map((e) => (([e.make, e.model].filter(Boolean).join(" ") || EQUIPMENT_LABEL[e.kind]) + (e.precision ? ` (${e.precision.angleSeconds}″, ${e.precision.distanceMm} mm + ${e.precision.distancePpm} ppm)` : ""))).join(", ")
       : "no instruments",
     b.codes ? `${b.codes.entries.length} ${b.codes.entries.length === 1 ? "code" : "codes"}` : "Farbaek's code list",
-    b.sheet ? `${b.sheet.template === "classic" ? "classic" : "panel"} sheet, ${b.sheet.paper === "auto" ? "paper to fit" : b.sheet.paper}` : "Farbaek's sheet",
+    b.sheet ? `${b.sheet.template === "classic" ? "classic" : "panel"} sheet, ${b.sheet.paper === "auto" ? "paper to fit" : b.sheet.paper}${drafting(b.sheet)}` : "Farbaek's sheet",
   ];
   return `${parts.join("; ")}.`;
 }
