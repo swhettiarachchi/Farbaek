@@ -26,7 +26,10 @@ import { SURVEY_AI_DAILY } from "@/server/survey/assistant";
 import { BRIEF_LIMITS, PHOTO_LIMITS, draftSurveyPlan, imageTypeOf, readSurveyPhotos, type SurveyDraftDeps } from "@/server/survey/drafting";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { JobTracker, loadJob } from "@/server/survey/jobs";
-import { SKETCH_PHOTOS, readFieldSketches } from "@/server/survey/sketches";
+import { SKETCH_PHOTOS, checkPlanAgainstSketch, readFieldSketches } from "@/server/survey/sketches";
+import { checkItems, type SketchCheck } from "@/core/survey/sketchintel/verify";
+import { createAnthropicSketchChecker } from "@/server/ai/sketch-checker";
+import { loadSketchPhotos, readSketchPhoto } from "@/server/survey/sketch-photos";
 import { SURVEY_MESSAGES, surveyStore } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
@@ -196,7 +199,8 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   let corrected: string[] = [];
   const withReadings = (document: SurveyDocument, points: readonly SurveyPoint[]) => {
     // What an earlier read drew and nobody has confirmed goes: the new read draws what it reads (stage 256). The surveyor's own stays.
-    const read = pruneProvenance({ ...withoutWaitingSketchItems(document), sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:")) });
+    // A new read's check answers for itself: the earlier answers to readings and to a check go with them (stage 263).
+    const read = pruneProvenance({ ...withoutWaitingSketchItems(document), sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:") && !k.startsWith("check:")) });
     // The plain misreads the engine would offer to correct in one press are corrected now, as Farbaek's, before anything is drawn, when
     // that helps (ADR 0260): what they draw waits for the surveyor as everything from a sketch does, and each is put back in one press.
     const auto = withAutoCorrections(read, points, new Date());
@@ -211,9 +215,22 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     return applied.document;
   };
   const actor = { orgId: p.common.orgId, userId: p.common.userId };
-  const next = withReadings(p.data.drawing.document, p.data.points);
+  const drafted = withReadings(p.data.drawing.document, p.data.points);
+  // An independent check of what was just drawn against the same photos (stage 263, ADR 0271): its verdicts go with the sketch's record,
+  // which only reading writes. A check that doesn't run leaves the read as it is, and that's said.
+  let check: SketchCheck | null = null;
+  let checkNote = "";
+  const items = checkItems(drafted, p.data.points);
+  if (items.length > 0) {
+    const checkSource = { family: "anthropic" as const, create: (s: { model: string }) => createAnthropicSketchChecker({ model: s.model, client: p.client }) };
+    const c = await checkPlanAgainstSketch(p.ai.deps, checkSource, { orgId: p.common.orgId, userId: p.common.userId, projectId, images, items, now: new Date() });
+    if (c.ok) check = c.value;
+    else checkNote = ` ${c.message}`;
+  }
+  const withCheck = (d: SurveyDocument): SurveyDocument => (check && d.sketch ? { ...d, sketch: { ...d.sketch, check } } : d);
+  const next = withCheck(drafted);
   // Said from the version actually saved: the retry below works the drawing out again on the newest version.
-  const noteFor = () => `Read ${photos} with Claude: ${record.readings.length} things as written${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}${corrected.length > 0 ? `; Farbaek read ${corrected.join(" and ")}` : ""}`.slice(0, 200);
+  const noteFor = () => `Read ${photos} with Claude: ${record.readings.length} things as written${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}${corrected.length > 0 ? `; Farbaek read ${corrected.join(" and ")}` : ""}${check ? "; checked against the sketch" : ""}`.slice(0, 200);
   if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: "The readings didn't pass the plan's own checks, so nothing was saved." };
   let saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion, document: next, note: noteFor() });
   if (!saved.ok) {
@@ -221,7 +238,7 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     // the newest version once, rather than being lost after the read was counted.
     const latest = await loadSurveyProject(p.user, p.common.orgId, projectId);
     if (latest && latest.drawing.readable && latest.drawing.version !== baseVersion) {
-      const again = withReadings(latest.drawing.document, latest.points);
+      const again = withCheck(withReadings(latest.drawing.document, latest.points));
       if (surveyDocumentSchema.safeParse(again).success) saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion: latest.drawing.version, document: again, note: noteFor() });
     }
   }
@@ -238,7 +255,68 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   const fromDrawing = drawn > 0 ? ` ${drawn} ${drawn === 1 ? "item was" : "items were"} drawn from the sketch, each waiting for your confirmation.` : "";
   const fixed = corrected.length > 0 ? ` Farbaek read ${corrected.join(" and ")}, from where ${corrected.length === 1 ? "it's" : "they're"} written: check ${corrected.length === 1 ? "it" : "them"} on the plan.` : "";
   const questions = asked > 0 ? ` ${asked} ${asked === 1 ? "question" : "questions"} the sketch couldn't settle ${asked === 1 ? "is" : "are"} in the checks.` : "";
+  const checked = check ? ` ${checkSummary(check)}` : checkNote;
   await end("done", `${record.readings.length} things read${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}, saved as version ${saved.value}.${keptNote}`);
   revalidatePath(`/app/survey/${projectId}`);
-  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${fromDrawing}${fixed}${questions}${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length, drawn, questions: asked };
+  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${fromDrawing}${fixed}${questions}${checked}${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length, drawn, questions: asked };
+}
+
+/** What a check found, in a sentence (ADR 0271). */
+function checkSummary(check: SketchCheck): string {
+  const doubted = check.items.filter((v) => v.verdict !== "drawn").length;
+  const drawnSo = check.items.length - doubted;
+  const parts = [`${drawnSo} of ${check.items.length} ${check.items.length === 1 ? "item" : "items"} drawn so there`];
+  if (doubted > 0) parts.push(`${doubted} doubted`);
+  if (check.missing.length > 0) parts.push(`${check.missing.length} ${check.missing.length === 1 ? "line" : "lines"} on the sketch not on the plan`);
+  return `Farbaek checked the plan against the sketch: ${parts.join(", ")}. What it doubts is in the checks.`;
+}
+
+export type SketchCheckState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string; version: number };
+
+/**
+ * "Check against the sketch again" (stage 263, ADR 0271): the photos kept with the plan's last read are checked once more against the
+ * plan as it is now, after the surveyor's corrections. The photos go to Anthropic again only with the surveyor's say-so on this request.
+ * The verdicts replace the last check's, saved as a new version; nothing else changes.
+ */
+export async function checkSketchAgainAction(form: FormData): Promise<SketchCheckState> {
+  const projectId = String(form.get("projectId") ?? "");
+  const baseVersion = Number(form.get("baseVersion"));
+  if (form.get("consent") !== "yes") return { status: "error", message: "The plan is checked only when you agree to send the sketch photos to Anthropic again." };
+  const p = await prepare(projectId, baseVersion, "Checking the plan against the sketch", "read");
+  if ("error" in p) return { status: "error", message: p.error };
+  const doc = p.data.drawing.document;
+  const record = doc.sketch;
+  if (!record) return { status: "error", message: "The sketches haven't been read for this plan yet: read them first." };
+  const kept = await loadSketchPhotos(p.user, projectId, record.readAt);
+  const images: SketchImage[] = [];
+  for (const photo of kept.slice(0, SKETCH_PHOTOS.count)) {
+    const got = await readSketchPhoto(p.user, projectId, photo.id);
+    if (!got) continue;
+    const data = Buffer.from(got.content, "base64");
+    const mediaType = imageTypeOf(data);
+    if (mediaType) images.push({ name: photo.fileName, mediaType, data });
+  }
+  if (images.length === 0) return { status: "error", message: "The photos of the last read weren't kept with the plan, so it can't be checked against them. Read the sketches again." };
+  const items = checkItems(doc, p.data.points);
+  const checkSource = { family: "anthropic" as const, create: (s: { model: string }) => createAnthropicSketchChecker({ model: s.model, client: p.client }) };
+  const c = await checkPlanAgainstSketch(p.ai.deps, checkSource, { orgId: p.common.orgId, userId: p.common.userId, projectId, images, items, now: new Date() });
+  if (!c.ok) return { status: "error", message: c.message };
+  // The new check answers for itself: answers to the last check's doubts go.
+  const withCheck = (d: SurveyDocument): SurveyDocument => ({ ...d, kept: d.kept.filter((k) => !k.startsWith("check:")), sketch: d.sketch ? { ...d.sketch, check: c.value } : d.sketch });
+  const next = withCheck(doc);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: "The check didn't pass the plan's own checks, so nothing was saved." };
+  const actor = { orgId: p.common.orgId, userId: p.common.userId };
+  let saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion, document: next, note: "Checked the plan against the sketch" });
+  if (!saved.ok) {
+    // The plan was saved while it was checked: the verdicts are kept by item and points, so they go onto the newest version once, if it
+    // is still the same read, rather than being lost after the check was counted.
+    const latest = await loadSurveyProject(p.user, p.common.orgId, projectId);
+    if (latest && latest.drawing.readable && latest.drawing.version !== baseVersion && latest.drawing.document.sketch?.readAt === record.readAt) {
+      const again = withCheck(latest.drawing.document);
+      if (surveyDocumentSchema.safeParse(again).success) saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion: latest.drawing.version, document: again, note: "Checked the plan against the sketch" });
+    }
+  }
+  if (!saved.ok) return { status: "error", message: `The plan was checked, but the result couldn't be saved: ${saved.message}` };
+  revalidatePath(`/app/survey/${projectId}`);
+  return { status: "done", message: `${checkSummary(c.value)} Saved as version ${saved.value}.`, version: saved.value };
 }
