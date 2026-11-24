@@ -9,6 +9,7 @@
  * research behind stage 222), so no reading is trusted for being read: only its agreement with the instrument's data counts.
  */
 import { z } from "zod";
+import { correctedReadings } from "../sketchintel/corrected";
 import { SketchDrawingOutput, acceptDrawing, sketchDrawingSchema, type DrawingAnswer } from "../sketchintel/drawing";
 import { bearingFromDeltas, formatDms, parseBearing, toDms } from "../angles";
 import type { CrsRecord } from "../crs";
@@ -96,6 +97,22 @@ export const sketchRecordSchema = z.object({
   unreadable: z.array(short(200)).max(20),
   /** The sketch's drawing (stage 241): absent on reads from before it, and from a reader that returned only readings. */
   drawing: sketchDrawingSchema.optional(),
+  /**
+   * The surveyor's corrections of point numbers as read (stage 249, ADR 0257): kept beside the reading, which stays as read. The engine
+   * reads the drawing with them applied. Absent until the first one; a new read starts without them.
+   */
+  corrections: z
+    .array(
+      z.object({
+        file: short(200),
+        label: short(32).pipe(z.string().min(1)),
+        to: short(32).pipe(z.string().min(1)),
+        by: z.string().uuid().nullable(),
+        at: short(40),
+      }),
+    )
+    .max(50)
+    .optional(),
 });
 export type SketchRecord = z.infer<typeof sketchRecordSchema>;
 
@@ -209,6 +226,8 @@ export interface ReadingCheck {
   status: ReadingStatus;
   /** What the check found, in a sentence. */
   detail: string;
+  /** The reading as checked has a number the surveyor corrected (ADR 0257); `reading` is then as corrected. */
+  corrected?: true;
 }
 
 const metres = (m: number) => `${m.toFixed(3)} m`;
@@ -279,10 +298,10 @@ export function checkReading(r: SketchReading, byNumber: ReadonlyMap<string, Sur
   return { reading: r, status: "differs", detail: `${said}.` };
 }
 
-/** Every reading checked, in the order read. */
+/** Every reading checked, in the order read, with the surveyor's corrections of point numbers (ADR 0257): keep answers stay with the reading. */
 export function checkSketch(sketch: SketchRecord, points: readonly SurveyPoint[], crs: CrsRecord): ReadingCheck[] {
   const byNumber = new Map(points.map((p) => [p.pointId, p] as const));
-  return sketch.readings.map((r) => checkReading(r, byNumber, crs));
+  return correctedReadings(sketch.readings, sketch.corrections ?? []).map((r, i) => ({ ...checkReading(r, byNumber, crs), ...(r !== sketch.readings[i] ? { corrected: true as const } : {}) }));
 }
 
 /** Who read the sketches, as people know them. */

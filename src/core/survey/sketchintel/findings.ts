@@ -11,16 +11,21 @@ import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
 import { same, sketchItemId } from "./apply";
 import { isRoadName } from "./classify";
-import { interpretSketch, writtenWidth, type SketchInterpretation } from "./interpret";
+import { correctedDrawing, correctedReadings } from "./corrected";
+import { interpretSketch, writtenWidth, type Question, type SketchInterpretation } from "./interpret";
 
 /** The interpretation of a document's sketch drawing, with the stated extent and the road widths and names read from the sketch. */
 export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPoint[]): SketchInterpretation | null {
-  const drawing = doc.sketch?.drawing;
-  if (!drawing || (drawing.lines.length === 0 && drawing.symbols.length === 0 && drawing.areas.length === 0)) return null;
+  const raw = doc.sketch?.drawing;
+  if (!raw || (raw.lines.length === 0 && raw.symbols.length === 0 && raw.areas.length === 0)) return null;
+  // Read with the surveyor's corrections of point numbers applied (stage 249, ADR 0257); the reading itself stays as read.
+  const corrections = doc.sketch?.corrections ?? [];
+  const drawing = correctedDrawing(raw, corrections);
+  const readings = correctedReadings(doc.sketch?.readings ?? [], corrections);
   const stated = readStatedExtent(doc.sheet.statedExtent);
   // A road's reading is its width when it reads as one ("15'"), else its name (stage 243). One read with doubt is never taken, but it's
   // counted, so a conflict is still asked about (ADR 0253).
-  const roads = (doc.sketch?.readings ?? []).filter((r) => r.kind === "road");
+  const roads = readings.filter((r) => r.kind === "road");
   const clear = roads.filter((r) => r.certain !== false);
   const unsure = roads.filter((r) => r.certain === false);
   const widths = clear.filter((r) => writtenWidth(r.text) !== null).map((r) => r.text);
@@ -29,7 +34,7 @@ export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPo
   // Every doubtful road writing that isn't a width: a name read with doubt keeps an area of the same name from naming the road too.
   const doubtfulWidths = unsure.filter((r) => writtenWidth(r.text) !== null).map((r) => r.text);
   const doubtfulRoadNames = unsure.filter((r) => writtenWidth(r.text) === null).map((r) => r.text);
-  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames, placed: placedNumbers(doc.sketch?.readings ?? []) });
+  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames, placed: placedNumbers(readings) });
 }
 
 /** The point numbers the reader placed on a photo (stage 247): evidence for a question, never a position. */
@@ -41,13 +46,18 @@ export function placedNumbers(readings: readonly SketchReading[]): PlacedNumber[
  * The evidence for an item the sketch put on the plan, by its provenance key, or null when it didn't come from the sketch; with the open
  * questions that confirming it answers.
  */
-export function sketchEvidence(interpretation: SketchInterpretation | null, key: string): { evidence: string[]; level: "strong" | "check"; file: string; questions: string[] } | null {
+export function sketchEvidence(
+  interpretation: SketchInterpretation | null,
+  key: string,
+): { evidence: string[]; level: "strong" | "check"; file: string; questions: string[]; fixes: NonNullable<Question["suggest"]>[] } | null {
   if (!interpretation) return null;
   const id = key.slice(key.indexOf(":") + 1);
   if (!id.startsWith("sk-")) return null;
   const p = interpretation.proposals.find((x) => sketchItemId(x) === id);
-  const questions = interpretation.questions.filter((q) => q.item === id && q.answeredBy === "confirm").map((q) => [q.text, ...q.evidence].join(" "));
-  return p ? { evidence: p.evidence, level: p.level, file: p.file, questions } : null;
+  const asked = interpretation.questions.filter((q) => q.item === id && q.answeredBy === "confirm");
+  // A correction the engine can offer for a number it doubts (stage 249): one press, recorded as the surveyor's.
+  const fixes = asked.flatMap((q) => (q.suggest ? [q.suggest] : []));
+  return p ? { evidence: p.evidence, level: p.level, file: p.file, questions: asked.map((q) => [q.text, ...q.evidence].join(" ")), fixes } : null;
 }
 
 /** Where an item the sketch put on the plan is, by its id: its provenance key, and whether it's still there. */

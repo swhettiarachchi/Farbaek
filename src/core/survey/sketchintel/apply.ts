@@ -35,7 +35,8 @@ export interface Applied {
 /** The same points in the same order, either way round: how a line already on the plan is recognised. */
 export const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && (a.every((x, i) => x === b[i]) || a.every((x, i) => x === b[b.length - 1 - i]));
 
-export function applySketch(doc: SurveyDocument, interpretation: SketchInterpretation): Applied {
+/** `lotReplaces`: the sketch's own lot was just taken off by a correction (ADR 0257), so its corrected lot goes on beside any other. */
+export function applySketch(doc: SurveyDocument, interpretation: SketchInterpretation, opts: { lotReplaces?: boolean } = {}): Applied {
   const next: SurveyDocument = structuredClone(doc);
   const added: Applied["added"] = [];
   const skipped: string[] = [];
@@ -53,7 +54,7 @@ export function applySketch(doc: SurveyDocument, interpretation: SketchInterpret
     }
     taken.add(id);
     if (p.kind === "lot") {
-      if (next.lots.length > 0) {
+      if (next.lots.length > 0 && !opts.lotReplaces) {
         skipped.push("The sketch's lot wasn't added: the plan already has lots.");
         continue;
       }

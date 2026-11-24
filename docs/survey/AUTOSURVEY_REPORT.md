@@ -43,7 +43,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Data normalisation | `import/*` readers, `import/reduce.ts` | Built and tested |
 | CRS resolver | `crs.ts`, the start screen's last-confirmed grid | Built and tested: never inferred, always confirmed; no transformations |
 | Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `grammar.ts`, `codes.ts`, `codelib.ts`, `codehints.ts` | Built and tested: Farbaek's and Carlson's line words (ADR 0243), joins to a point, a code report in the checks, suggestions for unknown codes added in one press (ADR 0246); PC to PT runs drawn as curves through their points (ADR 0247) |
-| Sketch intelligence | `autosurvey/sketch.ts`, `sketchintel/*`, `server/survey/sketches.ts`, `server/ai/sketch-reader.ts` | Built and tested: readings, and the drawing's lines, symbols and areas joined to the survey as proposals with evidence (ADR 0249); the owner's real sketch read by the production reader three times (stages 244 to 246); a number written where another point belongs is asked about (ADR 0255) |
+| Sketch intelligence | `autosurvey/sketch.ts`, `sketchintel/*`, `server/survey/sketches.ts`, `server/ai/sketch-reader.ts` | Built and tested: readings, and the drawing's lines, symbols and areas joined to the survey as proposals with evidence (ADR 0249); the owner's real sketch read by the production reader three times (stages 244 to 246); a number written where another point belongs is asked about (ADR 0255), and corrected in one press, with what it drew redrawn (ADR 0257) |
 | Source reconciliation | point clashes, sketch-versus-instrument checks, observation checks | Built and tested |
 | Survey computation | `angles.ts`, `geometry.ts`, `cogo.ts`, `units.ts`, `reduce.ts`, `adjust.ts` | Built and tested |
 | Geometry construction | `autodraft.ts`, `lots.ts`, `partition.ts`, `roads.ts` | Built and tested |
@@ -68,7 +68,8 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
   - its groups are must fix, confirm, and for information;
   - Confirm comes with Undo;
   - Correct links to the step that edits it;
-  - "See the sketch" goes to the evidence.
+  - "See the sketch" goes to the evidence;
+  - a lot drawn from a sketch shows what the sketch shows one fact a line, the open questions apart, and a misread number's correction as one press (stage 249).
 - **The plan's status in the header:** Needs correction, Needs your confirmation, Ready for your review, Approved or Exported (stage 224).
 - **Three modes on one project** (stage 227): Express (the default), Professional and Manual CAD.
 - **Checked at phone and desktop widths,** in light and dark, on the demo workspace.
@@ -158,6 +159,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 - **The deed's extent on the face** (stage 244, ADR 0252): a classic plan can give the deed's extent on its extent line, as the surveyor chooses, with the computed extent kept in the schedule overleaf and the checks saying which is where.
 - **Never a source of coordinates:** every drawn point is a surveyed one; a surveyed point the sketch doesn't number is said, never added; no far edge or outline is guessed.
 - **Every number traceable** (stage 245, ADR 0253): each reading says whether it was read clearly, what's in doubt and where on the photo it is; a doubtful reading is never used as a fact. The sketch interpretation report gives each side with the numbers beside it, every point number and how it matched, and what's uncertain apart, with how sure Farbaek is by a fixed rule.
+- **A misread number corrected in one press** (stage 249, ADR 0257): where a number is written at another point's place and that point's own number isn't written, the lot's card offers "It's 20: use 20 for the 10 read". The correction is kept beside the reading as the surveyor's, the reading stays as read, and what the sketch drew from the number and nobody confirmed is redrawn, waiting for the surveyor; what they confirmed is never changed.
 - **Compared with a surveyor's own plan** by point numbers (`sketchintel/evaluate.ts`), and run on a real job's folder outside the repository (`real-job.test.ts`).
 
 **The owner's real job (local only, never committed):**
@@ -166,7 +168,8 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 - the surveyor confirmed the plan's 5-perch extent is the deed's; since stage 244 Farbaek prints it on the face as the surveyor's plan does, with the computed 5.25 perches in the schedule;
 - after stage 243, with the sketch read as a surveyor reads it: all 8 of the plan's lines in full, the road drawn between its two surveyed sides and measured at 3.25 to 3.63 m (the plan states 15 ft, its reserved width), the gate read, and the stated 5-perch extent pointed out;
 - the well placed;
-- after stage 245, the house wall 12, 9, 6, 4, 3 (as the surveyor named it) drawn in full; 3, 4, 6 and 9 recorded as read with doubt, each with where it sits; 1.43 and 1.58 shown beside their sides, differing from the survey by 1.50 m and 0.40 m, and listed for the surveyor, in line with the surveyor's note that 3 and 4 weren't clearly visible when measured.
+- after stage 245, the house wall 12, 9, 6, 4, 3 (as the surveyor named it) drawn in full; 3, 4, 6 and 9 recorded as read with doubt, each with where it sits; 1.43 and 1.58 shown beside their sides, differing from the survey by 1.50 m and 0.40 m, and listed for the surveyor, in line with the surveyor's note that 3 and 4 weren't clearly visible when measured;
+- after stage 249, the production reader's third read with its misread 10 corrected to 20 in one press: the lot draws through 20 at 125.84 m² (112.26 before) and the crossing question goes. The rest of the difference is the 14 read on the west wall, which stays a question.
 
 The sketch was transcribed in the development session in the reader's format; the production reader runs on it only with the owner's consent.
 
@@ -240,7 +243,10 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #308 | 245 (the sketch interpretation report) | Merged, live | none |
 | #309 | 246 (doubt where it's real, crossing lines) | Merged, live (build 98cc285939fc) | none |
 | #310 | 247 (where each number is written) | Merged, live | none |
-| next | 248 (office profiles) | Open | **v105:** the owner applies it before the merge (the line is in the PR); until then profiles can't be saved and say so, and Generate Plan works as before |
+| #311 | 248 (office profiles) | Merged, live (build bd331357bdeb) | **v105** isn't applied: until it is, profiles can't be saved and say so, and Generate Plan works as before |
+| #312 | 248 fix (v105 loads again) | Open | **v105:** the owner applies the fixed file with the line in the PR; the one in #311 had a dollar quote lost in a review fix, and the database refused it |
+
+| next | 249 (a misread number corrected in one press) | Open, on #312 | none |
 
 Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
@@ -257,7 +263,7 @@ Production deploys main by itself. **v102 and v103 were found missing on 2026-11
 
 ## 14. Remaining risks
 
-- **One real job has been run,** locally and, with the owner's go, in production (2026-11-24): Generate Plan on its SDR and sketch, and the production reader on the sketch three times. Read by hand, the sketch gives the surveyor's lot within one corner; the production reader's best read gave a lot of 112.26 m² against 132.70 m², wrong through two misread numbers that the crossing and placement checks now ask about. The traverse is proven only on synthetic data built from the manufacturers' documents.
+- **One real job has been run,** locally and, with the owner's go, in production (2026-11-24): Generate Plan on its SDR and sketch, and the production reader on the sketch three times. Read by hand, the sketch gives the surveyor's lot within one corner; the production reader's best read gave a lot of 112.26 m² against 132.70 m², wrong through two misread numbers that the crossing and placement checks now ask about. One of them (10 for 20) is corrected in one press since stage 249; the other stays a question. The traverse is proven only on synthetic data built from the manufacturers' documents.
 - **Sketch readings can be plausibly wrong.** The instrument check catches a misread number only where there is a coordinate to compare it with. A misread name or note is shown as read, for the surveyor to check. A misread line is tested against the coordinates and asked about where they disagree, but a wrong line between two real points can look right: each one waits for the surveyor's press.
 - **Telling carried coordinates from control** rests on Sokkia's derivation codes and a tolerance. Codes from instruments newer than Sokkia's 1999 document aren't known. Unknown records never move and never close a traverse, and the closure names its route.
 - **Data leaves Sri Lanka** when sketches are read. It goes only with the surveyor's consent, each time, and that consent says so.

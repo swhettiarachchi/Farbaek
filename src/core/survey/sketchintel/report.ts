@@ -16,6 +16,7 @@ import type { CrsRecord } from "../crs";
 import type { SurveyPoint } from "../parcel";
 import { classifyLine, type LineKind } from "./classify";
 import type { SketchLineStyle } from "./drawing";
+import { correctedDrawing, correctedReadings } from "./corrected";
 import { placedNumbers, sketchQuestionFindings } from "./findings";
 import { misplacedNumbers } from "./placement";
 import { writtenWidth, type SketchInterpretation } from "./interpret";
@@ -106,6 +107,8 @@ export interface SketchReport {
   unclear: UnclearItem[];
   questions: string[];
   unreadable: string[];
+  /** The surveyor's corrections of numbers as read (stage 249): the report reads the sketch with them, and lists them as theirs. */
+  corrections: { file: string; label: string; to: string; at: string }[];
 }
 
 const DRAWN: Record<SketchLineStyle, string> = {
@@ -162,7 +165,10 @@ export interface SketchReportInput {
 
 export function sketchReport({ sketch, points, codes, crs, interpretation, document }: SketchReportInput): SketchReport {
   const index = indexPoints(points);
-  const drawing = sketch.drawing ?? { lines: [], symbols: [], areas: [] };
+  // Read with the surveyor's corrections, as the engine reads it (stage 249); each is listed as theirs.
+  const corrections = sketch.corrections ?? [];
+  const drawing = correctedDrawing(sketch.drawing ?? { lines: [], symbols: [], areas: [] }, corrections);
+  const readings = correctedReadings(sketch.readings, corrections);
 
   // Each drawn side, leg by leg along its line.
   const sides: ReportSide[] = [];
@@ -217,7 +223,7 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
   const other: ReportEntry[] = [];
   const pointEntries = new Map<string, ReportEntry[]>();
   const all: ReportEntry[] = [];
-  for (const r of sketch.readings) {
+  for (const r of readings) {
     if (r.kind === "point") {
       const e = entry(r, false);
       pointEntries.set(r.text, [...(pointEntries.get(r.text) ?? []), e]);
@@ -246,7 +252,7 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
   const ranked: { item: UnclearItem; rank: number }[] = [];
   const unclear = { push: (item: Omit<UnclearItem, "quiet">, rank: number) => ranked.push({ item: { ...item, quiet: rank >= 3 }, rank }) };
   // A number written where another point would be (stage 247): said first, with the point it may be.
-  const misplaced = misplacedNumbers(placedNumbers(sketch.readings), points);
+  const misplaced = misplacedNumbers(placedNumbers(readings), points);
   for (const e of all) {
     const reasons: string[] = [];
     // By the reading itself, so a label written twice is marked only where it's out of place.
@@ -287,6 +293,7 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
     unclear: ranked.sort((a, b) => a.rank - b.rank).map((x) => x.item),
     questions: document ? sketchQuestionFindings(interpretation, document).map((f) => [f.message, f.detail].filter(Boolean).join(" ")) : (interpretation?.questions ?? []).map((q) => [q.text, ...q.evidence].join(" ")),
     unreadable: sketch.unreadable,
+    corrections: corrections.map((c) => ({ file: c.file, label: c.label, to: c.to, at: c.at })),
   };
 }
 
@@ -380,6 +387,7 @@ export function sketchReportMarkdown(r: SketchReport, title = "Sketch interpreta
     out.push("", "### Also read with doubt", "", "Labels and notes, and measurements the survey agrees with exactly as read. Not used as facts either.", "");
     for (const u of quiet) out.push(`- **${cell(u.what)}** (${where(u)}): ${cell(u.reasons.join(" "))}`);
   }
+  if (r.corrections.length > 0) out.push("", "## Corrected by the surveyor", "", ...r.corrections.map((c) => `- ${cell(`The number read as ${c.label} on ${c.file} is ${c.to}.`)}`));
   if (r.questions.length > 0) out.push("", "## What the engine asks", "", ...r.questions.map((q) => `- ${cell(q)}`));
   if (r.unreadable.length > 0) out.push("", "## Seen but not read", "", ...r.unreadable.map((u) => `- ${cell(u)}`));
   return out.join(LF);

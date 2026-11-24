@@ -149,7 +149,7 @@ export function SketchPanel(props: {
                   <StatusGlyph status={STATUS[c.status].glyph} className="mt-0.5" />
                   <span className="grid min-w-0 gap-0.5">
                     <span className="text-ink">
-                      <span className="font-medium">{c.reading.text}</span> {where(c)} <span className="text-ink-3">({STATUS[c.status].label.toLowerCase()}{c.reading.certain === false ? ", read with doubt" : ""})</span>
+                      <span className="font-medium">{c.reading.text}</span> {where(c)} <span className="text-ink-3">({STATUS[c.status].label.toLowerCase()}{c.reading.certain === false ? ", read with doubt" : ""}{c.corrected ? ", with a number you corrected" : ""})</span>
                     </span>
                     {c.detail && c.status !== "agrees" ? <span className="text-ink-2">{c.detail}</span> : null}
                     {photoOf(c.reading.file) ? (

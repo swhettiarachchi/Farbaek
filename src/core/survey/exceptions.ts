@@ -150,6 +150,11 @@ export interface SurveyException {
   confirm: string | null;
   /** A near miss or sketch difference the surveyor can keep as surveyed. */
   keep: { key: string; kept: boolean } | null;
+  /**
+   * For an item the sketch drew (stage 249): what the sketch shows for it, one point a line; the open questions confirming it answers;
+   * and the corrections of a misread number the surveyor can make in one press.
+   */
+  sketch?: { lead: string; evidence: string[]; questions: string[]; fixes: { file: string; reading: string; label: string; to: string }[] };
 }
 
 const BLOCK_WORDS: Record<Finding["blocks"][number], string> = { plan: "the plan", export: "export", approval: "approval" };
@@ -200,6 +205,7 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
           // The title already names it.
           item: null,
           evidence: ev ? `${ev.level === "strong" ? "The sketch and the survey agree" : "Check this one"}: ${shown}` : null,
+          ...(ev ? { sketch: { lead: ev.level === "strong" ? "The sketch and the survey agree." : "Check this one.", evidence: ev.evidence, questions: ev.questions, fixes: ev.fixes } } : {}),
           // A symbol has no editor of its own: its card removes it.
           next: key.startsWith("symbol:") ? "Confirm it if it's right, or remove it." : `Confirm it if it's right, or correct it on the ${it.step === "boundary" ? "Lots" : "Plan"} step.`,
           step: it.step,

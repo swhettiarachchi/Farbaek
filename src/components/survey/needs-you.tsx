@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CaretDownIcon, CheckCircleIcon, InfoIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CaretDownIcon, CheckCircleIcon, InfoIcon, ListChecksIcon, QuestionIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { provenanceLive, type SurveyDocument } from "@/core/survey/document";
@@ -11,6 +11,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { ConfirmItem } from "./confirm-item";
 import { KeepAsSurveyed } from "./keep-as-surveyed";
+import { SketchFix, SketchFixResult } from "./sketch-fix";
 
 const STEP_NAMES: Record<ExceptionStep, string> = { import: "Import", points: "Points", draft: "Draft", boundary: "Lots", plan: "Plan", settings: "Settings" };
 
@@ -57,7 +58,35 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
         {e.item ? <span className="text-sm text-ink-2">{e.item}</span> : null}
       </div>
       <p className="font-medium text-ink">{e.title}</p>
-      {e.evidence ? <p className="text-sm text-ink-2">{e.evidence}</p> : null}
+      {e.sketch ? (
+        // What the sketch shows, one point a line; then the open questions, set apart; then the corrections offered in one press.
+        <div className="grid gap-2 text-sm">
+          <p className="text-ink-2">{e.sketch.lead}</p>
+          <ul className="grid list-disc gap-1 pl-5 text-ink-2">
+            {e.sketch.evidence.map((x, k) => (
+              <li key={k}>{x}</li>
+            ))}
+          </ul>
+          {e.sketch.questions.length > 0 ? (
+            <div className="grid gap-1">
+              <p className="font-medium text-ink">Open questions</p>
+              <ul className="grid gap-1.5">
+                {e.sketch.questions.map((q, k) => (
+                  <li key={k} className="flex items-start gap-2 text-ink-2">
+                    <QuestionIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden />
+                    <span>{q}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {e.sketch.fixes.map((f) => (
+            <SketchFix key={`${f.file}:${f.reading}`} projectId={projectId} baseVersion={baseVersion} file={f.file} reading={f.reading} label={f.label} to={f.to} readOnly={readOnly} />
+          ))}
+        </div>
+      ) : e.evidence ? (
+        <p className="text-sm text-ink-2">{e.evidence}</p>
+      ) : null}
       <p className="text-sm text-ink-2">{e.next}</p>
       {e.holds ? <p className="text-sm text-ink-3">{e.holds}</p> : null}
       <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
@@ -76,6 +105,7 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
   return (
     <Card>
       <CardTitle icon={ListChecksIcon}>{list.fix.length > 0 ? "Needs correction" : list.confirm.length > 0 ? "Needs your confirmation" : "Ready for your review"}</CardTitle>
+      <SketchFixResult projectId={projectId} />
       {open === 0 ? (
         <div className="mt-3 grid gap-3">
           {readOnly ? <p className="text-sm text-ink-3">{readOnly}</p> : null}
