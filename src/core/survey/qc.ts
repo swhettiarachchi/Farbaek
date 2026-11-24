@@ -326,7 +326,10 @@ export function checkSurvey(input: QcInput): Finding[] {
       const diff = stated.m2 - computed;
       const pct = (Math.abs(diff) / computed) * 100;
       const words = stated.as === "ha" ? `${fmt(Math.abs(diff) / 10_000, 5)} ha` : stated.as === "m2" ? `${fmt(Math.abs(diff), 2)} m²` : `${fmt(Math.abs(diff) / PERCH_M2, 2)} perches`;
-      const detail = `Stated ${fmt(stated.m2, 2)} m², computed ${fmt(computed, 2)} m²: the stated extent is ${words} (${fmt(pct, 1)}%) ${diff >= 0 ? "more" : "less"}.`;
+      // A stated extent of whole perches, beside a computed one that isn't, is most likely the deed's (stage 243): said, never assumed.
+      const perches = stated.m2 / PERCH_M2;
+      const whole = Math.abs(perches - Math.round(perches)) < 0.005 && perches >= 1 && Math.abs(computed / PERCH_M2 - Math.round(computed / PERCH_M2)) >= 0.005;
+      const detail = `Stated ${fmt(stated.m2, 2)} m², computed ${fmt(computed, 2)} m²: the stated extent is ${words} (${fmt(pct, 1)}%) ${diff >= 0 ? "more" : "less"}.${whole && pct > 1 ? ` It comes to ${Math.round(perches)}.00 perches, a round figure as a deed's extent usually is: it may be the title's extent, not this survey's.` : ""}`;
       if (pct <= 1) add({ code: "STATED_EXTENT_AGREES", severity: "information", message: "The stated extent agrees with the land computed from your points, within 1%.", target: { kind: "field", id: "statedExtent" }, detail, action: "Nothing to do.", blocks: [] });
       else add({ code: "STATED_EXTENT_DIFFERS", severity: "warning", message: `The stated extent differs from the land computed from your points by ${fmt(pct, 1)}%.`, target: { kind: "field", id: "statedExtent" }, detail, action: "Deeds are often older than the survey. Check the stated extent is copied right, and mention the difference in the plan's notes if it matters. The plan shows the computed extent.", blocks: [] });
     }

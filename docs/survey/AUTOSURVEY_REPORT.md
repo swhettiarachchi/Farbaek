@@ -1,12 +1,12 @@
 # Farbaek AutoSurvey: implementation report
 
-The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 241. It keeps four things apart:
+The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, after stages 222 to 243. It keeps four things apart:
 - **Built and tested:** working in the product, with automated tests.
 - **Built, not proven on real data:** working and tested, but only on synthetic data so far.
 - **Partly built.**
 - **Not built.**
 
-Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-241.md`, and each decision in ADRs 0233 to 0249.
+Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-243.md`, and each decision in ADRs 0233 to 0251.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -106,8 +106,10 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | GeoJSON points | Points with a named EPSG system | Built and tested |
 | Field book (bearings and distances) | Legs from a known point; closure reported, not adjusted | Built and tested |
 | Office code library (.fcl, CSV) | Codes, kinds and layers | Built and tested |
+| Sokkia Link point list (printout) | Points' and stations' North, East, Elev and code, by the printout's own columns; metres only; shots refused (upload the SDR) | Built and tested (stage 242, ADR 0250); a real printout read identical to its SDR |
+| DXF drawing (its points) | POINT entities and blocks, numbered by an attribute or by the text at the offset every point shares; metres only; lines not read | Built and tested (stage 242); a real Sokkia Link DXF read identical to its SDR; needs schema v104 |
 | Field sketch photos (JPEG, PNG, WebP) | Read by Claude with consent: readings, and the drawing's lines, symbols and areas | Built and tested; one real sketch run as transcribed, not yet through the production reader |
-| PDF, Word, DWG, DXF | Listed and said plainly to be unread | Not built |
+| PDF, Word, DWG | Listed and said plainly to be unread | Not built |
 | Topcon GTS-7 raw | Not reduced | Not built |
 
 ## 6. Survey calculation methods
@@ -149,13 +151,17 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
   - named areas.
 
   Tested code matches the numbers, classifies each line, and tests it against the coordinates: corners by how far a point lies off the line between its neighbours (0.25 m by default, 0.10 m for strong evidence, said as Farbaek's defaults). It finds the lot as the largest outline the boundary lines close round, with strips, the road's side and the well. Each result goes on the plan as an item waiting for one press, with its evidence. A point between the tolerances, a line with nothing written along it, a missing road width and a building without numbered corners are asked about.
+- **Read as surveyors write** (stage 243, ADR 0251):
+  - the reader knows field books are turned while drawing (upside-down numbers), that a title at the top is a note, and that gates and road names are written as such;
+  - a road the sketch names is drawn between its two surveyed sides (the lot's frontage carried on by the neighbours' walls, and a line drawn across from it), its width measured, a different written width asked about. Several candidate lines or names are asked about, never chosen;
+  - a stated extent of whole perches is said to be most likely the deed's.
 - **Never a source of coordinates:** every drawn point is a surveyed one; a surveyed point the sketch doesn't number is said, never added; no far edge or outline is guessed.
 - **Compared with a surveyor's own plan** by point numbers (`sketchintel/evaluate.ts`), and run on a real job's folder outside the repository (`real-job.test.ts`).
 
 **The owner's real job (local only, never committed):**
 - 27 of 27 sketch numbers matched;
 - the surveyor's lot, all but one corner lying 0.043 m off the straight side, 132.70 m² against the plan's 132.53 m²;
-- 7 of 8 lines in full, the road edge in part;
+- after stage 243, with the sketch read as a surveyor reads it: all 8 of the plan's lines in full, the road drawn between its two surveyed sides and measured at 3.25 to 3.63 m (the plan states 15 ft, its reserved width), the gate read, and the stated 5-perch extent pointed out;
 - the well placed.
 
 The sketch was transcribed in the development session in the reader's format; the production reader runs on it only with the owner's consent.
@@ -224,7 +230,9 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #301 | 238 (suggestions for unknown codes) | Merged, live (build 63bc07a5d93e) | none |
 | #302 | 239 (curves from PC to PT) | Merged, live | none |
 | #303 | 240 (crowded legs left to the schedule) | Merged | none |
-| next | 241 (Sketch Intelligence Engine) | Open | none |
+| #304 | 241 (Sketch Intelligence Engine) | Merged, live (build 52e29e9ad207) | none |
+| #305 | 242 (point-list printout and DXF points) | Open | **v104:** the owner applies it before the merge |
+| next | 243 (reading sketches as surveyors do) | Open, builds on #305 | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 
@@ -236,7 +244,7 @@ Production deploys main by itself. Whether v102 and v103 are applied isn't confi
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
 - **Defaults:** a surveyor profile table (equipment, title block, plan numbering).
 - **Jobs:** resuming a cut-off import or sketch read (a run cut off after its import can be finished since stage 235); a timer for the jobs sweep; incremental regeneration (a correction saves a new version and re-checks the whole plan).
-- **Files:** reading PDFs, Word files, DWG and DXF; Topcon raw files; keeping a camera's full-size original.
+- **Files:** reading PDFs, Word files and DWG, and a DXF's lines; Topcon raw files; keeping a camera's full-size original.
 - **Platform:** the success metrics (§26) that production doesn't record: time to first preview, findings across plans, refused exports, and a comparison with the same job by hand (`docs/survey/METRICS.md`, stage 237, says how the rest are read); malware scanning of uploads; signed download links.
 
 ## 14. Remaining risks

@@ -21,7 +21,8 @@ export type UploadKind = "survey-data" | "sketch" | "document" | "unreadable";
 export const START_LIMITS = { files: 12, dataBytes: 5 * 1024 * 1024 } as const;
 
 const IMAGE = /\.(?:jpe?g|png|webp|heic|heif|gif|bmp|tiff?)$/i;
-const DOCUMENT = /\.(?:pdf|docx?|xlsx?|dwg|dxf)$/i;
+// A DXF drawing is read for its points (stage 242, ADR 0250); a DWG isn't.
+const DOCUMENT = /\.(?:pdf|docx?|xlsx?|dwg)$/i;
 
 /**
  * What a file is, from its name and type, before its text is read. Pictures are field sketches or photos; a PDF, Word, Excel or CAD
@@ -35,7 +36,6 @@ export function kindOfUpload(name: string, mimeType: string): Exclude<UploadKind
 
 /** Why a document isn't read: said beside it, so nothing looks read that wasn't. Sketches are read with Claude (sketch.ts). */
 export function notReadYet(name: string): string {
-  if (/\.dxf$/i.test(name)) return "DXF drawings aren't read yet. Upload the survey's points file instead.";
   if (/\.dwg$/i.test(name)) return "DWG drawings can't be read. Upload the survey's points file instead.";
   if (/\.xlsx?$/i.test(name)) return "Excel files aren't read. Save the sheet as CSV and upload that.";
   return "Documents aren't read yet. Upload the survey's points file.";

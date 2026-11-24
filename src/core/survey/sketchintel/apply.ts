@@ -13,6 +13,16 @@ import type { Proposal, SketchInterpretation } from "./interpret";
  */
 export const sketchItemId = (p: Proposal) => p.id;
 
+/** Whether the sheet can print a text: its fonts hold no Indic letters (Sinhala, Tamil, U+0900 to U+0DFF) yet. */
+export const printable = (text: string) => ![...text].some((ch) => ch.codePointAt(0)! >= 0x900 && ch.codePointAt(0)! <= 0xdff);
+
+/** A text cut to a length, never through the middle of a character written as two halves. */
+const cut = (text: string, max: number) => {
+  const c = text.slice(0, max);
+  const last = c.charCodeAt(c.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? c.slice(0, -1) : c;
+};
+
 /** The plan's symbols at most, as its schema holds them. */
 const MAX_SYMBOLS = 200;
 
@@ -33,11 +43,11 @@ export function applySketch(doc: SurveyDocument, interpretation: SketchInterpret
     added.push({ key, kind });
   };
   // Any item already on the plan under the same id is the same thing (the id comes from what it is): never added twice.
-  const taken = new Set([...next.lots.map((l) => l.id), ...next.features.map((f) => f.id), ...(next.symbols ?? []).map((x) => x.id)]);
+  const taken = new Set([...next.lots.map((l) => l.id), ...next.features.map((f) => f.id), ...(next.symbols ?? []).map((x) => x.id), ...next.roads.map((r) => r.id)]);
   for (const p of interpretation.proposals) {
     const id = sketchItemId(p);
     if (taken.has(id)) {
-      skipped.push(p.kind === "symbol" ? `The ${p.meaning.toLowerCase()} at point ${p.point.pointId} is already on the plan.` : p.kind === "lot" ? "The sketch's lot is already on the plan." : `The line through ${p.points.map((x) => x.pointId).join(", ")} is already on the plan.`);
+      skipped.push(p.kind === "symbol" ? `The ${p.meaning.toLowerCase()} at point ${p.point.pointId} is already on the plan.` : p.kind === "lot" ? "The sketch's lot is already on the plan." : p.kind === "road" ? "The sketch's road is already on the plan." : `The line through ${p.points.map((x) => x.pointId).join(", ")} is already on the plan.`);
       continue;
     }
     taken.add(id);
@@ -67,6 +77,19 @@ export function applySketch(doc: SurveyDocument, interpretation: SketchInterpret
         ...(p.kind === "line" && p.arcs.length > 0 ? { arcs: p.arcs } : {}),
       });
       mark(`feature:${id}`, p.kind);
+    } else if (p.kind === "road") {
+      const sides = new Set([...p.edgeA, ...p.edgeB].map((x) => x.id));
+      if (next.roads.some((r) => [...r.edgeA, ...r.edgeB].filter((x) => sides.has(x)).length >= 2)) {
+        skipped.push("The sketch's road is already on the plan, along the same sides.");
+        continue;
+      }
+      // A road between two surveyed sides (stage 243): its width is worked out from them and written in feet, as on most Sri Lankan plans.
+      if (next.roads.length >= 20) {
+        skipped.push("The plan holds 20 roads, its most.");
+        continue;
+      }
+      next.roads.push({ id, name: printable(p.name) ? cut(p.name, 80) : "", edgeA: p.edgeA.map((x) => x.id), edgeB: p.edgeB.map((x) => x.id), width: "feet", start: "", end: "" });
+      mark(`road:${id}`, "road");
     } else {
       const symbols = next.symbols ?? [];
       if (symbols.some((s) => s.point === p.point.id && s.code === p.code)) {

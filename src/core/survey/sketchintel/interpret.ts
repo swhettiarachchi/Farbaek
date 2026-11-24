@@ -16,9 +16,11 @@
 import { fitArc, type ArcRun } from "../arcs";
 import { codeOf, lookupCode, type CodeEntry } from "../codes";
 import type { DrawingFeature } from "../document";
-import { area, distance, orient, pointSegmentDistance, segmentsIntersect, type Point } from "../geometry";
+import { area, distance, orient, pointSegmentDistance, segmentsIntersect, signedArea, type Point } from "../geometry";
 import type { SurveyPoint } from "../parcel";
-import { classifyArea, classifyLine, LAYER_OF, symbolEntry, type LineKind } from "./classify";
+import { roadWidth } from "../roads";
+import { printable } from "./apply";
+import { classifyArea, classifyLine, LAYER_OF, namesKind, symbolEntry, type LineKind } from "./classify";
 import type { SketchDrawing, SketchLine } from "./drawing";
 import { indexPoints, matchNote, matchPoint, type PointIndex } from "./match";
 
@@ -31,6 +33,8 @@ export interface InterpretOptions {
   statedM2?: number | null;
   /** Road widths written in the readings ("15'", "4.5 m"), as written. */
   widths?: readonly string[];
+  /** Road names written in the readings, as written: with one, a road between two surveyed sides can be drawn (stage 243). */
+  roadNames?: readonly string[];
 }
 
 export type Level = "strong" | "check";
@@ -79,7 +83,21 @@ export interface BuildingProposal extends Base {
   points: SurveyPoint[];
 }
 
-export type Proposal = LineProposal | LotProposal | SymbolProposal | BuildingProposal;
+/**
+ * A road between two surveyed sides (stage 243): named on the sketch, its near side the lot's side facing it and the lines that carry
+ * that side on, its far side a line drawn across from it. Every point is a surveyed one; its width is measured, never taken from writing.
+ */
+export interface RoadProposal extends Base {
+  kind: "road";
+  name: string;
+  /** The near side, along the lot. */
+  edgeA: SurveyPoint[];
+  /** The far side, across from it, running the same way. */
+  edgeB: SurveyPoint[];
+  widthM: { min: number; max: number };
+}
+
+export type Proposal = LineProposal | LotProposal | SymbolProposal | BuildingProposal | RoadProposal;
 
 export interface Question {
   from: string[];
@@ -140,7 +158,7 @@ export function itemId(kind: Proposal["kind"], pointIds: readonly string[], extr
   const fwd = pointIds.join("|");
   const back = [...pointIds].reverse().join("|");
   const key = kind === "lot" || kind === "building" ? ringKey(pointIds) : fwd <= back ? fwd : back;
-  return `sk-${{ lot: "lot", line: "l", symbol: "s", building: "b" }[kind]}-${fingerprint(`${kind}#${key}#${extra}`)}`;
+  return `sk-${{ lot: "lot", line: "l", symbol: "s", building: "b", road: "r" }[kind]}-${fingerprint(`${kind}#${key}#${extra}`)}`;
 }
 
 /** The points between two corners, by index, going forward (round the end of a ring when `b` comes first). */
@@ -263,6 +281,36 @@ function cycles(edges: ReadonlyMap<string, ReadonlySet<string>>, cap = 400, maxL
   return out;
 }
 
+type LineRef = { line: SketchLine; points: SurveyPoint[]; closes: boolean; kind: LineKind; proposal: LineProposal | null };
+/** A line that could be a road's far side, with the lot's side facing it (its ends a and b) and how far off it lies. */
+type RoadCandidate = { far: LineRef; a: SurveyPoint; b: SurveyPoint; d: number };
+
+const heading = (a: Point, b: Point) => Math.atan2(b.e - a.e, b.n - a.n);
+/** Whether two headings run alongside each other, either way, within some degrees. */
+function alongside(h1: number, h2: number, maxDeg: number): boolean {
+  let d = Math.abs(deg(h1 - h2)) % 180;
+  if (d > 90) d = 180 - d;
+  return d <= maxDeg;
+}
+const polyOff = (p: Point, poly: readonly Point[]) => Math.min(...poly.slice(1).map((q, i) => pointSegmentDistance(p, poly[i]!, q)));
+/** Where a point's foot falls along a line from a to b: below 0 before a, above 1 past b. */
+const along = (p: Point, a: Point, b: Point) => ((p.e - a.e) * (b.e - a.e) + (p.n - a.n) * (b.n - a.n)) / (distance(a, b) ** 2 || 1);
+/** The nearest point to p on a polyline. */
+function foot(p: Point, poly: readonly Point[]): Point {
+  let best: { d: number; f: Point } | null = null;
+  for (let i = 0; i + 1 < poly.length; i++) {
+    const [a, b] = [poly[i]!, poly[i + 1]!];
+    const t = Math.max(0, Math.min(1, along(p, a, b)));
+    const f = { e: a.e + t * (b.e - a.e), n: a.n + t * (b.n - a.n) };
+    const d = distance(p, f);
+    if (!best || d < best.d) best = { d, f };
+  }
+  return best?.f ?? p;
+}
+/** Whether a segment crosses one of a ring's sides, leaving out the sides it starts from. */
+const crossesLot = (ring: readonly Point[], p: Point, q: Point, skip: readonly number[]) =>
+  ring.some((a, i) => !skip.includes(i) && segmentsIntersect(p, q, a, ring[(i + 1) % ring.length]!));
+
 /** A ring's numbers written round to the first again ("1, 2, 3, 4, 1"): the repeat dropped. */
 const roundOff = (labels: readonly string[]) => (labels.length >= 4 && labels[0] === labels.at(-1) ? labels.slice(0, -1) : [...labels]);
 
@@ -306,11 +354,23 @@ function strips(ring: readonly SurveyPoint[], maxWidth = 3): string[] {
   return out;
 }
 
+/** An area in whole perches (25.29285264 m² each), when it's one to within 0.005 P, or null. Deeds' extents usually are; computed ones rarely. */
+export function roundPerches(m2: number): number | null {
+  const p = m2 / 25.29285264;
+  return p >= 1 && Math.abs(p - Math.round(p)) < 0.005 ? Math.round(p) : null;
+}
+
 /**
  * A written width ("15'", "15 ft", "4.5 m") in metres, or null: feet are converted by the international foot. The unit must end the
  * word, so a number in a road's name ("Lane 5 Mawatha", "3 Mile Post Road") is never taken for a width.
  */
 export function writtenWidth(text: string): number | null {
+  const si = /(\d+(?:\.\d+)?)\s*(අඩි|මීටර්?)|(අඩි|මීටර්?)\s*(\d+(?:\.\d+)?)/.exec(text);
+  if (si) {
+    const v = Number(si[1] ?? si[4]);
+    if (!Number.isFinite(v) || v <= 0 || v > 60) return null;
+    return (si[2] ?? si[3])!.startsWith("අඩි") ? v * 0.3048 : v;
+  }
   const mm = /(\d+(?:\.\d+)?)\s*(m|mtrs?|metres?|meters?|ft|feet|'|′)(?![a-z])/i.exec(text);
   if (!mm) return null;
   const v = Number(mm[1]);
@@ -333,7 +393,7 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
   }
 
   // ---- Lines: matched, classified, tested against the coordinates.
-  const lines: { line: SketchLine; points: SurveyPoint[]; closes: boolean; kind: LineKind; proposal: LineProposal | null }[] = [];
+  const lines: LineRef[] = [];
   for (const line of drawing.lines) {
     const mt = matchLine(line, index);
     const cls = classifyLine(line.label, line.style, codes);
@@ -462,12 +522,47 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
 
   for (const l of lines) if (l.proposal) proposals.push(l.proposal);
 
+  // ---- A road between two surveyed sides (stage 243), when the sketch names one: its near side is the lot's side facing a line drawn
+  // across from it, carried on by the lines drawn on from that side's ends; its far side is that line. Measured, never taken from writing.
+  const widths = (options.widths ?? []).map((w) => ({ w, v: writtenWidth(w) })).filter((x): x is { w: string; v: number } => x.v !== null);
+  const roadNames = [...new Set([...drawing.areas.filter((a) => classifyArea(a.label, codes).kind === "road").map((a) => a.label), ...(options.roadNames ?? [])])];
+  let between: RoadProposal | null = null;
+  if (lot && roadNames.length > 0) {
+    const found = roadCandidates(lot);
+    const far = [...new Set(found.map((x) => x.far))];
+    // Never chosen between: two lines that could each be the far side, or two names for the one road drawn, are asked about.
+    if (far.length > 1)
+      ask(far.map((x) => x.line.id), lot.file, `The sketch names a road, and lines on more than one side of the lot could be its far side: through ${far.map((x) => list(ids(x.points))).join("; and through ")}.`, [
+        "Which one is the road isn't settled by the sketch, so no road is drawn. Draw it on the Lots step.",
+      ]);
+    else if (far.length === 1 && roadNames.length > 1)
+      ask(far.map((x) => x.line.id), lot.file, `The sketch names more than one road (${list(roadNames.map((x) => `"${x}"`))}), and only one is drawn across from the lot: which it is isn't settled.`, [
+        "No road is drawn. Draw it on the Lots step, with its name.",
+      ]);
+    else if (far.length === 1) between = roadBetween(lot, roadNames[0]!, found.filter((x) => x.far === far[0]).sort((x, y) => x.d - y.d)[0]!);
+  }
+  if (between) {
+    proposals.push(between);
+    // The sheet can't print Sinhala or Tamil yet: the road goes on the plan without its name, which is asked for.
+    if (!printable(between.name))
+      ask(between.from, between.file, `The road's name is written as "${between.name}", which the sheet can't print yet.`, ["The road is drawn without its name. Give the name as the plan should print it, on the Lots step."], { item: between.id, answeredBy: "confirm" });
+    const [lo, hi] = [between.widthM.min, between.widthM.max];
+    if (widths.length === 1) {
+      const w = widths[0]!;
+      if (w.v < lo - 0.3 || w.v > hi + 0.3)
+        ask(between.from, between.file, `The road is written as ${w.w} wide (${m(w.v)}), and it measures ${m(lo)} to ${m(hi)} between its surveyed sides.`, [
+          "A written width is often the road's reserved width rather than what's on the ground. The plan draws what was surveyed: confirm the road, and say on the plan which width is stated.",
+        ], { item: between.id, answeredBy: "confirm" });
+      else between.evidence.push(`It agrees with the ${w.w} written on the sketch.`);
+    }
+  }
+
   // ---- Roads: which side of the surveyed edge the road lies on, from where the lot is; and its width, only as written.
-  for (const l of lines.filter((x) => x.kind === "road")) {
+  const drawnAsRoad = new Set([...(between?.edgeA ?? []), ...(between?.edgeB ?? [])].map((p) => p.id));
+  for (const l of lines.filter((x) => x.kind === "road" && !between?.from.includes(x.line.id) && !x.points.every((p) => drawnAsRoad.has(p.id)))) {
     const p = l.proposal!;
     const a = l.points[0]!;
     const b = l.points.at(-1)!;
-    const widths = (options.widths ?? []).map((w) => ({ w, v: writtenWidth(w) })).filter((x) => x.v !== null);
     if (lot) {
       // A corner within the on-line tolerance of the edge is on it, not across it.
       const len = distance(a, b) || 1;
@@ -481,16 +576,16 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       const toward = { e: 2 * mid.e - away.e, n: 2 * mid.n - away.n };
       const compass = (from: Point, to: Point) => ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"][Math.round((((deg(Math.atan2(to.e - from.e, to.n - from.n)) % 360) + 360) % 360) / 45) % 8];
       if (oneSide) p.evidence.push(`The lot lies wholly on one side of this edge (to its ${compass(mid, toward)}), so the road lies on the other side, to its ${compass(mid, away)}.`);
-      else ask(p.from, p.file, `The lot lies on both sides of the road edge ${list(ids(l.points))}, so which side the road is on isn't clear.`, [], { answeredBy: "road" });
+      else ask(p.from, p.file, `The lot lies on both sides of the road edge ${list(ids(l.points))}, so which side the road is on isn't clear.`, [], { item: p.id, answeredBy: "road" });
       if (widths.length === 1 && oneSide) {
         ask(p.from, p.file, `The road is written as ${widths[0]!.w} wide (${m(widths[0]!.v!)}): its far edge would lie that far to the ${compass(mid, away)} of the surveyed edge.`, [
           "Farbaek doesn't draw a road from one surveyed edge yet: the far edge isn't drawn, and nothing is guessed in its place.",
-        ], { answeredBy: "road" });
+        ], { item: p.id, answeredBy: "road" });
       }
     }
     // Answered once the plan draws a road with both its edges.
-    if (widths.length === 0) ask(p.from, p.file, `The width of the road along ${list(ids(l.points))} isn't written on the sketch.`, ["Only its surveyed edge is drawn. Give its width, or survey its far edge."], { answeredBy: "road" });
-    if (widths.length > 1) ask(p.from, p.file, `More than one road width is written on the sketch (${list(widths.map((w) => w.w))}): none was taken.`, [], { answeredBy: "road" });
+    if (widths.length === 0) ask(p.from, p.file, `The width of the road along ${list(ids(l.points))} isn't written on the sketch.`, ["Only its surveyed edge is drawn. Give its width, or survey its far edge."], { item: p.id, answeredBy: "road" });
+    if (widths.length > 1) ask(p.from, p.file, `More than one road width is written on the sketch (${list(widths.map((w) => w.w))}): none was taken.`, [], { item: p.id, answeredBy: "road" });
   }
 
   // ---- Symbols: a well drawn at a numbered point.
@@ -532,9 +627,10 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       evidence: [
         `A ${s.kind} is drawn on ${s.file} at point ${s.at}${s.label ? `, with "${s.label}" written at it` : ""}.`,
         ...(matchNote(r) ? [matchNote(r)!] : []),
-        ...(fromLabel ? [] : [`Nothing is written at it: drawn as the code list's only ${s.kind}, ${entry.code}.`]),
+        ...(fromLabel ? [] : [s.label ? `"${s.label}" names a ${s.kind}, not a code: drawn as the code list's only ${s.kind}, ${entry.code}.` : `Nothing is written at it: drawn as the code list's only ${s.kind}, ${entry.code}.`]),
       ],
-      level: r.how === "exact" && fromLabel ? "strong" : "check",
+      // Strong only when what's written settles it: its code, or a word for the symbol (well, ළිඳ) with one such code in the list.
+      level: r.how === "exact" && (fromLabel || (s.label !== "" && namesKind(s.kind, s.label))) ? "strong" : "check",
       code: entry.code,
       meaning: entry.meaning,
       point: r.point,
@@ -552,6 +648,96 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
     } else ask([a.id], a.file, `"${a.label}" is written on the sketch (${c.why}), but its corners aren't numbered${a.around.length ? ` (${list(a.around)} were read)` : ""}.`, ["Its outline can't be drawn from the sketch. Give its corners on the Lots step."]);
   }
   return { proposals, questions, matches };
+
+  /**
+   * Lines that could be a named road's far side, each with the lot side facing it. A far line touches neither the lot nor its inside,
+   * is at least 3 m long, and runs alongside one of the lot's sides (within 20°), 2 to 20 m off, past that side's middle. It lies outside
+   * that side, judged by which way round the lot's outline runs (never by its centre, which a concave lot can lie outside), and neither
+   * it nor the way across to it crosses the lot.
+   */
+  function roadCandidates(lotP: LotProposal): RoadCandidate[] {
+    const ring = lotP.corners;
+    const onLot = new Set([...lotP.corners, ...lotP.onSides].map((p) => p.id));
+    const inward = Math.sign(signedArea(ring));
+    const found: RoadCandidate[] = [];
+    for (const l of lines) {
+      if (l.line.style === "dashed" || l.points.length < 2 || l.points.some((p) => onLot.has(p.id) || inside(p, ring))) continue;
+      if (l.points.slice(1).reduce((s, q, i) => s + distance(l.points[i]!, q), 0) < 3) continue;
+      if (l.points.slice(1).some((q, i) => crossesLot(ring, l.points[i]!, q, []))) continue;
+      const fh = heading(l.points[0]!, l.points.at(-1)!);
+      for (let i = 0; i < ring.length; i++) {
+        const [a, b] = [ring[i]!, ring[(i + 1) % ring.length]!];
+        if (!alongside(heading(a, b), fh, 20)) continue;
+        const [da, db] = [polyOff(a, l.points), polyOff(b, l.points)];
+        if (Math.min(da, db) < 2 || Math.max(da, db) > 20) continue;
+        if (l.points.some((p) => Math.sign(orient(a, b, p)) !== -inward)) continue;
+        const mid = { e: (a.e + b.e) / 2, n: (a.n + b.n) / 2 };
+        const t = along(mid, l.points[0]!, l.points.at(-1)!);
+        if (t < 0 || t > 1) continue;
+        // The way across, from the side's ends and middle to the far line, stays off the lot.
+        const prev = (i - 1 + ring.length) % ring.length;
+        const next = (i + 1) % ring.length;
+        if (crossesLot(ring, a, foot(a, l.points), [prev, i]) || crossesLot(ring, b, foot(b, l.points), [i, next]) || crossesLot(ring, mid, foot(mid, l.points), [i])) continue;
+        found.push({ far: l, a, b, d: (da + db) / 2 });
+      }
+    }
+    return found;
+  }
+
+  /**
+   * The road between the lot's side and the far line across from it. Its near side is that side, carried on at each end by a drawn line
+   * that leaves the lot (never into it or across it) running alongside the far side at
+   * a road's distance: the neighbours' walls along the road. Every point is a surveyed one; its width is measured.
+   */
+  function roadBetween(lotP: LotProposal, name: string, pick: RoadCandidate): RoadProposal | null {
+    const ring = lotP.corners;
+    const onLot = new Set([...lotP.corners, ...lotP.onSides].map((p) => p.id));
+    const { far, a, b } = pick;
+    const fh = heading(far.points[0]!, far.points.at(-1)!);
+    const corner = (p: SurveyPoint) => ring.findIndex((q) => q.id === p.id);
+    const sidesAt = (p: SurveyPoint) => {
+      const k = corner(p);
+      return k < 0 ? [] : [k, (k - 1 + ring.length) % ring.length];
+    };
+    const carried = (end: SurveyPoint, before: boolean): SurveyPoint[] => {
+      for (const x of lines) {
+        if (x === far || x.line.style === "dashed") continue;
+        const k = x.points.findIndex((p) => p.id === end.id);
+        const run = k === 0 ? x.points.slice(1) : k === x.points.length - 1 && k > 0 ? x.points.slice(0, -1).reverse() : null;
+        if (!run || run.length === 0 || run.some((p) => onLot.has(p.id) || inside(p, ring))) continue;
+        if ([end, ...run].slice(1).some((q, i) => crossesLot(ring, [end, ...run][i]!, q, i === 0 ? sidesAt(end) : []))) continue;
+        if (!alongside(heading(end, run.at(-1)!), fh, 25)) continue;
+        if (run.some((p) => polyOff(p, far.points) < 2 || polyOff(p, far.points) > 20)) continue;
+        if (!run.every((p) => (before ? along(p, a, b) < 0 : along(p, a, b) > 1))) continue;
+        return run;
+      }
+      return [];
+    };
+    const edgeA = [...carried(a, true).reverse(), a, b, ...carried(b, false)];
+    // The far side runs the same way as the near side.
+    const same = (edgeA.at(-1)!.e - edgeA[0]!.e) * (far.points.at(-1)!.e - far.points[0]!.e) + (edgeA.at(-1)!.n - edgeA[0]!.n) * (far.points.at(-1)!.n - far.points[0]!.n) >= 0;
+    const edgeB = same ? [...far.points] : [...far.points].reverse();
+    const width = roadWidth(edgeA, edgeB);
+    if (!width || width.minM < 2 || width.maxM > 20 || width.maxM - width.minM > 2) return null;
+    const ft = (v: number) => (v / 0.3048).toFixed(1);
+    const extra = edgeA.length > 2 ? ", carried on by the lines drawn from its ends" : "";
+    return {
+      kind: "road",
+      id: itemId("road", [...edgeA.map((p) => p.id), "/", ...edgeB.map((p) => p.id)]),
+      from: [far.line.id],
+      file: far.line.file,
+      evidence: [
+        `"${name}" is written on the sketch, naming a road.`,
+        `Its near side runs along ${list(ids(edgeA))}: the lot's side from ${a.pointId} to ${b.pointId}${extra}. Its far side runs along ${list(ids(edgeB))}, drawn across from it.`,
+        `Between them it measures ${m(width.minM)} to ${m(width.maxM)} (${ft(width.minM)} to ${ft(width.maxM)} ft), from the surveyed points.`,
+      ],
+      level: "check",
+      name,
+      edgeA,
+      edgeB,
+      widthM: { min: width.minM, max: width.maxM },
+    };
+  }
 
   function lotProposal(ring: SurveyPoint[], from: string[], file: string, label: string, evidence: string[]): LotProposal {
     // The corners are where the outline turns; points on its straight sides stay on the walls that run through them.
@@ -574,6 +760,8 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
     if (options.statedM2) {
       const diff = ((areaM2 - options.statedM2) / options.statedM2) * 100;
       ev.push(`The stated extent is ${options.statedM2.toFixed(2)} m²: the outline is ${Math.abs(diff).toFixed(1)}% ${diff > 0 ? "larger" : "smaller"}. The outline wasn't chosen to match it.`);
+      const round = roundPerches(options.statedM2);
+      if (round !== null && roundPerches(areaM2) === null && Math.abs(diff) > 1) ev.push(`The stated extent comes to ${round}.00 perches, a round figure as a deed's extent usually is: it may be the title's extent, not this survey's.`);
     }
     ev.push(...strips(shape));
     return { kind: "lot", id, from, file, evidence: ev, level: "check", label, corners: shape, onSides, areaM2 };

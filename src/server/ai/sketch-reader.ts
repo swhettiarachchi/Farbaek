@@ -24,6 +24,13 @@ Then read the drawing itself, which tells Farbaek which surveyed points are join
 - areas: writing inside an area (a lot's letter, P, house, a building's or an owner's name), with the numbered points at its corners in order, as far as the drawing shows them.
 A line whose end has no number can't be used: leave it out. Never estimate a length, an angle or a position from the drawing: Farbaek takes every position from the instrument's data, and only needs to know which numbered points the sketch joins.
 
+How surveyors write field sketches:
+- The book is often turned while drawing, so writing on one page can run in any direction, and numbers can be upside down. Read each number and word the way it was written: an upside-down 31 is 31, not a Sinhala letter. Where a number could read two ways turned round (6 and 9, 16 and 91), say so in "unreadable" rather than choose.
+- A note at the top of the page often names the job, the client or the place: give it as a note, not as a line's label.
+- A road's name written beside or between its sides (Temple Road, 2nd Lane, "පන්සල පාර") is a reading of kind road, and also an area with that name and no corners. Its sides are lines like any other: the walls along it, with what is written along them (MW).
+- An opening in a boundary marked as a gate (gate, ගේට්ටුව) is a line between its two numbered ends, with that word as its label.
+- A distance written with arrows at both ends runs between the two things the arrows point to: give the point numbers at those ends as from and to (a well's number when one end is the well).
+
 If you can see writing but can't read every character of it for certain, don't add it as a reading: describe it in a few words in "unreadable" instead. A wrong number is worse than a missing one.
 Never invent a point number, measurement, name or owner, and never read printed text from a form or background as the surveyor's writing.
 

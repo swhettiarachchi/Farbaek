@@ -8,15 +8,20 @@ import { readStatedExtent } from "../extent";
 import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
 import { sketchItemId } from "./apply";
-import { interpretSketch, type SketchInterpretation } from "./interpret";
+import { isRoadName } from "./classify";
+import { interpretSketch, writtenWidth, type SketchInterpretation } from "./interpret";
 
-/** The interpretation of a document's sketch drawing, with the stated extent and the road widths read from the sketch. */
+/** The interpretation of a document's sketch drawing, with the stated extent and the road widths and names read from the sketch. */
 export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPoint[]): SketchInterpretation | null {
   const drawing = doc.sketch?.drawing;
   if (!drawing || (drawing.lines.length === 0 && drawing.symbols.length === 0 && drawing.areas.length === 0)) return null;
   const stated = readStatedExtent(doc.sheet.statedExtent);
-  const widths = (doc.sketch?.readings ?? []).filter((r) => r.kind === "road" && /\d/.test(r.text)).map((r) => r.text);
-  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths });
+  // A road's reading is its width when it reads as one ("15'"), else its name (stage 243).
+  const roads = (doc.sketch?.readings ?? []).filter((r) => r.kind === "road");
+  const widths = roads.filter((r) => writtenWidth(r.text) !== null).map((r) => r.text);
+  // A name only when it reads as a road's name: a bare number or an owner's name is neither.
+  const roadNames = roads.filter((r) => writtenWidth(r.text) === null && isRoadName(r.text)).map((r) => r.text);
+  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames });
 }
 
 /**
@@ -34,13 +39,30 @@ export function sketchEvidence(interpretation: SketchInterpretation | null, key:
 
 /** Where an item the sketch put on the plan is, by its id: its provenance key, and whether it's still there. */
 const keyOf = (doc: SurveyDocument, item: string) =>
-  doc.lots.some((l) => l.id === item) ? `lot:${item}` : doc.features.some((f) => f.id === item) ? `feature:${item}` : (doc.symbols ?? []).some((s) => s.id === item) ? `symbol:${item}` : null;
+  doc.lots.some((l) => l.id === item)
+    ? `lot:${item}`
+    : doc.features.some((f) => f.id === item)
+      ? `feature:${item}`
+      : (doc.symbols ?? []).some((s) => s.id === item)
+        ? `symbol:${item}`
+        : doc.roads.some((r) => r.id === item)
+          ? `road:${item}`
+          : null;
 
 /** Whether the surveyor has answered a question: confirmed or removed what it's about, given the lot its label, or drawn the road. */
 function answered(doc: SurveyDocument, item: string | undefined, by: "confirm" | "label" | "road" | undefined): boolean {
-  // A road drawn with both its edges answers what one surveyed edge couldn't: its side and its width.
-  if (by === "road") return doc.roads.length > 0;
   if (!item || !by) return false;
+  // A road drawn along this line answers what one surveyed edge couldn't (its side and its width), once it's the surveyor's: a road the
+  // sketch put there and nobody has confirmed yet answers nothing.
+  if (by === "road") {
+    const line = doc.features.find((f) => f.id === item);
+    if (!line) return true;
+    return doc.roads.some((r) => {
+      const mark = doc.provenance[`road:${r.id}`];
+      const sides = new Set([...r.edgeA, ...r.edgeB]);
+      return line.points.filter((p) => sides.has(p)).length >= 2 && !(mark?.source === "ai_photo" && !mark.reviewed);
+    });
+  }
   const key = keyOf(doc, item);
   if (!key) return true;
   if (by === "label") return Boolean(doc.lots.find((l) => l.id === item)?.label.trim());

@@ -48,7 +48,7 @@ describe("what a line, symbol or area is", () => {
     expect(classifyLine("MW", "double", codes)).toMatchObject({ kind: "wall", fromWriting: true, code: { code: "MW" } });
     expect(classifyLine("MW2", "single", codes)).toMatchObject({ kind: "wall", code: { code: "MW" } });
     expect(classifyLine("Station Road", "double", codes)).toMatchObject({ kind: "road", fromWriting: true });
-    expect(classifyLine("jayanthamw5", "double", codes)).toMatchObject({ kind: "road" });
+    expect(classifyLine("templemw2", "double", codes)).toMatchObject({ kind: "road" });
     expect(classifyLine("proposed drain", "single", codes)).toMatchObject({ kind: "drain" });
     expect(classifyLine("කාණුව", "single", codes)).toMatchObject({ kind: "drain" });
     expect(classifyLine("", "double", codes)).toMatchObject({ kind: "wall", fromWriting: false });
@@ -141,7 +141,7 @@ describe("the sketch's drawing, joined to the surveyed points", () => {
   it("never invents a position: every proposal's points are the survey's own", () => {
     const surveyed = new Set(SYNTH_POINTS.map((p) => p.id));
     for (const p of run().proposals) {
-      const pts = p.kind === "lot" ? [...p.corners, ...p.onSides] : p.kind === "symbol" ? [p.point] : p.points;
+      const pts = p.kind === "lot" ? [...p.corners, ...p.onSides] : p.kind === "symbol" ? [p.point] : p.kind === "road" ? [...p.edgeA, ...p.edgeB] : p.points;
       for (const x of pts) expect(surveyed.has(x.id)).toBe(true);
     }
     // And the reader's answer has no place for a number other than which photo it's on.

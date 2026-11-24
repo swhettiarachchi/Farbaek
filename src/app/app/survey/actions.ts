@@ -89,7 +89,7 @@ const importInput = z.object({
   projectId: uuid,
   fileName: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/),
   content: z.string().max(IMPORT_LIMITS.maxBytes),
-  format: z.enum(["delimited", "geojson", "gsi", "sdr", "landxml", "jobxml", "fieldbook"]),
+  format: z.enum(["delimited", "geojson", "gsi", "sdr", "landxml", "jobxml", "fieldbook", "sokkialist", "dxf"]),
   delimiter: z.enum([",", "\t", ";", "whitespace"]),
   hasHeader: z.boolean(),
   columns: z.array(z.enum(["point", "easting", "northing", "elevation", "code", "ignore"])).min(3).max(40),
