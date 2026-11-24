@@ -32,7 +32,8 @@ export interface Applied {
   skipped: string[];
 }
 
-const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && (a.every((x, i) => x === b[i]) || a.every((x, i) => x === b[b.length - 1 - i]));
+/** The same points in the same order, either way round: how a line already on the plan is recognised. */
+export const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && (a.every((x, i) => x === b[i]) || a.every((x, i) => x === b[b.length - 1 - i]));
 
 export function applySketch(doc: SurveyDocument, interpretation: SketchInterpretation): Applied {
   const next: SurveyDocument = structuredClone(doc);

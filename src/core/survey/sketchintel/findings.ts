@@ -7,7 +7,7 @@ import type { SurveyDocument } from "../document";
 import { readStatedExtent } from "../extent";
 import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
-import { sketchItemId } from "./apply";
+import { same, sketchItemId } from "./apply";
 import { isRoadName } from "./classify";
 import { interpretSketch, writtenWidth, type SketchInterpretation } from "./interpret";
 
@@ -56,7 +56,7 @@ const keyOf = (doc: SurveyDocument, item: string) =>
           : null;
 
 /** Whether the surveyor has answered a question: confirmed or removed what it's about, given the lot its label, or drawn the road. */
-function answered(doc: SurveyDocument, item: string | undefined, by: "confirm" | "label" | "road" | undefined): boolean {
+function answered(doc: SurveyDocument, item: string | undefined, by: "confirm" | "label" | "road" | undefined, interpretation: SketchInterpretation): boolean {
   if (!item || !by) return false;
   // A road drawn along this line answers what one surveyed edge couldn't (its side and its width), once it's the surveyor's: a road the
   // sketch put there and nobody has confirmed yet answers nothing.
@@ -69,8 +69,13 @@ function answered(doc: SurveyDocument, item: string | undefined, by: "confirm" |
       return line.points.filter((p) => sides.has(p)).length >= 2 && !(mark?.source === "ai_photo" && !mark.reviewed);
     });
   }
-  const key = keyOf(doc, item);
+  // A line the plan already had (the same code and points, so the sketch's copy was never added) is answered by confirming that one.
+  const p = interpretation.proposals.find((x) => x.id === item);
+  const twin = !keyOf(doc, item) && p && (p.kind === "line" || p.kind === "building") ? doc.features.find((f) => f.code === p.code && same(f.points, p.points.map((x) => x.id))) : undefined;
+  const key = twin ? `feature:${twin.id}` : keyOf(doc, item);
   if (!key) return true;
+  // That line is the surveyor's own when nothing marks it as drawn for them, and then it's already their answer.
+  if (twin) return doc.provenance[key] === undefined || doc.provenance[key]!.reviewed === true;
   if (by === "label") return Boolean(doc.lots.find((l) => l.id === item)?.label.trim());
   return doc.provenance[key]?.reviewed === true;
 }
@@ -78,7 +83,7 @@ function answered(doc: SurveyDocument, item: string | undefined, by: "confirm" |
 /** The sketch's open questions as the plan's findings: for information, holding nothing back; those the surveyor has answered left out. */
 export function sketchQuestionFindings(interpretation: SketchInterpretation | null, doc: SurveyDocument): Finding[] {
   if (!interpretation) return [];
-  return interpretation.questions.filter((q) => !answered(doc, q.item, q.answeredBy)).slice(0, 30).map((q) => ({
+  return interpretation.questions.filter((q) => !answered(doc, q.item, q.answeredBy, interpretation)).slice(0, 30).map((q) => ({
     code: "SKETCH_QUESTION",
     severity: "warning" as const,
     message: q.text,

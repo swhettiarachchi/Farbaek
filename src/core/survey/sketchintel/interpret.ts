@@ -291,6 +291,20 @@ type LineRef = { line: SketchLine; points: SurveyPoint[]; closes: boolean; kind:
 /** A line that could be a road's far side, with the lot's side facing it (its ends a and b) and how far off it lies. */
 type RoadCandidate = { far: LineRef; a: SurveyPoint; b: SurveyPoint; d: number };
 
+/**
+ * Whether two legs cross each other through both their insides, more than `clear` metres from all four ends: a shared end, a touch, or
+ * a point lying on the other leg isn't a crossing.
+ */
+export function crossesAway(a: Point, b: Point, c: Point, d: Point, clear = 0.1): boolean {
+  const [d1, d2, d3, d4] = [orient(a, b, c), orient(a, b, d), orient(c, d, a), orient(c, d, b)];
+  if (!(d1 * d2 < 0 && d3 * d4 < 0)) return false;
+  const t = d3 / (d3 - d4);
+  const p = { e: a.e + t * (b.e - a.e), n: a.n + t * (b.n - a.n) };
+  // No end within `clear` of the crossing, nor of the other leg: a wall built along a boundary, its ends a centimetre either side of
+  // it, meets the boundary rather than crossing it.
+  return [a, b, c, d].every((q) => distance(p, q) > clear) && pointSegmentDistance(a, c, d) > clear && pointSegmentDistance(b, c, d) > clear && pointSegmentDistance(c, a, b) > clear && pointSegmentDistance(d, a, b) > clear;
+}
+
 const heading = (a: Point, b: Point) => Math.atan2(b.e - a.e, b.n - a.n);
 /** Whether two headings run alongside each other, either way, within some degrees. */
 function alongside(h1: number, h2: number, maxDeg: number): boolean {
@@ -664,6 +678,48 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
     if (around.length >= 3 && pts.every((p): p is SurveyPoint => p !== null) && simple(pts)) {
       proposals.push({ kind: "building", id: itemId("building", pts.map((p) => p.id)), from: [a.id], file: a.file, evidence: [`"${a.label}" is written on ${a.file} inside the corners ${list(a.around)}: ${c.why}.`], level: "check", code: c.code?.code ?? "", label: a.label, points: pts });
     } else ask([a.id], a.file, `"${a.label}" is written on the sketch (${c.why}), but its corners aren't numbered${a.around.length ? ` (${list(a.around)} were read)` : ""}.`, ["Its outline can't be drawn from the sketch. Give its corners on the Lots step."]);
+  }
+
+  // ---- Lines that cross in the survey where no number is (stage 246, ADR 0254). A sketch's lines meet at numbered points, so two lines
+  // crossing at a place with no number most likely carry a misread number (an upside-down 20 read as 10 that also exists). Asked about,
+  // never corrected; at most five, so a badly read sketch doesn't bury the rest.
+  // Dashed lines (roof edges, proposed lines) can pass over others, so they're left out; each line's legs and box are built once, pairs
+  // whose boxes are apart are skipped, and the work is capped, so a drawing at its limits stays quick.
+  const solid = lines
+    .filter((l) => l.line.style !== "dashed" && l.proposal)
+    .map((l) => {
+      const pts = l.closes && l.points.length > 2 ? [...l.points, l.points[0]!] : l.points;
+      const legs = pts.slice(1).map((q, i) => [pts[i]!, q] as const);
+      return { l, legs, box: [Math.min(...pts.map((p) => p.e)), Math.min(...pts.map((p) => p.n)), Math.max(...pts.map((p) => p.e)), Math.max(...pts.map((p) => p.n))] as const };
+    });
+  const asked = new Set<string>();
+  let crossings = 0;
+  let work = 0;
+  for (let i = 0; i < solid.length && crossings < 5 && work < 200_000; i++) {
+    for (let j = i + 1; j < solid.length && crossings < 5 && work < 200_000; j++) {
+      const [sx, sy] = [solid[i]!, solid[j]!];
+      const [x, y] = [sx.l, sy.l];
+      // The same line read twice, or a pair already asked about, isn't asked again.
+      const pair = [x.proposal!.id, y.proposal!.id].sort().join("|");
+      if (x.proposal!.id === y.proposal!.id || asked.has(pair)) continue;
+      if (sx.box[2] < sy.box[0] || sy.box[2] < sx.box[0] || sx.box[3] < sy.box[1] || sy.box[3] < sx.box[1]) continue;
+      work += sx.legs.length * sy.legs.length;
+      if (!sx.legs.some(([a, b]) => sy.legs.some(([c, d]) => crossesAway(a, b, c, d)))) continue;
+      asked.add(pair);
+      crossings++;
+      const doubtful = [x, y].filter((l) => !l.line.certain);
+      const about = (doubtful[0] ?? x).proposal;
+      ask(
+        [x.line.id, y.line.id],
+        x.line.file,
+        `The line through ${list(ids(x.points))} crosses the line through ${list(ids(y.points))} in the survey, at a place with no number.`,
+        [
+          "A sketch's lines meet at numbered points, so one of their numbers may be misread. Check them on the sketch, and correct or remove the line on the Lots step.",
+          ...(doubtful.length === 2 ? ["Both were read with doubt."] : doubtful.length === 1 ? [`The line through ${list(ids(doubtful[0]!.points))} was read with doubt.`] : []),
+        ],
+        about ? { item: about.id, answeredBy: "confirm" } : undefined,
+      );
+    }
   }
   return { proposals, questions, matches };
 
