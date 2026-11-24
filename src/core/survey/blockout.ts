@@ -58,6 +58,8 @@ type Made = Extract<PartitionResult, { ok: true }>;
 export function divide(doc: SurveyDocument, points: readonly SurveyPoint[], d: Division): { ok: true; lot: Lot; result: Made } | { ok: false; error: string } {
   const lot = doc.lots.find((l) => l.id === d.lot);
   if (!lot) return { ok: false, error: "That lot isn't in this version of the plan." };
+  // Division works on straight boundaries: a curved lot's shares would have the wrong areas (ADR 0276).
+  if (lot.arcs?.length) return { ok: false, error: "That lot has a curved boundary, and Farbaek divides lots with straight boundaries only: its shares' areas would be wrong. Divide it by hand." };
   const byId = new Map(points.map((p) => [p.id, p]));
   if (!lot.points.every((id) => byId.has(id))) return { ok: false, error: "That lot uses points that are no longer in the project." };
   const ring = lot.points.map((id) => byId.get(id)!);

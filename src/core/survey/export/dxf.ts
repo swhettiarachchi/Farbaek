@@ -13,6 +13,7 @@
  */
 import { formatDms, toDms } from "../angles";
 import { bulges, densify } from "../arcs";
+import { curveOfLeg, densifyRing, ringBulges } from "../lotcurves";
 import { codeOf, lookupCode } from "../codes";
 import type { CrsRecord } from "../crs";
 import { legIndex, type LayerId, type SurveyDocument } from "../document";
@@ -160,7 +161,10 @@ export function writeDxf(input: DxfInput): string {
   for (const r of input.lots.lots) {
     const parcel = r.parcel;
     if (!parcel || parcel.vertices.length < 2) continue;
-    polyline("BOUNDARY", parcel.vertices, parcel.vertices.length >= 3);
+    // A lot's curves (ADR 0276) as bulges on their legs, the arcs exactly as the plan's area takes them; their reach in the extent.
+    const closed = parcel.vertices.length >= 3;
+    polyline("BOUNDARY", parcel.vertices, closed, closed ? ringBulges(parcel.vertices, parcel.curves) : []);
+    if (parcel.curves.length > 0) all.push(...densifyRing(parcel.vertices, parcel.curves, 0.05));
     for (const p of parcel.vertices) {
       if (cornerSeen.has(p.id)) continue;
       cornerSeen.add(p.id);
@@ -174,7 +178,11 @@ export function writeDxf(input: DxfInput): string {
       text("POINT_NUMBERS", p.e + h(2), p.n + h(2), p.pointId, h(2.2), 0, false);
       if (p.code && p.code.trim()) text("BOUNDARY_MARKS", p.e + h(2), p.n - h(1.5), p.code.trim(), h(1.9), 0, false);
     }
-    parcel.legs.forEach((leg) => {
+    parcel.legs.forEach((leg0, i) => {
+      // A curve (ADR 0276) is labelled once, along its chord: the chord's bearing and distance, its radius and its length along the arc.
+      const cv = curveOfLeg(parcel.curves, i, parcel.vertices.length);
+      if (cv && !cv.first) return;
+      const leg = cv ? { from: leg0.from, to: parcel.vertices[cv.curve.to % parcel.vertices.length]!, bearing: cv.curve.chordBearing, distance: cv.curve.chordDistance } : leg0;
       if (leg.bearing === null) return;
       // A leg two lots share is labelled once, by the first lot that has it.
       const legKey = leg.from.id < leg.to.id ? `${leg.from.id}|${leg.to.id}` : `${leg.to.id}|${leg.from.id}`;
@@ -183,7 +191,8 @@ export function writeDxf(input: DxfInput): string {
       let angle = (Math.atan2(leg.to.n - leg.from.n, leg.to.e - leg.from.e) * 180) / Math.PI;
       if (angle > 90) angle -= 180;
       if (angle < -90) angle += 180;
-      const label = `${formatDms(toDms(leg.bearing, doc.settings.secondDecimals))} ${roundTo(leg.distance, doc.settings.distanceDecimals).toFixed(doc.settings.distanceDecimals)}`;
+      const dd = doc.settings.distanceDecimals;
+      const label = `${formatDms(toDms(leg.bearing, doc.settings.secondDecimals))} ${roundTo(leg.distance, dd).toFixed(dd)}${cv ? ` (R ${roundTo(cv.curve.radius, dd).toFixed(dd)}, arc ${roundTo(cv.curve.arcLength, dd).toFixed(dd)})` : ""}`;
       // On the lot's own side of the leg, so where one lot's corner rests on another's leg the two labels don't overlap.
       const len = Math.hypot(leg.to.e - leg.from.e, leg.to.n - leg.from.n) || 1;
       const inward = parcel.clockwise ? 1 : -1;

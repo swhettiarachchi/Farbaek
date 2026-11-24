@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { useId, useState } from "react";
 import { formatDms, formatQuadrant, toDms } from "@/core/survey/angles";
+import { curveOfLeg } from "@/core/survey/lotcurves";
 import { CODE_MAX, adoptCode, codeHints, type UnknownCode } from "@/core/survey/codehints";
 import { CODE_KINDS, LINE_STYLES, commonCodes, dsrCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
 import { GRAMMAR, GRAMMARS, type GrammarId } from "@/core/survey/grammar";
@@ -40,8 +41,25 @@ export function describeSelection(entity: string | null, plan: ReturnType<typeof
   if (!entity) return null;
   if (entity.startsWith("leg:")) {
     const [, lotId, i] = entity.split(":");
-    const leg = plan.lots.lots.find((r) => r.lot.id === lotId)?.parcel?.legs[Number(i)];
-    if (!leg) return null;
+    const parcel = plan.lots.lots.find((r) => r.lot.id === lotId)?.parcel;
+    const leg = parcel?.legs[Number(i)];
+    if (!parcel || !leg) return null;
+    // A curve (ADR 0276) is lettered on its first leg: its chord, its radius and its length along the arc.
+    const cv = curveOfLeg(parcel.curves, Number(i), parcel.vertices.length);
+    if (cv) {
+      const c = cv.curve;
+      const [a, b] = [parcel.vertices[c.from % parcel.vertices.length]!, parcel.vertices[c.to % parcel.vertices.length]!];
+      return {
+        title: `Curve ${a.pointId} to ${b.pointId}`,
+        rows: [
+          ["Chord bearing", c.chordBearing === null ? "None" : formatDms(toDms(c.chordBearing, 1))],
+          ["Chord", `${fmt(c.chordDistance, 4)} m`],
+          ["Radius", `${fmt(c.radius, 4)} m`],
+          ["Along the arc", `${fmt(c.arcLength, 4)} m`],
+        ],
+        note: "The circle through the curve's first, middle and last points, every one within 2 cm of it. Its area is in the lot's.",
+      };
+    }
     return {
       title: `Leg ${leg.from.pointId} to ${leg.to.pointId}`,
       rows: [

@@ -82,6 +82,13 @@ export const lotSchema = z.object({
   sup: text(6),
   points: z.array(pointRef).max(500),
   note: text(80),
+  /**
+   * Runs of its corners that are a circular curve (lotcurves.ts, stage 269, ADR 0276), by index in `points`: from the curve's start
+   * through points on it to its end. `to` counts on past the last corner when the curve runs through the first (index k is corner
+   * k mod the corners' count). Its area includes the curves.
+   * Absent when it has none, so earlier plans and approvals are unchanged.
+   */
+  arcs: z.array(z.object({ from: z.number().int().min(0).max(499), to: z.number().int().min(0).max(998) })).min(1).max(ARCS_PER_LINE).optional(),
 });
 export type Lot = z.infer<typeof lotSchema>;
 
@@ -274,6 +281,11 @@ export const surveyDocumentSchema = z.object({
    * proposes which surveyed points join and what they are, for the surveyor to confirm; positions never come from it.
    */
   sketch: sketchRecordSchema.nullable().default(null),
+  /**
+   * The office profile the plan was started from, and its version (stage 270, ADR 0277): what the surveyor's corrections on it are
+   * learned against. Absent for a plan started without one, so earlier plans and approvals are unchanged.
+   */
+  fromProfile: z.object({ id: z.string().uuid(), version: z.number().int().min(1) }).optional(),
   /**
    * Symbols drawn at surveyed points whose own codes don't say what they are, such as a well the sketch shows at a point (stage 241).
    * The point is unchanged: only how it's drawn. Absent until one is added, so earlier approvals stand.

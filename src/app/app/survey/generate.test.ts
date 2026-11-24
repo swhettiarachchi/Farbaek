@@ -11,7 +11,7 @@ const { calls, stored, carried, created, jobs, cutOff, office } = vi.hoisted(() 
   office: { profiles: [] as unknown[], saved: [] as Record<string, unknown>[], chosen: [] as (string | null)[], saveResult: null as unknown },
   // A cut-off run the page shows (stage 235), and whether its record can still be written.
   cutOff: { job: null as unknown, writable: true, latest: 1, conflict: false, sources: [] as unknown[] },
-  carried: { value: { codes: null, settings: null } as unknown },
+  carried: { value: { codes: null, settings: null } as unknown, recent: [] as unknown[] },
   created: { document: null as unknown },
   jobs: [] as { kind: string; input: Record<string, unknown> }[],
   calls: [] as { kind: string; input: Record<string, unknown> }[],
@@ -78,7 +78,7 @@ vi.mock("@/server/survey/store", async () => {
     },
   };
 });
-vi.mock("@/server/survey/defaults", () => ({ loadStartingDefaults: async () => carried.value }));
+vi.mock("@/server/survey/defaults", () => ({ loadStartingDefaults: async () => carried.value, loadRecentPlans: async () => carried.recent }));
 vi.mock("@/server/survey/profiles", () => ({ loadOfficeProfiles: async () => office.profiles, loadProfileChoice: async () => null, loadProfileVersions: async () => [] }));
 vi.mock("@/server/survey/jobs", async () => {
   const actual = await vi.importActual<typeof import("@/server/survey/jobs")>("@/server/survey/jobs");
@@ -97,7 +97,7 @@ vi.mock("@/server/survey/read", () => ({
   }),
 }));
 
-const { generateSurveyPlanAction, saveOfficeProfileAction } = await import("./actions");
+const { answerProfileSuggestionAction, generateSurveyPlanAction, saveOfficeProfileAction } = await import("./actions");
 
 const boundary = ["Point,Easting,Northing,Height,Code", "1,450000.000,700000.000,20.00,CP", "2,450040.000,700000.000,20.00,CP", "3,450040.000,700030.000,20.00,St", "4,450000.000,700030.000,20.00,St"].join("\n");
 const extra = ["Point,Easting,Northing,Height,Code", "10,450020.000,700015.000,20.50,Well"].join("\n");
@@ -116,10 +116,51 @@ beforeEach(() => {
   calls.length = 0;
   stored.length = 0;
   carried.value = { codes: null, settings: null };
+  carried.recent = [];
   created.document = null;
   jobs.length = 0;
   Object.assign(cutOff, { job: null, writable: true, latest: 1, conflict: false, sources: [] });
   Object.assign(office, { profiles: [], saved: [], chosen: [], saveResult: null });
+});
+
+describe("suggestions learned from the surveyor's plans (stage 270, ADR 0277)", () => {
+  const sheetOf = () => {
+    const s = emptyDocument().settings;
+    return { template: s.template, paper: s.paper, orientation: s.orientation, perchDecimals: s.perchDecimals, secondDecimals: s.secondDecimals, distanceDecimals: s.distanceDecimals, overleaf: s.overleaf, permitBox: s.permitBox, slant: s.slant, faceDimensions: s.faceDimensions };
+  };
+  const PROFILE = { id: "66666666-6666-4666-8666-666666666666", name: "Sokkia office", version: 2, updatedAt: "2026-11-24T00:00:00Z", body: { crsId: "EPSG:5235", equipment: [], codes: null, sheet: sheetOf(), statement: "" } };
+  const ticked = (name: string) => {
+    const d = emptyDocument();
+    d.settings.wallTicks = true;
+    // Started from the profile (ADR 0277): only such plans are learned from.
+    d.fromProfile = { id: PROFILE.id, version: 1 };
+    return { name, document: d };
+  };
+
+  it("adds a suggestion worked out again on the server, as a new version, and turns one down so it isn't offered again", async () => {
+    office.profiles = [PROFILE];
+    carried.recent = [ticked("Plan B"), ticked("Plan A")];
+    const added = await answerProfileSuggestionAction({ profileId: PROFILE.id, baseVersion: 2, key: "setting:wallTicks=on", accept: true });
+    expect(added).toMatchObject({ status: "done", version: 3, message: expect.stringContaining("Added to the profile") });
+    expect((office.saved.at(-1)!.body as { sheet: { wallTicks?: boolean } }).sheet.wallTicks).toBe(true);
+    expect(office.saved.at(-1)).toMatchObject({ profileId: PROFILE.id, baseVersion: 2, name: "Sokkia office" });
+
+    const turned = await answerProfileSuggestionAction({ profileId: PROFILE.id, baseVersion: 2, key: "setting:wallTicks=on", accept: false });
+    expect(turned).toMatchObject({ status: "done", message: expect.stringContaining("won't be suggested again") });
+    expect((office.saved.at(-1)!.body as { declined: string[] }).declined).toEqual(["setting:wallTicks=on"]);
+  });
+
+  it("saves nothing for a stale version, a suggestion the plans no longer make, or a profile not in the workspace", async () => {
+    office.profiles = [PROFILE];
+    carried.recent = [ticked("Plan B"), ticked("Plan A")];
+    expect(await answerProfileSuggestionAction({ profileId: PROFILE.id, baseVersion: 1, key: "setting:wallTicks=on", accept: true })).toMatchObject({ status: "error", message: expect.stringContaining("newer version") });
+    expect(await answerProfileSuggestionAction({ profileId: PROFILE.id, baseVersion: 2, key: "setting:noLotLetters=on", accept: true })).toMatchObject({ status: "error", message: expect.stringContaining("no longer applies") });
+    carried.recent = [ticked("Plan B")];
+    expect(await answerProfileSuggestionAction({ profileId: PROFILE.id, baseVersion: 2, key: "setting:wallTicks=on", accept: true })).toMatchObject({ status: "error" });
+    office.profiles = [];
+    expect(await answerProfileSuggestionAction({ profileId: PROFILE.id, baseVersion: 2, key: "setting:wallTicks=on", accept: true })).toMatchObject({ status: "error" });
+    expect(office.saved).toEqual([]);
+  });
 });
 
 describe("office profiles (stage 248)", () => {

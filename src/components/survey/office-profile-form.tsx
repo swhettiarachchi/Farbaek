@@ -9,6 +9,7 @@ import { CRS_REGISTRY, LOCAL_CRS } from "@/core/survey/crs";
 import { emptyDocument } from "@/core/survey/document";
 import { GRAMMAR, GRAMMARS, grammarForLibrary, type GrammarId } from "@/core/survey/grammar";
 import { IMPORT_FORMATS } from "@/core/survey/import/detect";
+import { DRAFTING_LABELS, DRAFTING_SETTINGS } from "@/core/survey/learning";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, precisionFromText, type Equipment, type OfficeProfile, type OfficeProfileBody } from "@/core/survey/profile";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
@@ -72,7 +73,8 @@ export function OfficeProfileForm({ profile, disabledReason }: { profile: Office
   const instruments = equipmentOf(equipment);
   const save = () => {
     if (!instruments.ok) return setResult({ status: "error", message: instruments.problem });
-    const body: OfficeProfileBody = { crsId: crsId || null, equipment: instruments.value, codes, sheet, statement: statement.trim() };
+    // Suggestions turned down (ADR 0277) stay turned down whatever else is changed here.
+    const body: OfficeProfileBody = { crsId: crsId || null, equipment: instruments.value, codes, sheet, statement: statement.trim(), ...(b?.declined?.length ? { declined: b.declined } : {}) };
     startTransition(async () => {
       const r = await saveOfficeProfileAction({ profileId: profile?.id ?? null, baseVersion: profile?.version ?? null, name, body }).catch((): ProfileState => ({ status: "error", message: "The connection dropped while saving. Try again." }));
       setResult(r);
@@ -259,6 +261,23 @@ export function OfficeProfileForm({ profile, disabledReason }: { profile: Office
               <label key={k} className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-3">
                 <input type="checkbox" checked={sheet[k]} onChange={(e) => setSheet({ ...sheet, [k]: e.target.checked })} className="size-5 shrink-0 accent-[var(--color-accent)]" />
                 {label}
+              </label>
+            ))}
+            {/* Drafting choices (ADR 0277): kept with the sheet, seen and changed here as on the plan's Sheet tab; off removes the key. */}
+            {DRAFTING_SETTINGS.map((k) => (
+              <label key={k} className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-3">
+                <input
+                  type="checkbox"
+                  checked={sheet[k] === true}
+                  onChange={(e) => {
+                    const next = { ...sheet } as Record<string, unknown>;
+                    if (e.target.checked) next[k] = true;
+                    else delete next[k];
+                    setSheet(next as typeof sheet);
+                  }}
+                  className="size-5 shrink-0 accent-[var(--color-accent)]"
+                />
+                {DRAFTING_LABELS[k]}
               </label>
             ))}
           </div>

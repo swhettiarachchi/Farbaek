@@ -175,7 +175,7 @@ function chain(edges: Edge[]): SurveyPoint[][] {
 export function computeLots(points: readonly SurveyPoint[], lots: readonly Lot[]): PlanLots {
   const results: LotResult[] = lots.map((lot) => {
     if (lot.points.length === 0) return { lot, parcel: null, missing: [] };
-    const r = computeParcel(points, lot.points);
+    const r = computeParcel(points, lot.points, lot.arcs);
     return r.ok ? { lot, parcel: r.parcel, missing: [] } : { lot, parcel: null, missing: r.missing };
   });
   const usable = results.map((r, i) => ({ r, i })).filter((x): x is { r: LotResult & { parcel: ParcelResult }; i: number } => x.r.parcel !== null && x.r.parcel.vertices.length >= 3 && x.r.parcel.crossings.length === 0);
@@ -254,5 +254,12 @@ export function computeLots(points: readonly SurveyPoint[], lots: readonly Lot[]
   const holes = rings.filter((r, i) => rings.some((o, j) => j !== i && area(o) > area(r) && r.every((p) => strictlyInside(p, o) || o.some((q) => q.id === p.id)))).length;
   const pieces = rings.length - holes;
   const single = rings.length === 1 ? rings[0]! : null;
-  return { lots: results, outline: single, sumAreaM2, outlineAreaM2: single ? area(single) : null, overlaps, pieces, holes, nearDuplicates, nearLegs };
+  // A curve on the land's outer edge adds its segments to the land's area as it does to its lot's (ADR 0276). One between two lots adds
+  // to one and takes from the other, and isn't on the outline. A curved leg split by another lot's corner is left straight here.
+  let curvedOutline = 0;
+  for (const x of usable) {
+    const v = x.r.parcel.vertices;
+    for (const c of x.r.parcel.curves) for (const s of c.segments) if (count.get(key(v[s.leg]!, v[(s.leg + 1) % v.length]!))?.n === 1) curvedOutline += s.extraM2;
+  }
+  return { lots: results, outline: single, sumAreaM2, outlineAreaM2: single ? area(single) + curvedOutline : null, overlaps, pieces, holes, nearDuplicates, nearLegs };
 }
