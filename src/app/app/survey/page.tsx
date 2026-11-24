@@ -1,4 +1,4 @@
-import { CompassToolIcon, IdentificationCardIcon, MapTrifoldIcon, PlusIcon } from "@phosphor-icons/react/ssr";
+import { CompassToolIcon, IdentificationCardIcon, MapTrifoldIcon, PlusIcon, ToolboxIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -32,6 +32,10 @@ export default async function SurveyStudioPage() {
             <ButtonLink href="/app/survey/profile" variant="secondary" size="sm">
               <IdentificationCardIcon size={16} weight="bold" aria-hidden />
               Surveyor details
+            </ButtonLink>
+            <ButtonLink href="/app/survey/office" variant="secondary" size="sm">
+              <ToolboxIcon size={16} weight="bold" aria-hidden />
+              Office profiles
             </ButtonLink>
             {readOnly ? null : (
               <ButtonLink href="/app/survey/new" size="sm">

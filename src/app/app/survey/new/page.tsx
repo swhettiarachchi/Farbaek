@@ -11,6 +11,8 @@ import { readModelKey } from "@/server/ai/workspace-ai";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
 import { loadStartingDefaults } from "@/server/survey/defaults";
+import { loadOfficeProfiles, loadProfileChoice } from "@/server/survey/profiles";
+import { resolveProfile } from "@/core/survey/profile";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
 
@@ -46,6 +48,11 @@ export default async function NewSurveyPage() {
     grammar: "grammar" in defaults ? (defaults.grammar ?? null) : null,
   };
   const aiCost = ownKey ? "It runs on your workspace's own Claude key." : "It's free while Survey Studio is being tested.";
+  // The workspace's office profiles (ADR 0256), and the one this surveyor used last: the start screen picks one as files arrive. The
+  // grid shown first is the likely profile's, else the one last confirmed.
+  const [profiles, lastProfile] = client ? await Promise.all([loadOfficeProfiles(client, ctx.current.id), loadProfileChoice(client, ctx.current.id, ctx.user.id)]) : [[], null];
+  const likely = resolveProfile(profiles, { formats: [], lastChosen: lastProfile }).chosen;
+  const profileCrs = likely?.body.crsId ? startingCrs(likely.body.crsId) : null;
 
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-6 pt-2 sm:pt-6 lg:gap-8">
@@ -55,7 +62,17 @@ export default async function NewSurveyPage() {
           Upload your survey data and field sketches. Farbaek reads them, draws the plan, and shows only what needs your attention. You check it, approve it and print it.
         </p>
       </div>
-      <AutoSurveyStart startingCrsId={startingCrs(lastCrs)?.id ?? null} surveyorName={surveyorName} disabledReason={disabledReason} sketchOff={sketchOff} aiCost={aiCost} carried={carried} />
+      <AutoSurveyStart
+        startingCrsId={profileCrs?.id ?? startingCrs(lastCrs)?.id ?? null}
+        lastCrsId={startingCrs(lastCrs)?.id ?? null}
+        profiles={profiles}
+        lastProfile={lastProfile}
+        surveyorName={surveyorName}
+        disabledReason={disabledReason}
+        sketchOff={sketchOff}
+        aiCost={aiCost}
+        carried={carried}
+      />
       <Disclosure summary="Set up the project step by step" hint="Name it, confirm the coordinate system, then choose a file's columns yourself." icon={<SlidersHorizontalIcon size={20} aria-hidden />}>
         <Card>
           <NewSurveyProjectForm disabledReason={disabledReason} />

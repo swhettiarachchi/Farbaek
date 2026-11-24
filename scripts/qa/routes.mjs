@@ -16,7 +16,7 @@ export const STATIC_ROUTES = [
   "/app/tasks", "/app/templates", "/app/workspaces/new", "/app/skills",
   "/app/activity", "/app/incidents", "/app/integrations", "/app/policies", "/app/trust", "/app/workflows", "/app/workflows/new",
   // Survey Studio.
-  "/app/survey", "/app/survey/new", "/app/survey/profile",
+  "/app/survey", "/app/survey/new", "/app/survey/profile", "/app/survey/office",
   ...SURVEY_STEPS.map((s) => `/app/survey/sample?step=${s}`),
 ];
 

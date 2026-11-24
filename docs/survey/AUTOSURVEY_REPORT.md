@@ -39,7 +39,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | --- | --- | --- |
 | File intelligence | `autosurvey/start.ts` (`kindOfUpload`, `readSurveyFile`), `import/detect.ts` | Built and tested |
 | Format adapter registry | `import/read.ts`, one strict reader per format | Built and tested |
-| Surveyor profile resolver | `autosurvey/defaults.ts`, `server/survey/defaults.ts` | Partly built: carried code list, sheet presentation and grid; no profile table yet |
+| Surveyor profile resolver | `profile.ts`, `server/survey/profiles.ts`, `autosurvey/defaults.ts` | Built and tested (stage 248, ADR 0256, schema v105): office profiles (grid, instruments and their formats, code library and line words, sheet, statement), versioned, picked by the files' formats, the last choice or the only one, else asked once; recent plans' defaults when there's none. Learning from corrections not built |
 | Data normalisation | `import/*` readers, `import/reduce.ts` | Built and tested |
 | CRS resolver | `crs.ts`, the start screen's last-confirmed grid | Built and tested: never inferred, always confirmed; no transformations |
 | Field-to-finish | `autodraft.ts`, `fieldToFinish.ts`, `grammar.ts`, `codes.ts`, `codelib.ts`, `codehints.ts` | Built and tested: Farbaek's and Carlson's line words (ADR 0243), joins to a point, a code report in the checks, suggestions for unknown codes added in one press (ADR 0246); PC to PT runs drawn as curves through their points (ADR 0247) |
@@ -239,7 +239,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #307 | 244 (the deed's extent on the face) | Merged, live (build 73408c17ac24) | none |
 | #308 | 245 (the sketch interpretation report) | Merged, live | none |
 | #309 | 246 (doubt where it's real, crossing lines) | Merged, live (build 98cc285939fc) | none |
-| next | 247 (where each number is written) | Open | none |
+| #310 | 247 (where each number is written) | Merged, live | none |
+| next | 248 (office profiles) | Open | **v105:** the owner applies it before the merge (the line is in the PR); until then profiles can't be saved and say so, and Generate Plan works as before |
 
 Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
@@ -249,7 +250,7 @@ Production deploys main by itself. **v102 and v103 were found missing on 2026-11
 - **Labels and layout:** leader lines for dimensions that can't fit (crowded legs can be left to the schedule since stage 240); multi-sheet layout.
 - **Codes:** curved lot boundaries (curves are drawn on lines, not lots, since a lot's area would change); a curve's radius and length on the plan; offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
-- **Defaults:** a surveyor profile table (equipment, title block, plan numbering).
+- **Profiles:** learning from corrections (suggestions kept apart until approved), CAD layer and text styles, title-block fields other than the statement, plan numbering.
 - **Jobs:** resuming a cut-off import or sketch read (a run cut off after its import can be finished since stage 235); a timer for the jobs sweep; incremental regeneration (a correction saves a new version and re-checks the whole plan).
 - **Files:** reading PDFs, Word files and DWG, and a DXF's lines; Topcon raw files; keeping a camera's full-size original.
 - **Platform:** the success metrics (§26) that production doesn't record: time to first preview, findings across plans, refused exports, and a comparison with the same job by hand (`docs/survey/METRICS.md`, stage 237, says how the rest are read); malware scanning of uploads; signed download links.
