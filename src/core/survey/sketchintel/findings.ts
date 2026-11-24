@@ -5,12 +5,13 @@
  */
 import type { SurveyDocument } from "../document";
 import type { SketchReading } from "../autosurvey/sketch";
+import { DRAWING_LIMITS, type SketchDrawing } from "./drawing";
 import type { PlacedNumber } from "./placement";
 import { readStatedExtent } from "../extent";
 import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
 import { same, sketchItemId } from "./apply";
-import { classifyLine, isGateWord, isRoadName } from "./classify";
+import { classifyArea, classifyLine, isGateWord, isRoadName } from "./classify";
 import { correctedDrawing, correctedReadings } from "./corrected";
 import { interpretSketch, writtenWidth, type Question, type SketchInterpretation } from "./interpret";
 
@@ -20,8 +21,8 @@ export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPo
   if (!raw || (raw.lines.length === 0 && raw.symbols.length === 0 && raw.areas.length === 0)) return null;
   // Read with the surveyor's corrections of point numbers applied (stage 249, ADR 0257); the reading itself stays as read.
   const corrections = doc.sketch?.corrections ?? [];
-  const drawing = correctedDrawing(raw, corrections);
   const readings = correctedReadings(doc.sketch?.readings ?? [], corrections);
+  const drawing = withBuildingWords(correctedDrawing(raw, corrections), readings, doc.codes);
   const stated = readStatedExtent(doc.sheet.statedExtent);
   // A road's reading is its width when it reads as one ("15'"), else its name (stage 243). One read with doubt is never taken, but it's
   // counted, so a conflict is still asked about (ADR 0253).
@@ -42,6 +43,25 @@ export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPo
     ...drawing.lines.filter((l) => classifyLine(l.label, l.style, doc.codes).kind === "gate").map((l) => l.points),
   ];
   return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames, placed: placedNumbers(readings), labels, gates });
+}
+
+/**
+ * A building's word the reader gave only as writing, not as an area (stage 256): taken as that area's label with no corners, so its
+ * outline is found from where it's written (ADR 0262), as for an area the reader gave. Once per word and photo, and never beside an area
+ * the reader already gave with the same word.
+ */
+export function withBuildingWords(drawing: SketchDrawing, readings: readonly SketchReading[], codes: SurveyDocument["codes"]): SketchDrawing {
+  const have = new Set(drawing.areas.map((a) => `${a.file}|${a.label.trim()}`));
+  const added: SketchDrawing["areas"] = [];
+  let n = drawing.areas.reduce((most, a) => Math.max(most, Number(a.id.slice(1)) || 0), 0);
+  for (const r of readings) {
+    const key = `${r.file}|${r.text.trim()}`;
+    if (r.kind === "point" || !r.photo || have.has(key) || classifyArea(r.text, codes).kind !== "building") continue;
+    if (n >= 999 || drawing.areas.length + added.length >= DRAWING_LIMITS.areas) break;
+    have.add(key);
+    added.push({ id: `a${++n}`, file: r.file, label: r.text.trim(), around: [] });
+  }
+  return added.length ? { ...drawing, areas: [...drawing.areas, ...added] } : drawing;
 }
 
 /** The point numbers the reader placed on a photo (stage 247): evidence for a question, never a position. */

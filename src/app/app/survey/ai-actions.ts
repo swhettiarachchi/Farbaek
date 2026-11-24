@@ -14,7 +14,7 @@ import type { AcceptedItem } from "@/core/survey/ai-draft";
 import { sketchFileNames } from "@/core/survey/autosurvey/sketch";
 import { pruneProvenance, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
-import { applySketch } from "@/core/survey/sketchintel/apply";
+import { applySketch, withoutWaitingSketchItems } from "@/core/survey/sketchintel/apply";
 import { withAutoCorrections } from "@/core/survey/sketchintel/correct";
 import { interpretDocument, sketchQuestionFindings } from "@/core/survey/sketchintel/findings";
 import { createAnthropicSketchReader, type SketchImage } from "@/server/ai/sketch-reader";
@@ -198,8 +198,9 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   let asked = 0;
   let corrected: string[] = [];
   const withReadings = (document: SurveyDocument, points: readonly SurveyPoint[]) => {
-    // A new read's check answers for itself: the earlier answers to readings and to a check go with them.
-    const read = pruneProvenance({ ...document, sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:") && !k.startsWith("check:")) });
+    // What an earlier read drew and nobody has confirmed goes: the new read draws what it reads (stage 256). The surveyor's own stays.
+    // A new read's check answers for itself: the earlier answers to readings and to a check go with them (stage 263).
+    const read = pruneProvenance({ ...withoutWaitingSketchItems(document), sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:") && !k.startsWith("check:")) });
     // The plain misreads the engine would offer to correct in one press are corrected now, as Farbaek's, before anything is drawn, when
     // that helps (ADR 0260): what they draw waits for the surveyor as everything from a sketch does, and each is put back in one press.
     const auto = withAutoCorrections(read, points, new Date());
