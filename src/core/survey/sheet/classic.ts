@@ -28,7 +28,7 @@ import { drawTexts } from "./texts";
 import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads, quadsOverlap, textQuad, type DrawCtx } from "./draw";
 import { advanceWidth, textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import { SRI_LANKA_CLASSIC_V1 as T } from "./template";
-import { MAX_SHEETS, clipItems, gridEdges, keyToSheets, matchLines, matchSpot, numberSheets, showsDrawing, tileGrid, type Sheet } from "./tiles";
+import { MAX_GRID_PLACES, MAX_SHEETS, clipItems, gridEdges, keyToSheets, matchLines, matchSpot, numberSheets, showsDrawing, tileGrid, type Sheet } from "./tiles";
 
 const PREFERRED_SCALES = [500, 1000, 1250, 2000, 2500, 4000, 5000, 10000] as const;
 
@@ -351,11 +351,13 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   };
   if (b && scale) {
     viewport = { ...lay.vp, scale, centreE: (b.minE + b.maxE) / 2, centreN: (b.minN + b.maxN) / 2 };
-    const grid = several ? tileGrid(b, lay.vp, scale) : null;
-    if (grid && grid.tiles.length > MAX_SHEETS) {
-      findings.push({ code: "SHEETS_TOO_MANY", severity: "error", message: `At 1:${scale} the drawing would need ${grid.tiles.length} sheets; Farbaek draws a plan over ${MAX_SHEETS} at most.`, target: { kind: "sheet" }, action: "Choose a smaller scale or a larger sheet.", blocks: ["export"] });
-    }
-    if (grid && grid.tiles.length <= MAX_SHEETS) {
+    // The grid filled to the same margins as the one-sheet fit (90% wide, 88% high), so a drawing too big for one sheet makes two at least.
+    const grid = several ? tileGrid(b, lay.vp, scale, { w: 0.9, h: 0.88 }) : null;
+    let refused = false;
+    if (grid && grid.tiles.length > MAX_GRID_PLACES) {
+      refused = true;
+      findings.push({ code: "SHEETS_TOO_MANY", severity: "error", message: `At 1:${scale} the drawing spans ${grid.cols} by ${grid.rows} sheets; Farbaek draws a plan over ${MAX_SHEETS} sheets at most.`, target: { kind: "sheet" }, action: "Choose a smaller scale or a larger sheet.", blocks: ["export"] });
+    } else if (grid && grid.tiles.length > 1) {
       // Each sheet's part of the drawing, cut at its drawing area's edge; its words kept inside it, clear of the match lines' words.
       const area: [number, number, number, number] = [lay.vp.x, lay.vp.y, lay.vp.x + lay.vp.w, lay.vp.y + lay.vp.h];
       const drawn = grid.tiles.map((g) => {
@@ -364,15 +366,24 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
         const ctx = drawPlan(raw, v, area, (c) => gridEdges(g.col, g.row, grid.cols, grid.rows).forEach((e) => c.placer.add(matchSpot(area, e, z.small).quad)));
         return { g, v, ctx, items: clipItems(raw, area, 0.5) };
       });
-      const shown = drawn.filter((d) => showsDrawing(d.items));
-      const sheets = numberSheets(shown.map((d) => d.g));
-      cut = { sheets, cols: grid.cols, rows: grid.rows, area, parts: shown.map((d) => ({ sheet: sheets.find((s) => s.col === d.g.col && s.row === d.g.row)!, viewport: d.v, items: d.items })) };
-      cut.parts.sort((p, q) => p.sheet.n - q.sheet.n);
-      for (const d of shown) contexts.push(d.ctx);
-      for (const p of cut.parts) drawings.push(p.items);
-      viewport = cut.parts[0]?.viewport ?? viewport;
-      findings.push({ code: "SHEETS_SPLIT", severity: "information", message: `At 1:${scale} the drawing is drawn over ${sheets.length} sheets, each with match lines to the next and a key to the sheets.`, target: { kind: "sheet" }, action: "Check each sheet. The boundaries schedule overleaf covers the whole plan.", blocks: [] });
-    } else {
+      const shown = drawn.filter((d) => showsDrawing(d.items, area));
+      if (shown.length > MAX_SHEETS) {
+        refused = true;
+        findings.push({ code: "SHEETS_TOO_MANY", severity: "error", message: `At 1:${scale} the drawing needs ${shown.length} sheets; Farbaek draws a plan over ${MAX_SHEETS} at most.`, target: { kind: "sheet" }, action: "Choose a smaller scale or a larger sheet.", blocks: ["export"] });
+      } else if (shown.length >= 2) {
+        const sheets = numberSheets(shown.map((d) => d.g));
+        cut = { sheets, cols: grid.cols, rows: grid.rows, area, parts: shown.map((d) => ({ sheet: sheets.find((s) => s.col === d.g.col && s.row === d.g.row)!, viewport: d.v, items: d.items })) };
+        cut.parts.sort((p, q) => p.sheet.n - q.sheet.n);
+        for (const d of shown) contexts.push(d.ctx);
+        for (const p of cut.parts) drawings.push(p.items);
+        viewport = cut.parts[0]?.viewport ?? viewport;
+        findings.push({ code: "SHEETS_SPLIT", severity: "information", message: `At 1:${scale} the drawing is drawn over ${sheets.length} sheets, each with match lines to the next and a key to the sheets.`, target: { kind: "sheet" }, action: "Check each sheet. The boundaries schedule overleaf covers the whole plan.", blocks: [] });
+      }
+    }
+    if (several && !cut && !refused) {
+      findings.push({ code: "DRAWING_OFF_SHEET", severity: "error", message: `At 1:${scale} the drawing doesn't fit the sheet.`, target: { kind: "sheet" }, action: "Choose a smaller scale or a larger sheet.", blocks: ["export"] });
+    }
+    if (!cut) {
       // Text in the drawing stays inside the frame and above the Reference and title block.
       const drawing: SceneItem[] = [];
       contexts.push(drawPlan(drawing, viewport, [f.x0 + 1, lay.bandTop, f.x0 + f.fw - 1, lay.vp.y + lay.vp.h]));

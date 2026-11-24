@@ -14,6 +14,11 @@ export type Rect = [number, number, number, number];
 export const MAX_SHEETS = 12;
 /** How much of a sheet's drawing area the drawing fills at most at the grid's outside edges, so it keeps a margin there. */
 const FILL = 0.94;
+/**
+ * How far past a sheet's edge something still counts as on it, mm. The grid is centred on the drawing, so a shared edge often runs
+ * exactly along a lot's side: rounding must never put that side, or its corners, on neither sheet.
+ */
+const EDGE_MM = 1e-6;
 
 export interface GridTile {
   col: number;
@@ -27,21 +32,21 @@ export interface GridTile {
  * The grid of sheets over the drawing's extent at the scale: sheets side by side with no overlap, each the drawing area's size, the
  * grid centred on the extent. Rows run north to south, columns west to east.
  */
-export function tileGrid(ext: { minE: number; maxE: number; minN: number; maxN: number }, area: { w: number; h: number }, scale: number): { cols: number; rows: number; tiles: GridTile[] } {
+export function tileGrid(ext: { minE: number; maxE: number; minN: number; maxN: number }, area: { w: number; h: number }, scale: number, fill: { w: number; h: number } = { w: FILL, h: FILL }): { cols: number; rows: number; tiles: GridTile[] } {
   const k = scale / 1000;
   const [tw, th] = [area.w * k, area.h * k];
-  const cols = Math.max(1, Math.ceil((ext.maxE - ext.minE) / (tw * FILL)));
-  const rows = Math.max(1, Math.ceil((ext.maxN - ext.minN) / (th * FILL)));
+  const cols = Math.max(1, Math.ceil((ext.maxE - ext.minE) / (tw * fill.w)));
+  const rows = Math.max(1, Math.ceil((ext.maxN - ext.minN) / (th * fill.h)));
   const [cE, cN] = [(ext.minE + ext.maxE) / 2, (ext.minN + ext.maxN) / 2];
   const tiles: GridTile[] = [];
   for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) tiles.push({ col, row, centreE: cE + (col - (cols - 1) / 2) * tw, centreN: cN - (row - (rows - 1) / 2) * th });
   return { cols, rows, tiles };
 }
 
-const inside = (r: Rect, x: number, y: number, pad = 0) => x >= r[0] - pad && x <= r[2] + pad && y >= r[1] - pad && y <= r[3] + pad;
+const inside = (r: Rect, x: number, y: number, pad = 0) => x >= r[0] - pad - EDGE_MM && x <= r[2] + pad + EDGE_MM && y >= r[1] - pad - EDGE_MM && y <= r[3] + pad + EDGE_MM;
 
 /** One segment cut to the rectangle (Liang-Barsky), or null when none of it is inside. */
-function clipSegment(r: Rect, a: [number, number], b: [number, number]): [[number, number], [number, number]] | null {
+function cutTo(r: Rect, a: [number, number], b: [number, number]): [[number, number], [number, number]] | null {
   const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
   let [t0, t1] = [0, 1];
   for (const [p, q] of [
@@ -50,7 +55,7 @@ function clipSegment(r: Rect, a: [number, number], b: [number, number]): [[numbe
     [-dy, a[1] - r[1]],
     [dy, r[3] - a[1]],
   ] as const) {
-    if (p === 0) {
+    if (Math.abs(p) < 1e-12) {
       if (q < 0) return null;
       continue;
     }
@@ -63,6 +68,19 @@ function clipSegment(r: Rect, a: [number, number], b: [number, number]): [[numbe
     [a[0] + t0 * dx, a[1] + t0 * dy],
     [a[0] + t1 * dx, a[1] + t1 * dy],
   ];
+}
+
+/**
+ * One segment cut at the rectangle's edge. A segment lying along the edge, which rounding can put a hair outside, is kept, its ends
+ * brought onto the edge (by no more than EDGE_MM): a side two sheets share is drawn on both, never on neither.
+ */
+function clipSegment(r: Rect, a: [number, number], b: [number, number]): [[number, number], [number, number]] | null {
+  const exact = cutTo(r, a, b);
+  if (exact) return exact;
+  const wide = cutTo([r[0] - EDGE_MM, r[1] - EDGE_MM, r[2] + EDGE_MM, r[3] + EDGE_MM], a, b);
+  if (!wide) return null;
+  const onto = ([x, y]: [number, number]): [number, number] => [Math.min(r[2], Math.max(r[0], x)), Math.min(r[3], Math.max(r[1], y))];
+  return [onto(wide[0]), onto(wide[1])];
 }
 
 /** A line's pieces inside the rectangle, each a run of the line's own points between the places it crosses the edge. */
@@ -114,10 +132,26 @@ export function clipItems(items: readonly SceneItem[], r: Rect, textPad = 0): Sc
   return out;
 }
 
-/** Whether a sheet shows any of the drawing: its lines, points or words, not just the sheet's own furniture. */
-export function showsDrawing(items: readonly SceneItem[]): boolean {
-  return items.some((i) => i.layer !== "TITLE" && i.layer !== "SHEET");
+/**
+ * Whether a sheet shows any of the drawing: a line crossing its area, or a point in it, more than half a millimetre in from its edges.
+ * Words alone don't make a sheet (a neighbour's label reaching just over the edge), nor does a line along the edge, which the
+ * neighbouring sheet shows.
+ */
+export function showsDrawing(items: readonly SceneItem[], r: Rect): boolean {
+  const core: Rect = [r[0] + 0.5, r[1] + 0.5, r[2] - 0.5, r[3] - 0.5];
+  const deep = (x: number, y: number) => x > core[0] && x < core[2] && y > core[1] && y < core[3];
+  return items.some((i) => {
+    if (i.layer === "TITLE" || i.layer === "SHEET" || i.kind === "text") return false;
+    if (i.kind === "circle") return deep(i.cx, i.cy);
+    return i.points.some((p, k) => deep(p[0], p[1]) || (k > 0 && deep((p[0] + i.points[k - 1]![0]) / 2, (p[1] + i.points[k - 1]![1]) / 2)));
+  });
 }
+
+/**
+ * The most grid places worth drawing to find which show the drawing: past this, the scale is plainly wrong, and drawing every place
+ * would hold the plan up.
+ */
+export const MAX_GRID_PLACES = 2 * MAX_SHEETS;
 
 export interface Sheet {
   /** Its number, from 1, north-west first, along each row. */

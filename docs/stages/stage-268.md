@@ -18,10 +18,22 @@ The brief lists multi-sheet layout among what AutoSurvey doesn't do. A plan too 
 - **`document.ts`, `plan-panels.tsx`, `compare.ts`:** the `severalSheets` setting, offered on the Sheet tab with a scale chosen, and named in the version comparison.
 - **`plan-editor.tsx`:** one sheet at a time, a press for each.
 
+## A fresh review found five real faults, fixed before the PR
+
+Each one reproduced by the reviewer, and now a test that fails without its fix:
+
+1. **Any word on a plan over several sheets stopped the export.** Each sheet's labels are placed inside that sheet, so a word belonging to another sheet counted as "off the sheet" (TEXT_OFF_SHEET). Now a word is off the sheet only when no sheet found it a place.
+2. **A side lying exactly on a shared edge was drawn on no sheet.** The grid is centred on the drawing, so a shared edge often runs along a lot's side, and rounding put it a hair outside both sheets (24 of 30 corners shown on a block of lots). Now a line along an edge is drawn on both sheets, and points within a micrometre count as on the sheet.
+3. **Crowded legs were left to the schedule only from sheet 1.** Now from every sheet, and "is the face clearer" counts every sheet.
+4. **The twelve-sheet limit counted empty grid places,** so a diagonal run of lots was refused as "16 sheets" when 7 show anything. Now up to 24 places are drawn and only those that show the drawing count.
+5. **A classic drawing just past its margins became "1 of 1" sheets.** The grid now uses the same margins as the one-sheet fit, and fewer than two sheets showing anything is one sheet.
+
+Also: one sheet's checks are exactly as before (a wall drawn as the boundary is no longer merged by name on one sheet), a sheet with only a neighbour's words or a line along its edge isn't made, and with every drawing layer hidden there is still one page.
+
 ## Verified
 
-- `tiles.test.ts` (19 cases, see ADR 0275).
-- Survey, server and design tests (1,267), `tsc --noEmit` with a 4 GB heap, lint on the changed files.
+- `tiles.test.ts` (32 cases, see ADR 0275), with one for each fault the review found.
+- Survey, server and design tests (1,281), `tsc --noEmit` with a 4 GB heap, lint on the changed files.
 - The one-sheet path unchanged: earlier sheet tests, and the owner's real job drawn byte for byte as before.
 - **Looked at:** a strip of twelve 40 m lots at 1:500 on A3 landscape, four sheets on each layout, drawn to PNG: match lines at the cuts, "Continued on sheet N" clear of the labels, the key with the sheet marked.
 

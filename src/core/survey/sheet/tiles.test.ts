@@ -71,9 +71,19 @@ describe("cutting the drawing at a sheet's edge", () => {
     expect(out).toEqual([word(50, 30), dot]);
   });
 
-  it("tells a sheet that shows the drawing from one with only its own furniture", () => {
-    expect(showsDrawing([path([[0, 0], [1, 1]], { layer: "SHEET" }), word(1, 1)])).toBe(true);
-    expect(showsDrawing([path([[0, 0], [1, 1]], { layer: "TITLE" })])).toBe(false);
+  it("tells a sheet that shows the drawing from one with only its furniture, a neighbour's words or a line along its edge", () => {
+    expect(showsDrawing([path([[10, 20], [110, 20]])], R)).toBe(true);
+    // A line crossing it with no point of its own inside: its middle is.
+    expect(showsDrawing([path([[10, 20], [110, 40]])], R)).toBe(true);
+    expect(showsDrawing([path([[20, 20], [30, 30]], { layer: "TITLE" }), word(50, 30)], R)).toBe(false);
+    expect(showsDrawing([path([[110, 10], [110, 60]])], R)).toBe(false);
+    expect(showsDrawing([{ kind: "circle", cx: 110, cy: 30, r: 0.5, width: 0.2, color: "ink", layer: "POINTS" }], R)).toBe(false);
+  });
+
+  it("keeps a line and a point lying exactly on an edge, after rounding, on the sheet", () => {
+    const x = 110 + 1e-13;
+    const out = clipItems([path([[x, 20], [x, 40]]), { kind: "circle", cx: x, cy: 30, r: 0.5, width: 0.2, color: "ink", layer: "POINTS" }], R);
+    expect(out).toHaveLength(2);
   });
 });
 
@@ -163,6 +173,75 @@ describe.each(["panel", "classic"] as const)("a plan too long for one sheet, on 
   it("keeps a sheet's labels on their own sheet: no label overlaps another on any sheet", () => {
     const s = compose(stripDoc(template, true));
     expect(s.findings.map((f) => f.code)).not.toContain("LABELS_OVERLAP");
+  });
+
+  it("never calls a word placed on its own sheet off the sheet: texts, dimensions and adjoining lands' words", () => {
+    const doc = stripDoc(template, true);
+    doc.texts = [{ id: "00000000-0000-4000-8000-00000000c001", text: "Gate", at: id(1) }];
+    doc.dimensions = [{ id: "00000000-0000-4000-8000-00000000d001", from: id(1), to: id(2), offset: 6 }];
+    doc.adjoining = [{ id: "00000000-0000-4000-8000-00000000e001", text: "Land of the sample neighbour", lot: "lot-1", from: id(1), to: id(101) }];
+    const s = compose(doc);
+    expect(s.findings.filter((f) => f.blocks.includes("export")).map((f) => f.code)).toEqual([]);
+    const words = s.pages.filter((p) => p.role === "front").flatMap((p) => p.items).filter((i): i is SceneText => i.kind === "text").map((i) => i.text);
+    expect(words).toContain("Gate");
+  });
+
+  it.each([45, 50, 47.9, 33.3])("loses no side or corner on a shared edge, with lots %s m wide", (width) => {
+    const strip: SurveyPoint[] = Array.from({ length: 13 }, (_, k) => [
+      { id: id(k + 1), pointId: String(k + 1), e: 400_000 + k * width, n: 500_000, z: null, code: "CP" },
+      { id: id(k + 101), pointId: String(k + 101), e: 400_000 + k * width, n: 500_030, z: null, code: "CP" },
+    ]).flat();
+    const doc = stripDoc(template, true);
+    const s = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points: strip, lots: computeLots(strip, doc.lots), crs: crsById("EPSG:5235"), crsConfirmation: "Confirmed (synthetic test)", surveyor: null, approval: null });
+    const fronts = s.pages.filter((p) => p.role === "front");
+    for (const pt of strip) expect(fronts.some((p) => p.items.some((i) => i.kind === "circle" && i.entity === `pt:${pt.id}`)), `point ${pt.pointId}`).toBe(true);
+  });
+});
+
+describe("over several sheets, the plan's other rules", () => {
+  it("leaves crowded legs to the schedule from any sheet, not just the first", () => {
+    // Ten 40 m lots, then five narrow ones at the east end, on the last sheet.
+    const widths = [...Array(10).fill(40), 2, 1.5, 2, 1.5, 2];
+    const xs = widths.reduce<number[]>((a, w) => [...a, a.at(-1)! + w], [0]);
+    const strip: SurveyPoint[] = xs.flatMap((x, k) => [
+      { id: id(k + 1), pointId: String(k + 1), e: 400_000 + x, n: 500_000, z: null, code: "CP" },
+      { id: id(k + 101), pointId: String(k + 101), e: 400_000 + x, n: 500_030, z: null, code: "CP" },
+    ]);
+    const doc = stripDoc("classic", true);
+    doc.lots = widths.map((_, k) => ({ id: `lot-${k + 1}`, label: String(k + 1), sup: "", points: [id(k + 1), id(k + 2), id(k + 102), id(k + 101)], note: "" }));
+    doc.settings.crowdedLegsToSchedule = true;
+    const s = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points: strip, lots: computeLots(strip, doc.lots), crs: crsById("EPSG:5235"), crsConfirmation: "Confirmed (synthetic test)", surveyor: null, approval: null });
+    const codes = s.findings.map((f) => f.code);
+    expect(codes.includes("LEGS_IN_SCHEDULE") || codes.includes("LEGS_NOT_SCHEDULED")).toBe(true);
+  });
+
+  it("counts only the sheets that show the drawing against the limit", () => {
+    // Ten 40 m squares corner to corner on a diagonal: a 4 by 4 grid of places, most of them empty.
+    const pts: SurveyPoint[] = [];
+    const lots = Array.from({ length: 10 }, (_, k) => {
+      const c = [[0, 0], [40, 0], [40, 40], [0, 40]].map(([dx, dy], j) => {
+        const p = { id: id(1000 + k * 4 + j), pointId: String(1000 + k * 4 + j), e: 400_000 + k * 40 + dx!, n: 500_000 + k * 40 + dy!, z: null, code: "CP" };
+        pts.push(p);
+        return p.id;
+      });
+      return { id: `lot-${k + 1}`, label: String(k + 1), sup: "", points: c, note: "" };
+    });
+    const doc = stripDoc("panel", true);
+    doc.lots = lots;
+    const s = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points: pts, lots: computeLots(pts, doc.lots), crs: crsById("EPSG:5235"), crsConfirmation: "Confirmed (synthetic test)", surveyor: null, approval: null });
+    expect(s.findings.map((f) => f.code)).not.toContain("SHEETS_TOO_MANY");
+    const fronts = s.pages.filter((p) => p.role === "front");
+    expect(fronts.length).toBeGreaterThan(1);
+    expect(fronts.length).toBeLessThanOrEqual(MAX_SHEETS);
+  });
+
+  it("draws a drawing that just misses the classic layout's margins on one sheet, never as one of one", () => {
+    const one: SurveyPoint[] = [[0, 0], [100, 0], [100, 30], [0, 30]].map(([e, n], k) => ({ id: id(k + 1), pointId: String(k + 1), e: 400_000 + e!, n: 500_000 + n!, z: null, code: "CP" }));
+    const doc = stripDoc("classic", true);
+    doc.lots = [{ id: "lot-1", label: "1", sup: "", points: one.map((p) => p.id), note: "" }];
+    const s = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points: one, lots: computeLots(one, doc.lots), crs: crsById("EPSG:5235"), crsConfirmation: "Confirmed (synthetic test)", surveyor: null, approval: null });
+    expect(s.findings.find((f) => f.code === "SHEETS_SPLIT")?.message ?? "").not.toContain("over 1 sheets");
+    expect(s.pages.filter((p) => p.role === "front").every((p) => p.sheet === undefined || p.sheet.of > 1)).toBe(true);
   });
 });
 

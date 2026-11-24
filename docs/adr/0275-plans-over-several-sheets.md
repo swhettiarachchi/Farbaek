@@ -13,16 +13,16 @@ The owner's brief lists multi-sheet layout among what AutoSurvey doesn't do. A l
 **A drawing that doesn't fit one sheet at the scale chosen can be drawn over several sheets at that scale, when the surveyor asks for it.**
 
 - **The setting:** "Over several sheets when the drawing doesn't fit at this scale" on the Sheet tab, offered only with a scale chosen (Automatic picks one that fits). Absent unless chosen, so earlier plans and approvals are unchanged.
-- **The grid:** sheets side by side with no overlap, each the drawing area's size at the scale, the grid centred on the drawing's extent and filled to 94% at its outside edges. Grid places that show nothing are left out. Sheets are numbered north-west first along each row. Twelve at most (`SHEETS_TOO_MANY` stops the export past that: the scale is what's wrong).
+- **The grid:** sheets side by side with no overlap, each the drawing area's size at the scale, the grid centred on the drawing's extent and filled to 94% at its outside edges. A grid place shows the drawing when a line crosses it or a point stands in it, more than half a millimetre in from its edges; the others are left out, and fewer than two that show anything is one sheet. Sheets are numbered north-west first along each row. Twelve at most, counting only those that show the drawing; up to 24 grid places are drawn to find them, and past that the plan is refused at once (`SHEETS_TOO_MANY` stops the export: the scale is what's wrong). The classic layout's grid keeps the same margins as its one-sheet fit (90% wide, 88% high).
 - **Never shrunk, never moved:** every sheet is drawn at the chosen scale with its own viewport. The drawing is cut at the drawing area's edge:
-  - lines and outlines are cut where they cross it into the pieces inside, with their own points kept exactly;
+  - lines and outlines are cut where they cross it into the pieces inside, with their own points kept exactly; a line lying along a shared edge (rounding can put it a hair outside) is drawn on both sheets, never on neither;
   - points, circles and small filled symbols are kept whole when their centre is inside, else left to the neighbouring sheet;
   - words are placed inside each sheet's area by the label solver (its bounds are the area), and kept on the sheet where they stand.
   A line that crosses an edge is drawn up to it on both sheets, so nothing between them is lost.
 - **Match lines:** a dashed line along each edge another sheet continues, with "Continued on sheet N" just inside it. Their places are reserved before any label is placed, so no label covers them.
 - **The key to the sheets:** the grid of sheets, numbered, with this one shaded and outlined more heavily. On the panel layout it's a panel ("Sheet 2 of 4"); on the classic layout it stands in the strip right of the drawing, under the north needle.
 - **Everything else on each sheet:** the title block, the panel or the Reference, the scale, the north, the check line and the plot stamp are on every sheet. The boundaries schedule overleaf covers the whole plan, once.
-- **The checks:** each sheet's labels are checked on their own page; what the sheets' drawing noted (labels off the sheet, walls drawn as the boundary, cramped lot labels) is said once. `SHEETS_SPLIT` says how many sheets, as information.
+- **The checks:** each sheet's labels are checked on their own page. A word is off the sheet only when no sheet found it a place; walls drawn as the boundary and cramped lot labels are said once. Crowded legs are left to the schedule from any sheet. `SHEETS_SPLIT` says how many sheets, as information.
 - **The editor:** a plan over several sheets shows one sheet at a time, with a press for each; dragging and tapping use that sheet's viewport.
 - **The DXF** is model space and unchanged: one drawing, whole.
 
@@ -37,6 +37,6 @@ The owner's brief lists multi-sheet layout among what AutoSurvey doesn't do. A l
 
 ## Verified
 
-- `tiles.test.ts` (19 cases): the grid; lines cut at the edge with their own points kept, a line leaving and coming back in two pieces, outlines opened only when cut; words, points and symbols kept by where they stand; match lines only where a sheet continues; the key; and on both layouts a strip too long for one sheet: refused unless asked, then drawn over several sheets with every corner on some sheet where its own viewport puts it, no boundary past a sheet's drawing area, and no overlapping labels; more than twelve sheets refused; a drawing that fits stays on one sheet.
+- `tiles.test.ts` (32 cases), including one for each of five faults a fresh review reproduced (words on their own sheet called off it, sides on a shared edge drawn on no sheet, crowded legs only from sheet 1, empty places counted against the limit, "1 of 1" sheets): the grid; lines cut at the edge with their own points kept, a line leaving and coming back in two pieces, outlines opened only when cut; words, points and symbols kept by where they stand; match lines only where a sheet continues; the key; and on both layouts a strip too long for one sheet: refused unless asked, then drawn over several sheets with every corner on some sheet where its own viewport puts it, no boundary past a sheet's drawing area, and no overlapping labels; more than twelve sheets refused; a drawing that fits stays on one sheet.
 - The one-sheet path is unchanged: every earlier sheet test passes, and the owner's real job (classic layout) draws byte for byte as before.
 - **Looked at:** the strip's four sheets on both layouts, drawn to PNG.
