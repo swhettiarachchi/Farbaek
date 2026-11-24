@@ -19,6 +19,7 @@ import { TOUCH_TOLERANCE_M, distance, orient, type Point } from "./geometry";
 import { NEAR_LEG_M, nearKey, type PlanLots } from "./lots";
 import { ACCESS_NOTE, RESERVED_NOTE, minimumText, remindersFor, ruleSetFrom, shortOf, type RuleSet } from "./rules";
 import { readStatedExtent } from "./extent";
+import { deedExtentFace } from "./deed-extent";
 import type { SurveyPoint } from "./parcel";
 import { fmt, PERCH_M2 } from "./units";
 
@@ -311,8 +312,10 @@ export function checkSurvey(input: QcInput): Finding[] {
     if (kept.has(key)) add({ code: "CORNER_NEAR_LEG_KEPT", severity: "information", message: `Kept as surveyed: ${where}.`, target: { kind: "point", id: nl.corner.id }, action: "Nothing to do, unless you want to check it again.", blocks: [], keep: { key, kept: true } });
     else add({ code: "CORNER_NEAR_LEG", severity: "professional_review", message: `The lots nearly meet: ${where}.`, target: { kind: "point", id: nl.corner.id }, detail: "It leaves a sliver between the lots, or a slight overlap. Nothing has been moved.", action: `If the lots share that line, add point ${nl.corner.pointId} as a corner of lot ${lotName(nl.lot) || "without a label"} too, or use the same marks. If the marks really are apart, keep it as surveyed.`, blocks: ["approval"], keep: { key, kept: false } });
   }
-  // The extent a deed or earlier plan states, beside the land computed from the points (never in place of it).
+  // The extent a deed or earlier plan states, beside the land computed from the points: on the face in its place only when the surveyor
+  // chose that on the classic layout (ADR 0252), and the computed extent is never dropped.
   const statedText = doc.sheet.statedExtent.trim();
+  const deedFace = deedExtentFace(doc, input.lots);
   // The land the plan computes: its outline, or the lots' sum when they form separate pieces without gaps or overlaps.
   const computed = input.lots.outlineAreaM2 ?? (input.lots.overlaps.length === 0 && input.lots.holes === 0 && input.lots.sumAreaM2 > 0 ? input.lots.sumAreaM2 : null);
   if (statedText && computed === null && input.lots.lots.length > 0) {
@@ -331,9 +334,19 @@ export function checkSurvey(input: QcInput): Finding[] {
       const whole = Math.abs(perches - Math.round(perches)) < 0.005 && perches >= 1 && Math.abs(computed / PERCH_M2 - Math.round(computed / PERCH_M2)) >= 0.005;
       const detail = `Stated ${fmt(stated.m2, 2)} m², computed ${fmt(computed, 2)} m²: the stated extent is ${words} (${fmt(pct, 1)}%) ${diff >= 0 ? "more" : "less"}.${whole && pct > 1 ? ` It comes to ${Math.round(perches)}.00 perches, a round figure as a deed's extent usually is: it may be the title's extent, not this survey's.` : ""}`;
       if (pct <= 1) add({ code: "STATED_EXTENT_AGREES", severity: "information", message: "The stated extent agrees with the land computed from your points, within 1%.", target: { kind: "field", id: "statedExtent" }, detail, action: "Nothing to do.", blocks: [] });
-      else add({ code: "STATED_EXTENT_DIFFERS", severity: "warning", message: `The stated extent differs from the land computed from your points by ${fmt(pct, 1)}%.`, target: { kind: "field", id: "statedExtent" }, detail, action: "Deeds are often older than the survey. Check the stated extent is copied right, and mention the difference in the plan's notes if it matters. The plan shows the computed extent.", blocks: [] });
+      else add({ code: "STATED_EXTENT_DIFFERS", severity: "warning", message: `The stated extent differs from the land computed from your points by ${fmt(pct, 1)}%.`, target: { kind: "field", id: "statedExtent" }, detail, action: deedFace.shown ? `Deeds are often older than the survey. Check the stated extent is copied right. The plan's face gives it, as you chose, and ${doc.settings.overleaf ? "the boundaries schedule overleaf gives the computed extent" : "with the boundaries schedule off, the computed extent isn't on the plan"}.` : "Deeds are often older than the survey. Check the stated extent is copied right, and mention the difference in the plan's notes if it matters. The plan shows the computed extent.", blocks: [] });
     }
   }
+  // The deed's extent on the face (ADR 0252): said every time, with where the computed extent is, and what happens when it can't be shown.
+  // One rule (deed-extent.ts) for the face, the schedule overleaf and these checks, so they never disagree.
+  if (deedFace.shown) {
+    const printed = `It's printed as ${deedFace.printed}, from "${statedText}" as written.`;
+    if (doc.settings.overleaf) add({ code: "EXTENT_FROM_DEED", severity: "information", message: "The plan's extent line gives the deed's extent, as you chose; the boundaries schedule overleaf gives the extent computed from this survey.", target: { kind: "sheet" }, detail: printed, action: "Nothing to do.", blocks: [] });
+    else add({ code: "EXTENT_FROM_DEED", severity: "warning", message: "The plan's extent line gives the deed's extent, and with the boundaries schedule off, the extent computed from this survey isn't on the plan.", target: { kind: "sheet" }, detail: printed, action: "Turn the boundaries schedule on, or give the computed extent on the face.", blocks: [] });
+  } else if (deedFace.why === "not_classic") add({ code: "EXTENT_FROM_DEED", severity: "information", message: "The deed's extent on the face applies to the classic layout only: this layout gives the stated extent beside the computed one.", target: { kind: "sheet" }, action: "Nothing to do, or turn the setting off on the Sheet tab.", blocks: [] });
+  else if (deedFace.why === "extract") add({ code: "EXTENT_FROM_DEED", severity: "information", message: "An extract of one lot gives that lot's computed extent, not the deed's.", target: { kind: "sheet" }, action: "Nothing to do.", blocks: [] });
+  else if (deedFace.why === "unreadable") add({ code: "EXTENT_FROM_DEED", severity: "warning", message: "The plan is set to give the deed's extent, but there's no stated extent it can read, so it gives the computed extent.", target: { kind: "field", id: "statedExtent" }, action: "Write the stated extent as on the deed, or turn the setting off on the Sheet tab.", blocks: [] });
+  else if (deedFace.why === "no_area") add({ code: "EXTENT_FROM_DEED", severity: "warning", message: "The plan is set to give the deed's extent, but it has no computed extent to keep beside it yet, so the extent line is left blank.", target: { kind: "sheet" }, action: "Fix the lots so the plan's extent can be computed.", blocks: [] });
   // The planning rules the surveyor chose for the lots (ADR 0207): warnings to weigh, never a pass or a fail of the plan.
   if (doc.rules) {
     const set = ruleSetFrom(doc.rules);

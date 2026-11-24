@@ -16,6 +16,7 @@ import { BEARING_CONVENTION } from "../angles";
 import { codesAreCommonList } from "../codes";
 import { lotName, PAPER_SIZES, type PaperSize } from "../document";
 import { titleSentence, regionLine, type Run } from "../description";
+import { deedExtentFace } from "../deed-extent";
 import { arpClassic, dotDate, hectares } from "../formats";
 import { bounds } from "../geometry";
 import type { Finding } from "../qc";
@@ -186,8 +187,12 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
       y -= z.body * 1.35;
     }
     // Extent.
-    const area = extract ? (input.lots.lots.find((r) => r.lot.id === extract.id)?.parcel?.areaM2 ?? null) : entireAreaM2(input.lots);
-    const extentText = area !== null ? `${cap.extent} ${hectares(area)} ${cap.hectares} ( ${arpClassic(toArp(area, doc.settings.perchDecimals))} )` : `${cap.extent} ${BLANK} ${cap.hectares}`;
+    // The deed's extent when the surveyor chose it for the whole plan (ADR 0252), else the extent computed from the survey.
+    // One rule (deed-extent.ts) decides it for the face, the schedule and the checks alike.
+    const deed = deedExtentFace(doc, input.lots);
+    const area = deed.shown ? deed.stated.m2 : extract ? (input.lots.lots.find((r) => r.lot.id === extract.id)?.parcel?.areaM2 ?? null) : entireAreaM2(input.lots);
+    const perchDecimals = deed.shown ? deed.perchDecimals : doc.settings.perchDecimals;
+    const extentText = area !== null ? `${cap.extent} ${hectares(area)} ${cap.hectares} ( ${arpClassic(toArp(area, perchDecimals))} )` : `${cap.extent} ${BLANK} ${cap.hectares}`;
     y -= z.body * 0.4;
     ft(f.x0 + f.fw * 0.5, y, extentText, z.body, { anchor: "middle", entity: "extent" });
     y -= z.body * 1.8;

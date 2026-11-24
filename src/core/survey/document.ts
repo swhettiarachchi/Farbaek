@@ -186,6 +186,12 @@ export const settingsSchema = z.object({
    * to the schedule, and the face says which (stage 240, ADR 0248). Absent unless chosen.
    */
   crowdedLegsToSchedule: z.literal(true).optional(),
+  /**
+   * The classic layout's extent line gives the extent in the deed (the stated extent), as many Sri Lankan resurvey plans do; the extent
+   * computed from the survey stays in the boundaries schedule and the checks (stage 244, ADR 0252). The surveyor's choice, absent unless
+   * chosen.
+   */
+  deedExtentOnFace: z.literal(true).optional(),
 });
 export type DrawingSettings = z.infer<typeof settingsSchema>;
 

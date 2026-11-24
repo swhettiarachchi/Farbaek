@@ -12,6 +12,7 @@
 import { BEARING_CONVENTION, formatDms, toDms } from "../angles";
 import { codeOf, codesAreCommonList, lookupCode } from "../codes";
 import type { CrsRecord } from "../crs";
+import { deedExtentFace, entireAreaM2 } from "../deed-extent";
 import { PAPER_SIZES, lotName, usedPointIds, type PaperSize, type SurveyDocument } from "../document";
 import { densify } from "../arcs";
 import { bounds, type Point } from "../geometry";
@@ -104,11 +105,8 @@ export function drawnExtent(doc: SurveyDocument, byId: Map<string, SurveyPoint>)
   return out;
 }
 
-/** The plan's entire area: the outline's own area when the lots join cleanly, otherwise the sum of the lots it could compute. */
-export function entireAreaM2(lots: PlanLots): number | null {
-  if (lots.lots.length === 0) return null;
-  return lots.outlineAreaM2 ?? (lots.sumAreaM2 > 0 ? lots.sumAreaM2 : null);
-}
+/** The plan's entire area (kept in deed-extent.ts, where the deed's extent on the face needs it too). */
+export { entireAreaM2 };
 
 /** Findings that apply to every layout: crowded labels, scripts the fonts can't draw. */
 export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: number | null, findings: Finding[], frame: { inner: [number, number, number, number]; ctx: DrawCtx | null } | null = null): void {
@@ -628,6 +626,8 @@ export function overleafPages(input: ComposeInput, st: OverleafStyle): SheetPage
   if (total !== null) paragraph(`Entire land: ${fmt(total, 3)} m², ${extentWords(total)}, by the coordinate method on grid coordinates.`);
   paragraph("1 perch = 25.29285264 m² (from the international yard); 40 perches = 1 rood; 4 roods = 1 acre.");
   if (doc.sheet.statedExtent.trim()) paragraph(`Stated extent (as given, not computed): ${doc.sheet.statedExtent.trim()}.`);
+  // When the face gives the deed's extent (ADR 0252), the schedule says so beside the computed one.
+  if (deedExtentFace(doc, input.lots).shown) paragraph("The front of the plan gives the extent in the deed; the extent above is computed from this survey.");
   for (const n of st.notes ?? [BEARING_CONVENTION, `Computed by ${SURVEY_ENGINE_VERSION}.`]) paragraph(n);
   pages.push({ widthMm: w, heightMm: h, role: "overleaf", items });
   return pages;

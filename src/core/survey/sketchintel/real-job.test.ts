@@ -17,7 +17,7 @@ import { acceptSketch, type SketchReadOutput } from "../autosurvey/sketch";
 import { readSurveyFile } from "../autosurvey/start";
 import { commonCodes } from "../codes";
 import { crsById } from "../crs";
-import { emptyDocument, surveyDocumentSchema } from "../document";
+import { emptyDocument, surveyDocumentSchema, type DrawingSettings } from "../document";
 import type { SurveyPoint } from "../parcel";
 import { buildPlan } from "../view";
 import { applySketch } from "./apply";
@@ -31,7 +31,7 @@ const trapezoid = (ring: readonly { e: number; n: number }[]) => Math.abs(ring.r
 
 describe.skipIf(!DIR || !existsSync(join(DIR, "job.json")))("a real job, end to end (local only)", () => {
   it("reads, draws, interprets the sketch, checks and compares with the surveyor's plan", () => {
-    const job = JSON.parse(readFileSync(join(DIR, "job.json"), "utf8")) as { survey: string[]; crs: string; sketch: string; reference: string; statedExtent?: string };
+    const job = JSON.parse(readFileSync(join(DIR, "job.json"), "utf8")) as { survey: string[]; crs: string; sketch: string; reference: string; statedExtent?: string; settings?: Partial<DrawingSettings> };
     const crs = crsById(job.crs);
     expect(crs).not.toBeNull();
     const out: string[] = [`# Real job evaluation`, "", `Run ${new Date().toISOString()} on ${job.survey.join(", ")} and ${job.sketch}.`, ""];
@@ -46,7 +46,8 @@ describe.skipIf(!DIR || !existsSync(join(DIR, "job.json")))("a real job, end to 
     expect(points.length).toBeGreaterThan(0);
 
     // 2. The automatic draft from the field codes.
-    let doc = { ...emptyDocument(), codes: commonCodes(), sheet: { ...emptyDocument().sheet, statedExtent: job.statedExtent ?? "" } };
+    // The sheet settings the surveyor chose for the job, when job.json gives them (such as the deed's extent on the face).
+    let doc = { ...emptyDocument(), codes: commonCodes(), sheet: { ...emptyDocument().sheet, statedExtent: job.statedExtent ?? "" }, settings: { ...emptyDocument().settings, ...job.settings } };
     const drafted = autoDraft({ points, document: doc, surveyorUserId: null, surveyDate: null });
     doc = drafted.document;
     out.push("", `## From the field codes`, "", `${drafted.shapes} shapes drawn.`, ...drafted.notDrawn.map((n) => `- ${n}`));
