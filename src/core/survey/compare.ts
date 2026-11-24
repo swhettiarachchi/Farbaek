@@ -64,6 +64,7 @@ const SETTING_LABELS: Record<keyof DrawingSettings, string> = {
   slant: "Slanted lettering",
   faceDimensions: "Bearings and distances on the face",
   crowdedLegsToSchedule: "Crowded legs left to the schedule",
+  deedExtentOnFace: "The deed's extent on the face",
 };
 
 const short = (s: string) => (s.length > 80 ? `${s.slice(0, 79)}…` : s);
@@ -178,9 +179,10 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
 
   // Sheet settings and presentation.
   for (const key of Object.keys(SETTING_LABELS) as (keyof DrawingSettings)[]) {
-    // A setting left out of a document is off: "crowded legs to the schedule" is absent until chosen.
-    const a = key === "crowdedLegsToSchedule" ? (before.settings[key] ?? false) : before.settings[key];
-    const b = key === "crowdedLegsToSchedule" ? (after.settings[key] ?? false) : after.settings[key];
+    // A setting left out of a document is off: "crowded legs to the schedule" and "the deed's extent on the face" are absent until chosen.
+    const optional = key === "crowdedLegsToSchedule" || key === "deedExtentOnFace";
+    const a = optional ? (before.settings[key] ?? false) : before.settings[key];
+    const b = optional ? (after.settings[key] ?? false) : after.settings[key];
     if (a !== b) add("Sheet", key === "scale" ? `Scale changed from ${a ? `1:${a}` : "automatic"} to ${b ? `1:${b}` : "automatic"}.` : changed(SETTING_LABELS[key], a, b));
   }
   const moved = new Set([...Object.keys(before.labelOffsets), ...Object.keys(after.labelOffsets)].filter((k) => JSON.stringify(before.labelOffsets[k]) !== JSON.stringify(after.labelOffsets[k]))).size;

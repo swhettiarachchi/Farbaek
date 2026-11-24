@@ -221,6 +221,14 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
               else delete d.settings.crowdedLegsToSchedule;
             })
           : null}
+        {/* ADR 0252: the classic layout's extent line can give the deed's extent; off removes the setting entirely. Once on, it stays in reach
+            (another layout, the stated extent cleared) so it can always be turned off. */}
+        {st.deedExtentOnFace === true || (st.template === "classic" && s.statedExtent.trim())
+          ? check("Extent line gives the deed's extent (the stated extent); the computed one goes in the schedule", st.deedExtentOnFace === true, (d, v) => {
+              if (v) d.settings.deedExtentOnFace = true;
+              else delete d.settings.deedExtentOnFace;
+            })
+          : null}
         {check("Development permit box (UDA areas, panel layout)", st.permitBox, (d, v) => void (d.settings.permitBox = v))}
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Extract of one lot</span>
@@ -345,7 +353,7 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
           {field("Signed on", s.planDate, "planDate", (d, v) => void (d.sheet.planDate = v), 20, { type: "date" })}
         </div>
         {field("Statement", s.statement, "statement", (d, v) => void (d.sheet.statement = v), 200, { hint: "Printed bottom left, as surveyors write how the boundaries were found." })}
-        {field("Stated extent (from the deed or an earlier plan)", s.statedExtent, "statedExtent", (d, v) => void (d.sheet.statedExtent = v), 80, { hint: "Kept apart from the computed extent, in the schedule overleaf." })}
+        {field("Stated extent (from the deed or an earlier plan)", s.statedExtent, "statedExtent", (d, v) => void (d.sheet.statedExtent = v), 80, { hint: st.deedExtentOnFace === true && st.template === "classic" ? "Given on the face as the deed's extent, as you chose above; the computed extent is in the schedule overleaf." : "Kept apart from the computed extent, in the schedule overleaf." })}
         <div className="grid gap-1.5">
           <span className="flex flex-wrap items-center gap-2">
             <label htmlFor="sheet-notes" className={LABEL_CLASSES}>
