@@ -45,6 +45,7 @@ import { setPlanUnsaved } from "./unsaved-plan";
 import { DrawLineBar, SelectionEditor, cannotFinish, nextDrawing, type Drawing } from "./selection-editor";
 import { AddDimension } from "./dimension-editor";
 import { FindPoint } from "./point-editor";
+import { remapRuns } from "@/core/survey/lotcurves";
 
 export type { SurveyorOption } from "./plan-panels";
 
@@ -625,6 +626,12 @@ export function PlanEditor(props: PlanEditorProps) {
     const change = (doc2: SurveyDocument) => {
       if (d.owner === "lot") {
         const lot = doc2.lots.find((l) => l.id === d.id)!;
+        // A curve through the old corner was drawn through it (ADR 0276): it's taken off, as a line's curves are, and drawn straight.
+        const moved = [...lot.points];
+        moved[d.index] = snap.id;
+        const curves = remapRuns(lot.points, moved, lot.arcs);
+        if (curves.runs.length > 0) lot.arcs = curves.runs;
+        else delete lot.arcs;
         lot.points[d.index] = snap.id;
         // Words beside a side through the old corner stay beside the same side, now through the new one.
         for (const a of doc2.adjoining) if (a.lot === d.id) [a.from, a.to] = [a.from === from ? snap.id : a.from, a.to === from ? snap.id : a.to];

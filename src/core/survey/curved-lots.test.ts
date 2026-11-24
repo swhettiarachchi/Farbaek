@@ -4,7 +4,9 @@
  * subdivision each see the curve.
  */
 import { describe, expect, it } from "vitest";
+import { applyOps } from "./assistant/apply";
 import { divide } from "./blockout";
+import { compareDocuments } from "./compare";
 import type { SurveyDocument } from "./document";
 import { writeDxf } from "./export/dxf";
 import { surveyGeoJson } from "./export/points";
@@ -100,6 +102,31 @@ describe("a curved lot through the whole plan", () => {
     expect(f.blocks).toEqual(["export", "approval"]);
     expect(f.message).toContain("from 3 to 7");
     expect(v.lots.lots[0]!.parcel!.areaM2).toBeCloseTo(area(off), 9);
+  });
+
+  it("carries the curve to the lot's new corners when the assistant changes them, never to the wrong points", () => {
+    // A corner put in before the curve: the curve's points are the same, at new places in the list.
+    const extra: SurveyPoint = { id: id(9), pointId: "9", e: E0 + 20, n: N0 - 3, z: null, code: "CP" };
+    const r = applyOps(docOf(), [{ kind: "lot_edit", id: "lot-1", points: [id(1), id(9), id(2), id(3), id(4), id(5), id(6), id(7)] } as never], [...P, extra]);
+    if (!r.ok) throw new Error("not applied");
+    expect(r.doc.lots[0]!.arcs).toEqual([{ from: 3, to: 7 }]);
+    // A corner put in on the curve breaks it: it's taken off rather than refitted through the wrong points.
+    const broke = applyOps(docOf(), [{ kind: "lot_edit", id: "lot-1", points: [id(1), id(2), id(3), id(4), id(9), id(5), id(6), id(7)] } as never], [...P, extra]);
+    if (!broke.ok) throw new Error("not applied");
+    expect(broke.doc.lots[0]!.arcs).toBeUndefined();
+  });
+
+  it("says in the version comparison when a lot's curves change", () => {
+    const changes = compareDocuments(docOf(), docOf(false), P).map((c) => c.text);
+    expect(changes).toContain("Lot 1's curves changed from 3 4 5 6 7 to none.");
+  });
+
+  it("leaves a crowded curve to the schedule as its chord, as it's lettered", () => {
+    const doc = docOf();
+    doc.settings = { ...doc.settings, scale: 3000, crowdedLegsToSchedule: true };
+    const v = plan(doc);
+    const f = v.findings.find((x) => x.code === "LEGS_IN_SCHEDULE");
+    if (f) expect(f.detail).not.toContain("3 to 4");
   });
 
   it("won't divide a curved lot, whose shares' areas would be wrong", () => {

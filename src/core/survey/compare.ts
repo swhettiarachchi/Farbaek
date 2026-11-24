@@ -8,6 +8,7 @@
 import { lotName, type DrawingSettings, type SheetFields, type SurveyDocument } from "./document";
 import type { SurveyPoint } from "./parcel";
 import { minimumText } from "./rules";
+import { runIds } from "./lotcurves";
 
 export type ChangeArea = "Lots" | "Roads" | "Adjoining lands" | "Lines and outlines" | "Words and symbols" | "Title" | "Sheet" | "Codes" | "Notes" | "Checks";
 export interface Change {
@@ -115,6 +116,9 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
     const name = lotTitle(l);
     if (lotTitle(was) !== name) add("Lots", `Lot ${lotTitle(was)} is now lot ${name}.`);
     if (ring(was.points) !== ring(l.points)) add("Lots", `Lot ${name}'s corners changed from ${ring(was.points)} to ${ring(l.points)}.`);
+    // Its curves (ADR 0276), which change its area: said by their points.
+    const curves = (x: SurveyDocument["lots"][number]) => (x.arcs ?? []).map((a) => ring(runIds(x.points, a))).join("; ");
+    if (curves(was) !== curves(l)) add("Lots", `Lot ${name}'s curves changed from ${curves(was) || "none"} to ${curves(l) || "none"}.`);
     if (was.note !== l.note) add("Lots", changed(`Lot ${name}'s note`, was.note, l.note));
   }
   for (const l of lots.added) add("Lots", `Lot ${lotTitle(l)} added, corners ${ring(l.points)}.`);

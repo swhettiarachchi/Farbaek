@@ -53,13 +53,34 @@ describe("a lot with a curve", () => {
     expect(ccw.parcel.curves[0]!.radius).toBeCloseTo(26, 9);
   });
 
+  it("takes a curve that runs on through the ring's first corner, and gives the same area whichever corner the ring starts from", () => {
+    // The half disc started from its middle arc point: the curve runs from index 3 (s,s)... round through the first corner.
+    for (let k = 0; k < HALF.length; k++) {
+      const turned = [...HALF.slice(k), ...HALF.slice(0, k)];
+      const from = (HALF.length - k) % HALF.length;
+      const r = computeParcel(turned, ids(turned), [{ from, to: from + 4 }]);
+      if (!r.ok) throw new Error("missing");
+      expect(r.parcel.curveProblems, `start ${k}`).toEqual([]);
+      expect(r.parcel.areaM2, `start ${k}`).toBeCloseTo((Math.PI * 100) / 2, 9);
+      // Drawn and exported as the same arc: the bulges' legs are the curve's, wherever the ring starts.
+      expect(ringBulges(r.parcel.vertices, r.parcel.curves).filter((b) => b !== 0)).toHaveLength(4);
+      expect(area(densifyRing(r.parcel.vertices, r.parcel.curves, 1e-6))).toBeCloseTo((Math.PI * 100) / 2, 3);
+    }
+    expect(runOf(ids(HALF).slice(2).concat(ids(HALF).slice(0, 2)), ids(HALF))).toEqual({ from: 3, to: 7 });
+  });
+
   it("follows a curve through the ring's first corner", () => {
     // The half disc started from its top point: the curve runs from index 2 round to index 5, the first corner again.
     const turned = [HALF[2]!, HALF[3]!, HALF[4]!, HALF[0]!, HALF[1]!];
     const r = computeParcel(turned, ids(turned), [{ from: 3, to: 7 }]);
-    // Index 7 is past the ring's end (length 5): refused, not wrapped twice.
+    // From index 3 to 7 runs on through the first corner: the whole arc again, so the half disc's area.
     if (!r.ok) throw new Error("missing");
-    expect(r.parcel.curveProblems).toHaveLength(1);
+    expect(r.parcel.curveProblems).toEqual([]);
+    expect(r.parcel.areaM2).toBeCloseTo((Math.PI * 100) / 2, 9);
+    // A run the whole way round, or more, isn't a curve of the lot.
+    const round = computeParcel(turned, ids(turned), [{ from: 0, to: 5 }]);
+    if (!round.ok) throw new Error("missing");
+    expect(round.parcel.curveProblems).toHaveLength(1);
     const ok = computeParcel(turned, ids(turned), [{ from: 3, to: 5 }]);
     if (!ok.ok) throw new Error("missing");
     expect(ok.parcel.curveProblems).toEqual([]);
@@ -106,6 +127,22 @@ describe("lots that share a curve, and the land's outline", () => {
     expect(a!).toBeGreaterThan(area([sq[0]!, sq[1]!, sq[2]!, sq[3]!, sq[4]!]));
     expect(plan.outlineAreaM2).toBeCloseTo(400, 9);
     expect(plan.sumAreaM2).toBeCloseTo(400, 9);
+  });
+
+  it("fits one circle to a shared curve of four points, whichever way each lot walks it, so the land's area is unchanged", () => {
+    // A 60 by 40 m block cut by an arc from (0,20) to (60,20) through two points, each 4 mm off the circle through the ends and the other.
+    const r0 = 50;
+    const cy = 20 - Math.sqrt(r0 * r0 - 30 * 30);
+    const yAt = (x: number) => cy + Math.sqrt(r0 * r0 - (x - 30) ** 2);
+    const b = [pt(1, 0, 0), pt(2, 60, 0), pt(3, 60, 20), pt(4, 40, yAt(40) + 0.004), pt(5, 20, yAt(20) - 0.004), pt(6, 0, 20), pt(7, 0, 40), pt(8, 60, 40)];
+    const southLot = { id: "s", label: "1", sup: "", note: "", points: [b[0]!.id, b[1]!.id, b[2]!.id, b[3]!.id, b[4]!.id, b[5]!.id], arcs: [{ from: 2, to: 5 }] };
+    const northLot = { id: "n", label: "2", sup: "", note: "", points: [b[5]!.id, b[4]!.id, b[3]!.id, b[2]!.id, b[7]!.id, b[6]!.id], arcs: [{ from: 0, to: 3 }] };
+    const plan = computeLots(b, [southLot, northLot]);
+    const [ca, cb] = plan.lots.map((l) => l.parcel!.curves[0]!);
+    expect(ca!.radius).toBeCloseTo(cb!.radius, 12);
+    expect(ca!.extraM2).toBeCloseTo(-cb!.extraM2, 9);
+    expect(plan.sumAreaM2).toBeCloseTo(60 * 40, 9);
+    expect(plan.outlineAreaM2).toBeCloseTo(60 * 40, 9);
   });
 
   it("counts a curve on the land's outer edge in the land's area too", () => {

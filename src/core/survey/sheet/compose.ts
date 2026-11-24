@@ -16,7 +16,7 @@ import type { CrsRecord } from "../crs";
 import { deedExtentFace, entireAreaM2 } from "../deed-extent";
 import { PAPER_SIZES, drawnPointIds, lotName, type PaperSize, type SurveyDocument } from "../document";
 import { densify } from "../arcs";
-import { curveOfLeg } from "../lotcurves";
+import { curveOfLeg, densifyRing, lotCurves } from "../lotcurves";
 import { bounds, type Point } from "../geometry";
 import type { PlanLots } from "../lots";
 import type { SurveyPoint } from "../parcel";
@@ -110,7 +110,7 @@ export function drawnExtent(doc: SurveyDocument, byId: Map<string, SurveyPoint>)
   for (const l of doc.lots) {
     if (!l.arcs || l.points.length < 3) continue;
     const pts = l.points.map((id) => byId.get(id));
-    if (pts.every((p): p is SurveyPoint => Boolean(p))) out.push(...densify([...pts, pts[0]!], l.arcs, 0.05));
+    if (pts.every((p): p is SurveyPoint => Boolean(p))) out.push(...densifyRing(pts, lotCurves(pts, l.arcs).curves, 0.05));
   }
   return out;
 }
@@ -258,8 +258,12 @@ function crowdedLegs(lots: PlanLots, pairs: readonly [string | undefined, string
   const legOf = (entity: string | undefined) => {
     const m = entity ? /^leg:(.+):(\d+)$/.exec(entity) : null;
     if (!m) return null;
-    const leg = lots.lots.find((r) => r.lot.id === m[1])?.parcel?.legs[Number(m[2])];
-    if (!leg) return null;
+    const parcel = lots.lots.find((r) => r.lot.id === m[1])?.parcel;
+    const leg0 = parcel?.legs[Number(m[2])];
+    if (!parcel || !leg0) return null;
+    // A curve (ADR 0276) is lettered as its chord, from its first point to its last: so it's left to the schedule as that.
+    const cv = curveOfLeg(parcel.curves, Number(m[2]), parcel.vertices.length);
+    const leg = cv ? { from: leg0.from, to: parcel.vertices[cv.curve.to % parcel.vertices.length]!, distance: cv.curve.chordDistance } : leg0;
     const [a, b] = leg.from.id < leg.to.id ? [leg.from, leg.to] : [leg.to, leg.from];
     return { key: `${a.id}|${b.id}`, from: leg.from.pointId, to: leg.to.pointId, distance: leg.distance };
   };

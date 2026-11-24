@@ -21,9 +21,13 @@ The brief lists curved lot boundaries among what AutoSurvey doesn't do. A lot wi
 - **`blockout.ts`, `partition-panel.tsx`:** curved lots aren't divided, and the reason is said.
 - **`selection-editor.tsx`, `plan-panels.tsx`:** the lot's Curves field; a curved leg's details.
 
+## A fresh review found six faults, fixed before the PR
+
+The area agreed with the reviewer's own integral under 1e-4 m² in every case. The faults: the Lots step dropped curves on saving; the assistant's corner edit refitted curves through the wrong points; the version comparison never mentioned curves; a shared curve of an even number of points got two circles; a crowded curve went to the schedule as a straight leg; a curve through the ring's first corner couldn't be held. Each now has a test that fails without its fix. See ADR 0276.
+
 ## Verified
 
-- `lotcurves.test.ts` (10 cases) and `curved-lots.test.ts` (6 cases); see ADR 0276.
+- `lotcurves.test.ts` (12 cases) and `curved-lots.test.ts` (9 cases); see ADR 0276.
 - Survey, server and design tests, `tsc --noEmit` with a 4 GB heap, lint on the changed files.
 - **Looked at:** a 40 by 20 m lot with a 25 m radius curved north side, at 1:500 on the classic layout: one arc through points 3 to 7 lettered "270°00′00″ 40.00 (R 25.00, arc 46.36)", the extent 0.10796 ha (1,079.560 m², as worked by hand), and the schedule's curve row and paragraph.
 
