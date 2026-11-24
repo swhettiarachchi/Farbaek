@@ -6,7 +6,7 @@ The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, af
 - **Partly built.**
 - **Not built.**
 
-Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-267.md`, and each decision in ADRs 0233 to 0274.
+Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-268.md`, and each decision in ADRs 0233 to 0275.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -48,7 +48,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Survey computation | `angles.ts`, `geometry.ts`, `cogo.ts`, `units.ts`, `reduce.ts`, `adjust.ts` | Built and tested |
 | Geometry construction | `autodraft.ts`, `lots.ts`, `partition.ts`, `roads.ts` | Built and tested |
 | CAD drafting | `sheet/*`, `export/dxf.ts` | Built and tested |
-| Annotation and layout | `sheet/labels.ts`, `sheet/draw.ts`, `sheet/compose.ts` | Built and tested: labels placed together by scored candidates (ADR 0242); what can't be cleared is reported; leader lines for crowded legs (ADR 0259); no multi-sheet layout |
+| Annotation and layout | `sheet/labels.ts`, `sheet/draw.ts`, `sheet/compose.ts` | Built and tested: labels placed together by scored candidates (ADR 0242); what can't be cleared is reported; leader lines for crowded legs (ADR 0259); plans over several sheets with match lines and a key (ADR 0275) |
 | Independent validation | `qc.ts` | Built and tested |
 | Exception management | `exceptions.ts`, the "Needs you" list | Built and tested |
 | Export and deliverables | `export/*`, `server/survey/pdf.ts`, the export route | Built and tested |
@@ -193,7 +193,7 @@ The sketch was transcribed in the development session in the reader's format; th
 
 **Not built:**
 - leader lines in the DXF: the sheet and PDF letter crowded legs with leaders since stage 266 (ADR 0259), and since stage 240 (ADR 0248) the surveyor can leave legs too crowded even for leaders to the boundaries schedule, which the face names;
-- multi-sheet layout;
+- overlapping sheets, and the DXF's paper space per sheet: plans over several sheets are drawn on the sheet and PDF since stage 268 (ADR 0275);
 - a measured Sinhala and Tamil text test in CAD programs.
 
 ## 9. QA and validation coverage
@@ -259,14 +259,15 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #321 | 264 (points where two lines meet, tape offsets) | Open | none |
 | #322 | 265 (dimension lines, words with their own size and angle) | Open, on #321 | none |
 | #323 | 266 (leader lines for crowded legs, built as 251 and parked) | Open, on #322 | none |
-| next | 267 (least squares, the instrument's precision in the office profile) | Open, on #323 | none |
+| #324 | 267 (least squares, the instrument's precision in the office profile) | Open, on #323 | none |
+| next | 268 (plans over several sheets) | Open, on #324 | none |
 
 Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
 ## 13. Incomplete capabilities
 
 **Not built:**
-- **Labels and layout:** multi-sheet layout; leader lines in the DXF (the sheet and PDF have them since stage 266, ADR 0259). Crowded legs can still be left to the schedule (stage 240) where even leaders don't fit.
+- **Labels and layout:** overlapping sheets and the DXF's paper space per sheet (plans over several sheets are drawn since stage 268, ADR 0275); leader lines in the DXF (the sheet and PDF have them since stage 266, ADR 0259). Crowded legs can still be left to the schedule (stage 240) where even leaders don't fit.
 - **Codes:** curved lot boundaries (curves are drawn on lines, not lots, since a lot's area would change); a curve's radius and length on the plan; offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares over networks and with heights; balancing angles first; adjusting a field book's legs.
 - **Profiles:** learning from corrections (suggestions kept apart until approved), CAD layer and text styles, title-block fields other than the statement, plan numbering.

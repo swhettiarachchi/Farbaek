@@ -64,6 +64,9 @@ export interface SheetPage {
   /** "Front" for the plan, "Overleaf" for schedules. */
   role: "front" | "overleaf";
   items: SceneItem[];
+  /** For one of several sheets (ADR 0275): how the model maps onto this sheet, and which sheet it is. */
+  viewport?: Viewport;
+  sheet?: { n: number; of: number };
 }
 
 /** How model coordinates map onto the front page. */

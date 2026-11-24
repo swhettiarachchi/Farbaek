@@ -132,13 +132,18 @@ export function PlanEditor(props: PlanEditorProps) {
     () => buildPlan({ points: props.points, document: shown, crsId: props.crsId, crsConfirmation: props.crsConfirmation, surveyor: !dirty && props.approval && props.approvedSurveyor ? props.approvedSurveyor : (props.surveyors.find((s) => s.userId === doc.surveyorUserId) ?? null), approval: dirty ? null : props.approval, version: dirty ? undefined : baseVersion }),
     [shown, doc.surveyorUserId, props.points, props.crsId, props.crsConfirmation, props.surveyors, props.approval, props.approvedSurveyor, dirty, baseVersion],
   );
-  const page = plan.sheet.pages[0]!;
+  // A plan over several sheets (ADR 0275) is edited one sheet at a time, each with its own part of the drawing and viewport.
+  const fronts = useMemo(() => plan.sheet.pages.filter((p) => p.role === "front"), [plan]);
+  const [sheetAt, setSheetAt] = useState(0);
+  const sheetIndex = Math.min(sheetAt, Math.max(0, fronts.length - 1));
+  const page = useMemo(() => fronts[sheetIndex] ?? plan.sheet.pages[0]!, [fronts, sheetIndex, plan]);
 
   // ---- Dragging a lot's corner or a line's point onto another surveyed point (stage 260, ADR 0268) -----------------------------------
   // The selected lot's or line's points have handles; one dragged snaps to the nearest surveyed point under it, and nothing else moves.
   const [vertexDrag, setVertexDrag] = useState<{ index: number; x: number; y: number; snap: { id: string; x: number; y: number } | null } | null>(null);
   const snapRef = useRef<{ id: string; x: number; y: number } | null>(null);
-  const viewport = plan.sheet.viewport;
+  // Worked out on its own, not read off `page`, which the pointer handlers keep in a ref.
+  const viewport = useMemo(() => plan.sheet.pages.filter((p) => p.role === "front")[sheetIndex]?.viewport ?? plan.sheet.viewport, [plan, sheetIndex]);
   const vertexOwner = useMemo(() => {
     if (!selected || props.readOnly || drawing) return null;
     const id = selected.slice(selected.indexOf(":") + 1);
@@ -724,7 +729,24 @@ export function PlanEditor(props: PlanEditorProps) {
         onKeyDown={onKey}
         className={`relative touch-none select-none overflow-hidden rounded-lg bg-canvas-2 ring-1 ring-line focus-visible:outline-2 focus-visible:outline-accent ${full ? "h-full" : "h-[min(58svh,34rem)] min-h-[15rem] lg:h-[70svh]"}`}
       >
-        <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} picked={picked} marks={markSet} draggable={canDrag} onEntityPointerDown={onEntityPointerDown} handles={handles} onHandlePointerDown={onHandleDown} hitTargets label={`Plan sheet, ${plan.sheet.paper} ${shown.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}${preview?.ok ? ", showing the assistant's change before it's applied" : ""}`} className="h-full w-full" />
+        <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} picked={picked} marks={markSet} draggable={canDrag} onEntityPointerDown={onEntityPointerDown} handles={handles} onHandlePointerDown={onHandleDown} hitTargets label={`Plan sheet${page.sheet ? ` ${page.sheet.n} of ${page.sheet.of}` : ""}, ${plan.sheet.paper} ${shown.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}${preview?.ok ? ", showing the assistant's change before it's applied" : ""}`} className="h-full w-full" />
+        {/* Which sheet of several is shown (ADR 0275): one press for each. */}
+        {fronts.length > 1 ? (
+          <div role="group" aria-label="Sheets" className="absolute bottom-2 right-2 flex max-w-[calc(100%-1rem)] flex-wrap justify-end gap-1.5 sm:bottom-3 sm:right-3">
+            {fronts.map((p, i) => (
+              <button
+                key={i}
+                type="button"
+                aria-pressed={i === sheetIndex}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setSheetAt(i)}
+                className={`tap inline-flex min-h-10 items-center rounded-full border px-3.5 text-label font-medium shadow-e1 transition-colors duration-150 ${i === sheetIndex ? "border-accent bg-surface text-ink ring-1 ring-accent" : "border-line bg-surface/95 text-ink-2 hover:border-accent/60 hover:text-ink"}`}
+              >
+                Sheet {p.sheet?.n ?? i + 1}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {/* One place over the sheet for what it says about itself: the change being looked at, or on a narrow screen what was tapped. */}
         <div className="pointer-events-none absolute inset-x-2 top-2 flex flex-col items-start gap-2 sm:inset-x-3 sm:top-3">
           {preview?.ok ? <span className="rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow-e1 ring-1 ring-line">Showing the change before it&apos;s applied</span> : null}

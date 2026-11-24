@@ -220,6 +220,11 @@ export const settingsSchema = z.object({
   wallTicks: z.literal(true).optional(),
   /** The lots' boundaries drawn at the weight of the other lines, as some surveyors draw them (stage 261). Absent unless chosen. */
   thinBoundary: z.literal(true).optional(),
+  /**
+   * A drawing that doesn't fit one sheet at the scale chosen is drawn over several sheets at that scale, with match lines and a key
+   * to the sheets (stage 268, ADR 0275). Only with a scale chosen; absent unless chosen.
+   */
+  severalSheets: z.literal(true).optional(),
 });
 export type DrawingSettings = z.infer<typeof settingsSchema>;
 
