@@ -26,7 +26,7 @@ import { LAYER_IDS, type LayerId, type SurveyDocument } from "@/core/survey/docu
 import { GRAMMAR } from "@/core/survey/grammar";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
-import type { SceneItem, SceneText, SheetPage } from "@/core/survey/sheet/scene";
+import { toPage, type SceneItem, type SceneText, type SheetPage } from "@/core/survey/sheet/scene";
 import { buildPlan } from "@/core/survey/view";
 import { LAYER_NAMES } from "@/core/survey/assistant/describe";
 import { applyOps, revertPatch, type Applied, type Patch } from "@/core/survey/assistant/apply";
@@ -131,6 +131,38 @@ export function PlanEditor(props: PlanEditorProps) {
     [shown, doc.surveyorUserId, props.points, props.crsId, props.crsConfirmation, props.surveyors, props.approval, props.approvedSurveyor, dirty, baseVersion],
   );
   const page = plan.sheet.pages[0]!;
+
+  // ---- Dragging a lot's corner or a line's point onto another surveyed point (stage 260, ADR 0268) -----------------------------------
+  // The selected lot's or line's points have handles; one dragged snaps to the nearest surveyed point under it, and nothing else moves.
+  const [vertexDrag, setVertexDrag] = useState<{ index: number; x: number; y: number; snap: { id: string; x: number; y: number } | null } | null>(null);
+  const snapRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const viewport = plan.sheet.viewport;
+  const vertexOwner = useMemo(() => {
+    if (!selected || props.readOnly || drawing) return null;
+    const id = selected.slice(selected.indexOf(":") + 1);
+    if (selected.startsWith("lot:")) {
+      const l = doc.lots.find((x) => x.id === id);
+      return l && !doc.layers.BOUNDARY?.locked ? { owner: "lot" as const, id, points: l.points } : null;
+    }
+    if (selected.startsWith("feature:")) {
+      const f = doc.features.find((x) => x.id === id);
+      return f && !doc.layers[f.layer]?.locked ? { owner: "feature" as const, id, points: f.points } : null;
+    }
+    return null;
+  }, [selected, props.readOnly, drawing, doc.lots, doc.features, doc.layers]);
+  const pointsById = useMemo(() => new Map(props.points.map((p) => [p.id, p])), [props.points]);
+  const handles = useMemo(() => {
+    if (!vertexOwner || !viewport) return [];
+    const out: { key: string; x: number; y: number; active?: boolean }[] = [];
+    vertexOwner.points.forEach((pid, i) => {
+      const p = pointsById.get(pid);
+      if (!p) return;
+      const [x, y] = toPage(viewport, p.e, p.n);
+      out.push(vertexDrag?.index === i ? { key: `${vertexOwner.owner}:${vertexOwner.id}:${i}`, x: vertexDrag.x, y: vertexDrag.y, active: true } : { key: `${vertexOwner.owner}:${vertexOwner.id}:${i}`, x, y });
+    });
+    if (vertexDrag?.snap) out.push({ key: "snap", x: vertexDrag.snap.x, y: vertexDrag.snap.y, active: true });
+    return out;
+  }, [vertexOwner, viewport, pointsById, vertexDrag]);
   useLayoutEffect(() => {
     pageRef.current = page;
   });
@@ -245,6 +277,7 @@ export function PlanEditor(props: PlanEditorProps) {
   const drag = useRef<
     | { kind: "pan"; startX: number; startY: number; view: View; moved: boolean; entity: string | null }
     | { kind: "label"; entity: string; startX: number; startY: number; base: { dx: number; dy: number }; slot: number | undefined; moved: boolean }
+    | { kind: "vertex"; owner: "lot" | "feature"; id: string; index: number; startX: number; startY: number; moved: boolean }
     | null
   >(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -355,6 +388,19 @@ export function PlanEditor(props: PlanEditorProps) {
   const onEntityPointerDown = useCallback((item: SceneItem, e: ReactPointerEvent<SVGElement>) => entityDown.current(item, e), []);
 
   const onDown = (e: ReactPointerEvent<HTMLDivElement>) => begin(e, null);
+  const onHandleDown = (key: string, e: ReactPointerEvent<SVGElement>) => {
+    if (e.button !== 0 || !vertexOwner) return;
+    // Taken here, so the sheet doesn't take it again.
+    e.stopPropagation();
+    const index = Number(key.slice(key.lastIndexOf(":") + 1));
+    const h = handles.find((x) => x.key === key);
+    if (!Number.isInteger(index) || !h) return;
+    capture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    drag.current = { kind: "vertex", owner: vertexOwner.owner, id: vertexOwner.id, index, startX: e.clientX, startY: e.clientY, moved: false };
+    snapRef.current = null;
+    setVertexDrag({ index, x: h.x, y: h.y, snap: null });
+  };
 
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -369,7 +415,21 @@ export function PlanEditor(props: PlanEditorProps) {
     const dx = (e.clientX - d.startX) / k;
     const dy = (e.clientY - d.startY) / k;
     if (Math.abs(e.clientX - d.startX) + Math.abs(e.clientY - d.startY) > 3) d.moved = true;
-    if (d.kind === "pan") {
+    if (d.kind === "vertex") {
+      if (!d.moved || !viewport) return;
+      // The surveyed point nearest the finger or the cursor, within 16 screen pixels: where the corner would go.
+      const [x, y] = toSheet(e.clientX, e.clientY);
+      const reach = 16 / pxPerMm();
+      let snap: { id: string; x: number; y: number } | null = null;
+      let best = reach;
+      for (const p of props.points) {
+        const [px, py] = toPage(viewport, p.e, p.n);
+        const dd = Math.hypot(px - x, py - y);
+        if (dd <= best) [best, snap] = [dd, { id: p.id, x: px, y: py }];
+      }
+      snapRef.current = snap;
+      setVertexDrag({ index: d.index, x, y, snap });
+    } else if (d.kind === "pan") {
       if (d.moved) setView([d.view[0] - dx, d.view[1] - dy, d.view[2], d.view[3]]);
     } else if (d.moved) {
       const next = { dx: Math.max(-200, Math.min(200, d.base.dx + dx)), dy: Math.max(-200, Math.min(200, d.base.dy + dy)), ...(d.slot !== undefined ? { slot: d.slot } : {}) };
@@ -384,6 +444,12 @@ export function PlanEditor(props: PlanEditorProps) {
     if (pointers.current.size < 2) pinch.current = null;
     const d = drag.current;
     drag.current = null;
+    if (d?.kind === "vertex") {
+      setVertexDrag(null);
+      if (d.moved) dropVertex(d, snapRef.current);
+      snapRef.current = null;
+      return;
+    }
     if (!d || d.moved) return;
     // A tap without movement selects what was tapped, or clears the selection. With shift, ctrl or cmd, or "Select several", it adds
     // the item to the picked ones, in order, or takes it out again.
@@ -523,6 +589,37 @@ export function PlanEditor(props: PlanEditorProps) {
     goto: go,
   };
 
+  /** A corner or a line's point dropped: onto a surveyed point it becomes that point; anywhere else, nothing changes, and that's said. */
+  const dropVertex = (d: { owner: "lot" | "feature"; id: string; index: number }, snap: { id: string } | null) => {
+    const list = d.owner === "lot" ? doc.lots.find((l) => l.id === d.id)?.points : doc.features.find((f) => f.id === d.id)?.points;
+    if (!list) return;
+    const from = list[d.index]!;
+    const name = (id: string) => pointsById.get(id)?.pointId ?? "?";
+    const what = d.owner === "lot" ? "Corner" : "Point";
+    if (!snap) return setMessage({ tone: "error", text: `${what} ${name(from)} wasn't moved: drop it on a surveyed point.` });
+    if (snap.id === from) return;
+    const n = list.length;
+    const closed = d.owner === "lot" || doc.features.find((f) => f.id === d.id)?.closed === true;
+    const beside = [list[(d.index + 1) % n], list[(d.index - 1 + n) % n]].filter((_, k) => closed || (k === 0 ? d.index + 1 < n : d.index > 0));
+    if (beside.includes(snap.id)) return setMessage({ tone: "error", text: `${name(snap.id)} is already next to it: nothing was changed.` });
+    update((doc2) => {
+      if (d.owner === "lot") {
+        const lot = doc2.lots.find((l) => l.id === d.id)!;
+        lot.points[d.index] = snap.id;
+        // Words beside a side through the old corner stay beside the same side, now through the new one.
+        for (const a of doc2.adjoining) if (a.lot === d.id) [a.from, a.to] = [a.from === from ? snap.id : a.from, a.to === from ? snap.id : a.to];
+      } else {
+        const f = doc2.features.find((x) => x.id === d.id)!;
+        f.points[d.index] = snap.id;
+        // Curves were drawn through the old points.
+        delete f.arcs;
+      }
+      const key = `${d.owner}:${d.id}`;
+      if (doc2.provenance[key]) doc2.provenance[key] = { ...doc2.provenance[key]!, reviewed: true };
+    });
+    setMessage({ tone: "done", text: `${what} ${name(from)} is now ${name(snap.id)}${d.owner === "lot" ? ": the area, the legs and the checks are worked out again" : ""}.` });
+  };
+
   const panelsRef = useRef<HTMLDivElement>(null);
   /** From the selection card to its details, under the sheet (leaving full screen first). */
   const showDetails = () => {
@@ -606,7 +703,7 @@ export function PlanEditor(props: PlanEditorProps) {
         onKeyDown={onKey}
         className={`relative touch-none select-none overflow-hidden rounded-lg bg-canvas-2 ring-1 ring-line focus-visible:outline-2 focus-visible:outline-accent ${full ? "h-full" : "h-[min(58svh,34rem)] min-h-[15rem] lg:h-[70svh]"}`}
       >
-        <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} picked={picked} marks={markSet} draggable={canDrag} onEntityPointerDown={onEntityPointerDown} hitTargets label={`Plan sheet, ${plan.sheet.paper} ${shown.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}${preview?.ok ? ", showing the assistant's change before it's applied" : ""}`} className="h-full w-full" />
+        <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} picked={picked} marks={markSet} draggable={canDrag} onEntityPointerDown={onEntityPointerDown} handles={handles} onHandlePointerDown={onHandleDown} hitTargets label={`Plan sheet, ${plan.sheet.paper} ${shown.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}${preview?.ok ? ", showing the assistant's change before it's applied" : ""}`} className="h-full w-full" />
         {/* One place over the sheet for what it says about itself: the change being looked at, or on a narrow screen what was tapped. */}
         <div className="pointer-events-none absolute inset-x-2 top-2 flex flex-col items-start gap-2 sm:inset-x-3 sm:top-3">
           {preview?.ok ? <span className="rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow-e1 ring-1 ring-line">Showing the change before it&apos;s applied</span> : null}
