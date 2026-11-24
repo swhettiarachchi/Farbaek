@@ -109,3 +109,38 @@ export function applySketch(doc: SurveyDocument, interpretation: SketchInterpret
   }
   return { document: next, added, skipped };
 }
+
+/**
+ * The plan without what an earlier sketch read drew that nobody has confirmed or changed since (stage 256): what a new read replaces.
+ * Anything the surveyor confirmed, edited or drew is theirs and stays; so do the lots, lines and symbols that never came from a sketch.
+ * The labels moved by hand for what goes go with it.
+ */
+export function withoutWaitingSketchItems(doc: SurveyDocument): SurveyDocument {
+  const next: SurveyDocument = structuredClone(doc);
+  const waiting = (key: string) => next.provenance[key]?.source === "ai_photo" && next.provenance[key]?.reviewed === false;
+  const gone: string[] = [];
+  const keep = <T extends { id: string }>(xs: readonly T[], prefix: string, touched: (x: T) => boolean = () => false) =>
+    xs.filter((x) => {
+      const key = `${prefix}:${x.id}`;
+      if (!waiting(key) || touched(x)) return true;
+      gone.push(key);
+      return false;
+    });
+  // A lot the surveyor has named, noted or given its neighbours is theirs, though they haven't yet pressed that it looks right.
+  next.lots = keep(next.lots, "lot", (l) => Boolean(l.label.trim() || l.note.trim()) || next.adjoining.some((a) => a.lot === l.id));
+  next.features = keep(next.features, "feature");
+  next.roads = keep(next.roads, "road");
+  if (next.symbols) {
+    const symbols = keep(next.symbols, "symbol");
+    if (symbols.length > 0) next.symbols = symbols;
+    else delete next.symbols;
+  }
+  const lots = new Set(next.lots.map((l) => l.id));
+  if (next.sheet.extractOf && !lots.has(next.sheet.extractOf)) next.sheet.extractOf = "";
+  for (const key of gone) {
+    delete next.provenance[key];
+    const id = key.slice(key.indexOf(":") + 1);
+    for (const label of Object.keys(next.labelOffsets)) if (label.endsWith(`:${id}`)) delete next.labelOffsets[label];
+  }
+  return next;
+}
