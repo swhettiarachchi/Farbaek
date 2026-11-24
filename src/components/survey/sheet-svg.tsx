@@ -176,7 +176,8 @@ const Items = memo(function Items(props: ItemsProps & { page: SheetPage; badge: 
         // Points: over the drawing, since a point is small and often sits on a lot's edge or inside its fill.
         <g aria-hidden>
           {page.items.map((item, i) =>
-            item.kind === "circle" && item.entity && !props.hidden?.has(item.layer) ? (
+            // A leader's dot (ADR 0259) is part of its leg's label, picked with the words, not a point.
+            item.kind === "circle" && item.entity && item.layer !== "DIMENSIONS" && !props.hidden?.has(item.layer) ? (
               // A dot drawn as a path: browsers hit-test a path's screen-sized stroke, not a circle's.
               <path key={`hit-pt-${i}`} d={`M${item.cx} ${item.cy}h0.001`} fill="none" stroke="transparent" strokeWidth={22} strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="stroke" onPointerDown={(e) => pick(item, e)} />
             ) : null,

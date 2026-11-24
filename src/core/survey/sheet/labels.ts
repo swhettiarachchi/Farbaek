@@ -23,6 +23,9 @@ export const LABEL_COST = { label: 30, thing: 15, line: 6, outside: 40 } as cons
 const MAX_ROUNDS = 12;
 /** How many of each label's cheapest candidates a pair of labels tries together. */
 const PAIR_CANDIDATES = 12;
+/** How many of a label's cheapest places it tries to take from the labels standing there, and how many it may push aside at once. */
+const EJECT_CANDIDATES = 16;
+const EJECT_BLOCKERS = 2;
 
 /** Separating axis test for two convex shapes (a segment counts as a two-corner shape). */
 export function quadsOverlap(a: Quad, b: Quad): boolean {
@@ -65,6 +68,11 @@ export interface LabelRequest {
    * stay fixed, since a dragged label's saved place counts in them; a better place for a label is added at the end and preferred here.
    */
   order?: readonly number[];
+  /**
+   * Each candidate's own cost before what it covers, when it isn't its rank (0 to 1): a leg's leader places (ADR 0259) cost more than
+   * crossing a line, so they're taken only to clear another label, and its places against the leg keep the costs they always had.
+   */
+  base?: number[];
 }
 
 /** One label's solved candidate, matched to its request by order and key. */
@@ -158,7 +166,7 @@ export class Placer {
    * Which of a label's candidates to draw. On the second pass, the solved one. On the first, the first admissible candidate that
    * covers nothing; when none is free, `fallback`, or else the first admissible one.
    */
-  choose(key: string, candidates: Quad[][], opts: { admissible?: readonly boolean[]; pinned?: boolean; fallback?: number; slot?: number | null; shift?: (q: Quad, k: number) => Quad; order?: readonly number[] } = {}): number {
+  choose(key: string, candidates: Quad[][], opts: { admissible?: readonly boolean[]; pinned?: boolean; fallback?: number; slot?: number | null; shift?: (q: Quad, k: number) => Quad; order?: readonly number[]; base?: readonly number[]; firstUpTo?: number } = {}): number {
     const admissible = candidates.map((_, i) => opts.admissible?.[i] ?? true);
     const planned = this.plan?.[this.requests.length];
     const slot = opts.slot ?? -1;
@@ -168,14 +176,17 @@ export class Placer {
     // A label the surveyor dragged stays at the place the drag was measured from.
     else if (slot >= 0 && slot < candidates.length && admissible[slot]) i = slot;
     else {
-      i = order.find((k) => admissible[k] && candidates[k]!.every((q) => this.free(q))) ?? -1;
+      // The first pass looks only at the label's ordinary places (all of them, unless `firstUpTo` says): the rest, such as a leg's leader
+      // places, are the solver's to choose when they clear something.
+      const upTo = opts.firstUpTo ?? candidates.length;
+      i = order.find((k) => k < upTo && admissible[k] && candidates[k]!.every((q) => this.free(q))) ?? -1;
       if (i < 0) i = opts.fallback ?? order.find((k) => admissible[k]) ?? -1;
       if (i < 0) i = 0;
     }
     // Where the text is drawn, with the surveyor's offsets: what other labels must avoid. The place itself is chosen without them, so a
     // drag never changes which place it's measured from.
     const shapes = opts.shift ? candidates.map((c) => c.map((q, k) => opts.shift!(q, k))) : candidates;
-    this.requests.push({ key, candidates: shapes, admissible, chosen: i, pinned: Boolean(opts.pinned) || candidates.length < 2, ...(opts.order ? { order } : {}) });
+    this.requests.push({ key, candidates: shapes, admissible, chosen: i, pinned: Boolean(opts.pinned) || candidates.length < 2, ...(opts.order ? { order } : {}), ...(opts.base ? { base: [...opts.base] } : {}) });
     // A placed label is something the next one must not cover; the solver tells placed labels from fixed things by the requests.
     for (const q of shapes[i]!) this.filed.insert(boxOf(q), { q, b: boxOf(q) });
     return i;
@@ -233,7 +244,8 @@ export function solveLabels(p: Placer): Solved | null {
   const own: number[][] = R.map((r, ri) =>
     cands[ri]!.map((c, i) => {
       if (!r.admissible[i]) return Infinity;
-      let cost = ranks[ri]![i]!;
+      // A label's own costs (a leg's leader places, ADR 0259) stand in for its rank where it gives them.
+      let cost = r.base?.[i] ?? ranks[ri]![i]!;
       for (const s of c) {
         for (const o of obstacles.near(s.b)) if (meet(s.b, o.b) && quadsOverlap(s.q, o.q)) cost += o.q.length === 2 ? LABEL_COST.line : LABEL_COST.thing;
         if (outside(s.b)) cost += LABEL_COST.outside;
@@ -272,7 +284,7 @@ export function solveLabels(p: Placer): Solved | null {
     for (const rj of near[ri]!) if (rj !== skip && hits(ri, i, rj, assign[rj]!)) c += LABEL_COST.label;
     return c;
   };
-  const rank = (ri: number, i: number) => ranks[ri]![i]!;
+  const rank = (ri: number, i: number) => R[ri]!.base?.[i] ?? ranks[ri]![i]!;
   const meeting = () => {
     let n = 0;
     for (let ri = 0; ri < R.length; ri++) for (const rj of near[ri]!) if (rj > ri && hits(ri, assign[ri]!, rj, assign[rj]!)) n++;
@@ -295,7 +307,10 @@ export function solveLabels(p: Placer): Solved | null {
     for (let ri = 0; ri < R.length; ri++) {
       if (R[ri]!.pinned) continue;
       const now = cost(ri, assign[ri]!);
-      if (now === rank(ri, assign[ri]!)) continue;
+      // Clear at one of its ordinary places (rank 0 to 1): nothing better to find. A label at a dearer place, such as a leader taken
+      // to clear another label, is looked at again, so it comes back against its leg once the label it made way for has moved.
+      const r0 = rank(ri, assign[ri]!);
+      if (now === r0 && r0 <= 1) continue;
       let best = assign[ri]!;
       let bestCost = now;
       for (let i = 0; i < R[ri]!.candidates.length; i++) {
@@ -346,6 +361,38 @@ export function solveLabels(p: Placer): Solved | null {
             for (const rn of near[rk]!) scored.delete(rn);
           }
         }
+      }
+    }
+    // A label still in conflict takes one of its cheapest places where another label stands (one or two), and they move to their own
+    // best places: what clears a row where every place is spoken for, which no single move or pair finds. Kept only when the sheet's
+    // total falls, so it never makes anything worse.
+    for (let ri = 0; ri < R.length; ri++) {
+      if (R[ri]!.pinned || cost(ri, assign[ri]!) === rank(ri, assign[ri]!)) continue;
+      const base = total();
+      const places = own[ri]!
+        .map((c, i) => ({ i, c }))
+        .filter((x) => Number.isFinite(x.c) && x.i !== assign[ri])
+        .sort((a, b) => a.c - b.c || a.i - b.i)
+        .slice(0, EJECT_CANDIDATES);
+      for (const { i } of places) {
+        const blockers = near[ri]!.filter((rj) => hits(ri, i, rj, assign[rj]!));
+        if (blockers.length === 0 || blockers.length > EJECT_BLOCKERS || blockers.some((rj) => R[rj]!.pinned)) continue;
+        const saved = [ri, ...blockers].map((rk) => [rk, assign[rk]!] as const);
+        assign[ri] = i;
+        for (const rj of blockers) {
+          let bj = assign[rj]!;
+          let bc = cost(rj, bj);
+          for (let k = 0; k < R[rj]!.candidates.length; k++) {
+            const c = cost(rj, k);
+            if (c < bc - 1e-9) [bj, bc] = [k, c];
+          }
+          assign[rj] = bj;
+        }
+        if (total() < base - 1e-9) {
+          changed = true;
+          break;
+        }
+        for (const [rk, k] of saved) assign[rk] = k;
       }
     }
     if (!changed) break;

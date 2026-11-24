@@ -40,6 +40,31 @@ describe("the label solver", () => {
     expect(s.meetingAfter).toBe(0);
   });
 
+  it("brings a label back from a dear place, such as a leg's leader, once the label it made way for has moved", () => {
+    const p = new Placer();
+    // A stands clear at its dear second place (8, as a leader does). B covers A's first place, and C, which can't move, covers B.
+    // B moves to its clear second place; then A's first place is clear, and A goes back to it.
+    p.requests.push(
+      { key: "A", candidates: [[box(0, 0, 10, 2)], [box(0, 20, 10, 22)]], admissible: [true, true], chosen: 1, pinned: false, base: [0, 8] },
+      { key: "B", candidates: [[box(5, 0, 15, 2)], [box(30, 0, 40, 2)]], admissible: [true, true], chosen: 0, pinned: false },
+      { key: "C", candidates: [[box(12, 0, 20, 2)]], admissible: [true], chosen: 0, pinned: true },
+    );
+    const s = solveLabels(p)!;
+    expect(s.plan.map((x) => x.index)).toEqual([0, 1, 0]);
+    expect(s.meetingAfter).toBe(0);
+  });
+
+  it("takes a place another label holds when that label has somewhere clear to go, which no single move or pair finds", () => {
+    const p = new Placer();
+    // A's first place meets D, which can't move; A's second is where B stands, and B has a clear second place.
+    p.choose("A", [[box(0, 0, 4, 1)], [box(10, 0, 14, 1)]]);
+    p.choose("B", [[box(12, 0, 16, 1)], [box(30, 0, 34, 1)]]);
+    p.choose("D", [[box(2, 0, 6, 1)]]);
+    const s = solveLabels(p)!;
+    expect(s.plan.map((x) => x.index)).toEqual([1, 1, 0]);
+    expect([s.meetingBefore, s.meetingAfter]).toEqual([1, 0]);
+  });
+
   it("never moves a label the surveyor placed, never chooses a place that isn't allowed, and keeps out of the bounds' edge", () => {
     const pinned = new Placer();
     pinned.choose("A", [[box(0, 0, 2, 1)], [box(4, 0, 6, 1)]], { pinned: true });

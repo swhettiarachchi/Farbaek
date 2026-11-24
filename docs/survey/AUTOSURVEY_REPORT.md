@@ -6,7 +6,7 @@ The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, af
 - **Partly built.**
 - **Not built.**
 
-Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-243.md`, and each decision in ADRs 0233 to 0251.
+Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-266.md`, and each decision in ADRs 0233 to 0273.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -48,7 +48,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Survey computation | `angles.ts`, `geometry.ts`, `cogo.ts`, `units.ts`, `reduce.ts`, `adjust.ts` | Built and tested |
 | Geometry construction | `autodraft.ts`, `lots.ts`, `partition.ts`, `roads.ts` | Built and tested |
 | CAD drafting | `sheet/*`, `export/dxf.ts` | Built and tested |
-| Annotation and layout | `sheet/labels.ts`, `sheet/draw.ts`, `sheet/compose.ts` | Built and tested: labels placed together by scored candidates (ADR 0242); what can't be cleared is reported; no leader lines or multi-sheet layout |
+| Annotation and layout | `sheet/labels.ts`, `sheet/draw.ts`, `sheet/compose.ts` | Built and tested: labels placed together by scored candidates (ADR 0242); what can't be cleared is reported; leader lines for crowded legs (ADR 0259); no multi-sheet layout |
 | Independent validation | `qc.ts` | Built and tested |
 | Exception management | `exceptions.ts`, the "Needs you" list | Built and tested |
 | Export and deliverables | `export/*`, `server/survey/pdf.ts`, the export route | Built and tested |
@@ -191,7 +191,7 @@ The sketch was transcribed in the development session in the reader's format; th
 - **Labels on the sheet are placed together** (ADR 0242). Dimensions on short legs are stacked or split across the line, and lot labels stay inside their lot. Geometry never moves, and what can't be cleared is reported.
 
 **Not built:**
-- leader lines for dimensions that can't fit at the chosen scale. Since stage 240 (ADR 0248) the surveyor can leave legs too crowded to letter to the boundaries schedule, which the face names;
+- leader lines in the DXF: the sheet and PDF letter crowded legs with leaders since stage 266 (ADR 0259), and since stage 240 (ADR 0248) the surveyor can leave legs too crowded even for leaders to the boundaries schedule, which the face names;
 - multi-sheet layout;
 - a measured Sinhala and Tamil text test in CAD programs.
 
@@ -248,14 +248,23 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #312 | 248 fix (v105 loads again) | Merged, live (build 3f4f19669543) | **v105:** applied by the owner with the line in the PR, read back `t` |
 
 | #313 | 249 (a misread number corrected in one press) | Merged, live (build 28d7ba63e260); pressed on the owner's real job in production | none |
-| next | 250 (nothing lost on a refresh) | Open | none |
+| #314 | 250 (nothing lost on a refresh) | Merged | none |
+| #315 | 252 (the owner's real job run end to end) | Merged | none |
+| #316 | 253 (editing the plan on the sheet) | Merged | none |
+| #317 | 254 and 255 (a house from its walls, words and symbols on the plan) | Merged | none |
+| #318 | 256 (sketch words) | Merged | none |
+| #319 | 257 to 262 (agreed reads, drafting as surveyors draft, square corners) | Merged | none |
+| #320 | 263 (an independent AI check against the sketch) | Merged, live (build 3a8db8f6ff3e) | none |
+| #321 | 264 (points where two lines meet, tape offsets) | Open | none |
+| #322 | 265 (dimension lines, words with their own size and angle) | Open, on #321 | none |
+| next | 266 (leader lines for crowded legs, built as 251 and parked) | Open, on #322 | none |
 
 Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
 ## 13. Incomplete capabilities
 
 **Not built:**
-- **Labels and layout:** leader lines for dimensions that can't fit (crowded legs can be left to the schedule since stage 240); multi-sheet layout.
+- **Labels and layout:** multi-sheet layout; leader lines in the DXF (the sheet and PDF have them since stage 266, ADR 0259). Crowded legs can still be left to the schedule (stage 240) where even leaders don't fit.
 - **Codes:** curved lot boundaries (curves are drawn on lines, not lots, since a lot's area would change); a curve's radius and length on the plan; offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares; balancing angles first; adjusting a field book's legs.
 - **Profiles:** learning from corrections (suggestions kept apart until approved), CAD layer and text styles, title-block fields other than the statement, plan numbering.
