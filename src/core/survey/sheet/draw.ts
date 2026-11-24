@@ -141,16 +141,40 @@ export function drawFeatures(ctx: DrawCtx, inside: [number, number] | null): voi
       const t = text(ctx, f.layer, `feature:${f.id}`, mx, my + size * 0.35, f.code, size);
       ctx.placer.add(textQuad(t));
     } else {
-      let k = 0;
-      for (let i = 1; i < page.length - 1; i++) if (Math.hypot(page[i + 1]![0] - page[i]![0], page[i + 1]![1] - page[i]![1]) > Math.hypot(page[k + 1]![0] - page[k]![0], page[k + 1]![1] - page[k]![1])) k = i;
-      const [x1, y1] = page[k]!;
-      const [x2, y2] = page[k + 1]!;
-      const side: [number, number] = inside ? [inside[0] - (x1 + x2) / 2, inside[1] - (y1 + y2) / 2] : [0, -1];
-      const p = besideSegment(x1, y1, x2, y2, side, size);
-      const t = text(ctx, f.layer, `feature:${f.id}`, p.x, p.y, f.code, size, { rotate: p.theta });
-      ctx.placer.add(textQuad(t));
+      // Where the code can go (stage 258, ADR 0266): along the three longest legs, at the middle and a third of the way from each end, on
+      // the lot's side and then the other. The first is where it always went, so a plan whose codes were already clear is unchanged.
+      const legs = page
+        .slice(1)
+        .map((q, i) => ({ i, len: Math.hypot(q[0] - page[i]![0], q[1] - page[i]![1]) }))
+        .sort((a, b) => b.len - a.len)
+        .slice(0, 3);
+      const tries: { x: number; y: number; theta: number }[] = [];
+      for (const { i } of legs) {
+        const [x1, y1] = page[i]!;
+        const [x2, y2] = page[i + 1]!;
+        const toward: [number, number] = inside ? [inside[0] - (x1 + x2) / 2, inside[1] - (y1 + y2) / 2] : [0, -1];
+        for (const side of [toward, [-toward[0], -toward[1]] as [number, number]]) for (const along of [0.5, 0.3, 0.7]) tries.push(besideSegment(x1, y1, x2, y2, side, size, along));
+      }
+      placeText(ctx, f.layer, `feature:${f.id}`, f.code, size, tries);
     }
   }
+}
+
+/**
+ * One text at the first of its places that covers nothing (stage 258, ADR 0266), as the label solver chooses; one the surveyor dragged
+ * stays measured from the place it was dragged from, and an older drag without its place from the first, where it was drawn before.
+ */
+export function placeText(ctx: DrawCtx, layer: SceneLayer, entity: string, value: string, size: number, tries: readonly { x: number; y: number; theta: number }[]): SceneText {
+  const quad = (c: { x: number; y: number; theta: number }) =>
+    textQuad({ kind: "text", x: c.x, y: c.y, text: value, size, rotate: c.theta, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer, entity, ...(ctx.slant ? { slant: ctx.slant } : {}) });
+  const m = moved(ctx, [entity]);
+  const k = ctx.placer.choose(
+    entity,
+    tries.map((c) => [quad(c)]),
+    { fallback: 0, pinned: m.pinned, slot: m.slot ?? (m.pinned ? 0 : null), ...(m.shift ? { shift: m.shift } : {}) },
+  );
+  const c = tries[k]!;
+  return text(ctx, layer, entity, c.x, c.y, value, size, { rotate: c.theta, slot: k });
 }
 
 /** Signed page-space area of a ring: positive means the inside is to the left of each leg in page coordinates. */
@@ -471,24 +495,39 @@ export function drawRoads(ctx: DrawCtx, roads: readonly Road[]): void {
     }
     const centre = roadCentreline(a, b).map((p) => atPage(ctx, p));
     if (centre.length < 2) continue;
-    let k = 0;
-    for (let i = 1; i + 1 < centre.length; i++) if (Math.hypot(centre[i + 1]![0] - centre[i]![0], centre[i + 1]![1] - centre[i]![1]) > Math.hypot(centre[k + 1]![0] - centre[k]![0], centre[k + 1]![1] - centre[k]![1])) k = i;
-    const [x1, y1] = centre[k]!;
-    const [x2, y2] = centre[k + 1]!;
-    const theta = readable((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
-    const mx = (x1 + x2) / 2;
-    const my = (y1 + y2) / 2;
     const width = road.width !== "none" && b.length >= 2 ? roadWidth(a, b) : null;
-    const rad = (theta * Math.PI) / 180;
-    // Name a little above the centreline, width a little below, both along the road.
-    const up: [number, number] = [Math.sin(rad), -Math.cos(rad)];
     const lines = [road.name.trim(), width ? roadWidthText(width.minM, width.maxM, road.width === "metres" ? "metres" : "feet") : ""].filter(Boolean);
-    lines.forEach((value, i) => {
-      const size = i === 0 ? ctx.sizes.label : ctx.sizes.small;
-      const off = lines.length === 2 ? (i === 0 ? 0.3 : -0.3 - size * 0.9) * -1 : -size * 0.35;
-      const t = text(ctx, "ROADS", `road${i ? "-width" : ""}:${road.id}`, mx - up[0] * off, my - up[1] * off, value, size, { rotate: theta });
-      ctx.placer.add(textQuad(t));
+    // Where the name (and the width under it) can go (stage 258, ADR 0266): along the centreline's longest leg at its middle, as before,
+    // then a third of the way from each end, then the middles of the other legs; the first that covers nothing.
+    const order = centre
+      .slice(1)
+      .map((q, i) => ({ i, len: Math.hypot(q[0] - centre[i]![0], q[1] - centre[i]![1]) }))
+      .sort((p, q) => q.len - p.len);
+    const places: { mx: number; my: number; theta: number }[] = [];
+    order.forEach(({ i }, n) => {
+      const [x1, y1] = centre[i]!;
+      const [x2, y2] = centre[i + 1]!;
+      const theta = readable((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
+      for (const along of n === 0 ? [0.5, 0.3, 0.7, 0.15, 0.85] : [0.5]) places.push({ mx: x1 + (x2 - x1) * along, my: y1 + (y2 - y1) * along, theta });
     });
+    const texts = (p: { mx: number; my: number; theta: number }) => {
+      const rad = (p.theta * Math.PI) / 180;
+      // Name a little above the centreline, width a little below, both along the road.
+      const up: [number, number] = [Math.sin(rad), -Math.cos(rad)];
+      return lines.map((value, i) => {
+        const size = i === 0 ? ctx.sizes.label : ctx.sizes.small;
+        const off = lines.length === 2 ? (i === 0 ? 0.3 : -0.3 - size * 0.9) * -1 : -size * 0.35;
+        return { entity: `road${i ? "-width" : ""}:${road.id}`, value, size, x: p.mx - up[0] * off, y: p.my - up[1] * off, theta: p.theta };
+      });
+    };
+    if (lines.length > 0) {
+      const quads = (p: (typeof places)[number]) =>
+        texts(p).map((x) => textQuad({ kind: "text", x: x.x, y: x.y, text: x.value, size: x.size, rotate: x.theta, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer: "ROADS", entity: x.entity, ...(ctx.slant ? { slant: ctx.slant } : {}) }));
+      const entities = texts(places[0]!).map((x) => x.entity);
+      const m = moved(ctx, entities);
+      const k = ctx.placer.choose(`road:${road.id}`, places.map(quads), { fallback: 0, pinned: m.pinned, slot: m.slot ?? (m.pinned ? 0 : null), ...(m.shift ? { shift: m.shift } : {}) });
+      for (const x of texts(places[k]!)) text(ctx, "ROADS", x.entity, x.x, x.y, x.value, x.size, { rotate: x.theta, slot: k });
+    }
     // Direction texts at the ends of the first edge.
     const ends: [string, SurveyPoint | undefined, SurveyPoint | undefined][] = [
       [road.start, a[0], a[1]],
@@ -501,11 +540,11 @@ export function drawRoads(ctx: DrawCtx, roads: readonly Road[]): void {
       const len = Math.hypot(ex - nx, ey - ny) || 1;
       const ux = (ex - nx) / len;
       const uy = (ey - ny) / len;
-      const tx = ex + ux * 6;
-      const ty = ey + uy * 6;
       const th = readable((Math.atan2(uy, ux) * 180) / Math.PI);
-      const t = text(ctx, "ROADS", `road-dir-${i}:${road.id}`, tx, ty, value.trim(), ctx.sizes.small, { rotate: th });
-      ctx.placer.add(textQuad(t));
+      const w = textWidth(value.trim(), ctx.sizes.small);
+      // Beyond the end, along the road (stage 258): 6 mm out as before, then further, then to either side of the road's line.
+      const tries = ([[6, 0], [6 + w / 2, 0], [6, 1.4], [6, -1.4], [6 + w / 2, 1.4], [6 + w / 2, -1.4]] as const).map(([out, side]) => ({ x: ex + ux * out - uy * side * ctx.sizes.small, y: ey + uy * out + ux * side * ctx.sizes.small, theta: th }));
+      placeText(ctx, "ROADS", `road-dir-${i}:${road.id}`, value.trim(), ctx.sizes.small, tries);
     });
   }
 }
