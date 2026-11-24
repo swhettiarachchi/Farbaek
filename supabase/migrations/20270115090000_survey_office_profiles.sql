@@ -133,7 +133,7 @@ returns void
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   perform private.require_contributor(p_org, p_actor);
   if p_profile is null then
