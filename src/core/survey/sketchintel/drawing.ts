@@ -23,11 +23,14 @@ export const SketchDrawingOutput = {
         points: z
           .array(z.string())
           .describe(
-            "The point numbers written along this drawn line, in order from one end to the other, exactly as written: at least its two ends. Where the line passes a numbered point, list that number at its place. Never a number that isn't written at the line.",
+            "The point numbers written along this drawn line, in order from one end to the other, exactly as written: at least its two ends. Where the line passes a numbered point, list that number at its place. Where it turns a square corner with no number, the word corner at that place, between two numbers. Never a number that isn't written at the line.",
           ),
         label: z.string().describe("Writing along or beside this line, exactly as written: MW, fence, drain, a road's name, an owner's name. Empty when nothing is written there."),
         style: z.enum(SKETCH_LINE_STYLES).describe("single; double (two parallel lines, as walls are drawn); dashed; hatched (short marks across it); crossed (x marks along it); curved; other"),
         closes: z.boolean().describe("True when the line comes back to its first point"),
+        runsOn: z
+          .enum(["none", "start", "end", "both"])
+          .describe("Whether the line is drawn on past its first (start) or last (end) listed number to an end with no number, as a neighbour's wall carrying on past the land's corner; none when it stops at its numbers"),
         certain: z.boolean().describe("True only when every number listed, and the line between them, is clearly drawn and clearly read"),
       }),
     )
@@ -64,6 +67,10 @@ export const sketchLineSchema = z.object({
   style: z.enum(SKETCH_LINE_STYLES),
   closes: z.boolean(),
   certain: z.boolean(),
+  /** How many of the merged reads drew it (stage 257, ADR 0265); absent on a single read and on reads from before it. */
+  reads: z.number().int().min(1).max(9).optional(),
+  /** Drawn on past its first or last number to an end with no number (stage 261, ADR 0269): a neighbour's wall carrying on. Absent: it stops. */
+  runsOn: z.enum(["start", "end", "both"]).optional(),
 });
 export type SketchLine = z.infer<typeof sketchLineSchema>;
 
@@ -82,7 +89,8 @@ export const sketchDrawingSchema = z.object({
 export type SketchDrawing = z.infer<typeof sketchDrawingSchema>;
 
 export interface DrawingAnswer {
-  lines: { image: number; points: string[]; label: string; style: string; closes: boolean; certain: boolean }[];
+  /** `reads`: when the photos were read more than once and merged, how many of the reads drew the line (stage 257); never the model's. */
+  lines: { image: number; points: string[]; label: string; style: string; closes: boolean; certain: boolean; reads?: number; runsOn?: string }[];
   symbols: { image: number; kind: string; label: string; at: string }[];
   areas: { image: number; label: string; around: string[] }[];
 }
@@ -104,7 +112,10 @@ export function acceptDrawing(answer: DrawingAnswer, files: readonly string[], c
     const pts = labels(l.points).slice(0, DRAWING_LIMITS.pointsPerLine);
     const label = clean(l.label, 120);
     if (pts.length < 2 || invisible(label)) continue;
-    lines.push({ id: `l${lines.length + 1}`, file: files[l.image]!, points: pts, label, style: l.style as SketchLineStyle, closes: Boolean(l.closes), certain: Boolean(l.certain) });
+    const reads = typeof l.reads === "number" && Number.isInteger(l.reads) && l.reads >= 1 && l.reads <= 9 ? { reads: l.reads } : {};
+    // A closed outline has no ends to carry on past.
+    const runsOn = !l.closes && (l.runsOn === "start" || l.runsOn === "end" || l.runsOn === "both") ? { runsOn: l.runsOn as "start" | "end" | "both" } : {};
+    lines.push({ id: `l${lines.length + 1}`, file: files[l.image]!, points: pts, label, style: l.style as SketchLineStyle, closes: Boolean(l.closes), certain: Boolean(l.certain), ...reads, ...runsOn });
   }
   const symbols: SketchSymbol[] = [];
   for (const s of answer.symbols) {

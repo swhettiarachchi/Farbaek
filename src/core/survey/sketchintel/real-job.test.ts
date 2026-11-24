@@ -118,6 +118,10 @@ describe.skipIf(!DIR || !existsSync(join(DIR, "job.json")))("a real job, end to 
     const notes = job.surveyorNotes?.length ? ["", "## What the surveyor said", "", "Kept apart from what was read: the surveyor's own words about the job.", "", ...job.surveyorNotes.map((n) => `- ${n}`)] : [];
     writeFileSync(join(DIR, "out", "sketch-report.md"), [sketchReportMarkdown(sr), ...notes].join(String.fromCharCode(10)));
     writeFileSync(join(DIR, "out", "evaluation.json"), JSON.stringify({ evaluation: e, interpretation: { ...interpretation, proposals: interpretation.proposals.map((p) => ({ ...p, points: undefined, corners: undefined })) } }, null, 2));
+    // The plan document as built, its points by number ("#17") and its codes by name, to draw again or lay over the surveyor's plan.
+    const number = new Map(points.map((p) => [p.id, p.pointId]));
+    const byNumber = JSON.stringify({ ...doc, codes: doc.codes.map((c) => c.code) }, null, 1).replace(/"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"/g, (whole, id: string) => (number.has(id) ? JSON.stringify(`#${number.get(id)}`) : whole));
+    writeFileSync(join(DIR, "out", "document.json"), byNumber);
     expect(e.lot.generated.length).toBeGreaterThan(0);
   });
 });

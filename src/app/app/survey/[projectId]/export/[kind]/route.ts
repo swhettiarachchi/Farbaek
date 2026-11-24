@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { blockOutSheet, readDivision } from "@/core/survey/blockout";
 import { crsById } from "@/core/survey/crs";
+import { withConstructed } from "@/core/survey/construct";
 import { writeDxf } from "@/core/survey/export/dxf";
 import { pointsCsv, surveyGeoJson } from "@/core/survey/export/points";
 import { reportPages } from "@/core/survey/export/report";
@@ -93,7 +94,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
   if (kind === "blockout") {
     const division = readDivision(url.searchParams.get("division"));
     if (!division) return plain(400, "That division can't be read. Open the Lots step and choose the division again.");
-    const made = blockOutSheet({ template: SRI_LANKA_CADASTRAL_V1, crs: crsById(input.crsId), crsConfirmation: input.crsConfirmation, surveyor: input.surveyor, version: data.drawing.version }, data.drawing.document, data.points, division);
+    const made = blockOutSheet({ template: SRI_LANKA_CADASTRAL_V1, crs: crsById(input.crsId), crsConfirmation: input.crsConfirmation, surveyor: input.surveyor, version: data.drawing.version }, data.drawing.document, withConstructed(data.points, data.drawing.document), division);
     if (!made.ok) return plain(409, made.error);
     const stops = made.sheet.findings.filter((f) => f.blocks.includes("export"));
     if (stops.length > 0) return plain(409, `This block-out plan can't be printed yet:\n${stops.map((f) => `- ${f.message} ${f.action}`).join("\n")}`);
@@ -121,7 +122,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
       createdAt: new Date(data.drawing.createdAt),
     });
   } else if (kind === "dxf") {
-    body = Buffer.from(writeDxf({ document: data.drawing.document, points: data.points, lots: view.lots, crs: view.crs, scale: view.sheet.scale ?? 500, projectName: data.project.name, status: `${status} ${crsStatus}` }), "ascii");
+    body = Buffer.from(writeDxf({ document: data.drawing.document, points: withConstructed(data.points, data.drawing.document), lots: view.lots, crs: view.crs, scale: view.sheet.scale ?? 500, projectName: data.project.name, status: `${status} ${crsStatus}` }), "ascii");
   } else if (kind === "csv") {
     body = Buffer.from(pointsCsv(data.points), "utf8");
   } else if (kind === "lots") {

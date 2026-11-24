@@ -15,6 +15,7 @@
  */
 import { fitArc, type ArcRun } from "../arcs";
 import { codeOf, lookupCode, type CodeEntry } from "../codes";
+import { cornerId, squareReference, type ConstructedPoint } from "../construct";
 import type { DrawingFeature } from "../document";
 import { area, distance, orient, pointSegmentDistance, segmentsIntersect, signedArea, type Point } from "../geometry";
 import type { SurveyPoint } from "../parcel";
@@ -80,6 +81,8 @@ export interface LineProposal extends Base {
   arcs: ArcRun[];
   /** Drawn dashed on the sketch (a roof's edge, a proposed line): drawn dashed on the plan too (stage 254). */
   dashed: boolean;
+  /** Drawn on past its first or last point on the sketch, a neighbour's wall carrying on: drawn so on the plan (stage 261). */
+  runsOn: "start" | "end" | "both" | null;
 }
 
 export interface LotProposal extends Base {
@@ -140,8 +143,21 @@ export interface Question {
   suggest?: { file: string; reading: string; label: string; to: string };
 }
 
+/**
+ * A square corner the sketch draws between two surveyed points without a number (stage 262, ADR 0270): put between them in the lines
+ * and outlines the sketch adds, as a recipe from surveyed points.
+ */
+export interface SquareCornerProposal extends ConstructedPoint {
+  /** The two surveyed points it lies between, as the sketch draws it. */
+  between: [string, string];
+  sketch: string[];
+  file: string;
+}
+
 export interface SketchInterpretation {
   proposals: Proposal[];
+  /** Square corners drawn without a number; absent when the sketch has none. */
+  corners?: SquareCornerProposal[];
   questions: Question[];
   /** Every point number written on the drawing, and how it matched. */
   matches: { label: string; pointId: string | null; how: string }[];
@@ -244,18 +260,32 @@ function sideOffsets(pts: readonly SurveyPoint[], kept: readonly number[], close
  * Matches a line's numbers: the points, in order, or the reasons it can't be drawn. A line that ends on the number it starts with is
  * a closed outline written round to its start: the repeat is dropped and the line is closed.
  */
-function matchLine(line: SketchLine, index: PointIndex): { points: SurveyPoint[]; notes: string[]; unmatched: string[]; exact: boolean; closes: boolean } {
+function matchLine(line: SketchLine, index: PointIndex): { points: SurveyPoint[]; notes: string[]; unmatched: string[]; exact: boolean; closes: boolean; corners: [SurveyPoint, SurveyPoint][] } {
   const r = matchPoints(line.points, index);
   const round = r.points.length >= 4 && r.points[0]!.id === r.points.at(-1)!.id;
-  return { ...r, points: round ? r.points.slice(0, -1) : r.points, closes: (line.closes || round) && r.points.length - (round ? 1 : 0) >= 3 };
+  const points = round ? r.points.slice(0, -1) : r.points;
+  const closes = (line.closes || round) && points.length >= 3;
+  // A corner written after the last number of a closed outline lies on its closing leg.
+  const corners = closes && r.cornerAtEnd ? [...r.corners, [points.at(-1)!, points[0]!] as [SurveyPoint, SurveyPoint]] : r.corners;
+  return { ...r, points, closes, corners };
 }
 
-function matchPoints(labels: readonly string[], index: PointIndex): { points: SurveyPoint[]; notes: string[]; unmatched: string[]; exact: boolean } {
+/** The word the reader writes where a line turns a square corner that has no number (stage 262). */
+export const isCornerWord = (label: string) => /^corner$/i.test(label.trim());
+
+function matchPoints(labels: readonly string[], index: PointIndex): { points: SurveyPoint[]; notes: string[]; unmatched: string[]; exact: boolean; corners: [SurveyPoint, SurveyPoint][]; cornerAtEnd: boolean } {
   const points: SurveyPoint[] = [];
   const notes: string[] = [];
   const unmatched: string[] = [];
+  // A square corner without a number lies between the points before and after it; at an end, or next to another, it's let go.
+  const corners: [SurveyPoint, SurveyPoint][] = [];
+  let pending = false;
   let exact = true;
   for (const label of labels) {
+    if (isCornerWord(label)) {
+      pending = points.length > 0;
+      continue;
+    }
     const r = matchPoint(label, index);
     if (!r.point) {
       unmatched.push(matchNote(r) ?? label);
@@ -265,9 +295,13 @@ function matchPoints(labels: readonly string[], index: PointIndex): { points: Su
       exact = false;
       notes.push(matchNote(r)!);
     }
-    if (points.at(-1)?.id !== r.point.id) points.push(r.point);
+    if (points.at(-1)?.id !== r.point.id) {
+      if (pending) corners.push([points.at(-1)!, r.point]);
+      points.push(r.point);
+    }
+    pending = false;
   }
-  return { points, notes, unmatched, exact };
+  return { points, notes, unmatched, exact, corners, cornerAtEnd: pending };
 }
 
 /** Surveyed points the sketch doesn't write along a straight run, but which lie on it: said, never added. */
@@ -419,7 +453,9 @@ export function writtenWidth(text: string): number | null {
   return /^(ft|feet|'|′)$/i.test(mm[2]!) ? v * 0.3048 : v;
 }
 
-export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyPoint[], codes: readonly CodeEntry[], options: InterpretOptions = {}): SketchInterpretation {
+export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoint[], codes: readonly CodeEntry[], options: InterpretOptions = {}): SketchInterpretation {
+  // An area's corners are numbers: a corner word written among them is left out (stage 262), never taken for a point.
+  const drawing: SketchDrawing = given.areas.some((a) => a.around.some(isCornerWord)) ? { ...given, areas: given.areas.map((a) => ({ ...a, around: a.around.filter((p) => !isCornerWord(p)) })) } : given;
   const onLine = options.onLineM ?? 0.25;
   const tight = options.tightM ?? 0.1;
   const index = indexPoints(points);
@@ -428,7 +464,7 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
   const matches: SketchInterpretation["matches"] = [];
   const ask = (from: string[], file: string, text: string, evidence: string[] = [], about?: Pick<Question, "item" | "answeredBy" | "suggest">) => questions.push({ from, file, text, evidence, ...about });
 
-  for (const label of new Set([...drawing.lines.flatMap((l) => l.points), ...drawing.symbols.map((s) => s.at).filter(Boolean), ...drawing.areas.flatMap((a) => a.around)])) {
+  for (const label of new Set([...drawing.lines.flatMap((l) => l.points).filter((p) => !isCornerWord(p)), ...drawing.symbols.map((s) => s.at).filter(Boolean), ...drawing.areas.flatMap((a) => a.around)])) {
     const r = matchPoint(label, index);
     matches.push({ label, pointId: r.point?.pointId ?? null, how: r.how });
   }
@@ -437,8 +473,11 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
   const lines: LineRef[] = [];
   // Lines the sketch draws that couldn't be drawn (a number not surveyed, one point twice, crossing itself), with the points they did match.
   const dropped: { line: SketchLine; ids: Set<string> }[] = [];
+  // Square corners drawn without a number (stage 262), from the lines that match.
+  const squares: { a: SurveyPoint; b: SurveyPoint; line: SketchLine }[] = [];
   for (const line of drawing.lines) {
     const mt = matchLine(line, index);
+    if (mt.unmatched.length === 0) for (const [a, b] of mt.corners) if (a.id !== b.id) squares.push({ a, b, line });
     const cls = classifyLine(line.label, line.style, codes);
     const named = line.label ? `the line ${list(line.points)} ("${line.label}")` : `the line ${list(line.points)}`;
     if (mt.unmatched.length > 0) {
@@ -512,6 +551,7 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       closed: mt.closes && cls.kind !== "line",
       arcs,
       dashed: line.style === "dashed",
+      runsOn: mt.closes ? null : (line.runsOn ?? null),
     };
     lines.push({ line, points: mt.points, closes: mt.closes, kind: cls.kind, written: cls.fromWriting, proposal });
   }
@@ -527,26 +567,35 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
   }
   if (!lot) {
     // Boundary lines: walls, fences, hedges, drains and lines of unknown kind; never roads, and never dashed lines (proposed or roof lines).
-    const edges = new Map<string, Set<string>>();
     const byId = new Map(points.map((p) => [p.id, p]));
     const owner = new Map<string, string>();
-    for (const l of lines) {
-      if (l.kind === "road" || l.line.style === "dashed") continue;
-      // A closed line's closing leg is a side like the others.
-      for (let i = 0; i + 1 < l.points.length + (l.closes ? 1 : 0); i++) {
-        const [a, b] = [l.points[i]!.id, l.points[(i + 1) % l.points.length]!.id];
-        if (!edges.has(a)) edges.set(a, new Set());
-        if (!edges.has(b)) edges.set(b, new Set());
-        edges.get(a)!.add(b);
-        edges.get(b)!.add(a);
-        owner.set(a < b ? `${a}|${b}` : `${b}|${a}`, l.line.id);
+    const ringsFrom = (take: (l: LineRef) => boolean) => {
+      const edges = new Map<string, Set<string>>();
+      for (const l of lines) {
+        if (l.kind === "road" || l.line.style === "dashed" || !take(l)) continue;
+        // A closed line's closing leg is a side like the others.
+        for (let i = 0; i + 1 < l.points.length + (l.closes ? 1 : 0); i++) {
+          const [a, b] = [l.points[i]!.id, l.points[(i + 1) % l.points.length]!.id];
+          if (!edges.has(a)) edges.set(a, new Set());
+          if (!edges.has(b)) edges.set(b, new Set());
+          edges.get(a)!.add(b);
+          edges.get(b)!.add(a);
+          owner.set(a < b ? `${a}|${b}` : `${b}|${a}`, l.line.id);
+        }
       }
-    }
-    const rings = cycles(edges)
-      .map((c) => c.map((id) => byId.get(id)!))
-      .filter((r) => simple(r))
-      .map((r) => ({ r, a: area(r) }))
-      .sort((x, y) => y.a - x.a);
+      return cycles(edges)
+        .map((c) => c.map((id) => byId.get(id)!))
+        .filter((r) => simple(r))
+        .map((r) => ({ r, a: area(r) }))
+        .sort((x, y) => y.a - x.a);
+    };
+    // Read more than once and merged (stage 257, ADR 0265): the lot comes from the lines at least two reads drew, while those close round
+    // one; a line only one read drew is drawn as read, but doesn't move the lot. Single reads, and reads from before, use every line.
+    const merged = lines.some((l) => l.line.reads !== undefined);
+    const agreed = (l: LineRef) => (l.line.reads ?? 2) >= 2;
+    const everyRing = ringsFrom(() => true);
+    const agreedRings = merged ? ringsFrom(agreed) : everyRing;
+    const rings = agreedRings.length > 0 && agreedRings[0]!.a > 1 ? agreedRings : everyRing;
     if (rings.length > 0 && rings[0]!.a > 1) {
       const best = rings[0]!;
       const used = new Set<string>();
@@ -556,8 +605,21 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       });
       const from = [...used].filter(Boolean).sort();
       const label = lotAreas.length === 1 ? lotAreas[0]!.c.name : "";
-      lot = lotProposal(best.r, from, drawing.lines.find((l) => l.id === from[0])?.file ?? "", label, [`The lines drawn on the sketch close round ${list(ids(best.r))}, the largest outline they make.`]);
+      const fromAgreed = merged && rings === agreedRings;
+      lot = lotProposal(best.r, from, drawing.lines.find((l) => l.id === from[0])?.file ?? "", label, [
+        fromAgreed
+          ? `The lines at least two reads of the sketch drew close round ${list(ids(best.r))}, the largest outline they make.`
+          : `The lines drawn on the sketch close round ${list(ids(best.r))}, the largest outline they make.`,
+      ]);
       const lotId = lot.id;
+      // A larger outline that a line only one read drew would make: said and asked, never taken.
+      const wider = fromAgreed ? everyRing.find((x) => ringKey(x.r.map((p) => p.id)) !== ringKey(best.r.map((p) => p.id)) && x.a > best.a + 0.01) : undefined;
+      if (wider) {
+        const once = lines.filter((l) => !agreed(l) && l.points.some((p) => wider.r.some((q) => q.id === p.id)) && l.points.some((p) => !best.r.some((q) => q.id === p.id)));
+        ask(from, lot.file, `Only one read of the sketch drew ${once.length ? `the line through ${once.map((l) => list(ids(l.points))).join("; ")}` : "a line"}, which would make the lot ${list(ids(wider.r))}, ${wider.a.toFixed(2)} m², instead.`, [
+          "The lot is drawn from the lines the reads agree on. Check the sketch, and correct the lot on the Lots step if it's the other outline.",
+        ], { item: lotId, answeredBy: "confirm" });
+      }
       if (rings.length > 1 && rings[1]!.a > best.a * 0.8)
         ask(from, lot.file, `The sketch's lines close round more than one outline of a similar size: the largest was taken for the lot.`, [`The next is through ${list(ids(rings[1]!.r))}, ${m(rings[1]!.a).replace(" m", " m²")}.`], { item: lotId, answeredBy: "confirm" });
       // Lines across the outline that close a smaller one inside it: the outline may hold a neighbour's land, or more than one lot.
@@ -920,7 +982,41 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
         );
     if (lot.evidence.some((e) => e.includes("may be misread"))) lot.level = "check";
   }
-  return { proposals, questions, matches };
+  // ---- Square corners without numbers (stage 262, ADR 0270): squared to the longest surveyed line at either of their points, as a
+  // surveyor squares an outline off the wall it stands against. Without one, the line stays straight between them, and that's asked.
+  const corners: SquareCornerProposal[] = [];
+  if (squares.length > 0) {
+    const polylines = proposals.flatMap((p): SurveyPoint[][] =>
+      p.kind === "lot" ? [[...p.corners, p.corners[0]!]] : p.kind === "building" ? [[...p.points, p.points[0]!]] : p.kind === "line" ? [p.closed ? [...p.points, p.points[0]!] : p.points] : p.kind === "road" ? [p.edgeA, p.edgeB] : [],
+    );
+    for (const s of squares) {
+      const cid = cornerId(s.a.id, s.b.id);
+      const existing = corners.find((c) => c.id === cid);
+      if (existing) {
+        if (!existing.sketch.includes(s.line.id)) existing.sketch.push(s.line.id);
+        continue;
+      }
+      const ref = squareReference(s.a, s.b, polylines);
+      if (!ref) {
+        ask([s.line.id], s.line.file, `A corner drawn square between ${s.a.pointId} and ${s.b.pointId} wasn't surveyed, and no surveyed line at either point shows which way it's square, so it's drawn straight between them.`, ["Survey the corner, or add it in the editor."]);
+        continue;
+      }
+      corners.push({ id: cid, kind: "square", ...ref, between: [s.a.id, s.b.id], sketch: [s.line.id], file: s.line.file });
+    }
+    // A lot's corners are surveyed: where the lot runs straight between two of its corners that the sketch joins round a square corner,
+    // its area leaves that corner's land out. Asked, never guessed.
+    const lotP = proposals.find((p): p is LotProposal => p.kind === "lot");
+    if (lotP) {
+      const ring = lotP.corners.map((p) => p.id);
+      for (const s of squares) {
+        const i = ring.indexOf(s.a.id);
+        const j = ring.indexOf(s.b.id);
+        if (i < 0 || j < 0 || (Math.abs(i - j) !== 1 && Math.abs(i - j) !== ring.length - 1)) continue;
+        ask([s.line.id], s.line.file, `The sketch turns a square corner that wasn't surveyed between ${s.a.pointId} and ${s.b.pointId}, where the lot runs straight between its corners: the lot's area leaves that corner's land out.`, ["A lot's corners are surveyed points: survey the corner, or confirm the lot as drawn on the Lots step."], { item: lotP.id, answeredBy: "confirm" });
+      }
+    }
+  }
+  return { proposals, ...(corners.length > 0 ? { corners } : {}), questions, matches };
 
   /**
    * The one area the sketch's lines close round that holds an area's label where it's written on the photo, and every corner the area

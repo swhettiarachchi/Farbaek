@@ -64,6 +64,10 @@ const SETTING_LABELS: Record<keyof DrawingSettings, string> = {
   slant: "Slanted lettering",
   faceDimensions: "Bearings and distances on the face",
   crowdedLegsToSchedule: "Crowded legs left to the schedule",
+  noCornerCircles: "Corners drawn without circles",
+  noLotLetters: "Lot letters left off the drawing",
+  wallTicks: "Walls lettered small with a tick",
+  thinBoundary: "Lot boundaries drawn thin",
   deedExtentOnFace: "The deed's extent on the face",
 };
 
@@ -99,7 +103,9 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   const out: Change[] = [];
   const add = (area: ChangeArea, text: string) => out.push({ area, text });
   const numbers = new Map(points.map((p) => [p.id, p.pointId]));
-  const ring = (ids: readonly string[]) => ids.map((id) => numbers.get(id) ?? "?").join(" ");
+  // A constructed square corner (ADR 0270) reads as the word the editor and the sketch reader write for it.
+  const corners = new Set([...(before.constructed ?? []), ...(after.constructed ?? [])].map((c) => c.id));
+  const ring = (ids: readonly string[]) => ids.map((id) => numbers.get(id) ?? (corners.has(id) ? "corner" : "?")).join(" ");
 
   // Lots, roads and adjoining lands are matched by id, then by name: a redraft that renumbers ids still reads as the same lot.
   const lotTitle = (l: SurveyDocument["lots"][number]) => lotName(l) || "without a label";
@@ -167,6 +173,18 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   const db = dashedOf(before);
   const redashed = [...dashedOf(after)].filter(([id, d]) => db.has(id) && db.get(id) !== d).length;
   if (redashed > 0) add("Lines and outlines", `${redashed} ${redashed === 1 ? "line is" : "lines are"} drawn dashed now, or no longer.`);
+  const onOf = (doc: SurveyDocument) => new Map(doc.features.map((f) => [f.id, f.runsOn ?? ""]));
+  const ob = onOf(before);
+  const rerun = [...onOf(after)].filter(([id, r]) => ob.has(id) && ob.get(id) !== r).length;
+  const recipe = (d: SurveyDocument) => new Map((d.constructed ?? []).map((c) => [c.id, [c.from, c.to, ...c.ref].join("|")]));
+  const [rb, ra] = [recipe(before), recipe(after)];
+  const cornersAdded = [...ra.keys()].filter((k) => !rb.has(k)).length;
+  const cornersGone = [...rb.keys()].filter((k) => !ra.has(k)).length;
+  const cornersSquared = [...ra].filter(([k, r]) => rb.has(k) && rb.get(k) !== r).length;
+  if (cornersAdded > 0) add("Lines and outlines", cornersAdded === 1 ? "A square corner that wasn't surveyed was added." : `${cornersAdded} square corners that weren't surveyed were added.`);
+  if (cornersGone > 0) add("Lines and outlines", cornersGone === 1 ? "A square corner that wasn't surveyed was taken out." : `${cornersGone} square corners that weren't surveyed were taken out.`);
+  if (cornersSquared > 0) add("Lines and outlines", cornersSquared === 1 ? "A square corner is worked out from other points now." : `${cornersSquared} square corners are worked out from other points now.`);
+  if (rerun > 0) add("Lines and outlines", `${rerun} ${rerun === 1 ? "line is" : "lines are"} drawn on past ${rerun === 1 ? "its" : "their"} ends differently.`);
 
   // Words on the plan and symbols given to points (stage 255).
   const placeOf = (x: NonNullable<SurveyDocument["texts"]>[number]) => (x.along ? `along ${ring([x.at])} to ${ring([x.along])}` : `beside ${ring([x.at])}`);
@@ -201,7 +219,7 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   // Sheet settings and presentation.
   for (const key of Object.keys(SETTING_LABELS) as (keyof DrawingSettings)[]) {
     // A setting left out of a document is off: "crowded legs to the schedule" and "the deed's extent on the face" are absent until chosen.
-    const optional = key === "crowdedLegsToSchedule" || key === "deedExtentOnFace";
+    const optional = key === "crowdedLegsToSchedule" || key === "deedExtentOnFace" || key === "noCornerCircles" || key === "noLotLetters" || key === "wallTicks" || key === "thinBoundary";
     const a = optional ? (before.settings[key] ?? false) : before.settings[key];
     const b = optional ? (after.settings[key] ?? false) : after.settings[key];
     if (a !== b) add("Sheet", key === "scale" ? `Scale changed from ${a ? `1:${a}` : "automatic"} to ${b ? `1:${b}` : "automatic"}.` : changed(SETTING_LABELS[key], a, b));

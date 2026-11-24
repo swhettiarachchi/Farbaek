@@ -13,7 +13,7 @@ import { BEARING_CONVENTION, formatDms, toDms } from "../angles";
 import { codeOf, codesAreCommonList, lookupCode } from "../codes";
 import type { CrsRecord } from "../crs";
 import { deedExtentFace, entireAreaM2 } from "../deed-extent";
-import { PAPER_SIZES, lotName, usedPointIds, type PaperSize, type SurveyDocument } from "../document";
+import { PAPER_SIZES, drawnPointIds, lotName, type PaperSize, type SurveyDocument } from "../document";
 import { densify } from "../arcs";
 import { bounds, type Point } from "../geometry";
 import type { PlanLots } from "../lots";
@@ -92,7 +92,7 @@ export const orBlank = (s: string) => (s.trim() ? s.trim() : BLANK);
 
 /** The model points the plan shows. */
 export function drawnPoints(doc: SurveyDocument, byId: Map<string, SurveyPoint>): SurveyPoint[] {
-  return [...usedPointIds(doc)].map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
+  return [...drawnPointIds(doc)].map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
 }
 
 /** Everything the drawing reaches: its points, and where a curve bulges past them (ADR 0247), for the scale and the fit. */
@@ -118,6 +118,20 @@ export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: 
     const outside = [...new Set([...(frame.ctx?.outside ?? []), ...off.map((t) => t.text)])];
     if (outside.length > 0) {
       findings.push({ code: "TEXT_OFF_SHEET", severity: "error", message: "Some text runs past the sheet's border, so it would be cut off.", target: { kind: "sheet" }, detail: outside.slice(0, 4).map((t) => `"${t.slice(0, 40)}"`).join(", "), action: "Shorten it, choose a larger sheet or scale, or drag the label inside the border.", blocks: ["export"] });
+    }
+    // Lines drawn as the boundary they run along (stage 261, ADR 0269): said, so nothing is hidden by it.
+    const joined = frame.ctx?.joined ?? [];
+    if (joined.length > 0) {
+      const most = Math.max(...joined.map((j) => j.offM));
+      findings.push({
+        code: "LINES_DRAWN_AS_BOUNDARY",
+        severity: "information",
+        message: `${joined.length === 1 ? "A line runs" : `${joined.length} lines run`} along the lot's boundary, within a wall's thickness of it, so the boundary is drawn for ${joined.length === 1 ? "it" : "them"} on the sheet.`,
+        target: { kind: "sheet" },
+        detail: joined.slice(0, 6).map((j) => j.what).join(", ") + (joined.length > 6 ? ", and more" : "") + `. The farthest point lies ${most.toFixed(2)} m from the boundary.`,
+        action: "Nothing to do when these walls are the boundary. The exported drawing keeps every line as surveyed.",
+        blocks: [],
+      });
     }
     if (frame.ctx && frame.ctx.cramped.length > 0) {
       findings.push({ code: "LOT_LABEL_CRAMPED", severity: "warning", message: `The label of lot ${frame.ctx.cramped.join(", lot ")} is bigger than the lot${scale ? ` at 1:${scale}` : ""}.`, target: { kind: "sheet" }, action: "It's written at the lot's widest point. Check it reads clearly, or choose a larger scale.", blocks: [] });
@@ -375,9 +389,9 @@ function composePanel(input: ComposeInput): ComposedSheet {
       drawRoads(ctx, doc.roads);
       drawFeatures(ctx, first ? atPage(ctx, first.labelAt) : null);
       drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: doc.sheet.extractOf || null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals, scheduled: input.scheduledLegs?.keys });
-      drawCorners(ctx, input.lots, { numbers: true, circles: true });
+      drawCorners(ctx, input.lots, { numbers: true, circles: doc.settings.noCornerCircles !== true });
       drawLoosePoints(ctx, input.points, input.lots);
-      drawLotLabels(ctx, input.lots, { extentUnder: input.lots.lots.length === 1 ? (a) => formatArp(toArp(a, doc.settings.perchDecimals)) : null, highlight: doc.sheet.extractOf || null });
+      if (doc.settings.noLotLetters !== true) drawLotLabels(ctx, input.lots, { extentUnder: input.lots.lots.length === 1 ? (a) => formatArp(toArp(a, doc.settings.perchDecimals)) : null, highlight: doc.sheet.extractOf || null });
       drawAdjoining(ctx, doc.adjoining, input.lots);
       drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
       drawSimpleNorth(ctx, viewport.x + viewport.w - 10, viewport.y + 12, input.crs?.kind === "local");

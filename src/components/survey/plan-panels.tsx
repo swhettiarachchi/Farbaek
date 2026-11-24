@@ -235,6 +235,24 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
               else delete d.settings.deedExtentOnFace;
             })
           : null}
+        {/* ADR 0267: both are on unless turned off; off is stored, on removes the setting, so a plan that never changes them is as before. */}
+        {check("Circles at the lots' corners", st.noCornerCircles !== true, (d, v) => {
+          if (v) delete d.settings.noCornerCircles;
+          else d.settings.noCornerCircles = true;
+        })}
+        {check("Lot letters on the drawing", st.noLotLetters !== true, (d, v) => {
+          if (v) delete d.settings.noLotLetters;
+          else d.settings.noLotLetters = true;
+        })}
+        {/* ADR 0269: as some practising surveyors draft: off unless chosen, stored only when on. */}
+        {check("Walls' codes lettered small, with a tick across the wall", st.wallTicks === true, (d, v) => {
+          if (v) d.settings.wallTicks = true;
+          else delete d.settings.wallTicks;
+        })}
+        {check("Lot boundaries drawn as thin as the other lines", st.thinBoundary === true, (d, v) => {
+          if (v) d.settings.thinBoundary = true;
+          else delete d.settings.thinBoundary;
+        })}
         {check("Development permit box (UDA areas, panel layout)", st.permitBox, (d, v) => void (d.settings.permitBox = v))}
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Extract of one lot</span>

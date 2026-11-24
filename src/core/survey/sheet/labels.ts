@@ -60,6 +60,11 @@ export interface LabelRequest {
   chosen: number;
   /** Kept where the first pass put it: moved by hand, or with only one place to go. */
   pinned: boolean;
+  /**
+   * The order its candidates are preferred in, by their numbers (stage 261), when it isn't the order they're numbered in. The numbers
+   * stay fixed, since a dragged label's saved place counts in them; a better place for a label is added at the end and preferred here.
+   */
+  order?: readonly number[];
 }
 
 /** One label's solved candidate, matched to its request by order and key. */
@@ -153,27 +158,41 @@ export class Placer {
    * Which of a label's candidates to draw. On the second pass, the solved one. On the first, the first admissible candidate that
    * covers nothing; when none is free, `fallback`, or else the first admissible one.
    */
-  choose(key: string, candidates: Quad[][], opts: { admissible?: readonly boolean[]; pinned?: boolean; fallback?: number; slot?: number | null; shift?: (q: Quad, k: number) => Quad } = {}): number {
+  choose(key: string, candidates: Quad[][], opts: { admissible?: readonly boolean[]; pinned?: boolean; fallback?: number; slot?: number | null; shift?: (q: Quad, k: number) => Quad; order?: readonly number[] } = {}): number {
     const admissible = candidates.map((_, i) => opts.admissible?.[i] ?? true);
     const planned = this.plan?.[this.requests.length];
     const slot = opts.slot ?? -1;
+    const order = preference(candidates.length, opts.order);
     let i: number;
     if (planned && planned.key === key && planned.index >= 0 && planned.index < candidates.length) i = planned.index;
     // A label the surveyor dragged stays at the place the drag was measured from.
     else if (slot >= 0 && slot < candidates.length && admissible[slot]) i = slot;
     else {
-      i = candidates.findIndex((c, k) => admissible[k] && c.every((q) => this.free(q)));
-      if (i < 0) i = opts.fallback ?? admissible.indexOf(true);
+      i = order.find((k) => admissible[k] && candidates[k]!.every((q) => this.free(q))) ?? -1;
+      if (i < 0) i = opts.fallback ?? order.find((k) => admissible[k]) ?? -1;
       if (i < 0) i = 0;
     }
     // Where the text is drawn, with the surveyor's offsets: what other labels must avoid. The place itself is chosen without them, so a
     // drag never changes which place it's measured from.
     const shapes = opts.shift ? candidates.map((c) => c.map((q, k) => opts.shift!(q, k))) : candidates;
-    this.requests.push({ key, candidates: shapes, admissible, chosen: i, pinned: Boolean(opts.pinned) || candidates.length < 2 });
+    this.requests.push({ key, candidates: shapes, admissible, chosen: i, pinned: Boolean(opts.pinned) || candidates.length < 2, ...(opts.order ? { order } : {}) });
     // A placed label is something the next one must not cover; the solver tells placed labels from fixed things by the requests.
     for (const q of shapes[i]!) this.filed.insert(boxOf(q), { q, b: boxOf(q) });
     return i;
   }
+}
+
+/** Candidate numbers in the order they're preferred: `order` as given, then any it leaves out, in number order; numbers out of range dropped. */
+function preference(n: number, order: readonly number[] | undefined): number[] {
+  if (!order) return Array.from({ length: n }, (_, k) => k);
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const k of [...order, ...Array.from({ length: n }, (_, j) => j)]) {
+    if (!Number.isInteger(k) || k < 0 || k >= n || seen.has(k)) continue;
+    seen.add(k);
+    out.push(k);
+  }
+  return out;
 }
 
 const union = (bs: readonly Box[]): Box => bs.reduce((u, b) => ({ x0: Math.min(u.x0, b.x0), y0: Math.min(u.y0, b.y0), x1: Math.max(u.x1, b.x1), y1: Math.max(u.y1, b.y1) }), { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity });
@@ -203,11 +222,18 @@ export function solveLabels(p: Placer): Solved | null {
   const bounds = p.bounds;
   const outside = (b: Box) => Boolean(bounds) && (b.x0 < bounds![0] || b.y0 < bounds![1] || b.x1 > bounds![2] || b.y1 > bounds![3]);
 
+  // Each candidate's rank: its place in the label's preference, from 0 (first) to 1 (last).
+  const ranks: number[][] = R.map((r) => {
+    const n = r.candidates.length;
+    const pos = new Array<number>(n).fill(0);
+    preference(n, r.order).forEach((k, at) => (pos[k] = n > 1 ? at / (n - 1) : 0));
+    return pos;
+  });
   // Each candidate's own cost: its rank, what fixed it covers, and whether it leaves the bounds. Inadmissible ones can't be chosen.
   const own: number[][] = R.map((r, ri) =>
     cands[ri]!.map((c, i) => {
       if (!r.admissible[i]) return Infinity;
-      let cost = r.candidates.length > 1 ? i / (r.candidates.length - 1) : 0;
+      let cost = ranks[ri]![i]!;
       for (const s of c) {
         for (const o of obstacles.near(s.b)) if (meet(s.b, o.b) && quadsOverlap(s.q, o.q)) cost += o.q.length === 2 ? LABEL_COST.line : LABEL_COST.thing;
         if (outside(s.b)) cost += LABEL_COST.outside;
@@ -246,7 +272,7 @@ export function solveLabels(p: Placer): Solved | null {
     for (const rj of near[ri]!) if (rj !== skip && hits(ri, i, rj, assign[rj]!)) c += LABEL_COST.label;
     return c;
   };
-  const rank = (ri: number, i: number) => (R[ri]!.candidates.length > 1 ? i / (R[ri]!.candidates.length - 1) : 0);
+  const rank = (ri: number, i: number) => ranks[ri]![i]!;
   const meeting = () => {
     let n = 0;
     for (let ri = 0; ri < R.length; ri++) for (const rj of near[ri]!) if (rj > ri && hits(ri, assign[ri]!, rj, assign[rj]!)) n++;

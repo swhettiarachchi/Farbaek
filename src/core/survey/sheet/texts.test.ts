@@ -24,7 +24,7 @@ const plan = (d: SurveyDocument) => buildPlan({ points: POINTS, document: d, crs
 const texts = (d: SurveyDocument) => plan(d).sheet.pages[0]!.items.filter((i) => i.kind === "text" && i.entity?.startsWith("text:"));
 
 describe("words on the plan", () => {
-  it("are written along the line between two points, turned with it and outside the lot, or level beside one point", () => {
+  it("are written along the line between two points, turned with it and outside the lot (a gate inside, at its opening), or level beside one point", () => {
     const d = doc((x) => void (x.texts = [{ id: "t1", text: "Gate", at: id("3"), along: id("4") }, { id: "t2", text: "Proposed Drain", at: id("5") }, { id: "t3", text: "Drain", at: id("2"), along: id("3") }]));
     expect(surveyDocumentSchema.safeParse(d).success).toBe(true);
     const [gate, drain, east] = texts(d);
@@ -32,10 +32,11 @@ describe("words on the plan", () => {
     expect(drain).toMatchObject({ text: "Proposed Drain", rotate: 0, entity: "text:t2" });
     // Side 2 to 3 runs up the page: the words are turned a quarter round to read along it.
     expect(east?.kind === "text" && Math.abs(east.rotate)).toBe(90);
-    // Outside the lot: above the north side (3 to 4) on the page, and right of the east side (2 to 3).
+    // A gate is the lot's own (stage 261, ADR 0269): inside, below the north side (3 to 4) on the page. Other words go outside: right
+    // of the east side (2 to 3).
     const corner = (n: string) => plan(d).sheet.pages[0]!.items.find((i) => i.kind === "circle" && i.entity === `pt:${id(n)}`);
     const [c3, c2] = [corner("3"), corner("2")];
-    expect(gate?.kind === "text" && c3?.kind === "circle" && gate.y < c3.cy).toBe(true);
+    expect(gate?.kind === "text" && c3?.kind === "circle" && gate.y > c3.cy).toBe(true);
     expect(east?.kind === "text" && c2?.kind === "circle" && east.x > c2.cx).toBe(true);
   });
 

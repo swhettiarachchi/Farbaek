@@ -52,6 +52,8 @@ export interface DrawCtx {
   cramped: string[];
   /** Texts that found no place inside the bounds, for the checks. */
   outside: string[];
+  /** Lines drawn as the lot boundary they run along (stage 261), for the checks: what, and how far its points lie from the boundary. */
+  joined?: { what: string; offM: number }[];
 }
 
 export const visible = (doc: SurveyDocument, l: LayerId) => doc.layers[l]?.visible !== false;
@@ -123,6 +125,7 @@ const dashFor = (style: string | undefined): number[] | undefined => (style === 
 /** Lines and outlines through points: walls, fences, drains, buildings. Codes are written beside them. */
 export function drawFeatures(ctx: DrawCtx, inside: [number, number] | null): void {
   const { doc } = ctx;
+  const quiet = carriedOn(ctx);
   for (const f of doc.features) {
     if (!visible(doc, f.layer)) continue;
     const pts = f.points.map((id) => ctx.byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
@@ -131,26 +134,341 @@ export function drawFeatures(ctx: DrawCtx, inside: [number, number] | null): voi
     // Curves (ADR 0247) as chords no more than 0.02 mm of paper from the curve, at the plan's scale.
     // A line missing a point draws no curve: its indexes would point at the wrong points (and the checks stop the plan anyway).
     const page = densify(pts, pts.length === f.points.length ? f.arcs : undefined, (0.02 / 1000) * ctx.v.scale).map((p) => atPage(ctx, p));
-    ctx.out.push({ kind: "path", points: page, closed: f.closed, width: ctx.lines.feature, color: "ink", dash: dashFor(f.dashed ? "dashed" : entry?.line), layer: f.layer, entity: `feature:${f.id}` });
+    const dash = dashFor(f.dashed ? "dashed" : entry?.line);
+    // A wall, fence or building side that runs along a lot's side is that side (stage 261, ADR 0269): the side is drawn once, by the
+    // boundary, and the line only where it leaves it, carried on to the boundary, so two strokes a few centimetres apart never print as
+    // one blurred line. Its code is still written, the drawing keeps every point, and the checks list what was drawn this way.
+    // Only walls, fences and buildings drawn solid: a dashed roof's edge, a drain or a ticked line keeps its own look beside the boundary.
+    const boundaryLike = (f.layer === "WALLS" || f.layer === "FENCES" || f.layer === "BUILDINGS") && !dash;
+    const onLot = boundaryLike && !f.arcs && pts.length === f.points.length && visible(doc, "BOUNDARY") ? alongBoundary(ctx, pts, f.closed) : null;
+    // A leg along the boundary, as the page draws its side: what its code, tick and stub are placed against.
+    const sideOnPage = (i: number): [[number, number], [number, number]] | null => {
+      const s = onLot?.sides[i];
+      return s ? [atPage(ctx, s[0]), atPage(ctx, s[1])] : null;
+    };
+    if (!onLot) ctx.out.push({ kind: "path", points: page, closed: f.closed, width: ctx.lines.feature, color: "ink", dash, layer: f.layer, entity: `feature:${f.id}` });
+    else {
+      for (const r of onLot.runs) ctx.out.push({ kind: "path", points: r.map((p) => atPage(ctx, p)), closed: false, width: ctx.lines.feature, color: "ink", dash, layer: f.layer, entity: `feature:${f.id}` });
+      (ctx.joined ??= []).push({ what: featureName(f, pts), offM: onLot.offM });
+    }
     for (let i = 0; i + 1 < page.length; i++) ctx.placer.segment(page[i]!, page[i + 1]!);
-    if (!f.code.trim()) continue;
-    const size = ctx.sizes.label;
+    // Carrying on past an end (stage 261, ADR 0269): a stub along the end leg's direction, a fixed length of paper, never a surveyed one.
+    if (!f.closed && f.runsOn && page.length >= 2) {
+      const stub = (from: [number, number], to: [number, number]) => {
+        const len = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+        const end: [number, number] = [to[0] + ((to[0] - from[0]) / len) * RUN_ON_MM, to[1] + ((to[1] - from[1]) / len) * RUN_ON_MM];
+        ctx.out.push({ kind: "path", points: [to, end], closed: false, width: ctx.lines.feature, color: "ink", dash, layer: f.layer, entity: `feature:${f.id}` });
+        ctx.placer.segment(to, end);
+      };
+      // An end whose leg is drawn as the boundary carries on from the boundary, along it.
+      const s0 = sideOnPage(0);
+      const sN = sideOnPage(page.length - 2);
+      if (f.runsOn === "start" || f.runsOn === "both") stub(s0 ? footOnPage(page[1]!, s0) : page[1]!, s0 ? footOnPage(page[0]!, s0) : page[0]!);
+      if (f.runsOn === "end" || f.runsOn === "both") stub(sN ? footOnPage(page.at(-2)!, sN) : page.at(-2)!, sN ? footOnPage(page.at(-1)!, sN) : page.at(-1)!);
+    }
+    if (!f.code.trim() || quiet.has(f.id)) continue;
+    // The practice of lettering a wall's code small, with a tick across the wall beside it (ADR 0269), when the sheet asks for it.
+    const ticked = doc.settings.wallTicks === true;
+    // Measured on a practising surveyor's plan (ADR 0269): wall codes about 0.6 of the small lettering, beside a tick.
+    // A building's code (P) stays at the small lettering; only a line's code shrinks beside its tick.
+    const size = ticked ? (f.closed ? ctx.sizes.small : ctx.sizes.small * 0.6) : ctx.sizes.label;
     if (f.closed && page.length >= 3) {
       const mx = page.reduce((s, p) => s + p[0], 0) / page.length;
       const my = page.reduce((s, p) => s + p[1], 0) / page.length;
       const t = text(ctx, f.layer, `feature:${f.id}`, mx, my + size * 0.35, f.code, size);
       ctx.placer.add(textQuad(t));
     } else {
-      let k = 0;
-      for (let i = 1; i < page.length - 1; i++) if (Math.hypot(page[i + 1]![0] - page[i]![0], page[i + 1]![1] - page[i]![1]) > Math.hypot(page[k + 1]![0] - page[k]![0], page[k + 1]![1] - page[k]![1])) k = i;
-      const [x1, y1] = page[k]!;
-      const [x2, y2] = page[k + 1]!;
-      const side: [number, number] = inside ? [inside[0] - (x1 + x2) / 2, inside[1] - (y1 + y2) / 2] : [0, -1];
-      const p = besideSegment(x1, y1, x2, y2, side, size);
-      const t = text(ctx, f.layer, `feature:${f.id}`, p.x, p.y, f.code, size, { rotate: p.theta });
-      ctx.placer.add(textQuad(t));
+      // Where the code can go (stage 258, ADR 0266): along the three longest legs, at the middle and a third of the way from each end, on
+      // the lot's side and then the other. The first is where it always went, so a plan whose codes were already clear is unchanged.
+      const legs = page
+        .slice(1)
+        .map((q, i) => ({ i, len: Math.hypot(q[0] - page[i]![0], q[1] - page[i]![1]) }))
+        .sort((a, b) => b.len - a.len)
+        .slice(0, 3);
+      const tries: { x: number; y: number; theta: number }[] = [];
+      const at: { i: number; along: number }[] = [];
+      // The places keep their numbers (a dragged code's saved place counts in them); which is preferred is said apart.
+      const order: number[] = [];
+      for (const { i } of legs) {
+        const [x1, y1] = page[i]!;
+        const [x2, y2] = page[i + 1]!;
+        const toward: [number, number] = inside ? [inside[0] - (x1 + x2) / 2, inside[1] - (y1 + y2) / 2] : [0, -1];
+        const base = tries.length;
+        for (const side of [toward, [-toward[0], -toward[1]] as [number, number]])
+          for (const along of [0.5, 0.3, 0.7]) {
+            tries.push(besideSegment(x1, y1, x2, y2, side, size, along));
+            at.push({ i, along });
+          }
+        // Along a lot's boundary the code goes outside the lot first (stage 261), as plans letter a boundary wall's code; elsewhere on
+        // the lot label's side first, as before. Outside is found from the boundary's own line and the lots' outlines, not the lot
+        // label's place, which an L-shaped lot puts on either side of an arm.
+        const s = sideOnPage(i);
+        const out = s ? outsideOf(ctx, x1, y1, x2, y2, s) : null;
+        const [nx, ny] = [-(y2 - y1), x2 - x1];
+        const flip = out !== null && Math.sign(out[0] * nx + out[1] * ny) !== Math.sign(toward[0] * nx + toward[1] * ny);
+        order.push(...(flip ? [3, 4, 5, 0, 1, 2] : [0, 1, 2, 3, 4, 5]).map((k) => base + k));
+      }
+      const t = placeText(ctx, f.layer, `feature:${f.id}`, f.code, size, tries, order);
+      // The tick: an S across the wall, just before its code along the line, where a wall's code is written with one.
+      if (ticked && entry && /\bwall\b/i.test(entry.meaning) && t.slot !== undefined && at[t.slot]) {
+        const { i, along: placed } = at[t.slot]!;
+        const [x1, y1] = page[i]!;
+        const [x2, y2] = page[i + 1]!;
+        const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+        const [ux, uy] = [(x2 - x1) / len, (y2 - y1) / len];
+        // Just before the code along the line, or just after it when that's too near the leg's end (where another line meets it).
+        const back = textWidth(f.code, size) / 2 + 0.7;
+        const mid = len * placed;
+        const room = (c: number) => Math.min(c, len - c);
+        const c = room(mid - back) >= TICK_CLEAR_MM || room(mid + back) < room(mid - back) ? mid - back : mid + back;
+        // A code the surveyor dragged takes its tick along the line with it.
+        const o = ctx.doc.labelOffsets[`feature:${f.id}`];
+        const shift = o ? o.dx * ux + o.dy * uy : 0;
+        let [cx, cy] = [x1 + ux * (c + shift), y1 + uy * (c + shift)];
+        // On a leg drawn as the boundary, the tick crosses the boundary's line, where the wall is drawn.
+        const s = sideOnPage(i);
+        if (s) [cx, cy] = footOnPage([cx, cy], s);
+        const tick = wallTick(cx, cy, ux, uy, size);
+        ctx.out.push({ kind: "path", points: tick, closed: false, width: ctx.lines.thin, color: "ink", layer: f.layer, entity: `feature:${f.id}` });
+        ctx.placer.segment(tick[0]!, tick.at(-1)!);
+      }
     }
   }
+}
+
+/**
+ * One text at the first of its places that covers nothing (stage 258, ADR 0266), as the label solver chooses; one the surveyor dragged
+ * stays measured from the place it was dragged from, and an older drag without its place from the first, where it was drawn before.
+ */
+export function placeText(ctx: DrawCtx, layer: SceneLayer, entity: string, value: string, size: number, tries: readonly { x: number; y: number; theta: number }[], order?: readonly number[]): SceneText {
+  return placeLines(ctx, layer, entity, [value], size, tries, order)[0]!;
+}
+
+/**
+ * Several lines of one label placed together (stage 261): each place is the first line's, the others below it as the text is turned,
+ * and the first place where every line covers nothing is taken.
+ */
+export function placeLines(ctx: DrawCtx, layer: SceneLayer, entity: string, values: readonly string[], size: number, tries: readonly { x: number; y: number; theta: number }[], order?: readonly number[]): SceneText[] {
+  const at = (c: { x: number; y: number; theta: number }) => {
+    const rad = (c.theta * Math.PI) / 180;
+    const [dx, dy] = [-Math.sin(rad), Math.cos(rad)];
+    return values.map((value, i) => ({ value, x: c.x + dx * i * size * 1.25, y: c.y + dy * i * size * 1.25, theta: c.theta }));
+  };
+  const quads = (c: { x: number; y: number; theta: number }) =>
+    at(c).map((l) => textQuad({ kind: "text", x: l.x, y: l.y, text: l.value, size, rotate: l.theta, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer, entity, ...(ctx.slant ? { slant: ctx.slant } : {}) }));
+  const m = moved(ctx, [entity]);
+  const k = ctx.placer.choose(entity, tries.map(quads), { fallback: order?.[0] ?? 0, pinned: m.pinned, slot: m.slot ?? (m.pinned ? 0 : null), ...(m.shift ? { shift: m.shift } : {}), ...(order ? { order } : {}) });
+  return at(tries[k]!).map((l) => text(ctx, layer, entity, l.x, l.y, l.value, size, { rotate: l.theta, slot: k }));
+}
+
+/**
+ * An adjoining land's words in lines, as plans letter them (stage 261, ADR 0269): "Land claimed by" on one line and whose it is on the
+ * next, when the whole is longer than a short label; any other words wrapped to the usual width.
+ */
+export function adjoiningLines(value: string, size: number): string[] {
+  const m = /^((?:lands?|property|premises)\s+(?:claimed\s+by|of|owned\s+by|belonging\s+to)|claimed\s+by)\s+(.+)$/i.exec(value.trim());
+  if (m && textWidth(value.trim(), size) > 16) return [m[1]!, ...wrap(m[2]!, size, 46)];
+  return wrap(value, size, 46);
+}
+
+/** How near a line's points must lie to a lot's side to be drawn as it: a 225 mm wall's thickness, and a little over (stage 261). */
+export const ALONG_BOUNDARY_M = 0.25;
+
+/** How far from a leg's end a wall's tick stays, in millimetres of paper, so it never sits where another line meets it. */
+const TICK_CLEAR_MM = 1.2;
+
+type Ground = { e: number; n: number };
+
+/** The sides of the lots drawn heavy: every lot's, or only the extract's when the sheet is an extract of one. */
+function lotSides(ctx: DrawCtx): [SurveyPoint, SurveyPoint][] {
+  const ex = ctx.doc.sheet.extractOf;
+  const only = ex && ctx.doc.lots.some((l) => l.id === ex) ? ex : null;
+  return ctx.doc.lots
+    .filter((l) => !only || l.id === only)
+    .flatMap((l) => {
+      const ring = l.points.map((id) => ctx.byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
+      // A lot missing a point isn't drawn (the checks stop it), so none of its sides stands for a line.
+      return ring.length >= 3 && ring.length === l.points.length ? ring.map((p, i) => [p, ring[(i + 1) % ring.length]!] as [SurveyPoint, SurveyPoint]) : [];
+    });
+}
+
+/** The foot of a page point on the line through a and b, on the page. */
+function footOnPage(p: [number, number], [a, b]: readonly [[number, number], [number, number]]): [number, number] {
+  const len2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 || 1;
+  const t = ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / len2;
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+
+/** How far a point lies from a side's straight line, when it falls between the side's corners (or a centimetre past them); else null. */
+function offSide(p: Ground, [a, b]: readonly [Ground, Ground]): number | null {
+  const len2 = (b.e - a.e) ** 2 + (b.n - a.n) ** 2;
+  if (len2 === 0) return null;
+  const len = Math.sqrt(len2);
+  const t = ((p.e - a.e) * (b.e - a.e) + (p.n - a.n) * (b.n - a.n)) / len2;
+  if (t * len < -0.01 || (t - 1) * len > 0.01) return null;
+  return Math.abs((b.e - a.e) * (p.n - a.n) - (b.n - a.n) * (p.e - a.e)) / len;
+}
+
+/** Where the line through p and q, carried on, meets a side's line; null when they're parallel. */
+function meetSide(p: Ground, q: Ground, [a, b]: readonly [Ground, Ground]): Ground | null {
+  const [dx, dy] = [q.e - p.e, q.n - p.n];
+  const [sx, sy] = [b.e - a.e, b.n - a.n];
+  const den = dx * sy - dy * sx;
+  if (Math.abs(den) < 1e-9 * Math.hypot(dx, dy) * Math.hypot(sx, sy)) return null;
+  const t = ((a.e - p.e) * sy - (a.n - p.n) * sx) / den;
+  return { e: p.e + dx * t, n: p.n + dy * t };
+}
+
+/** The foot of p on a side's line. */
+function footOn(p: Ground, [a, b]: readonly [Ground, Ground]): Ground {
+  const len2 = (b.e - a.e) ** 2 + (b.n - a.n) ** 2 || 1;
+  const t = ((p.e - a.e) * (b.e - a.e) + (p.n - a.n) * (b.n - a.n)) / len2;
+  return { e: a.e + (b.e - a.e) * t, n: a.n + (b.n - a.n) * t };
+}
+
+/**
+ * A line's legs that run along a lot's side (both ends within ALONG_BOUNDARY_M of it, between its corners), and the runs left to draw:
+ * the other legs in order, each carried on to the boundary where it leaves it, to where its leg's line meets the side (or the foot of
+ * its point, when that's nearer than half a metre's carrying on). Null when no leg runs along a side. Ground coordinates.
+ */
+export function alongBoundary(ctx: DrawCtx, pts: readonly SurveyPoint[], closed: boolean): { legs: boolean[]; sides: ([SurveyPoint, SurveyPoint] | null)[]; runs: Ground[][]; offM: number } | null {
+  const sides = lotSides(ctx);
+  if (sides.length === 0 || pts.length < 2) return null;
+  const n = closed ? pts.length : pts.length - 1;
+  let offM = 0;
+  const side = Array.from({ length: n }, (_, i) => {
+    const p = pts[i]!;
+    const q = pts[(i + 1) % pts.length]!;
+    for (const s of sides) {
+      const a = offSide(p, s);
+      const b = offSide(q, s);
+      if (a !== null && b !== null && a <= ALONG_BOUNDARY_M && b <= ALONG_BOUNDARY_M) {
+        offM = Math.max(offM, a, b);
+        return s;
+      }
+    }
+    return null;
+  });
+  if (side.every((s) => s === null)) return null;
+  const runs: Ground[][] = [];
+  // A closed outline is walked from just after a leg along the boundary, so no run is cut where the ring closes.
+  const start = closed ? (side.findIndex((s) => s !== null) + 1) % n : 0;
+  let run: Ground[] = [];
+  const carry = (at: Ground, from: Ground, s: readonly [Ground, Ground]): Ground | null => {
+    const off = offSide(at, s) ?? 0;
+    if (off < 0.005) return null;
+    const m = meetSide(from, at, s);
+    return m && Math.hypot(m.e - at.e, m.n - at.n) <= 0.5 ? m : footOn(at, s);
+  };
+  for (let k = 0; k < n; k++) {
+    const i = (start + k) % n;
+    const p = pts[i]!;
+    const q = pts[(i + 1) % pts.length]!;
+    if (side[i]) {
+      if (run.length >= 2) runs.push(run);
+      run = [];
+      continue;
+    }
+    if (run.length === 0) {
+      const before = closed || i > 0 ? side[(i - 1 + n) % n] : null;
+      const c = before ? carry(p, q, before) : null;
+      if (c) run.push(c);
+      run.push(p);
+    }
+    run.push(q);
+    const after = closed || i + 1 < n ? side[(i + 1) % n] : null;
+    const c = after ? carry(q, p, after) : null;
+    if (c) run.push(c);
+  }
+  if (run.length >= 2) runs.push(run);
+  return { legs: side.map((s) => s !== null), sides: side, runs, offM };
+}
+
+/**
+ * The page direction off a leg (x1, y1)-(x2, y2) that leaves the lots, tested 0.8 mm either side of the leg's middle, or of its foot on
+ * `along` (the boundary's side the leg is drawn as, which a wall a few centimetres inside would otherwise blur at a large scale). Null
+ * when both sides, or neither, are in a lot: then nothing says which side is outside.
+ */
+export function outsideOf(ctx: DrawCtx, x1: number, y1: number, x2: number, y2: number, along?: readonly [[number, number], [number, number]]): [number, number] | null {
+  const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+  const n: [number, number] = [-(y2 - y1) / len, (x2 - x1) / len];
+  const [mx, my] = along ? footOnPage([(x1 + x2) / 2, (y1 + y2) / 2], along) : [(x1 + x2) / 2, (y1 + y2) / 2];
+  const rings = ctx.doc.lots.map((l) => l.points.map((id) => ctx.byId.get(id)).filter((p): p is SurveyPoint => Boolean(p)).map((p) => atPage(ctx, p)));
+  const inLot = (x: number, y: number) => rings.some((r) => r.length >= 3 && insidePage(x, y, r));
+  const plus = inLot(mx + n[0] * 0.8, my + n[1] * 0.8);
+  const minus = inLot(mx - n[0] * 0.8, my - n[1] * 0.8);
+  return plus === minus ? null : plus ? [-n[0], -n[1]] : n;
+}
+
+/** A line named for the checks: its code and its first and last surveyed points ("MW from 5 to 22"). */
+function featureName(f: SurveyDocument["features"][number], pts: readonly SurveyPoint[]): string {
+  const name = f.code.trim() || (f.closed ? "An outline" : "A line");
+  return `${name} ${f.closed ? "through" : "from"} ${pts[0]!.pointId} ${f.closed ? "and" : "to"} ${pts.at(-1)!.pointId}`;
+}
+
+/**
+ * Lines whose code isn't written again: a line that carries straight on from another of the same code, end to end at one point
+ * (within 12°), is one wall on paper, so its code is written once, beside the longest of them (stage 261).
+ */
+function carriedOn(ctx: DrawCtx): Set<string> {
+  const open = ctx.doc.features
+    .filter((f) => !f.closed && f.code.trim() && visible(ctx.doc, f.layer))
+    .map((f) => ({ f, pts: f.points.map((id) => ctx.byId.get(id)).filter((p): p is SurveyPoint => Boolean(p)) }))
+    .filter((x) => x.pts.length >= 2 && x.pts.length === x.f.points.length);
+  const group = new Map(open.map((x) => [x.f.id, x.f.id]));
+  const root = (id: string): string => {
+    let r = id;
+    while (group.get(r) !== r) r = group.get(r)!;
+    return r;
+  };
+  // The direction a line leaves its end point at, looking along it from that end.
+  const leaving = (pts: SurveyPoint[], atStart: boolean): [number, number] => {
+    const [a, b] = atStart ? [pts[0]!, pts[1]!] : [pts.at(-1)!, pts.at(-2)!];
+    const len = Math.hypot(b.e - a.e, b.n - a.n) || 1;
+    return [(b.e - a.e) / len, (b.n - a.n) / len];
+  };
+  for (let x = 0; x < open.length; x++)
+    for (let y = x + 1; y < open.length; y++) {
+      const A = open[x]!;
+      const B = open[y]!;
+      if (A.f.code.trim().toUpperCase() !== B.f.code.trim().toUpperCase()) continue;
+      for (const aStart of [true, false])
+        for (const bStart of [true, false]) {
+          const pa = aStart ? A.f.points[0] : A.f.points.at(-1);
+          const pb = bStart ? B.f.points[0] : B.f.points.at(-1);
+          if (pa !== pb) continue;
+          const [ux, uy] = leaving(A.pts, aStart);
+          const [vx, vy] = leaving(B.pts, bStart);
+          // Straight on: the two leave the shared point in opposite directions.
+          if (ux * vx + uy * vy <= -Math.cos((12 * Math.PI) / 180)) group.set(root(A.f.id), root(B.f.id));
+        }
+    }
+  const length = (pts: SurveyPoint[]) => pts.slice(1).reduce((s, q, i) => s + Math.hypot(q.e - pts[i]!.e, q.n - pts[i]!.n), 0);
+  const longest = new Map<string, { id: string; len: number }>();
+  for (const x of open) {
+    const r = root(x.f.id);
+    const len = length(x.pts);
+    const best = longest.get(r);
+    if (!best || len > best.len) longest.set(r, { id: x.f.id, len });
+  }
+  return new Set(open.filter((x) => longest.get(root(x.f.id))!.id !== x.f.id).map((x) => x.f.id));
+}
+
+/** How far a line that carries on past its end is drawn on, in millimetres of paper (stage 261). */
+export const RUN_ON_MM = 5;
+
+/** An S across a line at (cx, cy) running along (ux, uy): the tick some surveyors draw beside a wall's code. */
+export function wallTick(cx: number, cy: number, ux: number, uy: number, size: number): [number, number][] {
+  const [nx, ny] = [-uy, ux];
+  // About a fifth taller than the code's capitals, as measured on a practising surveyor's plan.
+  const h = size * 0.5;
+  const w = size * 0.18;
+  return Array.from({ length: 9 }, (_, k) => {
+    const s = k / 8 - 0.5;
+    const across = s * 2 * h;
+    const alongOff = Math.sin(s * 2 * Math.PI) * w;
+    return [cx + nx * across + ux * alongOff, cy + ny * across + uy * alongOff] as [number, number];
+  });
 }
 
 /** Signed page-space area of a ring: positive means the inside is to the left of each leg in page coordinates. */
@@ -184,7 +502,7 @@ export function drawLots(ctx: DrawCtx, lots: PlanLots, opts: { legLabels: boolea
         const k = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
         if (drawn.has(k) && !heavy) continue;
         drawn.add(k);
-        ctx.out.push({ kind: "path", points: [ring[i]!, ring[(i + 1) % ring.length]!], closed: false, width: heavy ? ctx.lines.boundary : ctx.lines.thin, color: heavy ? "ink" : "muted", layer: "BOUNDARY", entity: `lot:${r.lot.id}` });
+        ctx.out.push({ kind: "path", points: [ring[i]!, ring[(i + 1) % ring.length]!], closed: false, width: heavy ? (ctx.doc.settings.thinBoundary === true ? ctx.lines.feature : ctx.lines.boundary) : ctx.lines.thin, color: heavy ? "ink" : "muted", layer: "BOUNDARY", entity: `lot:${r.lot.id}` });
         ctx.placer.segment(ring[i]!, ring[(i + 1) % ring.length]!);
       }
     }
@@ -438,7 +756,8 @@ export function drawLoosePoints(ctx: DrawCtx, points: readonly SurveyPoint[], lo
     const symbol = entry.kind === "symbol";
     const r = symbol ? 1.3 : 0.5;
     ctx.out.push({ kind: "circle", cx: x, cy: y, r, width: ctx.lines.thin, color: "ink", fill: "paper", layer: "BOUNDARY_MARKS", entity: `pt:${p.id}` });
-    if (symbol) {
+    // A well is a circle, as plans draw one (stage 261); other symbols carry a cross inside.
+    if (symbol && !/\bwell\b/i.test(entry.meaning)) {
       ctx.out.push({ kind: "path", points: [[x - r * 0.7, y], [x + r * 0.7, y]], closed: false, width: ctx.lines.thin, color: "ink", layer: "BOUNDARY_MARKS", entity: `pt:${p.id}` });
       ctx.out.push({ kind: "path", points: [[x, y - r * 0.7], [x, y + r * 0.7]], closed: false, width: ctx.lines.thin, color: "ink", layer: "BOUNDARY_MARKS", entity: `pt:${p.id}` });
     }
@@ -448,7 +767,14 @@ export function drawLoosePoints(ctx: DrawCtx, points: readonly SurveyPoint[], lo
     const w = textWidth(value, size);
     // Right, left, above, then below, which is taken when nothing is free.
     const entity = `mark:${p.id}`;
-    const tries = ([[r + 1 + w / 2, size * 0.35], [-(r + 1 + w / 2), size * 0.35], [0, -(r + 1)], [0, r + 1 + size]] as const).map(([dx, dy]) => ({ x: x + dx, y: y + dy }));
+    // Then a ring close round it (stage 261), below first, as a well's name is written just under it: each place's box half a
+    // millimetre off the symbol, at 20° steps either way from straight below. The first four keep their numbers, which a dragged
+    // label's saved place counts in.
+    const ring = [90, 110, 70, 130, 50, 150, 30, 180, 0, 210, 330, 240, 300, 270].map((deg) => {
+      const t = (deg * Math.PI) / 180;
+      return [Math.cos(t) * (r + 0.5 + w / 2), Math.sin(t) * (r + 0.5 + size * 0.4) + size * 0.35] as const;
+    });
+    const tries = ([[r + 1 + w / 2, size * 0.35], [-(r + 1 + w / 2), size * 0.35], [0, -(r + 1)], [0, r + 1 + size], ...ring] as const).map(([dx, dy]) => ({ x: x + dx, y: y + dy }));
     const quad = (t: { x: number; y: number }) => textQuad({ kind: "text", x: t.x, y: t.y, text: value, size, rotate: 0, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer: "BOUNDARY_MARKS", entity, ...(ctx.slant ? { slant: ctx.slant } : {}) });
     const m = moved(ctx, [entity]);
     const k = ctx.placer.choose(entity, tries.map((c) => [quad(c)]), { fallback: 3, pinned: m.pinned, slot: m.slot, ...(m.shift ? { shift: m.shift } : {}) });
@@ -471,24 +797,39 @@ export function drawRoads(ctx: DrawCtx, roads: readonly Road[]): void {
     }
     const centre = roadCentreline(a, b).map((p) => atPage(ctx, p));
     if (centre.length < 2) continue;
-    let k = 0;
-    for (let i = 1; i + 1 < centre.length; i++) if (Math.hypot(centre[i + 1]![0] - centre[i]![0], centre[i + 1]![1] - centre[i]![1]) > Math.hypot(centre[k + 1]![0] - centre[k]![0], centre[k + 1]![1] - centre[k]![1])) k = i;
-    const [x1, y1] = centre[k]!;
-    const [x2, y2] = centre[k + 1]!;
-    const theta = readable((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
-    const mx = (x1 + x2) / 2;
-    const my = (y1 + y2) / 2;
     const width = road.width !== "none" && b.length >= 2 ? roadWidth(a, b) : null;
-    const rad = (theta * Math.PI) / 180;
-    // Name a little above the centreline, width a little below, both along the road.
-    const up: [number, number] = [Math.sin(rad), -Math.cos(rad)];
     const lines = [road.name.trim(), width ? roadWidthText(width.minM, width.maxM, road.width === "metres" ? "metres" : "feet") : ""].filter(Boolean);
-    lines.forEach((value, i) => {
-      const size = i === 0 ? ctx.sizes.label : ctx.sizes.small;
-      const off = lines.length === 2 ? (i === 0 ? 0.3 : -0.3 - size * 0.9) * -1 : -size * 0.35;
-      const t = text(ctx, "ROADS", `road${i ? "-width" : ""}:${road.id}`, mx - up[0] * off, my - up[1] * off, value, size, { rotate: theta });
-      ctx.placer.add(textQuad(t));
+    // Where the name (and the width under it) can go (stage 258, ADR 0266): along the centreline's longest leg at its middle, as before,
+    // then a third of the way from each end, then the middles of the other legs; the first that covers nothing.
+    const order = centre
+      .slice(1)
+      .map((q, i) => ({ i, len: Math.hypot(q[0] - centre[i]![0], q[1] - centre[i]![1]) }))
+      .sort((p, q) => q.len - p.len);
+    const places: { mx: number; my: number; theta: number }[] = [];
+    order.forEach(({ i }, n) => {
+      const [x1, y1] = centre[i]!;
+      const [x2, y2] = centre[i + 1]!;
+      const theta = readable((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
+      for (const along of n === 0 ? [0.5, 0.3, 0.7, 0.15, 0.85] : [0.5]) places.push({ mx: x1 + (x2 - x1) * along, my: y1 + (y2 - y1) * along, theta });
     });
+    const texts = (p: { mx: number; my: number; theta: number }) => {
+      const rad = (p.theta * Math.PI) / 180;
+      // Name a little above the centreline, width a little below, both along the road.
+      const up: [number, number] = [Math.sin(rad), -Math.cos(rad)];
+      return lines.map((value, i) => {
+        const size = i === 0 ? ctx.sizes.label : ctx.sizes.small;
+        const off = lines.length === 2 ? (i === 0 ? 0.3 : -0.3 - size * 0.9) * -1 : -size * 0.35;
+        return { entity: `road${i ? "-width" : ""}:${road.id}`, value, size, x: p.mx - up[0] * off, y: p.my - up[1] * off, theta: p.theta };
+      });
+    };
+    if (lines.length > 0) {
+      const quads = (p: (typeof places)[number]) =>
+        texts(p).map((x) => textQuad({ kind: "text", x: x.x, y: x.y, text: x.value, size: x.size, rotate: x.theta, weight: "regular", anchor: "middle", font: "sans", color: "ink", layer: "ROADS", entity: x.entity, ...(ctx.slant ? { slant: ctx.slant } : {}) }));
+      const entities = texts(places[0]!).map((x) => x.entity);
+      const m = moved(ctx, entities);
+      const k = ctx.placer.choose(`road:${road.id}`, places.map(quads), { fallback: 0, pinned: m.pinned, slot: m.slot ?? (m.pinned ? 0 : null), ...(m.shift ? { shift: m.shift } : {}) });
+      for (const x of texts(places[k]!)) text(ctx, "ROADS", x.entity, x.x, x.y, x.value, x.size, { rotate: x.theta, slot: k });
+    }
     // Direction texts at the ends of the first edge.
     const ends: [string, SurveyPoint | undefined, SurveyPoint | undefined][] = [
       [road.start, a[0], a[1]],
@@ -501,11 +842,13 @@ export function drawRoads(ctx: DrawCtx, roads: readonly Road[]): void {
       const len = Math.hypot(ex - nx, ey - ny) || 1;
       const ux = (ex - nx) / len;
       const uy = (ey - ny) / len;
-      const tx = ex + ux * 6;
-      const ty = ey + uy * 6;
       const th = readable((Math.atan2(uy, ux) * 180) / Math.PI);
-      const t = text(ctx, "ROADS", `road-dir-${i}:${road.id}`, tx, ty, value.trim(), ctx.sizes.small, { rotate: th });
-      ctx.placer.add(textQuad(t));
+      // A long direction ("From the 5th Lane of the main road") in two lines, as plans letter it, rather than one running off the page.
+      const lines = textWidth(value.trim(), ctx.sizes.small) > 30 ? wrap(value.trim(), ctx.sizes.small, 30) : [value.trim()];
+      const w = Math.max(...lines.map((l) => textWidth(l, ctx.sizes.small)));
+      // Beyond the end, along the road (stage 258): 6 mm out as before, then further, then to either side of the road's line.
+      const tries = ([[6, 0], [6 + w / 2, 0], [6, 1.4], [6, -1.4], [6 + w / 2, 1.4], [6 + w / 2, -1.4]] as const).map(([out, side]) => ({ x: ex + ux * out - uy * side * ctx.sizes.small, y: ey + uy * out + ux * side * ctx.sizes.small, theta: th }));
+      placeLines(ctx, "ROADS", `road-dir-${i}:${road.id}`, lines, ctx.sizes.small, tries);
     });
   }
 }
@@ -535,7 +878,7 @@ export function drawAdjoining(ctx: DrawCtx, adjoining: readonly Adjoining[], lot
     let [nx, ny] = area > 0 ? [(y2 - y1) / len, -(x2 - x1) / len] : [-(y2 - y1) / len, (x2 - x1) / len];
     if (area === 0) [nx, ny] = [0, -1];
     const size = ctx.sizes.small;
-    const lines = wrap(adj.text, size, 46);
+    const lines = adjoiningLines(adj.text, size);
     const w = Math.max(...lines.map((l) => textWidth(l, size)));
     const h = lines.length * size * 1.25;
     const mx = (x1 + x2) / 2;

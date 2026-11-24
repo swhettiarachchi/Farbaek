@@ -5,6 +5,7 @@
  * compliance: a plan is final only when its surveyor approves a version.
  */
 import { fitArc } from "./arcs";
+import { cornerFits, neighbours } from "./construct";
 import { sketchFindings } from "./autosurvey/sketch";
 import { interpretDocument, sketchQuestionFindings } from "./sketchintel/findings";
 import { codeOf, codesAreCommonList, codesAreDsrList, lookupCode } from "./codes";
@@ -228,14 +229,17 @@ export function checkSurvey(input: QcInput): Finding[] {
     add({ code: "CRS_LOCAL", severity: "information", message: "These are local coordinates, not tied to a national grid.", target: { kind: "project" }, action: "Bearings are relative to the site grid's north. Say so on the plan if it is submitted.", blocks: [] });
   }
 
-  if (points.length === 0) {
+  // Constructed corners (ADR 0270) aren't imported points: the counts and the range check are of surveyed points only.
+  const corners = new Set((doc.constructed ?? []).map((c) => c.id));
+  const surveyedOnly = corners.size > 0 ? points.filter((p) => !corners.has(p.id)) : points;
+  if (surveyedOnly.length === 0) {
     add({ code: "NO_POINTS", severity: "error", message: "No points have been imported yet.", target: { kind: "project" }, action: "Import a point file on the Import step.", blocks: ["plan", "export", "approval"] });
   } else if (crs && crs.kind === "projected") {
-    const outside = implausiblePoints(points, crs);
-    if (looksSwapped(points, crs)) {
-      add({ code: "AXES_LOOK_SWAPPED", severity: "error", message: "Eastings and northings look swapped for this coordinate system.", target: { kind: "project" }, detail: `All ${points.length} points fall outside ${crs.name}'s range, and all fall inside it with the two columns swapped.`, action: "Import the file again with the easting and northing columns mapped the other way round.", blocks: ["export", "approval"] });
+    const outside = implausiblePoints(surveyedOnly, crs);
+    if (looksSwapped(surveyedOnly, crs)) {
+      add({ code: "AXES_LOOK_SWAPPED", severity: "error", message: "Eastings and northings look swapped for this coordinate system.", target: { kind: "project" }, detail: `All ${surveyedOnly.length} points fall outside ${crs.name}'s range, and all fall inside it with the two columns swapped.`, action: "Import the file again with the easting and northing columns mapped the other way round.", blocks: ["export", "approval"] });
     } else if (outside > 0) {
-      add({ code: "POINTS_OUT_OF_RANGE", severity: "warning", message: `${outside} of ${points.length} points are outside the usual range of ${crs.name}.`, target: { kind: "project" }, action: "Check the coordinate system and the units (metres, not feet) of the imported file.", blocks: [] });
+      add({ code: "POINTS_OUT_OF_RANGE", severity: "warning", message: `${outside} of ${surveyedOnly.length} points are outside the usual range of ${crs.name}.`, target: { kind: "project" }, action: "Check the coordinate system and the units (metres, not feet) of the imported file.", blocks: [] });
     }
   }
 
@@ -374,6 +378,45 @@ export function checkSurvey(input: QcInput): Finding[] {
         add({ code: "CURVE_DRAWN_STRAIGHT", severity: "warning", message: `A curve on the ${f.code ? `${f.code} line` : "line"} is drawn as straight segments: ${fit.problem}.`, target: { kind: "feature", id: f.id }, action: "Check the points it runs through, or draw the line again from the field codes.", blocks: [] });
       }
     }
+  }
+  // Corners drawn square but never surveyed (stage 262, ADR 0270): worked out from surveyed points, and said, so none is taken for a mark.
+  // One that doesn't stand between the two points it's worked out from would draw the line through the wrong place: it stops the plan.
+  const recipes = new Map((doc.constructed ?? []).map((c) => [c.id, c]));
+  for (const f of doc.features)
+    f.points.forEach((pid, k) => {
+      const c = recipes.get(pid);
+      if (c && !cornerFits(c, neighbours(f.points, f.closed, k)))
+        add({ code: "CONSTRUCTED_CORNER_MISPLACED", severity: "error", message: `A square corner on the ${f.code ? `${f.code} line` : "line"} isn't between the two points it's worked out from.`, target: { kind: "feature", id: f.id }, action: "Type the line's points again on the Plan step, with corner between the two numbers it lies between.", blocks: ["export", "approval"] });
+    });
+  const made = (doc.constructed ?? []).filter((c) => known.has(c.id) && doc.features.some((f) => f.points.includes(c.id)));
+  // A lot runs straight between two of its corners where a line turns a square corner that wasn't surveyed: the lot leaves that land out.
+  for (const c of made)
+    for (const lot of doc.lots) {
+      const i = lot.points.indexOf(c.from);
+      const j = lot.points.indexOf(c.to);
+      if (i < 0 || j < 0 || (Math.abs(i - j) !== 1 && Math.abs(i - j) !== lot.points.length - 1)) continue;
+      add({
+        code: "CONSTRUCTED_CORNER_BY_LOT",
+        severity: "professional_review",
+        message: `Lot ${lotName(lot) || "without a label"} runs straight from ${pointAt.get(c.from)?.pointId ?? "?"} to ${pointAt.get(c.to)?.pointId ?? "?"}, where a line turns a square corner that wasn't surveyed.`,
+        target: { kind: "lot", id: lot.id },
+        detail: "A lot's corners are surveyed points, so its area leaves that corner's land out.",
+        action: "Survey the corner and give it to the lot, or check the lot is right as it runs.",
+        blocks: ["approval"],
+      });
+    }
+  if (made.length > 0) {
+    const num = (id: string) => pointAt.get(id)?.pointId ?? "?";
+    const first = doc.features.find((f) => f.points.includes(made[0]!.id))!;
+    add({
+      code: "CONSTRUCTED_CORNERS",
+      severity: "warning",
+      message: made.length === 1 ? "A corner on the plan wasn't surveyed: it's drawn square from surveyed points." : `${made.length} corners on the plan weren't surveyed: they're drawn square from surveyed points.`,
+      target: { kind: "feature", id: first.id },
+      detail: made.map((c) => `Between ${num(c.from)} and ${num(c.to)}, square to the line ${num(c.ref[0])} to ${num(c.ref[1])}.`).join(" "),
+      action: "Check each against the sketch. Survey the corner if the plan needs it as a mark.",
+      blocks: [],
+    });
   }
   for (const r of doc.roads) {
     if ([...r.edgeA, ...r.edgeB].some((id) => !known.has(id))) {

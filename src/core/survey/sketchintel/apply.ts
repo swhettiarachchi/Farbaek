@@ -4,7 +4,8 @@
  * anything else the AI filled. Nothing already on the plan is replaced: a line the plan already draws through the same points isn't
  * added again, and the sketch's lot is added only to a plan without lots. Positions all come from the survey's points.
  */
-import type { SurveyDocument } from "../document";
+import { insertCorner } from "../construct";
+import { pruneConstructed, type SurveyDocument } from "../document";
 import type { Proposal, SketchInterpretation } from "./interpret";
 
 /**
@@ -78,6 +79,7 @@ export function applySketch(doc: SurveyDocument, interpretation: SketchInterpret
         points: pts,
         ...(p.kind === "line" && p.arcs.length > 0 ? { arcs: p.arcs } : {}),
         ...(p.kind === "line" && p.dashed ? { dashed: true } : {}),
+        ...(p.kind === "line" && p.runsOn ? { runsOn: p.runsOn } : {}),
       });
       mark(`feature:${id}`, p.kind);
     } else if (p.kind === "road") {
@@ -107,7 +109,27 @@ export function applySketch(doc: SurveyDocument, interpretation: SketchInterpret
       mark(`symbol:${id}`, "symbol");
     }
   }
-  return { document: next, added, skipped };
+  // Square corners the sketch draws without a number (stage 262, ADR 0270): put between their two points in each line or outline this
+  // reading added that runs from one to the other (never a curved one, whose curves are counted by point), kept as recipes.
+  const fresh = new Set(added.filter((a) => a.key.startsWith("feature:")).map((a) => a.key.slice("feature:".length)));
+  for (const c of interpretation.corners ?? []) {
+    // A plan holds 200 corners at most: one that can't be kept never goes into a line, where it would name a point with no recipe.
+    const kept = (next.constructed ?? []).some((x) => x.id === c.id);
+    if (!kept && (next.constructed ?? []).length >= 200) {
+      skipped.push(`The square corner between two points wasn't added: the plan holds 200 corners, its most.`);
+      continue;
+    }
+    let used = false;
+    next.features = next.features.map((f) => {
+      if (!fresh.has(f.id) || f.arcs || f.points.includes(c.id) || f.points.length >= 500) return f;
+      const pts = insertCorner(f.points, f.closed, c.between[0], c.between[1], c.id);
+      if (pts.length === f.points.length) return f;
+      used = true;
+      return { ...f, points: pts };
+    });
+    if (used && !kept) next.constructed = [...(next.constructed ?? []), { id: c.id, kind: c.kind, from: c.from, to: c.to, ref: c.ref }];
+  }
+  return { document: pruneConstructed(next), added, skipped };
 }
 
 /**

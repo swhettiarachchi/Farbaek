@@ -16,7 +16,7 @@ import { interpretDocument } from "@/core/survey/sketchintel/findings";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
-import { emptyDocument, provenanceLive, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
+import { emptyDocument, provenanceLive, pruneConstructed, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
 import { itemOf } from "@/core/survey/exceptions";
 import { IMPORT_LIMITS, type ColumnRole, type Delimiter, type ImportIssue } from "@/core/survey/import/delimited";
 import { unreadableFile } from "@/core/survey/import/detect";
@@ -424,14 +424,17 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
   if (!g.ok) return { status: "error", message: g.message };
   const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
   if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
-  const unknown = unknownPoints(doc.data, new Set(data.points.map((p) => p.id)));
-  if (unknown.length > 0) return { status: "error", message: "The plan uses points that aren't in this project. Reload and try again." };
+  // Constructed corners no line uses any more are dropped (ADR 0270); one may never take a surveyed point's id.
+  const pruned = pruneConstructed(doc.data);
+  const known = new Set(data.points.map((p) => p.id));
+  const unknown = unknownPoints(pruned, known);
+  if (unknown.length > 0 || (pruned.constructed ?? []).some((c) => known.has(c.id))) return { status: "error", message: "The plan uses points that aren't in this project. Reload and try again." };
   if (doc.data.surveyorUserId && !data.profiles.some((p) => p.user_id === doc.data.surveyorUserId)) {
     return { status: "error", message: "The chosen surveyor hasn't entered their details in this workspace yet." };
   }
   // What was read from the sketches is only ever written by reading them (readSketchesAction): a plan saved from the browser keeps
   // the stored readings, so none can be made up, changed or removed to clear a difference that holds approval.
-  const next = { ...doc.data, sketch: data.drawing.readable ? data.drawing.document.sketch : null };
+  const next = { ...pruned, sketch: data.drawing.readable ? data.drawing.document.sketch : null };
   // Marks for items no longer on the plan are dropped, so none can hold an approval with nothing to check.
   const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: tidy(pruneProvenance(next), data), note: input.note?.slice(0, 200) ?? null });
   if (!r.ok) return { status: "error", message: r.message };
