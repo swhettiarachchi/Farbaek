@@ -6,7 +6,7 @@ The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, af
 - **Partly built.**
 - **Not built.**
 
-Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-268.md`, and each decision in ADRs 0233 to 0275.
+Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-269.md`, and each decision in ADRs 0233 to 0276.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -131,10 +131,11 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 - Lot subdivision by a dividing line (`partition.ts`).
 - The stated extent read and compared with the computed area.
 - The circle through a curve's surveyed points, its fit (2 cm), chords for the sheet and exact DXF bulges (`arcs.ts`, ADR 0247).
+- Curved lot boundaries: each leg's circular segment in the lot's and the land's area, the length along the arc in the perimeter, the chord, radius and arc on the face and in the schedule, and DXF bulges (`lotcurves.ts`, ADR 0276).
 
 **Not built:**
 - balancing angles before a linear rule, and least squares over networks of more than one traverse;
-- curved lot boundaries and their areas;
+- curves read from PC/PT codes on lot corners (a lot's curves are given on the plan since stage 269);
 - transformations between coordinate systems;
 - earth curvature and refraction on heights. This last one is said wherever heights are worked out.
 
@@ -256,11 +257,12 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #318 | 256 (sketch words) | Merged | none |
 | #319 | 257 to 262 (agreed reads, drafting as surveyors draft, square corners) | Merged | none |
 | #320 | 263 (an independent AI check against the sketch) | Merged, live (build 3a8db8f6ff3e) | none |
-| #321 | 264 (points where two lines meet, tape offsets) | Open | none |
-| #322 | 265 (dimension lines, words with their own size and angle) | Open, on #321 | none |
-| #323 | 266 (leader lines for crowded legs, built as 251 and parked) | Open, on #322 | none |
-| #324 | 267 (least squares, the instrument's precision in the office profile) | Open, on #323 | none |
-| next | 268 (plans over several sheets) | Open, on #324 | none |
+| #321 | 264 (points where two lines meet, tape offsets) | Merged | none |
+| #322 | 265 (dimension lines, words with their own size and angle) | Merged | none |
+| #323 | 266 (leader lines for crowded legs, built as 251 and parked) | Merged | none |
+| #324 | 267 (least squares, the instrument's precision in the office profile) | Merged, live (build b1e70133c482) | none |
+| #325 | 268 (plans over several sheets) | Open | none |
+| next | 269 (curved lot boundaries) | Open, on #325 | none |
 
 Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
@@ -268,7 +270,7 @@ Production deploys main by itself. **v102 and v103 were found missing on 2026-11
 
 **Not built:**
 - **Labels and layout:** overlapping sheets and the DXF's paper space per sheet (plans over several sheets are drawn since stage 268, ADR 0275); leader lines in the DXF (the sheet and PDF have them since stage 266, ADR 0259). Crowded legs can still be left to the schedule (stage 240) where even leaders don't fit.
-- **Codes:** curved lot boundaries (curves are drawn on lines, not lots, since a lot's area would change); a curve's radius and length on the plan; offsets, rectangles and jogs; a firm's own word list.
+- **Codes:** curves on lot corners read from PC/PT codes (curved lot boundaries are given on the plan since stage 269, ADR 0276, with their radius and length along the arc); offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares over networks and with heights; balancing angles first; adjusting a field book's legs.
 - **Profiles:** learning from corrections (suggestions kept apart until approved), CAD layer and text styles, title-block fields other than the statement, plan numbering.
 - **Jobs:** finishing a cut-off sketch read without the browser that started it (since stage 250 the photos stay in that browser until the read is saved, and the project offers to finish it); server-side resumable uploads in chunks; a timer for the jobs sweep. Incremental regeneration is decided, not built (ADR 0258): the plan is worked out again in about 5 ms, and tests hold that a correction changes only what depends on it.

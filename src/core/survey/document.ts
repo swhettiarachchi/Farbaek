@@ -82,6 +82,12 @@ export const lotSchema = z.object({
   sup: text(6),
   points: z.array(pointRef).max(500),
   note: text(80),
+  /**
+   * Runs of its corners that are a circular curve (lotcurves.ts, stage 269, ADR 0276), by index in `points`: from the curve's start
+   * through points on it to its end, which may be the first corner again (index `points.length`). Its area includes the curves.
+   * Absent when it has none, so earlier plans and approvals are unchanged.
+   */
+  arcs: z.array(z.object({ from: z.number().int().min(0).max(499), to: z.number().int().min(0).max(500) })).min(1).max(ARCS_PER_LINE).optional(),
 });
 export type Lot = z.infer<typeof lotSchema>;
 

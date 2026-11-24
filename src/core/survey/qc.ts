@@ -284,6 +284,12 @@ export function checkSurvey(input: QcInput): Finding[] {
       const lb = p.legs[b]!;
       add({ code: "BOUNDARY_SELF_INTERSECTS", severity: "error", message: `${said}The boundary crosses itself, so its area can't be computed.`, target, detail: `The leg ${la.from.pointId}–${la.to.pointId} meets the leg ${lb.from.pointId}–${lb.to.pointId}${p.crossings.length > 1 ? `, and ${p.crossings.length - 1} more pairs cross` : ""}.`, action: "Check the order of the corners.", blocks: ["export", "approval"] });
     }
+    // A run the plan calls a curve that isn't one (ADR 0276) stays straight, and the area is taken inside its straight legs: that isn't
+    // the land the plan says, so it stops the export until the points or the curve are put right.
+    for (const cp of p.curveProblems) {
+      const [ca, cb] = [p.vertices[cp.run.from % p.vertices.length], p.vertices[cp.run.to % p.vertices.length]];
+      add({ code: "LOT_CURVE_NOT_FITTED", severity: "error", message: `${said}The curve${ca && cb ? ` from ${ca.pointId} to ${cb.pointId}` : ""} isn't one, so it's drawn straight and the area is taken inside its straight legs: ${cp.problem}.`, target, action: "Check the points along the curve, or take the curve off the lot.", blocks: ["export", "approval"] });
+    }
   }
 
   // How the lots fit together.

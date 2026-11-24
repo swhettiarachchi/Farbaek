@@ -2,6 +2,7 @@
 
 import { CheckIcon, PencilSimpleIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { cornerBetween, type SquareCorner } from "@/core/survey/construct";
+import { remapRuns, runIds, runOf } from "@/core/survey/lotcurves";
 import { useState } from "react";
 import { LAYER_NAMES } from "@/core/survey/assistant/describe";
 import { FEATURE_LAYERS, type SurveyDocument } from "@/core/survey/document";
@@ -259,8 +260,42 @@ export function SelectionEditor(props: {
             // Words beside a side the lot no longer has would lose their place: said, so they're moved or removed on purpose.
             const sides = new Set(r.ids.map((p, i) => [p, r.ids[(i + 1) % r.ids.length]!].sort().join("|")));
             const lost = doc.adjoining.filter((a) => a.lot === lot.id && !sides.has([a.from, a.to].sort().join("|")));
-            setProblem(lost.length > 0 ? `${lost.map((a) => `"${a.text}"`).join(" and ")} ${lost.length === 1 ? "was" : "were"} beside a side the lot no longer has: move ${lost.length === 1 ? "it" : "them"} on the Lots step.` : null);
-            update((d) => void ((d.lots.find((l) => l.id === lot.id)!.points = r.ids), reviewed(d, key)));
+            // Its curves (ADR 0276) follow their points; one whose points are no longer corners in a row is taken off, and said.
+            const curves = remapRuns(lot.points, r.ids, lot.arcs);
+            const words = lost.length > 0 ? `${lost.map((a) => `"${a.text}"`).join(" and ")} ${lost.length === 1 ? "was" : "were"} beside a side the lot no longer has: move ${lost.length === 1 ? "it" : "them"} on the Lots step.` : "";
+            const bent = curves.dropped > 0 ? `${curves.dropped === 1 ? "A curve" : `${curves.dropped} curves`} no longer ran through corners in a row, so ${curves.dropped === 1 ? "it was" : "they were"} taken off: give ${curves.dropped === 1 ? "it" : "them"} again under Curves.` : "";
+            setProblem([words, bent].filter(Boolean).join(" ") || null);
+            update((d) => {
+              const l = d.lots.find((x) => x.id === lot.id)!;
+              l.points = r.ids;
+              if (curves.runs.length > 0) l.arcs = curves.runs;
+              else delete l.arcs;
+              reviewed(d, key);
+            });
+          }}
+        />
+        <Corners
+          key={`arcs:${lot.points.join()}:${JSON.stringify(lot.arcs ?? [])}`}
+          label="Curves"
+          hint="Each curve's first point, the points on it and its last, as surveyed; a slash between curves (4 5 6 / 9 10 11). The area is taken inside each curve. Empty for straight sides."
+          initial={(lot.arcs ?? []).map((a) => numbersOf(runIds(lot.points, a), points)).join(" / ")}
+          readOnly={readOnly}
+          onApply={(text) => {
+            const runs: { from: number; to: number }[] = [];
+            for (const part of text.split("/").map((s) => s.trim()).filter(Boolean)) {
+              const r = pointsFromNumbers(part, points, lot.points);
+              if ("problem" in r) return setProblem(r.problem);
+              const run = runOf(lot.points, r.ids);
+              if (!run) return setProblem(`${part}: a curve's points are three or more of the lot's corners in a row, in order.`);
+              runs.push(run);
+            }
+            setProblem(null);
+            update((d) => {
+              const l = d.lots.find((x) => x.id === lot.id)!;
+              if (runs.length > 0) l.arcs = runs;
+              else delete l.arcs;
+              reviewed(d, key);
+            }, `lot-arcs:${lot.id}`);
           }}
         />
         {said}

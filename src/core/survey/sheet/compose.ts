@@ -16,6 +16,7 @@ import type { CrsRecord } from "../crs";
 import { deedExtentFace, entireAreaM2 } from "../deed-extent";
 import { PAPER_SIZES, drawnPointIds, lotName, type PaperSize, type SurveyDocument } from "../document";
 import { densify } from "../arcs";
+import { curveOfLeg } from "../lotcurves";
 import { bounds, type Point } from "../geometry";
 import type { PlanLots } from "../lots";
 import type { SurveyPoint } from "../parcel";
@@ -104,6 +105,12 @@ export function drawnExtent(doc: SurveyDocument, byId: Map<string, SurveyPoint>)
     if (!f.arcs) continue;
     const pts = f.points.map((id) => byId.get(id));
     if (pts.every((p): p is SurveyPoint => Boolean(p))) out.push(...densify(pts, f.arcs, 0.05));
+  }
+  // A lot's curves (ADR 0276) reach past its corners too.
+  for (const l of doc.lots) {
+    if (!l.arcs || l.points.length < 3) continue;
+    const pts = l.points.map((id) => byId.get(id));
+    if (pts.every((p): p is SurveyPoint => Boolean(p))) out.push(...densify([...pts, pts[0]!], l.arcs, 0.05));
   }
   return out;
 }
@@ -727,9 +734,22 @@ export function overleafPages(input: ComposeInput, st: OverleafStyle): SheetPage
         { title: "Bearing", x: left + span * 0.66, anchor: "end" },
         { title: "Distance (m)", x: right, anchor: "end" },
       ],
-      p.legs.map((l) => [l.from.pointId, l.to.pointId, l.bearing === null ? "" : formatDms(toDms(l.bearing, doc.settings.secondDecimals)), fmt(l.distance, doc.settings.distanceDecimals)]),
+      // A curve (ADR 0276) is one row, from its first point to its last, with its chord's bearing and distance; its radius and length
+      // along the arc follow the table.
+      p.legs.flatMap((l, i) => {
+        const cv = curveOfLeg(p.curves, i, p.vertices.length);
+        if (cv && !cv.first) return [];
+        const to = cv ? p.vertices[cv.curve.to % p.vertices.length]! : l.to;
+        const bearing = cv ? cv.curve.chordBearing : l.bearing;
+        return [[l.from.pointId, to.pointId, bearing === null ? "" : formatDms(toDms(bearing, doc.settings.secondDecimals)), fmt(cv ? cv.curve.chordDistance : l.distance, doc.settings.distanceDecimals) + (cv ? " (chord)" : "")]];
+      }),
     );
-    paragraph(`Area ${fmt(p.areaM2, 3)} m², ${extentWords(p.areaM2)}. Perimeter ${fmt(p.perimeterM, 3)} m.`);
+    for (const c of p.curves) {
+      const [a, b] = [p.vertices[c.from % p.vertices.length]!, p.vertices[c.to % p.vertices.length]!];
+      const through = Array.from({ length: c.to - c.from - 1 }, (_, k) => p.vertices[(c.from + 1 + k) % p.vertices.length]!.pointId).join(", ");
+      paragraph(`${a.pointId} to ${b.pointId} is a circular curve through ${through}: radius ${fmt(c.radius, 3)} m, ${fmt(c.arcLength, 3)} m along the arc. The bearing and distance above are its chord's.`);
+    }
+    paragraph(`Area ${fmt(p.areaM2, 3)} m², ${extentWords(p.areaM2)}${p.curves.length > 0 ? ", including the curves' segments" : ""}. Perimeter ${fmt(p.perimeterM, 3)} m${p.curves.length > 0 ? ", along the arcs" : ""}.`);
   }
 
   const seen = new Set<string>();
@@ -748,7 +768,7 @@ export function overleafPages(input: ComposeInput, st: OverleafStyle): SheetPage
 
   heading("Extent");
   const total = entireAreaM2(input.lots);
-  if (total !== null) paragraph(`Entire land: ${fmt(total, 3)} m², ${extentWords(total)}, by the coordinate method on grid coordinates.`);
+  if (total !== null) paragraph(`Entire land: ${fmt(total, 3)} m², ${extentWords(total)}, by the coordinate method on grid coordinates${input.lots.lots.some((r) => (r.parcel?.curves.length ?? 0) > 0) ? ", with the circular segments of its curves" : ""}.`);
   paragraph("1 perch = 25.29285264 m² (from the international yard); 40 perches = 1 rood; 4 roods = 1 acre.");
   if (doc.sheet.statedExtent.trim()) paragraph(`Stated extent (as given, not computed): ${doc.sheet.statedExtent.trim()}.`);
   // When the face gives the deed's extent (ADR 0252), the schedule says so beside the computed one.

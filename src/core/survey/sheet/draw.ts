@@ -8,6 +8,7 @@
  * `overlappingLabels`.
  */
 import { formatDms, toDms } from "../angles";
+import { curveOfLeg } from "../lotcurves";
 import { densify } from "../arcs";
 import { codeOf, lookupCode } from "../codes";
 import type { Adjoining, LayerId, Road, SurveyDocument } from "../document";
@@ -499,28 +500,41 @@ export function drawLots(ctx: DrawCtx, lots: PlanLots, opts: { legLabels: boolea
         if (p.vertices.length < 3 && i === p.vertices.length - 1) break;
         const a = p.vertices[i]!;
         const b = p.vertices[(i + 1) % p.vertices.length]!;
-        const k = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+        // A curve (ADR 0276) is drawn once, as the arc through its points, from its first leg; its other legs are part of it.
+        const cv = curveOfLeg(p.curves, i, p.vertices.length);
+        if (cv && !cv.first) continue;
+        const end = cv ? p.vertices[cv.curve.to % p.vertices.length]! : b;
+        const k = (a.id < end.id ? `${a.id}|${end.id}` : `${end.id}|${a.id}`) + (cv ? "~arc" : "");
         if (drawn.has(k) && !heavy) continue;
         drawn.add(k);
-        ctx.out.push({ kind: "path", points: [ring[i]!, ring[(i + 1) % ring.length]!], closed: false, width: heavy ? (ctx.doc.settings.thinBoundary === true ? ctx.lines.feature : ctx.lines.boundary) : ctx.lines.thin, color: heavy ? "ink" : "muted", layer: "BOUNDARY", entity: `lot:${r.lot.id}` });
-        ctx.placer.segment(ring[i]!, ring[(i + 1) % ring.length]!);
+        const run = cv ? Array.from({ length: cv.curve.to - cv.curve.from + 1 }, (_, j) => p.vertices[(cv.curve.from + j) % p.vertices.length]!) : null;
+        const line = run ? densify(run, [{ from: 0, to: run.length - 1 }], (0.02 / 1000) * ctx.v.scale).map((q) => atPage(ctx, q)) : [ring[i]!, ring[(i + 1) % ring.length]!];
+        ctx.out.push({ kind: "path", points: line, closed: false, width: heavy ? (ctx.doc.settings.thinBoundary === true ? ctx.lines.feature : ctx.lines.boundary) : ctx.lines.thin, color: heavy ? "ink" : "muted", layer: "BOUNDARY", entity: `lot:${r.lot.id}` });
+        for (let j = 0; j + 1 < line.length; j++) ctx.placer.segment(line[j]!, line[j + 1]!);
       }
     }
     if (opts.legLabels && visible(doc, "DIMENSIONS") && heavy) {
       const area = pageArea(ring);
       const [cx, cy] = atPage(ctx, p.labelAt);
       p.legs.forEach((leg, i) => {
-        if (leg.bearing === null) return;
-        const key = leg.from.id < leg.to.id ? `${leg.from.id}|${leg.to.id}` : `${leg.to.id}|${leg.from.id}`;
+        // A curve (ADR 0276) is lettered once, on its first leg: its chord's bearing and distance, with its radius and its length along the arc.
+        const cv = curveOfLeg(p.curves, i, p.vertices.length);
+        if (cv && !cv.first) return;
+        const from = leg.from;
+        const to = cv ? p.vertices[cv.curve.to % p.vertices.length]! : leg.to;
+        const brg = cv ? cv.curve.chordBearing : leg.bearing;
+        if (brg === null) return;
+        const key = from.id < to.id ? `${from.id}|${to.id}` : `${to.id}|${from.id}`;
         if (dimensioned.has(key)) return;
         dimensioned.add(key);
         // Left to the boundaries schedule (ADR 0248): the face names it in a note instead.
         if (opts.scheduled?.has(key)) return;
-        const [x1, y1] = atPage(ctx, leg.from);
-        const [x2, y2] = atPage(ctx, leg.to);
+        const [x1, y1] = atPage(ctx, from);
+        const [x2, y2] = atPage(ctx, to);
         const outside: [number, number] = area > 0 ? [y2 - y1, -(x2 - x1)] : area < 0 ? [-(y2 - y1), x2 - x1] : [(x1 + x2) / 2 - cx, (y1 + y2) / 2 - cy];
-        const bearing = formatDms(toDms(leg.bearing, opts.secondDecimals));
-        const dist = fmt(leg.distance, opts.distanceDecimals);
+        const bearing = formatDms(toDms(brg, opts.secondDecimals));
+        const dd = opts.distanceDecimals;
+        const dist = cv ? `${fmt(cv.curve.chordDistance, dd)} (R ${fmt(cv.curve.radius, dd)}, arc ${fmt(cv.curve.arcLength, dd)})` : fmt(leg.distance, dd);
         const value = `${bearing}  ${dist}`;
         const size = ctx.sizes.label;
         const sides: [number, number][] = [outside, [-outside[0], -outside[1]]];

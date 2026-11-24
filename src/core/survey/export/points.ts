@@ -12,6 +12,7 @@
  */
 import type { CrsRecord } from "../crs";
 import type { PlanLots } from "../lots";
+import { densifyRing } from "../lotcurves";
 import type { SurveyPoint } from "../parcel";
 import { SURVEY_ENGINE_VERSION } from "../version";
 
@@ -45,7 +46,8 @@ export function surveyGeoJson(input: { points: readonly SurveyPoint[]; lots: Pla
   for (const r of input.lots.lots) {
     const parcel = r.parcel;
     if (!parcel || parcel.vertices.length < 3 || parcel.crossings.length > 0) continue;
-    const ring = parcel.vertices.map((v) => [v.e, v.n]);
+    // A curve (ADR 0276) as short chords within a millimetre of the arc: GeoJSON has no arcs. The exact area is in area_m2.
+    const ring = densifyRing(parcel.vertices, parcel.curves, 0.001).map((v) => [v.e, v.n]);
     // GeoJSON polygons repeat the first position at the end, and run anticlockwise for exterior rings (RFC 7946 §3.1.6).
     const ccw = parcel.clockwise ? [...ring].reverse() : ring;
     features.push({

@@ -111,7 +111,10 @@ function PartitionBody({
 }) {
   const byId = useMemo(() => new Map(points.map((p) => [p.id, p])), [points]);
   // Lots that can be divided: three or more known corners, no leg without length, and a boundary that doesn't cross itself.
+  // Division works on straight boundaries: a curved lot (ADR 0276) isn't offered, and the panel says why.
+  const curved = lots.filter((l) => l.arcs?.length).length;
   const usable = lots.filter((l) => {
+    if (l.arcs?.length) return false;
     if (l.points.length < 3 || !l.points.every((id) => byId.has(id))) return false;
     const r = l.points.map((id) => byId.get(id)!);
     return zeroLengthLegs(r).length === 0 && selfIntersections(r).length === 0;
@@ -147,7 +150,7 @@ function PartitionBody({
   const total = !lot ? null : by === "area" ? area(ring) : widthRoom({ ring, leg: legAt, lines, from });
   const pointAt = (k: number) => ring[((k % ring.length) + ring.length) % ring.length]?.pointId ?? "";
 
-  if (usable.length === 0) return <p className="text-sm text-ink-2">Add a lot with at least three corners first.</p>;
+  if (usable.length === 0) return <p className="text-sm text-ink-2">{curved > 0 ? "Farbaek divides lots with straight boundaries only, and this plan's lots have curves. Divide them by hand." : "Add a lot with at least three corners first."}</p>;
 
   const equal = (k: number) => {
     if (!total) return;
