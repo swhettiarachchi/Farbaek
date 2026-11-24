@@ -176,14 +176,15 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   const onOf = (doc: SurveyDocument) => new Map(doc.features.map((f) => [f.id, f.runsOn ?? ""]));
   const ob = onOf(before);
   const rerun = [...onOf(after)].filter(([id, r]) => ob.has(id) && ob.get(id) !== r).length;
-  const recipe = (d: SurveyDocument) => new Map((d.constructed ?? []).map((c) => [c.id, [c.from, c.to, ...c.ref].join("|")]));
+  // A constructed point's whole recipe (its kind, its points and any measurements), so a change to any of it is said.
+  const recipe = (d: SurveyDocument) => new Map((d.constructed ?? []).map((c) => [c.id, JSON.stringify({ ...c, id: undefined })]));
   const [rb, ra] = [recipe(before), recipe(after)];
   const cornersAdded = [...ra.keys()].filter((k) => !rb.has(k)).length;
   const cornersGone = [...rb.keys()].filter((k) => !ra.has(k)).length;
   const cornersSquared = [...ra].filter(([k, r]) => rb.has(k) && rb.get(k) !== r).length;
-  if (cornersAdded > 0) add("Lines and outlines", cornersAdded === 1 ? "A square corner that wasn't surveyed was added." : `${cornersAdded} square corners that weren't surveyed were added.`);
-  if (cornersGone > 0) add("Lines and outlines", cornersGone === 1 ? "A square corner that wasn't surveyed was taken out." : `${cornersGone} square corners that weren't surveyed were taken out.`);
-  if (cornersSquared > 0) add("Lines and outlines", cornersSquared === 1 ? "A square corner is worked out from other points now." : `${cornersSquared} square corners are worked out from other points now.`);
+  if (cornersAdded > 0) add("Lines and outlines", cornersAdded === 1 ? "A point that wasn't surveyed was added." : `${cornersAdded} points that weren't surveyed were added.`);
+  if (cornersGone > 0) add("Lines and outlines", cornersGone === 1 ? "A point that wasn't surveyed was taken out." : `${cornersGone} points that weren't surveyed were taken out.`);
+  if (cornersSquared > 0) add("Lines and outlines", cornersSquared === 1 ? "A point that wasn't surveyed is worked out differently now." : `${cornersSquared} points that weren't surveyed are worked out differently now.`);
   if (rerun > 0) add("Lines and outlines", `${rerun} ${rerun === 1 ? "line is" : "lines are"} drawn on past ${rerun === 1 ? "its" : "their"} ends differently.`);
 
   // Words on the plan and symbols given to points (stage 255).

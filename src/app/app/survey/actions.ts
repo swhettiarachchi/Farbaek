@@ -429,6 +429,9 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
   const known = new Set(data.points.map((p) => p.id));
   const unknown = unknownPoints(pruned, known);
   if (unknown.length > 0 || (pruned.constructed ?? []).some((c) => known.has(c.id))) return { status: "error", message: "The plan uses points that aren't in this project. Reload and try again." };
+  // A point worked out by hand never takes a surveyed number as its name (ADR 0272): the line's numbers would read two ways.
+  const numbers = new Set(data.points.map((p) => p.pointId.toLowerCase()));
+  if ((pruned.constructed ?? []).some((c) => c.kind !== "square" && (numbers.has(c.name.toLowerCase()) || c.name.toLowerCase() === "corner"))) return { status: "error", message: "A point that wasn't surveyed has a surveyed point's number as its name. Rename it, then save again." };
   if (doc.data.surveyorUserId && !data.profiles.some((p) => p.user_id === doc.data.surveyorUserId)) {
     return { status: "error", message: "The chosen surveyor hasn't entered their details in this workspace yet." };
   }
