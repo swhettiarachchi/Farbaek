@@ -375,9 +375,9 @@ function composePanel(input: ComposeInput): ComposedSheet {
       drawRoads(ctx, doc.roads);
       drawFeatures(ctx, first ? atPage(ctx, first.labelAt) : null);
       drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: doc.sheet.extractOf || null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals, scheduled: input.scheduledLegs?.keys });
-      drawCorners(ctx, input.lots, { numbers: true, circles: true });
+      drawCorners(ctx, input.lots, { numbers: true, circles: doc.settings.noCornerCircles !== true });
       drawLoosePoints(ctx, input.points, input.lots);
-      drawLotLabels(ctx, input.lots, { extentUnder: input.lots.lots.length === 1 ? (a) => formatArp(toArp(a, doc.settings.perchDecimals)) : null, highlight: doc.sheet.extractOf || null });
+      if (doc.settings.noLotLetters !== true) drawLotLabels(ctx, input.lots, { extentUnder: input.lots.lots.length === 1 ? (a) => formatArp(toArp(a, doc.settings.perchDecimals)) : null, highlight: doc.sheet.extractOf || null });
       drawAdjoining(ctx, doc.adjoining, input.lots);
       drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
       drawSimpleNorth(ctx, viewport.x + viewport.w - 10, viewport.y + 12, input.crs?.kind === "local");

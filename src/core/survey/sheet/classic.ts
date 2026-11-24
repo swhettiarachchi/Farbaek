@@ -315,9 +315,9 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: extract?.id ?? null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals, scheduled: input.scheduledLegs?.keys });
     const first = input.lots.lots.find((r) => r.parcel && r.parcel.vertices.length >= 3)?.parcel;
     drawFeatures(ctx, first ? atPage(ctx, first.labelAt) : null);
-    drawCorners(ctx, input.lots, { numbers: doc.settings.faceDimensions, circles: true });
+    drawCorners(ctx, input.lots, { numbers: doc.settings.faceDimensions, circles: doc.settings.noCornerCircles !== true });
     drawLoosePoints(ctx, input.points, input.lots);
-    drawLotLabels(ctx, input.lots, { extentUnder: null, highlight: extract?.id ?? null });
+    if (doc.settings.noLotLetters !== true) drawLotLabels(ctx, input.lots, { extentUnder: null, highlight: extract?.id ?? null });
     drawAdjoining(ctx, doc.adjoining, input.lots);
     drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
     front.push(...drawing);

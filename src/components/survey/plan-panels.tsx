@@ -235,6 +235,15 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
               else delete d.settings.deedExtentOnFace;
             })
           : null}
+        {/* ADR 0267: both are on unless turned off; off is stored, on removes the setting, so a plan that never changes them is as before. */}
+        {check("Circles at the lots' corners", st.noCornerCircles !== true, (d, v) => {
+          if (v) delete d.settings.noCornerCircles;
+          else d.settings.noCornerCircles = true;
+        })}
+        {check("Lot letters on the drawing", st.noLotLetters !== true, (d, v) => {
+          if (v) delete d.settings.noLotLetters;
+          else d.settings.noLotLetters = true;
+        })}
         {check("Development permit box (UDA areas, panel layout)", st.permitBox, (d, v) => void (d.settings.permitBox = v))}
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Extract of one lot</span>

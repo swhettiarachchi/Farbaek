@@ -197,6 +197,16 @@ export const settingsSchema = z.object({
    * chosen.
    */
   deedExtentOnFace: z.literal(true).optional(),
+  /**
+   * The lot's corners drawn without their small circles, as some surveyors draw them (stage 259, ADR 0267). The surveyor's choice, absent
+   * unless chosen, so earlier plans and approvals are unchanged.
+   */
+  noCornerCircles: z.literal(true).optional(),
+  /**
+   * The lots' letters left off the drawing, as on a plan of one lot its title names (stage 259). The title still names each lot, and the
+   * checks still need each one's letter. Absent unless chosen.
+   */
+  noLotLetters: z.literal(true).optional(),
 });
 export type DrawingSettings = z.infer<typeof settingsSchema>;
 

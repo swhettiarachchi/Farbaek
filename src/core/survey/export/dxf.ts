@@ -178,7 +178,8 @@ export function writeDxf(input: DxfInput): string {
       const oy = (-(leg.to.e - leg.from.e) / len) * h(1.8) * inward;
       text("DIMENSIONS", (leg.from.e + leg.to.e) / 2 + ox, (leg.from.n + leg.to.n) / 2 + oy, label, h(2.2), angle);
     });
-    if (parcel.vertices.length >= 3 && parcel.crossings.length === 0 && r.lot.label.trim()) {
+    // The lot letters left off the drawing (stage 259) are left off the DXF too, as the sheet shows it.
+    if (parcel.vertices.length >= 3 && parcel.crossings.length === 0 && r.lot.label.trim() && doc.settings.noLotLetters !== true) {
       const { label, sup } = r.lot;
       text("LOT_TEXT", parcel.labelAt.e, parcel.labelAt.n + h(2), `Lot ${label}`, h(3.2));
       if (sup) text("LOT_TEXT", parcel.labelAt.e + h(3.2) * 0.62 * (`Lot ${label}`.length / 2 + 0.6), parcel.labelAt.n + h(2) + h(3.2) * 0.42, sup, h(2), 0, false);
