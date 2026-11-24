@@ -73,6 +73,16 @@ Smaller fixes:
   - the start screen's line pointing to office profiles.
 - **Checks:** the database, profile, Generate Plan, design and sketch tests (349 + 25); `pnpm typecheck`, lint, and `pnpm build` with a 4 GB heap (see the commit).
 
+## A fault found after the PR opened
+
+Stage 249's run of the database tests found v105 wouldn't load: the review fix for choosing "None" lost one character, so `app_survey_profile_choose` opened its body with `as $` instead of `as $$`. The database tests had passed before that fix and weren't run again after it.
+
+- **Production was never touched:** the apply script runs a migration in one transaction and stops at the first error, and the read-back on 2026-11-24 showed v105 not applied.
+- **Fixed:** the dollar quote restored; the SHA-256 of the LF copy is now `96946dae345f5600688a75a53a7f649a7eaaabafcaeadce278da82f272b7c04e` (it was `a7d0a38c…`).
+- **Verified:** the whole database suite, 661 tests in 92 files, runs again on the real migrations.
+- **The read-back script** (`scripts/vps/check-migrations.ps1`) now checks v104 and v105 too.
+- **Lesson:** the database tests run after the last change to a migration, not before the review's fixes.
+
 ## Not done, and why
 
 See ADR 0256:
