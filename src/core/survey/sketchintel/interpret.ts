@@ -527,26 +527,35 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
   }
   if (!lot) {
     // Boundary lines: walls, fences, hedges, drains and lines of unknown kind; never roads, and never dashed lines (proposed or roof lines).
-    const edges = new Map<string, Set<string>>();
     const byId = new Map(points.map((p) => [p.id, p]));
     const owner = new Map<string, string>();
-    for (const l of lines) {
-      if (l.kind === "road" || l.line.style === "dashed") continue;
-      // A closed line's closing leg is a side like the others.
-      for (let i = 0; i + 1 < l.points.length + (l.closes ? 1 : 0); i++) {
-        const [a, b] = [l.points[i]!.id, l.points[(i + 1) % l.points.length]!.id];
-        if (!edges.has(a)) edges.set(a, new Set());
-        if (!edges.has(b)) edges.set(b, new Set());
-        edges.get(a)!.add(b);
-        edges.get(b)!.add(a);
-        owner.set(a < b ? `${a}|${b}` : `${b}|${a}`, l.line.id);
+    const ringsFrom = (take: (l: LineRef) => boolean) => {
+      const edges = new Map<string, Set<string>>();
+      for (const l of lines) {
+        if (l.kind === "road" || l.line.style === "dashed" || !take(l)) continue;
+        // A closed line's closing leg is a side like the others.
+        for (let i = 0; i + 1 < l.points.length + (l.closes ? 1 : 0); i++) {
+          const [a, b] = [l.points[i]!.id, l.points[(i + 1) % l.points.length]!.id];
+          if (!edges.has(a)) edges.set(a, new Set());
+          if (!edges.has(b)) edges.set(b, new Set());
+          edges.get(a)!.add(b);
+          edges.get(b)!.add(a);
+          owner.set(a < b ? `${a}|${b}` : `${b}|${a}`, l.line.id);
+        }
       }
-    }
-    const rings = cycles(edges)
-      .map((c) => c.map((id) => byId.get(id)!))
-      .filter((r) => simple(r))
-      .map((r) => ({ r, a: area(r) }))
-      .sort((x, y) => y.a - x.a);
+      return cycles(edges)
+        .map((c) => c.map((id) => byId.get(id)!))
+        .filter((r) => simple(r))
+        .map((r) => ({ r, a: area(r) }))
+        .sort((x, y) => y.a - x.a);
+    };
+    // Read more than once and merged (stage 257, ADR 0265): the lot comes from the lines at least two reads drew, while those close round
+    // one; a line only one read drew is drawn as read, but doesn't move the lot. Single reads, and reads from before, use every line.
+    const merged = lines.some((l) => l.line.reads !== undefined);
+    const agreed = (l: LineRef) => (l.line.reads ?? 2) >= 2;
+    const everyRing = ringsFrom(() => true);
+    const agreedRings = merged ? ringsFrom(agreed) : everyRing;
+    const rings = agreedRings.length > 0 && agreedRings[0]!.a > 1 ? agreedRings : everyRing;
     if (rings.length > 0 && rings[0]!.a > 1) {
       const best = rings[0]!;
       const used = new Set<string>();
@@ -556,8 +565,21 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       });
       const from = [...used].filter(Boolean).sort();
       const label = lotAreas.length === 1 ? lotAreas[0]!.c.name : "";
-      lot = lotProposal(best.r, from, drawing.lines.find((l) => l.id === from[0])?.file ?? "", label, [`The lines drawn on the sketch close round ${list(ids(best.r))}, the largest outline they make.`]);
+      const fromAgreed = merged && rings === agreedRings;
+      lot = lotProposal(best.r, from, drawing.lines.find((l) => l.id === from[0])?.file ?? "", label, [
+        fromAgreed
+          ? `The lines at least two reads of the sketch drew close round ${list(ids(best.r))}, the largest outline they make.`
+          : `The lines drawn on the sketch close round ${list(ids(best.r))}, the largest outline they make.`,
+      ]);
       const lotId = lot.id;
+      // A larger outline that a line only one read drew would make: said and asked, never taken.
+      const wider = fromAgreed ? everyRing.find((x) => ringKey(x.r.map((p) => p.id)) !== ringKey(best.r.map((p) => p.id)) && x.a > best.a + 0.01) : undefined;
+      if (wider) {
+        const once = lines.filter((l) => !agreed(l) && l.points.some((p) => wider.r.some((q) => q.id === p.id)) && l.points.some((p) => !best.r.some((q) => q.id === p.id)));
+        ask(from, lot.file, `Only one read of the sketch drew ${once.length ? `the line through ${once.map((l) => list(ids(l.points))).join("; ")}` : "a line"}, which would make the lot ${list(ids(wider.r))}, ${wider.a.toFixed(2)} m², instead.`, [
+          "The lot is drawn from the lines the reads agree on. Check the sketch, and correct the lot on the Lots step if it's the other outline.",
+        ], { item: lotId, answeredBy: "confirm" });
+      }
       if (rings.length > 1 && rings[1]!.a > best.a * 0.8)
         ask(from, lot.file, `The sketch's lines close round more than one outline of a similar size: the largest was taken for the lot.`, [`The next is through ${list(ids(rings[1]!.r))}, ${m(rings[1]!.a).replace(" m", " m²")}.`], { item: lotId, answeredBy: "confirm" });
       // Lines across the outline that close a smaller one inside it: the outline may hold a neighbour's land, or more than one lot.

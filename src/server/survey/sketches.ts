@@ -20,7 +20,7 @@ import type { SurveyDraftDeps } from "./drafting";
 export const SKETCH_PHOTOS = { count: SKETCH_LIMITS.photos, bytes: SKETCH_LIMITS.photoBytes, total: SKETCH_LIMITS.totalBytes } as const;
 
 /** How many times the photos are read, side by side, and merged (ADR 0260). */
-export const READS = 2;
+export const READS = 3;
 
 /** Several calls' usage as one, under the first call's model: what the run cost. Null when none reported any. */
 function sumUsage(all: readonly ProviderUsage[]): ProviderUsage | null {
@@ -64,7 +64,9 @@ export async function readFieldSketches(
   const choice = routeModel({ plan: metering.value.plan, family: source.family, step: "review", effort: "deep" });
   const reader = source.create(TIERS.indexOf(choice.tier) < TIERS.indexOf("standard") ? { ...choice, model: tierModels(source.family, platformModels())["standard"] } : choice);
   const promptTokens = approxTokens(SKETCH_READ_PROMPT) + approxTokens(sketchReadMessage(images)) + SKETCH_TOKENS_PER_IMAGE * images.length;
-  // Read twice, side by side (stage 252, ADR 0260): a model misses a different line each time, and what either read saw is kept, merged.
+  // Read three times, side by side (stages 252 and 257, ADRs 0260 and 0265): a model misses a different line each time, and adds a
+  // different stray one. What any read saw is kept, merged, and each line says how many reads drew it, so the lot comes from what they
+  // agree on.
   const units = READS * reserveUnits(reader.model, promptTokens + 500, reader.maxOutputTokens);
   const reserved = await reserveMetered(deps, metering.value, { orgId: input.orgId, userId: input.userId, taskId: null, operation: "survey_read", units, manual: MANUAL_SKETCH_READ });
   if (!reserved.ok) return reserved;
@@ -79,7 +81,7 @@ export async function readFieldSketches(
     await refundUsage(deps, { orgId: input.orgId, entryId: reserved.value.entryId, usage, reason: "failed" });
     return fail(first.failure === "PROVIDER_BUSY" ? "AI_BUSY" : first.failure === "REFUSED" ? "AI_REFUSED" : "AI_INCOMPLETE", FAILURES[first.failure]);
   }
-  const outcome = { ok: true as const, output: mergeSketchReads(worked[0]!.output, worked[1]?.output ?? null), usage: usage ?? worked[0]!.usage };
+  const outcome = { ok: true as const, output: mergeSketchReads(worked[0]!.output, ...worked.slice(1).map((w) => w.output)), usage: usage ?? worked[0]!.usage };
   let record: SketchRecord;
   try {
     record = sketchRecordSchema.parse(acceptSketch(outcome.output, images.map((i) => i.name), outcome.usage.model, input.now));

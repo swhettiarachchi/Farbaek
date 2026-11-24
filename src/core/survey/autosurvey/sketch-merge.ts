@@ -121,9 +121,62 @@ export function mergeReadings(first: readonly SketchOutputReading[], second: rea
   return out;
 }
 
-/** Two reads of the same photos as one. With one read only, that read as it is. */
-export function mergeSketchReads(first: SketchReadOutput, second: SketchReadOutput | null): SketchReadOutput {
-  if (!second) return first;
+/**
+ * Several reads of the same photos as one (stage 257, ADR 0265): merged two at a time as below, then each line split where the reads
+ * stop agreeing, and marked with how many reads drew it (`reads`): the least, over its segments, of the reads that drew that segment.
+ * So a segment only one of three reads drew is a line of its own, read once, which the lot isn't drawn from while the reads agree on
+ * another outline. With one read only, that read as it is.
+ */
+export function mergeSketchReads(first: SketchReadOutput, ...rest: (SketchReadOutput | null)[]): SketchReadOutput {
+  const others = rest.filter((r): r is SketchReadOutput => r !== null);
+  if (others.length === 0) return first;
+  const merged = others.reduce((acc, r) => mergeTwo(acc, r), first);
+  const reads = [first, ...others];
+  const votes = new Map<string, number>();
+  for (const r of reads) for (const k of new Set((r.lines ?? []).flatMap(edgesOf))) votes.set(k, (votes.get(k) ?? 0) + 1);
+  return { ...merged, lines: splitByAgreement(merged.lines ?? [], votes).slice(0, DRAWING_LIMITS.lines) };
+}
+
+/**
+ * Each line in runs whose segments the same number of reads drew, each marked with that number; a segment between one number (its
+ * ends the same) keeps its neighbours' run.
+ */
+function splitByAgreement(lines: readonly Line[], votes: ReadonlyMap<string, number>): Line[] {
+  const out: Line[] = [];
+  for (const l of lines) {
+    const pts = l.points.map(label);
+    const segs = pts.slice(1).map((q, k) => edgeKey(l.image, pts[k]!, q));
+    const closing = l.closes && pts.length > 2 ? edgeKey(l.image, pts.at(-1)!, pts[0]!) : null;
+    const count = (k: string | null) => (k === null ? null : (votes.get(k) ?? 1));
+    const all = [...segs, ...(closing !== null ? [closing] : [])].map(count).filter((x): x is number => x !== null);
+    // One run: the line as it is, closed or not, with its least count.
+    if (all.length === 0 || all.every((c) => c === all[0])) {
+      out.push({ ...l, reads: all.length ? all[0]! : 1 });
+      continue;
+    }
+    // Runs of consecutive segments with the same count; a closed line's closing segment is its own run.
+    let run: string[] = [pts[0]!];
+    let runCount: number | null = null;
+    const flush = () => {
+      if (run.length >= 2) out.push({ ...l, points: run, closes: false, certain: false, reads: runCount ?? 1 });
+    };
+    segs.forEach((k, i) => {
+      const c = count(k) ?? runCount ?? 1;
+      if (runCount !== null && c !== runCount) {
+        flush();
+        run = [pts[i]!];
+      }
+      runCount = c;
+      run.push(pts[i + 1]!);
+    });
+    flush();
+    if (closing !== null) out.push({ ...l, points: [pts.at(-1)!, pts[0]!], closes: false, certain: false, reads: count(closing) ?? 1 });
+  }
+  return out;
+}
+
+/** Two reads of the same photos as one. */
+function mergeTwo(first: SketchReadOutput, second: SketchReadOutput): SketchReadOutput {
   const symbols = [...(first.symbols ?? [])];
   for (const s of second.symbols ?? []) if (!symbols.some((x) => x.image === s.image && x.kind === s.kind && label(x.at) === label(s.at))) symbols.push(s);
   const areas = [...(first.areas ?? [])];
