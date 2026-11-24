@@ -16,6 +16,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PAGE_STACK } from "@/components/ui/surfaces";
+import { remapRuns } from "@/core/survey/lotcurves";
 
 const FEATURE_LABELS: Record<(typeof FEATURE_LAYERS)[number], string> = { BUILDINGS: "Building", WALLS: "Wall", FENCES: "Fence", DRAINS: "Drain", ROADS: "Road edge", UTILITIES: "Utility" };
 
@@ -111,7 +112,10 @@ export function LotsEditor({
   const lotDocs: Lot[] = lots.map((l) => {
     const r = readOrder(l.order, byNumber);
     unknownAll.push(...r.unknown);
-    return { id: l.id, label: l.label.trim(), sup: l.sup.trim(), note: l.note.trim(), points: r.ids };
+    // Its curves (ADR 0276) kept, carried to its corners as they now stand; any whose points are no longer corners in a row drop.
+    const was = document.lots.find((x) => x.id === l.id);
+    const arcs = was?.arcs ? remapRuns(was.points, r.ids, was.arcs).runs : [];
+    return { id: l.id, label: l.label.trim(), sup: l.sup.trim(), note: l.note.trim(), points: r.ids, ...(arcs.length > 0 ? { arcs } : {}) };
   });
   const roadDocs: Road[] = roads.map((r) => {
     const a = readOrder(r.a, byNumber);

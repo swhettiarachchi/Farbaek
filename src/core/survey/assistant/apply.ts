@@ -14,6 +14,7 @@ import { canonicalize } from "../../trust/canonical-json";
 import { pruneProvenance, surveyDocumentSchema, type SurveyDocument } from "../document";
 import type { SurveyPoint } from "../parcel";
 import { ASSIST_FIELD_KEY, type PlanOp } from "./ops";
+import { remapRuns } from "../lotcurves";
 
 /** The top-level parts of a plan an application can touch. */
 type Part = "lots" | "roads" | "adjoining" | "features" | "notes" | "sheet" | "settings" | "layers" | "labelOffsets" | "provenance";
@@ -104,6 +105,10 @@ export function applyOps(base: SurveyDocument, ops: readonly PlanOp[], points: r
         // Only new corners come from the assistant. A new name or note keeps where the corners came from, and whether they were
         // checked: renaming an unchecked AI-drafted lot doesn't check its corners.
         if (op.points) {
+          // Its curves (ADR 0276) follow their points to the new corners; one whose points are no longer corners in a row drops.
+          const curves = remapRuns(lot.points, op.points, lot.arcs);
+          if (curves.runs.length > 0) lot.arcs = curves.runs;
+          else delete lot.arcs;
           lot.points = [...op.points];
           doc.provenance[`lot:${lot.id}`] = assisted;
         }

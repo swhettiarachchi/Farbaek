@@ -8,7 +8,7 @@
  * `overlappingLabels`.
  */
 import { formatDms, toDms } from "../angles";
-import { curveOfLeg } from "../lotcurves";
+import { curveOfLeg, densifyCurve } from "../lotcurves";
 import { densify } from "../arcs";
 import { codeOf, lookupCode } from "../codes";
 import type { Adjoining, LayerId, Road, SurveyDocument } from "../document";
@@ -507,8 +507,8 @@ export function drawLots(ctx: DrawCtx, lots: PlanLots, opts: { legLabels: boolea
         const k = (a.id < end.id ? `${a.id}|${end.id}` : `${end.id}|${a.id}`) + (cv ? "~arc" : "");
         if (drawn.has(k) && !heavy) continue;
         drawn.add(k);
-        const run = cv ? Array.from({ length: cv.curve.to - cv.curve.from + 1 }, (_, j) => p.vertices[(cv.curve.from + j) % p.vertices.length]!) : null;
-        const line = run ? densify(run, [{ from: 0, to: run.length - 1 }], (0.02 / 1000) * ctx.v.scale).map((q) => atPage(ctx, q)) : [ring[i]!, ring[(i + 1) % ring.length]!];
+        // The same circle the area is worked out on (lotcurves.ts), drawn within 0.02 mm of it on paper.
+        const line = cv ? densifyCurve(p.vertices, cv.curve, (0.02 / 1000) * ctx.v.scale).map((q) => atPage(ctx, q)) : [ring[i]!, ring[(i + 1) % ring.length]!];
         ctx.out.push({ kind: "path", points: line, closed: false, width: heavy ? (ctx.doc.settings.thinBoundary === true ? ctx.lines.feature : ctx.lines.boundary) : ctx.lines.thin, color: heavy ? "ink" : "muted", layer: "BOUNDARY", entity: `lot:${r.lot.id}` });
         for (let j = 0; j + 1 < line.length; j++) ctx.placer.segment(line[j]!, line[j + 1]!);
       }
