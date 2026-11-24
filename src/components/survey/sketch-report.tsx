@@ -4,7 +4,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import type { ReadingStatus } from "@/core/survey/autosurvey/sketch";
-import { CONFIDENCE_RULE, CONFIDENCE_WORDS, HOW_MATCHED, STATUS_WORDS, photoWords, type ReportEntry, type ReportSide, type SketchReport } from "@/core/survey/sketchintel/report";
+import { CONFIDENCE_RULE, CONFIDENCE_WORDS, HOW_MATCHED, STATUS_WORDS, photoWords, type ReportEntry, type ReportSide, type SketchReport, type UnclearItem } from "@/core/survey/sketchintel/report";
 
 const GLYPH: Record<ReadingStatus, Status> = { agrees: "done", close: "info", differs: "attention", unmatched: "attention", not_checked: "off" };
 
@@ -53,6 +53,30 @@ function Entry({ e, url }: { e: ReportEntry; url: string | null }) {
   );
 }
 
+/** Uncertain items, each with its photo and a ring where it's written, and why it's here. */
+function Unclear({ items, photoUrl }: { items: readonly UnclearItem[]; photoUrl: (file: string) => string | null }) {
+  return (
+    <ul className="mt-4 grid gap-4">
+      {items.map((u, i) => {
+        const url = photoUrl(u.file);
+        return (
+          <li key={`${u.id ?? "x"}-${i}`} className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+            {url && u.photo ? <Marked url={url} photo={u.photo} label={u.what} /> : null}
+            <span className="grid min-w-0 gap-0.5 text-sm">
+              <span className="flex items-start gap-1.5 font-medium text-ink">
+                <WarningCircleIcon size={16} weight="fill" className={`mt-0.5 shrink-0 ${u.quiet ? "text-ink-3" : "text-caution"}`} aria-hidden />
+                {u.what}
+              </span>
+              <span className="text-ink-2">{u.reasons.join(" ")}</span>
+              <Where file={u.file} photo={u.photo} url={url} />
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function Side({ s, urlOf }: { s: ReportSide; urlOf: (file: string) => string | null }) {
   return (
     <li className="grid gap-1 border-t border-line pt-3 first:border-t-0 first:pt-0">
@@ -87,12 +111,15 @@ function Side({ s, urlOf }: { s: ReportSide; urlOf: (file: string) => string | n
  */
 export function SketchReportView({ report: r, photoUrl }: { report: SketchReport; photoUrl: (file: string) => string | null }) {
   const measured = r.sides.reduce((n, s) => n + s.entries.length, 0) + r.between.length;
+  const [needs, quiet] = [r.unclear.filter((u) => !u.quiet), r.unclear.filter((u) => u.quiet)];
   return (
     <div className="grid gap-6">
       <Card>
         <p className="text-sm text-ink-2">
           {r.reader} read {r.files.length === 1 ? "one photo" : `${r.files.length} photos`} on <LocalTime iso={r.readAt} date />: {r.sides.length} {r.sides.length === 1 ? "side" : "sides"} drawn, {r.points.length} point {r.points.length === 1 ? "number" : "numbers"} and {measured} {measured === 1 ? "measurement" : "measurements"}.{" "}
-          {r.unclear.length === 0 ? "Nothing was read with doubt, and the survey disagrees with nothing." : `${r.unclear.length} ${r.unclear.length === 1 ? "thing needs" : "things need"} you, listed first.`}
+          {needs.length === 0 ? "Nothing read from the sketch needs you." : `${needs.length} ${needs.length === 1 ? "thing read from the sketch needs" : "things read from the sketch need"} you, listed first.`}
+          {r.questions.length > 0 ? ` The engine also asks ${r.questions.length === 1 ? "one question" : `${r.questions.length} questions`}, listed after them.` : ""}
+          {quiet.length > 0 ? ` ${quiet.length} more ${quiet.length === 1 ? "was" : "were"} read with doubt: labels and notes, and measurements the survey agrees with exactly as read.` : ""}
         </p>
         <p className="mt-2 text-sm text-ink-3">{CONFIDENCE_RULE}</p>
         <p className="mt-2 text-sm text-ink-3">Places on a photo are approximate, as the photo was taken, and only for finding the writing again. Nothing here moved a point or gave a position: every position on the plan is the survey&apos;s own.</p>
@@ -102,24 +129,26 @@ export function SketchReportView({ report: r, photoUrl }: { report: SketchReport
       {r.unclear.length > 0 ? (
         <Card>
           <CardTitle icon={QuestionIcon}>For you to decide</CardTitle>
-          <p className="mt-1 text-sm text-ink-2">Read with doubt, or the survey disagrees. None of these was used as a fact.</p>
-          <ul className="mt-4 grid gap-4">
-            {r.unclear.map((u, i) => {
-              const url = photoUrl(u.file);
-              return (
-                <li key={`${u.id ?? "x"}-${i}`} className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
-                  {url && u.photo ? <Marked url={url} photo={u.photo} label={u.what} /> : null}
-                  <span className="grid min-w-0 gap-0.5 text-sm">
-                    <span className="flex items-start gap-1.5 font-medium text-ink">
-                      <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
-                      {u.what}
-                    </span>
-                    <span className="text-ink-2">{u.reasons.join(" ")}</span>
-                    <Where file={u.file} photo={u.photo} url={url} />
-                  </span>
-                </li>
-              );
-            })}
+          <p className="mt-1 text-sm text-ink-2">What the survey disagrees with comes first, then what was read with doubt. None of these was used as a fact.</p>
+          {needs.length > 0 ? <Unclear items={needs} photoUrl={photoUrl} /> : <p className="mt-3 text-sm text-ink-2">Nothing needs you here.</p>}
+          {quiet.length > 0 ? (
+            <div className="mt-4">
+              <Disclosure summary={`Also read with doubt (${quiet.length})`} hint="Labels and notes, and measurements the survey agrees with exactly as read. Not used as facts either.">
+                <Unclear items={quiet} photoUrl={photoUrl} />
+              </Disclosure>
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {r.questions.length > 0 ? (
+        <Card>
+          <CardTitle icon={QuestionIcon}>What the engine asks</CardTitle>
+          <p className="mt-1 text-sm text-ink-2">The same questions the plan&apos;s checks ask, answered on the Lots step.</p>
+          <ul className="mt-3 grid list-disc gap-1.5 pl-5 text-sm text-ink-2">
+            {r.questions.map((q, i) => (
+              <li key={i}>{q}</li>
+            ))}
           </ul>
         </Card>
       ) : null}
@@ -186,28 +215,14 @@ export function SketchReportView({ report: r, photoUrl }: { report: SketchReport
         </Card>
       ) : null}
 
-      {r.questions.length > 0 || r.unreadable.length > 0 ? (
+      {r.unreadable.length > 0 ? (
         <Card>
-          <CardTitle icon={EyeSlashIcon}>Asked, and not read</CardTitle>
-          {r.questions.length > 0 ? (
-            <Disclosure summary="What the engine asks" hint="The same questions the plan's checks ask, answered on the Lots step.">
-              <ul className="grid list-disc gap-1.5 pl-5 text-sm text-ink-2">
-                {r.questions.map((q, i) => (
-                  <li key={i}>{q}</li>
-                ))}
-              </ul>
-            </Disclosure>
-          ) : null}
-          {r.unreadable.length > 0 ? (
-            <div className="mt-3">
-              <p className="text-sm font-medium text-ink">Seen but not read</p>
-              <ul className="mt-1 grid list-disc gap-1 pl-5 text-sm text-ink-2">
-                {r.unreadable.map((u, i) => (
-                  <li key={i}>{u}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <CardTitle icon={EyeSlashIcon}>Seen but not read</CardTitle>
+          <ul className="mt-3 grid list-disc gap-1 pl-5 text-sm text-ink-2">
+            {r.unreadable.map((u, i) => (
+              <li key={i}>{u}</li>
+            ))}
+          </ul>
         </Card>
       ) : null}
     </div>

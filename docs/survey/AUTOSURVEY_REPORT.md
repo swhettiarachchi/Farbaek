@@ -107,7 +107,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 | Field book (bearings and distances) | Legs from a known point; closure reported, not adjusted | Built and tested |
 | Office code library (.fcl, CSV) | Codes, kinds and layers | Built and tested |
 | Sokkia Link point list (printout) | Points' and stations' North, East, Elev and code, by the printout's own columns; metres only; shots refused (upload the SDR) | Built and tested (stage 242, ADR 0250); a real printout read identical to its SDR |
-| DXF drawing (its points) | POINT entities and blocks, numbered by an attribute or by the text at the offset every point shares; metres only; lines not read | Built and tested (stage 242); a real Sokkia Link DXF read identical to its SDR; needs schema v104 |
+| DXF drawing (its points) | POINT entities and blocks, numbered by an attribute or by the text at the offset every point shares; metres only; lines not read | Built and tested (stage 242); a real Sokkia Link DXF read identical to its SDR; schema v104 applied 2026-11-24 |
 | Field sketch photos (JPEG, PNG, WebP) | Read by Claude with consent: readings, and the drawing's lines, symbols and areas | Built and tested; one real sketch run as transcribed, not yet through the production reader |
 | PDF, Word, DWG | Listed and said plainly to be unread | Not built |
 | Topcon GTS-7 raw | Not reduced | Not built |
@@ -235,10 +235,10 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #302 | 239 (curves from PC to PT) | Merged, live | none |
 | #303 | 240 (crowded legs left to the schedule) | Merged | none |
 | #304 | 241 (Sketch Intelligence Engine) | Merged, live (build 52e29e9ad207) | none |
-| #305 | 242 (point-list printout and DXF points) | Open | **v104:** the owner applies it before the merge |
-| #306 | 243 (reading sketches as surveyors do) | Open, builds on #305 | none |
-| #307 | 244 (the deed's extent on the face) | Open | none |
-| next | 245 (the sketch interpretation report) | Open, builds on #307 | none |
+| #305 | 242 (point-list printout and DXF points) | Merged through #306, live | **v104** applied 2026-11-24 with the owner's go, read back: the format check allows sokkialist and dxf |
+| #306 | 243 (reading sketches as surveyors do) | Merged, live (build 1ba637a86eb5), with 242 | none |
+| #307 | 244 (the deed's extent on the face) | Merged, live (build 73408c17ac24) | none |
+| #308 | 245 (the sketch interpretation report) | Open | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 

@@ -94,8 +94,32 @@ The smaller ones:
   - `pnpm typecheck` and lint;
   - `pnpm build`, run with `NODE_OPTIONS=--max-old-space-size=4096` as the Dockerfile builds. The type check now needs about 2.4 GB, more than Node's default heap on the 8 GB dev PC (2.24 GB), so a plain local build or typecheck can fail for memory alone.
 
+## The production reader on the real sketch (2026-11-24)
+
+With the owner's consent, the real job was run through Generate Plan in production, in the owner's own workspace: the SDR and the sketch photo, read by the live reader (stage 244's prompt; Sonnet 5.5, the floor for sketch reading on the Free plan).
+
+- **What it read:**
+  - 18 point numbers, all in the survey;
+  - the walls along the west, south and east sides, with MW;
+  - two crossed lines read as fences, and two lines with nothing written along them;
+  - 1.58 and 1.43, without their ends. It listed "the ends of distances 1.58 (near 3/4) and 1.43 (near 6)" as uncertain: the same doubt the surveyor raised.
+- **What it left out:** the corners it couldn't read for certain (20 or 02, 21, the numbers along the road, 10, 12 and 13). With them, the north side, so the outline didn't close and **no lot was found**. The hand reading in the new format finds the lot.
+- **Why it matters:** this is the cost of the old rule, to leave out anything not read for certain. Stage 245 keeps such readings, with their doubt, so the outline can close while the doubt stays visible.
+
+**Read again once this stage was live** (build d511322a0df0, the same photo and model, "Read and replace"):
+
+- **Better:**
+  - 46 readings (34 before), and 27 point numbers, all in the survey;
+  - 1.58 and 1.43 are tied to 3 to 4 and 4 to 6, read with doubt ("ends could be other points"), and shown differing from the survey by 0.40 m and 1.50 m: the surveyor's own concern, now on the page;
+  - the house wall is drawn through 2, 3, 4, 6 and 9: the reader saw the short side's upper end meet the south wall at 2, which the survey bears out (3 is 0.112 m from 2).
+- **Too much doubt:** 41 of 46 readings came back doubtful, most of them plain numbers written turned ("35 or SE", "1 or a tick"). "For you to decide" listed 47 things, burying the few that matter.
+- **A misread number the survey can't catch by itself:** the upside-down 20 was read as "10 or 01". Point 10 exists (on the house wall), so the north wall came out as 18 to 10. 21 was still left out, so the outline didn't close, and no lot was found.
+- **Next (stage 246):**
+  - **Calibrate doubt:** a number written turned is doubtful only when its turned reading is another plausible number (6 and 9, 12 and 21, 20 and 02), never a letter.
+  - **Rank "For you to decide":** what the survey disagrees with, or doesn't have, first. Doubtful numbers the survey confirms go in a quieter group.
+  - **Check each line's numbers against the drawing's shape,** so a misread end that lands on another surveyed point is asked about.
+
 ## Not done, and why
 
-- **The production reader hasn't read the real sketch:** that needs the owner's consent. The new fields are tested on synthetic answers only.
 - **No PDF of the report:** the PDF fonts can't draw Sinhala.
 - **A surveyor's own notes about a sketch** have no place in the product yet. The real-job runner keeps them in its own file.

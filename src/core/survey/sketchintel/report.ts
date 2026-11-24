@@ -9,7 +9,7 @@
  * what it means, how sure Farbaek is and why, and what the survey says. The report is made again from what was read and the points as
  * they are now. Nothing in it moves a point or draws a line, and a photo position is only for finding the writing again.
  */
-import { checkReading, readerName, type ReadingStatus, type SketchReading, type SketchRecord } from "../autosurvey/sketch";
+import { checkReading, readerName, type ReadingStatus, type SketchKind, type SketchReading, type SketchRecord } from "../autosurvey/sketch";
 import type { SurveyDocument } from "../document";
 import type { CodeEntry } from "../codes";
 import type { CrsRecord } from "../crs";
@@ -45,6 +45,8 @@ export interface ReportEntry {
   side: { from: string; to: string } | null;
   near: string | null;
   meaning: string;
+  /** What kind of writing the reader took it for. */
+  kind: SketchKind;
   read: "clear" | "doubt";
   doubt: string | null;
   status: ReadingStatus;
@@ -83,6 +85,11 @@ export interface UnclearItem {
   reasons: string[];
   /** The reading it's about, when it's one. */
   id: string | null;
+  /**
+   * Shown apart, more quietly (stage 246, ADR 0254): a measurement read with doubt that the survey agrees with exactly as read, or a
+   * label or note read with doubt. They still never count as facts; they just aren't what the surveyor needs to look at first.
+   */
+  quiet: boolean;
 }
 
 export interface SketchReport {
@@ -196,6 +203,7 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
       side: r.from && r.to ? { from: r.from, to: r.to } : null,
       near: r.near || null,
       meaning: meaningOf(r, onSide),
+      kind: r.kind,
       read,
       doubt: r.doubt ?? null,
       status: c.status,
@@ -234,7 +242,8 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
   });
 
   // Apart: what was read with doubt, what the survey disagrees with, and numbers the survey doesn't have.
-  const unclear: UnclearItem[] = [];
+  const ranked: { item: UnclearItem; rank: number }[] = [];
+  const unclear = { push: (item: Omit<UnclearItem, "quiet">, rank: number) => ranked.push({ item: { ...item, quiet: rank >= 3 }, rank }) };
   for (const e of all) {
     const reasons: string[] = [];
     if (e.read === "doubt") reasons.push(e.doubt ? `Read with doubt: ${e.doubt}${/[.!?]$/.test(e.doubt) ? "" : "."}` : "Read with doubt.");
@@ -242,17 +251,22 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
     else if (e.read === "doubt" && (e.status === "agrees" || e.status === "close")) reasons.push(`The survey agrees with it as read: ${e.detail}`);
     if (reasons.length === 0) continue;
     const where = e.side ? ` between ${e.side.from} and ${e.side.to}` : e.near ? ` near ${e.near}` : "";
-    unclear.push({ what: `${e.text}${where} (${e.meaning.toLowerCase()})`, file: e.file, photo: e.photo, reasons, id: e.id });
+    const conflict = e.status === "differs" || e.status === "unmatched";
+    const label = e.kind === "feature" || e.kind === "note" || e.kind === "adjoining";
+    // A point number that exists says only that the number exists: a doubtful one stays in front (an upside-down 20 read as 10, where
+    // 10 is another point). Only a measurement the survey agrees with exactly, as read, is folded away with the labels.
+    const rank = conflict ? 0 : label ? 3 : e.kind !== "point" && e.status === "agrees" ? 4 : 1;
+    unclear.push({ what: `${e.text}${where} (${e.meaning.toLowerCase()})`, file: e.file, photo: e.photo, reasons, id: e.id }, rank);
   }
   // A number on the drawing the survey doesn't have, once: a written point number already listed above says it.
   for (const p of pointList) {
     if ((p.how !== "none" && p.how !== "ambiguous") || p.entries.length > 0) continue;
     const reason = p.how === "none" ? `${p.label} isn't a point number in the survey.` : `More than one surveyed point is numbered ${p.label}, so the sketch can't say which.`;
     const file = drawing.lines.find((l) => l.points.includes(p.label))?.file ?? drawing.symbols.find((s) => s.at === p.label)?.file ?? drawing.areas.find((a) => a.around.includes(p.label))?.file ?? sketch.files[0] ?? "";
-    unclear.push({ what: `Point number ${p.label}`, file, photo: null, reasons: [reason], id: null });
+    unclear.push({ what: `Point number ${p.label}`, file, photo: null, reasons: [reason], id: null }, 0);
   }
   for (const line of drawing.lines.filter((l) => !l.certain)) {
-    unclear.push({ what: `The ${DRAWN[line.style]} ${line.points.join(" to ")}${line.label ? ` ("${line.label}")` : ""}`, file: line.file, photo: null, reasons: ["Its numbers, or the line between them, were read with doubt."], id: null });
+    unclear.push({ what: `The ${DRAWN[line.style]} ${line.points.join(" to ")}${line.label ? ` ("${line.label}")` : ""}`, file: line.file, photo: null, reasons: ["Its numbers, or the line between them, were read with doubt."], id: null }, 2);
   }
 
   return {
@@ -264,7 +278,7 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
     between,
     points: pointList,
     other,
-    unclear,
+    unclear: ranked.sort((a, b) => a.rank - b.rank).map((x) => x.item),
     questions: document ? sketchQuestionFindings(interpretation, document).map((f) => [f.message, f.detail].filter(Boolean).join(" ")) : (interpretation?.questions ?? []).map((q) => [q.text, ...q.evidence].join(" ")),
     unreadable: sketch.unreadable,
   };
@@ -352,9 +366,14 @@ export function sketchReportMarkdown(r: SketchReport, title = "Sketch interpreta
   };
   table("Measurements not along one drawn side", r.between, "None.");
   table("Other writing", r.other, "None.");
-  out.push("", "## Unclear or uncertain, for the surveyor to decide", "", "None of these was used as a fact: each waits for the surveyor.", "");
-  if (r.unclear.length === 0) out.push("Nothing.");
-  for (const u of r.unclear) out.push(`- **${cell(u.what)}** (${where(u)}): ${cell(u.reasons.join(" "))}`);
+  const [needs, quiet] = [r.unclear.filter((u) => !u.quiet), r.unclear.filter((u) => u.quiet)];
+  out.push("", "## Unclear or uncertain, for the surveyor to decide", "", "None of these was used as a fact: each waits for the surveyor. What the survey disagrees with comes first.", "");
+  if (needs.length === 0) out.push("Nothing.");
+  for (const u of needs) out.push(`- **${cell(u.what)}** (${where(u)}): ${cell(u.reasons.join(" "))}`);
+  if (quiet.length > 0) {
+    out.push("", "### Also read with doubt", "", "Labels and notes, and measurements the survey agrees with exactly as read. Not used as facts either.", "");
+    for (const u of quiet) out.push(`- **${cell(u.what)}** (${where(u)}): ${cell(u.reasons.join(" "))}`);
+  }
   if (r.questions.length > 0) out.push("", "## What the engine asks", "", ...r.questions.map((q) => `- ${cell(q)}`));
   if (r.unreadable.length > 0) out.push("", "## Seen but not read", "", ...r.unreadable.map((u) => `- ${cell(u)}`));
   return out.join(LF);
