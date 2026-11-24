@@ -23,6 +23,7 @@ import { printable } from "./apply";
 import { classifyArea, classifyLine, isRoadName, LAYER_OF, namesKind, symbolEntry, type LineKind } from "./classify";
 import type { SketchDrawing, SketchLine } from "./drawing";
 import { indexPoints, matchNote, matchPoint, type PointIndex } from "./match";
+import { misplacedNumbers, type PlacedNumber } from "./placement";
 
 export interface InterpretOptions {
   /** A point within this many metres of the straight line between its neighbours lies on that side; further off, it's a corner. Farbaek's default: 0.25 m. */
@@ -41,6 +42,8 @@ export interface InterpretOptions {
    */
   doubtfulWidths?: readonly string[];
   doubtfulRoadNames?: readonly string[];
+  /** The point numbers the reader placed on each photo (stage 247): only to ask about a number written where another point belongs. */
+  placed?: readonly PlacedNumber[];
 }
 
 export type Level = "strong" | "check";
@@ -693,6 +696,7 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       return { l, legs, box: [Math.min(...pts.map((p) => p.e)), Math.min(...pts.map((p) => p.n)), Math.max(...pts.map((p) => p.e)), Math.max(...pts.map((p) => p.n))] as const };
     });
   const asked = new Set<string>();
+  const crossed: [LineRef, LineRef][] = [];
   let crossings = 0;
   let work = 0;
   for (let i = 0; i < solid.length && crossings < 5 && work < 200_000; i++) {
@@ -719,7 +723,51 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
         ],
         about ? { item: about.id, answeredBy: "confirm" } : undefined,
       );
+      crossed.push([x, y]);
     }
+  }
+
+  // ---- Numbers written where another point would be (stage 247, ADR 0255), by the fit of where the other numbers are written. Asked
+  // about; the lot or the line that uses the number answers it when confirmed or corrected.
+  const lotIds = new Set(lot ? [...lot.corners, ...lot.onSides].map((p) => p.pointId) : []);
+  // Once per number (two photos of one sketch can raise it twice), and only where the number is used by the lot or a line: a number
+  // nothing on the plan uses is left to the sketch report, where it's listed first.
+  const seenNumbers = new Set<string>();
+  const misplaced = misplacedNumbers(options.placed ?? [], points).filter((m) => {
+    const key = m.pointId ?? m.label;
+    if (seenNumbers.has(key)) return false;
+    seenNumbers.add(key);
+    return true;
+  });
+  let placeQuestions = 0;
+  for (const m of misplaced) {
+    const uses = lot && m.pointId && lotIds.has(m.pointId) ? lot : lines.find((l) => m.pointId && l.points.some((p) => p.pointId === m.pointId))?.proposal;
+    if (!uses || placeQuestions >= 5) continue;
+    placeQuestions++;
+    ask(
+      uses.from,
+      m.file,
+      m.likelyWritten
+        ? `The number read as ${m.label} is written on the sketch far from where point ${m.label} would be, beside where ${m.likely} is written, going by where the other numbers are written.`
+        : `The number read as ${m.label} is written on the sketch where point ${m.likely} would be, going by where the other numbers are written.`,
+      [
+        `${m.likelyWritten ? "It may be misread" : `It may be ${m.likely}, misread`}. A sketch isn't drawn to scale, so this only asks: check the number on the sketch, and correct the plan on the Lots step if it's wrong.`,
+        "Nothing was changed.",
+      ],
+      { item: uses.id, answeredBy: "confirm" },
+    );
+  }
+
+  // The lot's own card says what speaks against it, so confirming it is never blind to a doubt raised elsewhere.
+  if (lot) {
+    // A line is the lot's when the lot was built from it, or (for a lot written as an area) when it runs between two of its points.
+    const ofLot = (l: LineRef) => lot!.from.includes(l.line.id) || l.points.filter((p) => lotIds.has(p.pointId)).length >= 2;
+    for (const [x, y] of crossed) {
+      if (ofLot(x) || ofLot(y))
+        lot.evidence.push(`Its outline uses the line through ${list(ids(x.points))} or ${list(ids(y.points))}, which cross each other where no number is: one of their numbers may be misread.`);
+    }
+    for (const m of misplaced) if (m.pointId && lotIds.has(m.pointId)) lot.evidence.push(`Its corner ${m.label} may be misread: it's written on the sketch ${m.likelyWritten ? `far from where point ${m.label} would be` : `where point ${m.likely} would be`}.`);
+    if (lot.evidence.some((e) => e.includes("may be misread"))) lot.level = "check";
   }
   return { proposals, questions, matches };
 

@@ -4,6 +4,8 @@
  * beyond what was read.
  */
 import type { SurveyDocument } from "../document";
+import type { SketchReading } from "../autosurvey/sketch";
+import type { PlacedNumber } from "./placement";
 import { readStatedExtent } from "../extent";
 import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
@@ -27,7 +29,12 @@ export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPo
   // Every doubtful road writing that isn't a width: a name read with doubt keeps an area of the same name from naming the road too.
   const doubtfulWidths = unsure.filter((r) => writtenWidth(r.text) !== null).map((r) => r.text);
   const doubtfulRoadNames = unsure.filter((r) => writtenWidth(r.text) === null).map((r) => r.text);
-  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames });
+  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames, placed: placedNumbers(doc.sketch?.readings ?? []) });
+}
+
+/** The point numbers the reader placed on a photo (stage 247): evidence for a question, never a position. */
+export function placedNumbers(readings: readonly SketchReading[]): PlacedNumber[] {
+  return readings.filter((r) => r.kind === "point" && r.photo).map((r) => ({ label: r.text, file: r.file, x: r.photo!.x, y: r.photo!.y, id: r.id }));
 }
 
 /**

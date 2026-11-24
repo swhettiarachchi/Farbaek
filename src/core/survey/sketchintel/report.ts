@@ -16,7 +16,8 @@ import type { CrsRecord } from "../crs";
 import type { SurveyPoint } from "../parcel";
 import { classifyLine, type LineKind } from "./classify";
 import type { SketchLineStyle } from "./drawing";
-import { sketchQuestionFindings } from "./findings";
+import { placedNumbers, sketchQuestionFindings } from "./findings";
+import { misplacedNumbers } from "./placement";
 import { writtenWidth, type SketchInterpretation } from "./interpret";
 import { indexPoints, matchPoint, type MatchHow } from "./match";
 
@@ -244,14 +245,19 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
   // Apart: what was read with doubt, what the survey disagrees with, and numbers the survey doesn't have.
   const ranked: { item: UnclearItem; rank: number }[] = [];
   const unclear = { push: (item: Omit<UnclearItem, "quiet">, rank: number) => ranked.push({ item: { ...item, quiet: rank >= 3 }, rank }) };
+  // A number written where another point would be (stage 247): said first, with the point it may be.
+  const misplaced = misplacedNumbers(placedNumbers(sketch.readings), points);
   for (const e of all) {
     const reasons: string[] = [];
+    // By the reading itself, so a label written twice is marked only where it's out of place.
+    const mis = e.kind === "point" ? misplaced.find((m) => m.id === e.id) : undefined;
+    if (mis) reasons.push(mis.likelyWritten ? `It's written on the sketch far from where point ${mis.label} would be, beside where ${mis.likely} is written, going by where the other numbers are written: it may be misread.` : `It's written on the sketch where point ${mis.likely} would be, going by where the other numbers are written: it may be ${mis.likely}.`);
     if (e.read === "doubt") reasons.push(e.doubt ? `Read with doubt: ${e.doubt}${/[.!?]$/.test(e.doubt) ? "" : "."}` : "Read with doubt.");
     if (e.status === "differs" || e.status === "unmatched") reasons.push(e.detail);
     else if (e.read === "doubt" && (e.status === "agrees" || e.status === "close")) reasons.push(`The survey agrees with it as read: ${e.detail}`);
     if (reasons.length === 0) continue;
     const where = e.side ? ` between ${e.side.from} and ${e.side.to}` : e.near ? ` near ${e.near}` : "";
-    const conflict = e.status === "differs" || e.status === "unmatched";
+    const conflict = e.status === "differs" || e.status === "unmatched" || Boolean(mis);
     const label = e.kind === "feature" || e.kind === "note" || e.kind === "adjoining";
     // A point number that exists says only that the number exists: a doubtful one stays in front (an upside-down 20 read as 10, where
     // 10 is another point). Only a measurement the survey agrees with exactly, as read, is folded away with the labels.
