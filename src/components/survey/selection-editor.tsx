@@ -1,13 +1,14 @@
 "use client";
 
 import { CheckIcon, PencilSimpleIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { cornerBetween, type ConstructedPoint } from "@/core/survey/construct";
+import { cornerBetween, type SquareCorner } from "@/core/survey/construct";
 import { useState } from "react";
 import { LAYER_NAMES } from "@/core/survey/assistant/describe";
 import { FEATURE_LAYERS, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
+import { ConstructPoint } from "./construct-point";
 import { PointEditor, TextEditor } from "./point-editor";
 
 /** The sheet's own texts, edited as fields on the Sheet tab: tapping one opens them there. */
@@ -68,7 +69,14 @@ export function pointsFromNumbers(text: string, points: readonly SurveyPoint[], 
 }
 
 /** Point numbers in order; a constructed square corner (ADR 0270) as the word corner, as the sketch reader writes it. */
-const numbersOf = (ids: readonly string[], points: readonly SurveyPoint[], doc?: SurveyDocument) => ids.map((id) => ((doc?.constructed ?? []).some((c) => c.id === id) ? "corner" : (points.find((p) => p.id === id)?.pointId ?? "?"))).join(", ");
+const numbersOf = (ids: readonly string[], points: readonly SurveyPoint[], doc?: SurveyDocument) =>
+  ids
+    .map((id) => {
+      const c = (doc?.constructed ?? []).find((x) => x.id === id);
+      // A point worked out by hand by the name the surveyor gave it (ADR 0272).
+      return c ? (c.kind === "square" ? "corner" : c.name) : (points.find((p) => p.id === id)?.pointId ?? "?");
+    })
+    .join(", ");
 
 /**
  * A line's points from what the surveyor typed (stage 262, ADR 0270): surveyed numbers, with the word corner between two of them for a
@@ -76,18 +84,24 @@ const numbersOf = (ids: readonly string[], points: readonly SurveyPoint[], doc?:
  * either of them; when nothing says which way it's square, that's said and nothing changes. A closed outline's last corner word lies on
  * its closing side.
  */
-export function lineFromText(text: string, points: readonly SurveyPoint[], current: readonly string[], doc: SurveyDocument, closed: boolean): { ids: string[]; constructed: ConstructedPoint[] } | { problem: string } {
+export function lineFromText(text: string, points: readonly SurveyPoint[], current: readonly string[], doc: SurveyDocument, closed: boolean): { ids: string[]; constructed: SquareCorner[] } | { problem: string } {
   const words = text
     .split(/[\s,;]+/)
     .map((s) => s.trim())
     .filter(Boolean);
   const isCorner = (w: string) => /^corner$/i.test(w);
-  const r = pointsFromNumbers(words.filter((w) => !isCorner(w)).join(" "), points, current);
+  // A point worked out by hand (a meeting or an offset, ADR 0272) by its name: never a surveyed number, which the names can't take.
+  const named = new Map((doc.constructed ?? []).flatMap((c) => (c.kind === "square" ? [] : [[c.name.toLowerCase(), c.id] as const])));
+  // A surveyed number always means the surveyed point, even if a point worked out by hand was given that name before it was imported.
+  const surveyedNumbers = new Set(points.map((p) => p.pointId.toLowerCase()));
+  const byName = (w: string) => (surveyedNumbers.has(w.toLowerCase()) ? undefined : named.get(w.toLowerCase()));
+  const r = pointsFromNumbers(words.filter((w) => !isCorner(w) && !byName(w)).join(" "), points, current);
   if ("problem" in r) return r;
   const name = (id: string) => points.find((p) => p.id === id)?.pointId ?? "?";
   const ids: string[] = [];
-  const made: ConstructedPoint[] = [];
+  const made: SquareCorner[] = [];
   const corner = (a: string, b: string): string | { problem: string } => {
+    if (named.size > 0 && [...named.values()].some((x) => x === a || x === b)) return { problem: "A square corner goes between two surveyed points, not beside a point that wasn't surveyed." };
     const c = cornerBetween({ ...doc, constructed: [...(doc.constructed ?? []), ...made] }, points, a, b);
     if (!c) return { problem: `No surveyed line at ${name(a)} or ${name(b)} says which way the corner between them is square: survey the corner, or leave the word out.` };
     if (!made.some((x) => x.id === c.id) && !(doc.constructed ?? []).some((x) => x.id === c.id)) made.push(c);
@@ -102,7 +116,7 @@ export function lineFromText(text: string, points: readonly SurveyPoint[], curre
       pending = true;
       continue;
     }
-    const pid = r.ids[n++]!;
+    const pid = byName(w) ?? r.ids[n++]!;
     if (pending) {
       const c = corner(ids.at(-1)!, pid);
       if (typeof c !== "string") return c;
@@ -360,6 +374,7 @@ export function SelectionEditor(props: {
           }}
         />
         {said}
+        <ConstructPoint key={f.points.join()} doc={doc} points={points} featureId={f.id} names={numbersOf(f.points, points, doc).split(", ")} readOnly={readOnly} update={(change) => update(change)} />
         {remove("this line", (d) => void ((d.features = d.features.filter((x) => x.id !== f.id)), delete d.labelOffsets[key], delete d.provenance[key]), readOnly)}
       </div>
     );

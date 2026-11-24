@@ -12,7 +12,7 @@
  * documents are upgraded when read (`parseSurveyDocument`).
  */
 import { z } from "zod";
-import { CONSTRUCTED_MAX, constructedPointSchema } from "./construct";
+import { CONSTRUCTED_MAX, constructedPointSchema, recipeInputs } from "./construct";
 import { ARCS_PER_LINE } from "./arcs";
 import { sketchRecordSchema } from "./autosurvey/sketch";
 import { codeEntrySchema, commonCodes, type CodeEntry } from "./codes";
@@ -287,6 +287,10 @@ export const surveyDocumentSchema = z.object({
     .array(constructedPointSchema)
     .max(CONSTRUCTED_MAX)
     .refine((list) => new Set(list.map((c) => c.id)).size === list.length, "Each constructed corner has its own id.")
+    .refine((list) => {
+      const names = list.flatMap((c) => (c.kind === "square" ? [] : [c.name.toLowerCase()]));
+      return new Set(names).size === names.length;
+    }, "Each point worked out by hand has its own name.")
     .optional(),
   /** How the crew writes line codes (grammar.ts, ADR 0243). Left out of the approval hash while Farbaek's, so earlier approvals stand. */
   grammar: z.enum(GRAMMARS).default("farbaek"),
@@ -368,7 +372,7 @@ export function usedPointIds(doc: SurveyDocument): Set<string> {
   for (const c of doc.constructed ?? []) if (!made.has(c.id)) made.set(c.id, c);
   const lines = doc.features.flatMap((f) => f.points).flatMap((id) => {
     const c = made.get(id);
-    return c ? [c.from, c.to, ...c.ref] : [id];
+    return c ? recipeInputs(c) : [id];
   });
   return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...lines, ...(doc.symbols ?? []).map((s) => s.point), ...(doc.texts ?? []).flatMap((t) => (t.along ? [t.at, t.along] : [t.at]))]);
 }

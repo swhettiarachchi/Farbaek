@@ -31,9 +31,10 @@ export interface CheckItem {
 /** What the plan draws, by point numbers, for the check: its lots, then its lines and outlines. Items missing a point are left out. */
 export function checkItems(doc: SurveyDocument, points: readonly SurveyPoint[]): CheckItem[] {
   const num = new Map(points.map((p) => [p.id, p.pointId]));
-  const corners = new Set((doc.constructed ?? []).map((c) => c.id));
+  // A square corner as the sketch's word for it; a meeting or an offset by the name the surveyor gave it.
+  const made = new Map((doc.constructed ?? []).map((c) => [c.id, c.kind === "square" ? "corner" : c.name]));
   const numbers = (ids: readonly string[]) => {
-    const out = ids.map((id) => (corners.has(id) ? "corner" : num.get(id)));
+    const out = ids.map((id) => made.get(id) ?? num.get(id));
     return out.every((x): x is string => typeof x === "string") ? out : null;
   };
   const items: CheckItem[] = [];

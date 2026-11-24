@@ -15,7 +15,7 @@
  */
 import { fitArc, type ArcRun } from "../arcs";
 import { codeOf, lookupCode, type CodeEntry } from "../codes";
-import { cornerId, squareReference, type ConstructedPoint } from "../construct";
+import { cornerId, squareReference, type SquareCorner } from "../construct";
 import type { DrawingFeature } from "../document";
 import { area, distance, orient, pointSegmentDistance, segmentsIntersect, signedArea, type Point } from "../geometry";
 import type { SurveyPoint } from "../parcel";
@@ -147,7 +147,7 @@ export interface Question {
  * A square corner the sketch draws between two surveyed points without a number (stage 262, ADR 0270): put between them in the lines
  * and outlines the sketch adds, as a recipe from surveyed points.
  */
-export interface SquareCornerProposal extends ConstructedPoint {
+export interface SquareCornerProposal extends SquareCorner {
   /** The two surveyed points it lies between, as the sketch draws it. */
   between: [string, string];
   sketch: string[];

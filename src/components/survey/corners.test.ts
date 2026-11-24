@@ -76,3 +76,24 @@ describe("the checks", () => {
     expect(v.findings.find((f) => f.code === "CONSTRUCTED_CORNER_MISPLACED")).toMatchObject({ severity: "error", blocks: ["export", "approval"] });
   });
 });
+
+describe("a point worked out by hand, by its name (stage 264)", () => {
+  it("is taken by the name the surveyor gave it, and shown by it", () => {
+    const meet = { id: "00000000-0000-4000-8000-0000000000a1", kind: "meet" as const, name: "3a", a: [id("14"), id("13")] as [string, string], b: [id("1"), id("2")] as [string, string] };
+    const d = { ...base(), constructed: [meet] };
+    const r = lineFromText("17, 3A, 14", POINTS, [], d, false);
+    expect(r).toEqual({ ids: [id("17"), meet.id, id("14")], constructed: [] });
+  });
+});
+
+describe("after review (stage 264)", () => {
+  const meet = { id: "00000000-0000-4000-8000-0000000000a1", kind: "meet" as const, name: "13", a: [id("14"), id("13")] as [string, string], b: [id("1"), id("2")] as [string, string] };
+  it("takes a surveyed number as the surveyed point even where a hand-worked point was given that name", () => {
+    const r = lineFromText("17, 13", POINTS, [], { ...base(), constructed: [meet] }, false);
+    expect(r).toEqual({ ids: [id("17"), id("13")], constructed: [] });
+  });
+  it("says a square corner can't stand beside a point that wasn't surveyed", () => {
+    const named = { ...meet, name: "3a" };
+    expect(lineFromText("3a, corner, 17", POINTS, [], { ...base(), constructed: [named] }, false)).toEqual({ problem: "A square corner goes between two surveyed points, not beside a point that wasn't surveyed." });
+  });
+});

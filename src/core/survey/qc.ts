@@ -386,13 +386,19 @@ export function checkSurvey(input: QcInput): Finding[] {
   for (const f of doc.features)
     f.points.forEach((pid, k) => {
       const c = recipes.get(pid);
-      if (c && !cornerFits(c, neighbours(f.points, f.closed, k)))
+      if (c && c.kind === "square" && !cornerFits(c, neighbours(f.points, f.closed, k)))
         add({ code: "CONSTRUCTED_CORNER_MISPLACED", severity: "error", message: `A square corner on the ${f.code ? `${f.code} line` : "line"} isn't between the two points it's worked out from.`, target: { kind: "feature", id: f.id }, action: "Type the line's points again on the Plan step, with corner between the two numbers it lies between.", blocks: ["export", "approval"] });
     });
+  // A point worked out by hand named as a surveyed point now is (imported after it was named): "25" would mean two points.
+  const numbers = new Set(input.points.filter((p) => !recipes.has(p.id)).map((p) => p.pointId.toLowerCase()));
+  for (const c of doc.constructed ?? [])
+    if (c.kind !== "square" && numbers.has(c.name.toLowerCase()))
+      add({ code: "CONSTRUCTED_NAME_TAKEN", severity: "error", message: `The point ${c.name}, worked out by hand, has a surveyed point's number as its name.`, target: { kind: "project" }, action: "Type its line's points again without it, then add it again under another name.", blocks: ["export", "approval"] });
   const made = (doc.constructed ?? []).filter((c) => known.has(c.id) && doc.features.some((f) => f.points.includes(c.id)));
   // A lot runs straight between two of its corners where a line turns a square corner that wasn't surveyed: the lot leaves that land out.
   for (const c of made)
-    for (const lot of doc.lots) {
+    for (const lot of c.kind === "square" ? doc.lots : []) {
+      if (c.kind !== "square") continue;
       const i = lot.points.indexOf(c.from);
       const j = lot.points.indexOf(c.to);
       if (i < 0 || j < 0 || (Math.abs(i - j) !== 1 && Math.abs(i - j) !== lot.points.length - 1)) continue;
@@ -408,14 +414,29 @@ export function checkSurvey(input: QcInput): Finding[] {
     }
   if (made.length > 0) {
     const num = (id: string) => pointAt.get(id)?.pointId ?? "?";
+    const m = (v: number) => `${Math.abs(v).toFixed(2)} m`;
     const first = doc.features.find((f) => f.points.includes(made[0]!.id))!;
+    const squares = made.every((c) => c.kind === "square");
+    // Each one in words, with what it's worked out from; a tape offset says its measurements were typed by hand (ADR 0272).
+    const said = (c: (typeof made)[number]) =>
+      c.kind === "square"
+        ? `Between ${num(c.from)} and ${num(c.to)}, square to the line ${num(c.ref[0])} to ${num(c.ref[1])}.`
+        : c.kind === "meet"
+          ? `${c.name}, where the line ${num(c.a[0])} to ${num(c.a[1])} meets the line ${num(c.b[0])} to ${num(c.b[1])}.`
+          : `${c.name}, ${m(c.along)} ${c.along < 0 ? "back from" : "along"} ${num(c.from)} to ${num(c.toward)}${c.out !== 0 ? `, then ${m(c.out)} square off it to its ${c.out > 0 ? "left" : "right"}` : ""}: measured by tape and typed by hand.`;
     add({
       code: "CONSTRUCTED_CORNERS",
       severity: "warning",
-      message: made.length === 1 ? "A corner on the plan wasn't surveyed: it's drawn square from surveyed points." : `${made.length} corners on the plan weren't surveyed: they're drawn square from surveyed points.`,
+      message: squares
+        ? made.length === 1
+          ? "A corner on the plan wasn't surveyed: it's drawn square from surveyed points."
+          : `${made.length} corners on the plan weren't surveyed: they're drawn square from surveyed points.`
+        : made.length === 1
+          ? "A point on the plan wasn't surveyed: it's worked out from surveyed points."
+          : `${made.length} points on the plan weren't surveyed: they're worked out from surveyed points.`,
       target: { kind: "feature", id: first.id },
-      detail: made.map((c) => `Between ${num(c.from)} and ${num(c.to)}, square to the line ${num(c.ref[0])} to ${num(c.ref[1])}.`).join(" "),
-      action: "Check each against the sketch. Survey the corner if the plan needs it as a mark.",
+      detail: made.map(said).join(" "),
+      action: "Check each against the sketch and the field book. Survey the point if the plan needs it as a mark.",
       blocks: [],
     });
   }
