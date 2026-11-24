@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { commonCodes } from "../codes";
 import type { SurveyPoint } from "../parcel";
 import type { SketchLine } from "./drawing";
+import { sketchEvidence } from "./findings";
 import { interpretSketch } from "./interpret";
 import { misplacedNumbers, type PlacedNumber } from "./placement";
 
@@ -84,6 +85,28 @@ describe("the engine asks, and the lot's card says so", () => {
     expect(q?.item).toBe(lot.id);
     expect(lot.evidence.join(" ")).toContain("Its corner 4 may be misread: it's written on the sketch where point 8 would be.");
     expect(lot.level).toBe("check");
+  });
+
+  it("offers the correction in one press only when the other point's number isn't written too (stage 249)", () => {
+    const ids = (ps: PlacedNumber[]) => ps.map((p) => ({ ...p, id: `r${p.label}` }));
+    const placed = ids(placedAll().filter((p) => p.label !== "8").map((p) => (p.label === "4" ? { ...p, ...photo(byId("8")) } : p)));
+    const r = interpretSketch({ lines, symbols: [], areas: [] }, GRID, commonCodes(), { placed });
+    const lot = r.proposals.find((p) => p.kind === "lot")!;
+    const q = r.questions.find((x) => x.text.startsWith("The number read as 4"))!;
+    expect(q.suggest).toEqual({ file: "s.jpg", reading: "r4", label: "4", to: "8" });
+    expect(q.evidence[0]).toContain("if it's 8, use 8 for it in one press");
+    expect(sketchEvidence(r, `lot:${lot.id}`)?.fixes).toEqual([{ file: "s.jpg", reading: "r4", label: "4", to: "8" }]);
+    // Not when two surveyed points are numbered 8 (the press could only be refused), nor when the reading isn't known.
+    const twin = { ...byId("8"), id: "00000000-0000-4000-8000-000000000888", e: byId("8").e + 300 };
+    const t2 = interpretSketch({ lines, symbols: [], areas: [] }, [...GRID, twin], commonCodes(), { placed });
+    expect(t2.questions.find((x) => x.text.startsWith("The number read as 4"))?.suggest).toBeUndefined();
+    const noIds = placed.map((p) => ({ label: p.label, file: p.file, x: p.x, y: p.y }));
+    expect(interpretSketch({ lines, symbols: [], areas: [] }, GRID, commonCodes(), { placed: noIds }).questions.find((x) => x.text.startsWith("The number read as 4"))?.suggest).toBeUndefined();
+    // With 8 written at its own place as well, the 4 there isn't plainly a misread 8: it's asked about, with nothing offered.
+    const both = placedAll().map((p) => (p.label === "4" ? { ...p, ...photo(byId("8")) } : p));
+    const s = interpretSketch({ lines, symbols: [], areas: [] }, GRID, commonCodes(), { placed: both });
+    expect(s.questions.find((x) => x.text.startsWith("The number read as 4"))?.suggest).toBeUndefined();
+    expect(sketchEvidence(s, `lot:${s.proposals.find((p) => p.kind === "lot")!.id}`)?.fixes).toEqual([]);
   });
 
   it("changes nothing that's drawn: the same proposals with or without the places", () => {

@@ -1,4 +1,4 @@
-import { EyeSlashIcon, HashIcon, LineSegmentsIcon, QuestionIcon, RulerIcon, TextTIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { EyeSlashIcon, HashIcon, LineSegmentsIcon, PencilSimpleIcon, QuestionIcon, RulerIcon, TextTIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { Disclosure } from "@/components/ui/disclosure";
 import { LocalTime } from "@/components/ui/local-time";
@@ -210,6 +210,20 @@ export function SketchReportView({ report: r, photoUrl }: { report: SketchReport
           <ul className="mt-4 grid gap-3">
             {r.other.map((e) => (
               <Entry key={e.id} e={{ ...e, meaning: e.near ? `${e.meaning}, near ${e.near}` : e.meaning }} url={photoUrl(e.file)} />
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {r.corrections.length > 0 ? (
+        <Card>
+          <CardTitle icon={PencilSimpleIcon}>Corrected by you</CardTitle>
+          <p className="mt-1 text-sm text-ink-2">The sketch is read with these corrections. What was read stays as read, beside them.</p>
+          <ul className="mt-3 grid list-disc gap-1 pl-5 text-sm text-ink-2">
+            {r.corrections.map((c) => (
+              <li key={`${c.file}:${c.label}`}>
+                The number read as {c.label} on {c.file} is {c.to}, corrected <LocalTime iso={c.at} date />.
+              </li>
             ))}
           </ul>
         </Card>

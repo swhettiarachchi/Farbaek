@@ -120,6 +120,11 @@ export interface Question {
    * it stays while the drawing says so.
    */
   answeredBy?: "confirm" | "label" | "road";
+  /**
+   * A correction the surveyor can make in one press (stage 249, ADR 0257): the reading on a photo, its number as the engine reads it,
+   * and the one surveyed point the evidence points to. Never applied without that press.
+   */
+  suggest?: { file: string; reading: string; label: string; to: string };
 }
 
 export interface SketchInterpretation {
@@ -408,7 +413,7 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
   const proposals: Proposal[] = [];
   const questions: Question[] = [];
   const matches: SketchInterpretation["matches"] = [];
-  const ask = (from: string[], file: string, text: string, evidence: string[] = [], about?: Pick<Question, "item" | "answeredBy">) => questions.push({ from, file, text, evidence, ...about });
+  const ask = (from: string[], file: string, text: string, evidence: string[] = [], about?: Pick<Question, "item" | "answeredBy" | "suggest">) => questions.push({ from, file, text, evidence, ...about });
 
   for (const label of new Set([...drawing.lines.flatMap((l) => l.points), ...drawing.symbols.map((s) => s.at).filter(Boolean), ...drawing.areas.flatMap((a) => a.around)])) {
     const r = matchPoint(label, index);
@@ -744,6 +749,9 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
     const uses = lot && m.pointId && lotIds.has(m.pointId) ? lot : lines.find((l) => m.pointId && l.points.some((p) => p.pointId === m.pointId))?.proposal;
     if (!uses || placeQuestions >= 5) continue;
     placeQuestions++;
+    // One press is offered only when it's plain: the other point's own number isn't written, exactly one surveyed point has that number,
+    // and the reading is known, so the press corrects that reading and no other.
+    const offer = !m.likelyWritten && m.id !== undefined && points.filter((p) => p.pointId === m.likely).length === 1;
     ask(
       uses.from,
       m.file,
@@ -751,10 +759,12 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
         ? `The number read as ${m.label} is written on the sketch far from where point ${m.label} would be, beside where ${m.likely} is written, going by where the other numbers are written.`
         : `The number read as ${m.label} is written on the sketch where point ${m.likely} would be, going by where the other numbers are written.`,
       [
-        `${m.likelyWritten ? "It may be misread" : `It may be ${m.likely}, misread`}. A sketch isn't drawn to scale, so this only asks: check the number on the sketch, and correct the plan on the Lots step if it's wrong.`,
+        offer
+          ? `It may be ${m.likely}, misread. A sketch isn't drawn to scale, so this only asks: check the number on the sketch, and if it's ${m.likely}, use ${m.likely} for it in one press on the Plan step, and what it drew is redrawn.`
+          : `${m.likelyWritten ? "It may be misread" : `It may be ${m.likely}, misread`}. A sketch isn't drawn to scale, so this only asks: check the number on the sketch, and correct the plan on the Lots step if it's wrong.`,
         "Nothing was changed.",
       ],
-      { item: uses.id, answeredBy: "confirm" },
+      { item: uses.id, answeredBy: "confirm", ...(offer ? { suggest: { file: m.file, reading: m.id!, label: m.label, to: m.likely } } : {}) },
     );
   }
 

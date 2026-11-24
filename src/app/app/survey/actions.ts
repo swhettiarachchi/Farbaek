@@ -11,6 +11,8 @@ import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
 import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
 import { withDefaults } from "@/core/survey/autosurvey/defaults";
 import { officeProfileBodySchema, profileFromPlan, withProfile, type OfficeProfile } from "@/core/survey/profile";
+import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
+import { interpretDocument } from "@/core/survey/sketchintel/findings";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
@@ -482,6 +484,71 @@ export async function confirmSurveyItemAction(input: { projectId: string; baseVe
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `${input.confirmed ? "Confirmed" : "Back on the list"}: ${label}. Saved as version ${r.value}.`, version: r.value };
+}
+
+const correctionInput = z.object({
+  projectId: z.string().uuid(),
+  baseVersion: z.number().int().min(1),
+  file: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/),
+  /** The point reading the press is about, by its id: the number corrected is that reading's own, as read. */
+  reading: z.string().regex(/^r\d{1,3}$/),
+  to: z.string().min(1).max(32).regex(/^[^\u0000-\u001f\u007f]+$/),
+});
+
+/**
+ * Corrects a point number as the sketch was read (stage 249, ADR 0257): "the number read as 10 on this photo is 20". The correction is
+ * kept beside the reading with who made it and when, the reading stays as read, and what the sketch drew from it is redrawn: items it
+ * put on the plan that nobody confirmed are replaced by what the corrected reading proposes, each waiting for the surveyor as before.
+ * Anything the surveyor confirmed or edited is left as it is, and named. Saved as a new version.
+ */
+export async function correctSketchNumberAction(input: z.input<typeof correctionInput>): Promise<SurveyFormState> {
+  const parsed = correctionInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const i = parsed.data;
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, i.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== i.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be corrected on it. Reload, or ask support." };
+  const doc = structuredClone(data.drawing.document);
+  const sketch = doc.sketch;
+  if (!sketch?.drawing || !sketch.files.includes(i.file)) return { status: "error", message: "That sketch isn't on this plan any more. Reload to see the plan as it is now." };
+  // The number corrected is the reading's own, as read: never one an earlier correction produced, so two numbers swapped on a photo
+  // are corrected by correcting each, and a second press never undoes the first.
+  const reading = sketch.readings.find((r) => r.id === i.reading && r.file === i.file && r.kind === "point");
+  if (!reading) return { status: "error", message: "That number isn't read on that sketch any more. Reload to see the plan as it is now." };
+  const asRead = reading.text;
+  const key = numberKey(asRead);
+  const earlier = (sketch.corrections ?? []).filter((c) => c.file === i.file && numberKey(c.label) === key);
+  const now = earlier.at(-1)?.to ?? asRead;
+  if (numberKey(now) === numberKey(i.to)) return { status: "error", message: `The number read as ${asRead} is already read as ${i.to}. Nothing was changed.` };
+  const back = numberKey(i.to) === key;
+  // The number it becomes must be exactly one surveyed point: a correction never invents or chooses between points. Going back to
+  // the number as read is always allowed.
+  const targets = data.points.filter((p) => p.pointId === i.to);
+  if (!back && targets.length !== 1) return { status: "error", message: targets.length === 0 ? `There's no point ${i.to} in the survey files, so the number can't be corrected to it.` : `More than one surveyed point is numbered ${i.to}, so the number can't be corrected to it.` };
+  // One correction per number on a photo: the newest replaces any before it, and going back to the number as read leaves none.
+  const corrections = (sketch.corrections ?? []).filter((c) => !(c.file === i.file && numberKey(c.label) === key));
+  if (!back) corrections.push({ file: i.file, label: asRead, to: i.to, by: g.w.actor.userId, at: new Date().toISOString() });
+  if (corrections.length > 50) return { status: "error", message: "This sketch has 50 corrections, its most. Read it again from the Draft step." };
+  const before = interpretDocument(doc, data.points);
+  const corrected: SurveyDocument = { ...doc, sketch: { ...sketch, corrections } };
+  const after = interpretDocument(corrected, data.points);
+  const redrawn = redrawFromCorrection(corrected, before, after);
+  const next = tidy(pruneProvenance(redrawn.document), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const changed = redrawn.removed.length + redrawn.added.length;
+  const said = back ? `the number read as ${asRead} is ${asRead} again` : `the number read as ${asRead} is ${i.to}`;
+  // What the surveyor confirmed and the correction leaves as it was is in the version's note too, so it's never only on a screen.
+  const keptNote = redrawn.kept.length > 0 ? `; ${redrawn.kept.length} confirmed ${redrawn.kept.length === 1 ? "item still uses" : "items still use"} ${now}` : "";
+  const note = `Corrected the sketch: ${said}${changed > 0 ? "; redrew what it drew" : ""}${keptNote}`.slice(0, 200);
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: i.projectId, baseVersion: i.baseVersion, document: next, note });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${i.projectId}`);
+  const kept = redrawn.kept.length > 0 ? ` ${redrawn.kept.length === 1 ? "One item you confirmed still uses" : `${redrawn.kept.length} items you confirmed still use`} ${now}: check ${redrawn.kept.length === 1 ? "it" : "them"} on the Lots step.` : "";
+  const redraw = changed > 0 ? ` ${redrawn.removed.length} ${redrawn.removed.length === 1 ? "item" : "items"} drawn from ${now} taken off, ${redrawn.added.length} drawn from ${back ? asRead : i.to}, each waiting for you.` : "";
+  return { status: "done", message: `Corrected: ${said}.${redraw}${kept} Saved as version ${r.value}.`, version: r.value };
 }
 
 /**
