@@ -83,6 +83,15 @@ export function symbolEntry(kind: SketchSymbolKind, label: string, codes: readon
 
 export type AreaKind = "building" | "lot" | "road" | "land";
 
+/** The code list's only outline whose meaning is a building (the common list's P, Permanent Building), or null when none or several are. */
+export function buildingEntry(codes: readonly CodeEntry[]): CodeEntry | null {
+  const found = codes.filter((c) => c.kind === "outline" && /\bbuilding\b/i.test(c.meaning));
+  return found.length === 1 ? found[0]! : null;
+}
+
+/** Whether writing names a gate (gate, ගේට්ටුව). */
+export const isGateWord = (text: string) => /\b(gate|gateway)\b|ගේට්ටු/i.test(text.trim());
+
 /** A road's name written in an area: English, an abbreviated Mawatha, or Sinhala (පාර, මාවත, වීදිය, පටු මඟ). */
 const ROAD_NAME = /(?:^|\s)(?:road|rd|lane|mawatha|street|avenue|veediya|para|path|mw)\.?(?:\s+(?:no\.?\s*)?\d+[a-z]?)?$|(?:^|\s)(?:පාර|මාවත|වීදිය|පටු\s*මඟ)(?:\s+\d+)?$/i;
 /** Writing about someone's land or a lot, which may name the road beside it: never a road's name. */
@@ -96,7 +105,8 @@ export function classifyArea(label: string, codes: readonly CodeEntry[]): { kind
   const t = label.trim();
   const entry = entryOf(t, codes);
   if (entry && entry.kind === "outline") return { kind: "building", name: t, code: entry, why: `${t} is the code list's ${entry.meaning.toLowerCase()}` };
-  if (/\b(house|building|bldg|shop|shed)\b|ගෙය|නිවස|ගොඩනැගිල්ල/i.test(t)) return { kind: "building", name: t, code: null, why: "it names a building" };
+  // Never writing about someone's land ("Land of NHDA", "Home garden of …"): a building's word inside it names the land, not a building.
+  if (!LAND_WORDS.test(t) && /\b(house|building|bldg|shop|shed)\b|ගෙය|ගෙදර|නිවස|ගොඩනැගිල්ල/i.test(t)) return { kind: "building", name: t, code: null, why: "it names a building" };
   if (isRoadName(t)) return { kind: "road", name: t, code: null, why: "it names a road" };
   // "Lot 12", "lot 3A", "Lot B": a lot by name. A single letter ("B") is a lot too, even where it's also a mark's or symbol's code: only
   // an outline's code (P, a building) is read as the outline, above. A longer code (MW, CP2) written in an area isn't a lot's name.

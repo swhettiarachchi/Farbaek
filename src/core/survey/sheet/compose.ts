@@ -24,6 +24,7 @@ import { fmt, fromSquareMetres, formatArp, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 import { composeClassic } from "./classic";
 import { LabelSession, solveLabels } from "./labels";
+import { drawTexts } from "./texts";
 import { Placer, atPage, textQuad, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawRoads, drawScaleBar, drawSimpleNorth, overlappingEntities, overlappingLabels, suggestScale, type DrawCtx } from "./draw";
 import { textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import type { SheetTemplate } from "./template";
@@ -292,8 +293,12 @@ export function usedCodes(doc: SurveyDocument, lots: PlanLots, points: readonly 
   for (const r of lots.lots) for (const v of r.parcel?.vertices ?? []) if (codeOf(v.code)) codes.add(codeOf(v.code));
   for (const f of doc.features) if (f.code.trim()) codes.add(f.code.trim());
   const box = bounds(drawnExtent(doc, new Map(points.map((p) => [p.id, p]))));
+  const corners = new Set(lots.lots.flatMap((r) => r.parcel?.vertices.map((v) => v.id) ?? []));
   for (const p of points) {
-    const e = lookupCode(doc.codes, codeOf(p.code));
+    // A symbol the plan gives the point (stage 255) is what it's drawn as, so it's what the Reference lists; a lot's corner is drawn as a
+    // corner whatever it's given, so there it isn't.
+    const given = corners.has(p.id) ? undefined : (doc.symbols ?? []).find((x) => x.point === p.id)?.code;
+    const e = lookupCode(doc.codes, given ?? codeOf(p.code));
     if (!box || !e || (e.kind !== "mark" && e.kind !== "symbol")) continue;
     if (p.e >= box.minE && p.e <= box.maxE && p.n >= box.minN && p.n <= box.maxN) codes.add(e.code);
   }
@@ -374,6 +379,7 @@ function composePanel(input: ComposeInput): ComposedSheet {
       drawLoosePoints(ctx, input.points, input.lots);
       drawLotLabels(ctx, input.lots, { extentUnder: input.lots.lots.length === 1 ? (a) => formatArp(toArp(a, doc.settings.perchDecimals)) : null, highlight: doc.sheet.extractOf || null });
       drawAdjoining(ctx, doc.adjoining, input.lots);
+      drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
       drawSimpleNorth(ctx, viewport.x + viewport.w - 10, viewport.y + 12, input.crs?.kind === "local");
       drawScaleBar(ctx, viewport.x + 4, viewport.y + viewport.h - 6, true);
       if (viewport.w >= 104) drawCheckLine(ctx, viewport.x + 2, viewport.y + 6);

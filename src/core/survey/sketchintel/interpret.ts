@@ -20,10 +20,11 @@ import { area, distance, orient, pointSegmentDistance, segmentsIntersect, signed
 import type { SurveyPoint } from "../parcel";
 import { roadWidth } from "../roads";
 import { printable } from "./apply";
-import { classifyArea, classifyLine, isRoadName, LAYER_OF, namesKind, symbolEntry, type LineKind } from "./classify";
-import type { SketchDrawing, SketchLine } from "./drawing";
+import { buildingEntry, classifyArea, classifyLine, isRoadName, LAYER_OF, namesKind, symbolEntry, type LineKind } from "./classify";
+import type { SketchArea, SketchDrawing, SketchLine } from "./drawing";
 import { indexPoints, matchNote, matchPoint, type PointIndex } from "./match";
-import { misplacedNumbers, type PlacedNumber } from "./placement";
+import { facesOf, within, type Face } from "./faces";
+import { misplacedNumbers, photoPlaces, type PlacedNumber } from "./placement";
 
 export interface InterpretOptions {
   /** A point within this many metres of the straight line between its neighbours lies on that side; further off, it's a corner. Farbaek's default: 0.25 m. */
@@ -44,6 +45,16 @@ export interface InterpretOptions {
   doubtfulRoadNames?: readonly string[];
   /** The point numbers the reader placed on each photo (stage 247): only to ask about a number written where another point belongs. */
   placed?: readonly PlacedNumber[];
+  /**
+   * Other writing the reader placed on each photo, as written (stage 254, ADR 0262): only to say which area the sketch's lines close
+   * round a label is written in, never a position on the ground.
+   */
+  labels?: readonly { text: string; file: string; x: number; y: number }[];
+  /**
+   * Where each gate is written or drawn (stage 254), as the point numbers it's at: one for a word or a symbol at a point, the line's for a
+   * gate drawn as a line. A gate in the lot's side opens onto a road or a path.
+   */
+  gates?: readonly (readonly string[])[];
 }
 
 export type Level = "strong" | "check";
@@ -67,6 +78,8 @@ export interface LineProposal extends Base {
   points: SurveyPoint[];
   closed: boolean;
   arcs: ArcRun[];
+  /** Drawn dashed on the sketch (a roof's edge, a proposed line): drawn dashed on the plan too (stage 254). */
+  dashed: boolean;
 }
 
 export interface LotProposal extends Base {
@@ -295,7 +308,7 @@ function cycles(edges: ReadonlyMap<string, ReadonlySet<string>>, cap = 400, maxL
   return out;
 }
 
-type LineRef = { line: SketchLine; points: SurveyPoint[]; closes: boolean; kind: LineKind; proposal: LineProposal | null };
+type LineRef = { line: SketchLine; points: SurveyPoint[]; closes: boolean; kind: LineKind; written: boolean; proposal: LineProposal | null };
 /** A line that could be a road's far side, with the lot's side facing it (its ends a and b) and how far off it lies. */
 type RoadCandidate = { far: LineRef; a: SurveyPoint; b: SurveyPoint; d: number };
 
@@ -422,16 +435,20 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
 
   // ---- Lines: matched, classified, tested against the coordinates.
   const lines: LineRef[] = [];
+  // Lines the sketch draws that couldn't be drawn (a number not surveyed, one point twice, crossing itself), with the points they did match.
+  const dropped: { line: SketchLine; ids: Set<string> }[] = [];
   for (const line of drawing.lines) {
     const mt = matchLine(line, index);
     const cls = classifyLine(line.label, line.style, codes);
     const named = line.label ? `the line ${list(line.points)} ("${line.label}")` : `the line ${list(line.points)}`;
     if (mt.unmatched.length > 0) {
       ask([line.id], line.file, `${named[0]!.toUpperCase()}${named.slice(1)} wasn't drawn: ${list(mt.unmatched)}.`, ["Check the number on the sketch, or import the file that has the point."]);
+      dropped.push({ line, ids: new Set(mt.points.map((p) => p.id)) });
       continue;
     }
     if (mt.points.length < 2) {
       ask([line.id], line.file, `${named[0]!.toUpperCase()}${named.slice(1)} joins a surveyed point to itself, so it wasn't drawn.`, ["Check its numbers on the sketch."]);
+      dropped.push({ line, ids: new Set(mt.points.map((p) => p.id)) });
       continue;
     }
     const id = itemId("line", mt.points.map((p) => p.id));
@@ -474,7 +491,10 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
           blocked = true;
           break;
         }
-    if (blocked) continue;
+    if (blocked) {
+      dropped.push({ line, ids: new Set(mt.points.map((p) => p.id)) });
+      continue;
+    }
     if (!cls.fromWriting) ask([line.id], line.file, `What is ${named}? ${cls.why[0]!.toUpperCase()}${cls.why.slice(1)}.`, ["It's drawn as the sketch shows it; confirm what it is, or remove it."], { item: id, answeredBy: "confirm" });
     const proposal: LineProposal = {
       kind: "line",
@@ -491,8 +511,9 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       points: cls.kind === "line" && mt.closes ? [...mt.points, mt.points[0]!] : mt.points,
       closed: mt.closes && cls.kind !== "line",
       arcs,
+      dashed: line.style === "dashed",
     };
-    lines.push({ line, points: mt.points, closes: mt.closes, kind: cls.kind, proposal });
+    lines.push({ line, points: mt.points, closes: mt.closes, kind: cls.kind, written: cls.fromWriting, proposal });
   }
 
   // ---- The lot: a lot area with numbered corners, else the largest closed cycle the boundary lines make.
@@ -579,11 +600,37 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
     else if (far.length === 1 && roadNames.length === 0)
       ask(far.map((x) => x.line.id), lot.file, `A road's name is written on the sketch as ${named[0]}, so no road is drawn from it.`, ["Check the name on the sketch, and draw the road on the Lots step if it's there."]);
     else if (far.length === 1) between = roadBetween(lot, roadNames[0]!, found.filter((x) => x.far === far[0]).sort((x, y) => x.d - y.d)[0]!);
+  } else if (lot && (options.gates ?? []).length > 0) {
+    // No road's name is read, but a gate is written in the lot's side (stage 254, ADR 0262): a gate opens onto a road or a path, so the
+    // one line drawn across from that side is taken as its far side. Drawn without a name, which is asked for; never chosen between two.
+    // The sides each gate is in: a gate at a corner may be in either side there, one on a side is in that side, and a gate drawn as a line
+    // is in the side all its points are on.
+    const ring = lot.corners;
+    const sideIndex = (a: SurveyPoint, b: SurveyPoint) => ring.findIndex((p, i) => p.id === a.id && ring[(i + 1) % ring.length]!.id === b.id);
+    const gateSides = (options.gates ?? [])
+      .map((g) => g.map((l) => matchPoint(l, index).point).filter((p): p is SurveyPoint => p !== null))
+      .filter((ps) => ps.length > 0)
+      .map((ps) => {
+        const on = ps.map((p) => new Set(ring.map((_, i) => i).filter((i) => pointSegmentDistance(p, ring[i]!, ring[(i + 1) % ring.length]!) <= onLine)));
+        return [...on[0]!].filter((i) => on.every((s) => s.has(i)));
+      });
+    const all = roadCandidates(lot);
+    const sides = new Set(gateSides.flatMap((s) => s.filter((i) => all.some((x) => sideIndex(x.a, x.b) === i))));
+    const found = all.filter((x) => sides.has(sideIndex(x.a, x.b)));
+    const far = [...new Set(found.map((x) => x.far))];
+    if (far.length === 1 && sides.size === 1) {
+      const pick = found.filter((x) => x.far === far[0]).sort((x, y) => x.d - y.d)[0]!;
+      between = roadBetween(lot, "", pick);
+      if (between) ask(between.from, between.file, "The road's name isn't read from the sketch.", ["The road is drawn without its name. Give the name as the plan should print it, on the Lots step."], { item: between.id, answeredBy: "confirm" });
+    } else if (found.length > 0)
+      ask(far.map((x) => x.line.id), lot.file, `A gate is written in the lot's side, but which side, or which line across from it is the road it opens onto, isn't settled: through ${far.map((x) => list(ids(x.points))).join("; or through ")}.`, [
+        "Which one is the road isn't settled by the sketch, so no road is drawn. Draw it on the Lots step.",
+      ]);
   }
   if (between) {
     proposals.push(between);
     // The sheet can't print Sinhala or Tamil yet: the road goes on the plan without its name, which is asked for.
-    if (!printable(between.name))
+    if (between.name && !printable(between.name))
       ask(between.from, between.file, `The road's name is written as "${between.name}", which the sheet can't print yet.`, ["The road is drawn without its name. Give the name as the plan should print it, on the Lots step."], { item: between.id, answeredBy: "confirm" });
     const [lo, hi] = [between.widthM.min, between.widthM.max];
     if (takenWidth) {
@@ -677,16 +724,89 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
     });
   }
 
-  // ---- Areas: buildings with numbered corners become outlines; without them, a question.
+  // ---- Areas: buildings with numbered corners become outlines. One whose corners aren't all written is the area the sketch's lines
+  // close round where its label is written (stage 254, ADR 0262), when that's settled; otherwise a question.
+  let faces: Face[] | null = null;
+  // The lines drawn as a building's walls, by their proposal's id: a doubt about one of them is the building's.
+  const absorbed = new Map<string, BuildingProposal>();
   for (const a of drawing.areas) {
     const c = classifyArea(a.label, codes);
     if (c.kind !== "building") continue;
+    // Its code: the one written, else the code list's only building (P, Permanent Building), said as such.
+    const listed = c.code ? null : buildingEntry(codes);
+    const code = c.code?.code ?? listed?.code ?? "";
+    const codeSaid = listed ? [`Drawn as the code list's only building, ${listed.meaning} (${listed.code}).`] : [];
     const around = roundOff(a.around);
     const pts = around.map((l) => matchPoint(l, index).point);
-    if (around.length >= 3 && pts.every((p): p is SurveyPoint => p !== null) && simple(pts)) {
-      proposals.push({ kind: "building", id: itemId("building", pts.map((p) => p.id)), from: [a.id], file: a.file, evidence: [`"${a.label}" is written on ${a.file} inside the corners ${list(a.around)}: ${c.why}.`], level: "check", code: c.code?.code ?? "", label: a.label, points: pts });
-    } else ask([a.id], a.file, `"${a.label}" is written on the sketch (${c.why}), but its corners aren't numbered${a.around.length ? ` (${list(a.around)} were read)` : ""}.`, ["Its outline can't be drawn from the sketch. Give its corners on the Lots step."]);
+    const notSurveyed = around.filter((_, i) => pts[i] === null);
+    const cannot = (why: string) =>
+      ask([a.id], a.file, `"${a.label}" is written on the sketch (${c.why}), but its outline can't be drawn from the sketch: ${why}.`, ["Give its corners on the Lots step."]);
+    if (notSurveyed.length > 0) {
+      cannot(`${list(notSurveyed)}, written at its corners, ${notSurveyed.length === 1 ? "isn't a surveyed point" : "aren't surveyed points"}`);
+      continue;
+    }
+    const named = pts.filter((p): p is SurveyPoint => p !== null);
+    if (around.length >= 3 && simple(named)) {
+      proposals.push({ kind: "building", id: itemId("building", named.map((p) => p.id)), from: [a.id], file: a.file, evidence: [`"${a.label}" is written on ${a.file} inside the corners ${list(a.around)}: ${c.why}.`, ...codeSaid], level: "check", code, label: a.label, points: named });
+      continue;
+    }
+    faces ??= facesOf(
+      lines.filter((l) => l.proposal && l.kind !== "road" && l.line.style !== "dashed").map((l) => ({ points: l.points, closed: l.closes })),
+      onLine,
+    );
+    const face = labelledFace(a, named, faces);
+    if (!face) {
+      cannot(`its corners aren't numbered${a.around.length ? ` (${list(a.around)} were read)` : ""}, and no one area the sketch's lines close round holds where it's written`);
+      continue;
+    }
+    const onFace = new Set(face.points.map((p) => p.id));
+    const onLot = new Set(lot ? [...lot.corners, ...lot.onSides].map((p) => p.id) : []);
+    // Its walls: lines along its outline with nothing written to say they're something else, at least one of them inside the lot (a side
+    // of the lot drawn as a plain line stays the lot's). Those wholly on its outline are drawn as it; one that runs on past a corner stays.
+    const bounding = lines.filter((l) => l.proposal && !absorbed.has(l.proposal.id) && !l.written && l.kind !== "road" && l.line.style !== "dashed" && legsAlong(l, face.points) && l.points.some((p) => !onLot.has(p.id)));
+    const walls = bounding.filter((l) => l.points.every((p) => onFace.has(p.id)));
+    // A side written as a fence, a drain or a gate says the area is something else; a line through its corners that couldn't be drawn
+    // leaves its outline unsettled.
+    const other = lines.find((l) => l.proposal && l.written && l.kind !== "wall" && legsAlong(l, face.points));
+    const lost = dropped.find((d) => [...d.ids].some((id) => onFace.has(id)));
+    if (bounding.length === 0 || other || lost) {
+      cannot(
+        bounding.length === 0
+          ? "no wall of it is drawn inside the lot"
+          : other
+            ? `the area holding it is bounded by the line through ${list(ids(other.points))}, written as a ${other.kind}`
+            : `the line ${list(lost!.line.points)} through its corners wasn't drawn`,
+      );
+      continue;
+    }
+    for (const w of walls) {
+      const k = proposals.indexOf(w.proposal!);
+      if (k >= 0) proposals.splice(k, 1);
+      for (let q = questions.length - 1; q >= 0; q--) if (questions[q]!.item === w.proposal!.id) questions.splice(q, 1);
+    }
+    const meets = face.points.some((p) => onLot.has(p.id));
+    const building: BuildingProposal = {
+      kind: "building",
+      id: itemId("building", face.points.map((p) => p.id)),
+      from: [a.id, ...walls.map((w) => w.line.id)],
+      file: a.file,
+      evidence: [
+        `"${a.label}" is written on ${a.file}: ${c.why}.`,
+        `Its corners aren't all numbered, so it's drawn as the area the sketch's lines close round where "${a.label}" is written: through ${list(ids(face.points))}.`,
+        `Its walls are the lines drawn through ${bounding.map((w) => list(ids(w.points))).join("; ")}${meets ? ", and the lot's boundary where they meet it" : ""}.`,
+        `Its area from the coordinates is ${face.areaM2.toFixed(2)} m².`,
+        ...codeSaid,
+      ],
+      level: "check",
+      code,
+      label: a.label,
+      points: face.points,
+    };
+    for (const w of walls) absorbed.set(w.proposal!.id, building);
+    proposals.push(building);
   }
+  /** What a line's doubts are about: the building it was drawn as a wall of, or the line itself. */
+  const ownerOf = (l: LineRef | undefined): Proposal | null => (l?.proposal ? (absorbed.get(l.proposal.id) ?? l.proposal) : null);
 
   // ---- Lines that cross in the survey where no number is (stage 246, ADR 0254). A sketch's lines meet at numbered points, so two lines
   // crossing at a place with no number most likely carry a misread number (an upside-down 20 read as 10 that also exists). Asked about,
@@ -717,7 +837,11 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       asked.add(pair);
       crossings++;
       const doubtful = [x, y].filter((l) => !l.line.certain);
-      const about = (doubtful[0] ?? x).proposal;
+      const about = ownerOf(doubtful[0] ?? x);
+      if (about?.kind === "building") {
+        about.evidence.push(`Its walls include the line through ${list(ids((doubtful[0] ?? x).points))}, which crosses another where no number is: one of their numbers may be misread.`);
+        about.level = "check";
+      }
       ask(
         [x.line.id, y.line.id],
         x.line.file,
@@ -746,8 +870,19 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
   });
   let placeQuestions = 0;
   for (const m of misplaced) {
-    const uses = lot && m.pointId && lotIds.has(m.pointId) ? lot : lines.find((l) => m.pointId && l.points.some((p) => p.pointId === m.pointId))?.proposal;
-    if (!uses || placeQuestions >= 5) continue;
+    const uses = lot && m.pointId && lotIds.has(m.pointId) ? lot : ownerOf(lines.find((l) => m.pointId && l.points.some((p) => p.pointId === m.pointId)));
+    if (!uses) continue;
+    // Written again at its own point's place (stage 254): that one is the point's, so this one is most likely another number misread as
+    // it. Said on what uses the number, not asked.
+    if (m.alsoAtOwn) {
+      if (uses.kind !== "lot") uses.evidence.push(`${m.label} is also written on the sketch beside where ${m.likely} would be; the ${m.label} written at its own point was taken.`);
+      continue;
+    }
+    if (uses.kind === "building") {
+      uses.evidence.push(`Its corner ${m.label} may be misread: it's written on the sketch ${m.likelyWritten ? `far from where point ${m.label} would be` : `where point ${m.likely} would be`}.`);
+      uses.level = "check";
+    }
+    if (placeQuestions >= 5) continue;
     placeQuestions++;
     // One press is offered only when it's plain: the other point's own number isn't written, exactly one surveyed point has that number,
     // and the reading is known, so the press corrects that reading and no other.
@@ -776,10 +911,40 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       if (ofLot(x) || ofLot(y))
         lot.evidence.push(`Its outline uses the line through ${list(ids(x.points))} or ${list(ids(y.points))}, which cross each other where no number is: one of their numbers may be misread.`);
     }
-    for (const m of misplaced) if (m.pointId && lotIds.has(m.pointId)) lot.evidence.push(`Its corner ${m.label} may be misread: it's written on the sketch ${m.likelyWritten ? `far from where point ${m.label} would be` : `where point ${m.likely} would be`}.`);
+    for (const m of misplaced)
+      if (m.pointId && lotIds.has(m.pointId))
+        lot.evidence.push(
+          m.alsoAtOwn
+            ? `Its corner ${m.label} is also written on the sketch beside where ${m.likely} would be; the ${m.label} written at its own point was taken.`
+            : `Its corner ${m.label} may be misread: it's written on the sketch ${m.likelyWritten ? `far from where point ${m.label} would be` : `where point ${m.likely} would be`}.`,
+        );
     if (lot.evidence.some((e) => e.includes("may be misread"))) lot.level = "check";
   }
   return { proposals, questions, matches };
+
+  /**
+   * The one area the sketch's lines close round that holds an area's label where it's written on the photo, and every corner the area
+   * names; null when none or more than one does, when the label's place wasn't read, or when too few numbers place the photo. The whole
+   * lot is never a building's area.
+   */
+  function labelledFace(a: SketchArea, named: readonly SurveyPoint[], all: readonly Face[]): Face | null {
+    const at = (options.labels ?? []).filter((x) => x.file === a.file && x.text.trim() === a.label.trim());
+    if (!lot || at.length === 0 || all.length === 0) return null;
+    const place = photoPlaces(options.placed ?? [], points, a.file);
+    if (!place) return null;
+    const hits = all.filter((f) => named.every((p) => f.points.some((q) => q.id === p.id)) && (!lot || f.areaM2 < lot.areaM2 * 0.95) && at.every((w) => within(w, f.points.map(place))));
+    return hits.length === 1 ? hits[0]! : null;
+  }
+
+  /** Whether a side of a face's outline lies along a leg of a line: both its ends on that leg, as when a wall's end joins it partway. */
+  function legsAlong(l: LineRef, ring: readonly SurveyPoint[]): boolean {
+    const pts = l.closes && l.points.length > 2 ? [...l.points, l.points[0]!] : l.points;
+    const legs = pts.slice(1).map((q, k) => [pts[k]!, q] as const);
+    return ring.some((r, i) => {
+      const s = ring[(i + 1) % ring.length]!;
+      return legs.some(([p, q]) => pointSegmentDistance(r, p, q) <= onLine && pointSegmentDistance(s, p, q) <= onLine);
+    });
+  }
 
   /**
    * Lines that could be a named road's far side, each with the lot side facing it. A far line touches neither the lot nor its inside,
@@ -859,7 +1024,7 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       from: [far.line.id],
       file: far.line.file,
       evidence: [
-        `"${name}" is written on the sketch, naming a road.`,
+        name ? `"${name}" is written on the sketch, naming a road.` : `A gate is written in the lot's side from ${a.pointId} to ${b.pointId}, and a gate opens onto a road or a path: no name is read for it.`,
         `Its near side runs along ${list(ids(edgeA))}: the lot's side from ${a.pointId} to ${b.pointId}${extra}. Its far side runs along ${list(ids(edgeB))}, drawn across from it.`,
         `Between them it measures ${m(width.minM)} to ${m(width.maxM)} (${ft(width.minM)} to ${ft(width.maxM)} ft), from the surveyed points.`,
       ],

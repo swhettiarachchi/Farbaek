@@ -57,6 +57,11 @@ export const featureSchema = z.object({
   /** Closed outline (a building) or open line (a wall, a drain). */
   closed: z.boolean(),
   points: z.array(pointRef).min(2).max(500),
+  /**
+   * Drawn dashed whatever its code says (stage 254, ADR 0262): a line the sketch draws dashed, such as a roof's edge or a proposed line.
+   * Absent unless set, so earlier approvals stand.
+   */
+  dashed: z.boolean().optional(),
   /** Runs of its points drawn as a circular curve (arcs.ts, ADR 0247), by index in `points`; absent when it has none. */
   arcs: z.array(z.object({ from: z.number().int().min(0).max(499), to: z.number().int().min(0).max(499) })).min(1).max(ARCS_PER_LINE).optional(),
 });
@@ -246,6 +251,11 @@ export const surveyDocumentSchema = z.object({
    * The point is unchanged: only how it's drawn. Absent until one is added, so earlier approvals stand.
    */
   symbols: z.array(z.object({ id: entityId, code: text(12).pipe(z.string().min(1)), point: pointRef })).max(200).optional(),
+  /**
+   * Words the surveyor writes on the plan (stage 255, ADR 0263): beside a surveyed point, or along the line from it to another, such as
+   * "Gate" or "Proposed Drain". Presentation only: nothing is measured from them. Absent until the first, so earlier approvals stand.
+   */
+  texts: z.array(z.object({ id: entityId, text: text(80).pipe(z.string().trim().min(1)), at: pointRef, along: pointRef.optional() })).max(100).optional(),
   /** How the crew writes line codes (grammar.ts, ADR 0243). Left out of the approval hash while Farbaek's, so earlier approvals stand. */
   grammar: z.enum(GRAMMARS).default("farbaek"),
   /** Which member's surveyor profile fills the surveyor block. */
@@ -317,7 +327,7 @@ export function emptyDocument(): SurveyDocument {
 
 /** Every point a document uses, by id. */
 export function usedPointIds(doc: SurveyDocument): Set<string> {
-  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...doc.features.flatMap((f) => f.points), ...(doc.symbols ?? []).map((s) => s.point)]);
+  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...doc.features.flatMap((f) => f.points), ...(doc.symbols ?? []).map((s) => s.point), ...(doc.texts ?? []).flatMap((t) => (t.along ? [t.at, t.along] : [t.at]))]);
 }
 
 /** A lot's label as plain text, "B1" for B with a raised 1. */
