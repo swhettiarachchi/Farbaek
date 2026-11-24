@@ -119,8 +119,12 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   const used = usedCodes(doc, input.lots, input.points);
 
   // --- Layout for one paper: bands top to bottom, measured from the content.
-  const plan = (f: Frame) => {
+  // `g` spreads the title block (stage 261, ADR 0269): its line spacing and gaps grow by g, and its lettering by a third as much, so a
+  // small drawing leaves the page as a practising surveyor's plan does, the title block filling the room the drawing doesn't need.
+  const plan = (f: Frame, g = 1) => {
     const z = f.size;
+    const k = 1 + (g - 1) / 3;
+    const zf = { body: z.body * k, region: z.region * k, description: z.description * k, heading: z.heading * k };
     const left = f.x0 + f.fw * 0.03;
     const right = f.x0 + f.fw * 0.97;
     const items: SceneItem[] = [];
@@ -170,22 +174,22 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     // Signature block, bottom right: name, designation, date.
     const sigX = f.x0 + f.fw * 0.68;
     const sigLines = [sv?.name.trim() || BLANK, sv?.designation.trim() || BLANK, s.planDate.trim() ? dotDate(s.planDate) : BLANK];
-    const sigTop = y - sigLines.length * z.body * 1.35;
-    sigLines.forEach((l, i) => ft(sigX, sigTop + (i + 1) * z.body * 1.35, l, z.body, { entity: "signature" }));
-    if (sigLines.some((l) => textWidth(l, z.body) > f.fw * 0.3)) tooWide = true;
+    const sigTop = y - sigLines.length * zf.body * 1.35;
+    sigLines.forEach((l, i) => ft(sigX, sigTop + (i + 1) * zf.body * 1.35, l, zf.body, { entity: "signature" }));
+    if (sigLines.some((l) => textWidth(l, zf.body) > f.fw * 0.3)) tooWide = true;
     // Statement and the overleaf pointer, bottom left.
-    const leftLines = [...wrap(s.statement.trim(), z.body, f.fw * 0.42), "", ...(doc.settings.overleaf ? wrap(cap.overleaf, z.body, f.fw * 0.42) : [])].filter((l, i, a) => l || (i > 0 && i < a.length - 1));
-    const leftTop = y - leftLines.length * z.body * 1.35;
-    leftLines.forEach((l, i) => l && ft(left, leftTop + (i + 1) * z.body * 1.35, l, z.body));
-    y = Math.min(sigTop, leftTop) - z.body * 0.6;
+    const leftLines = [...wrap(s.statement.trim(), zf.body, f.fw * 0.42), "", ...(doc.settings.overleaf ? wrap(cap.overleaf, zf.body, f.fw * 0.42) : [])].filter((l, i, a) => l || (i > 0 && i < a.length - 1));
+    const leftTop = y - leftLines.length * zf.body * 1.35;
+    leftLines.forEach((l, i) => l && ft(left, leftTop + (i + 1) * zf.body * 1.35, l, zf.body));
+    y = Math.min(sigTop, leftTop) - zf.body * 0.6 * g;
     // Survey dates, centre right, above the signature.
     const surveyed = s.surveyDate.trim();
     const parted = s.partitionDate.trim();
     // A block-out plan isn't surveyed yet, so it has no survey dates.
     const dates = input.blockOut ? [] : surveyed && parted && dotDate(surveyed) === dotDate(parted) ? [`${cap.surveyedAndPartitioned} ${dotDate(surveyed)}`] : [surveyed ? `${cap.surveyedOn} ${dotDate(surveyed)}` : `${cap.surveyedOn} ${BLANK}`, ...(parted ? [`${cap.partitionedOn} ${dotDate(parted)}`] : [])];
     for (let i = dates.length - 1; i >= 0; i--) {
-      ft(f.x0 + f.fw * 0.56, y, dates[i]!, z.body, { anchor: "start", entity: "dates" });
-      y -= z.body * 1.35;
+      ft(f.x0 + f.fw * 0.56, y, dates[i]!, zf.body, { anchor: "start", entity: "dates" });
+      y -= zf.body * 1.35 * g;
     }
     // Extent.
     // The deed's extent when the surveyor chose it for the whole plan (ADR 0252), else the extent computed from the survey.
@@ -194,9 +198,9 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     const area = deed.shown ? deed.stated.m2 : extract ? (input.lots.lots.find((r) => r.lot.id === extract.id)?.parcel?.areaM2 ?? null) : entireAreaM2(input.lots);
     const perchDecimals = deed.shown ? deed.perchDecimals : doc.settings.perchDecimals;
     const extentText = area !== null ? `${cap.extent} ${hectares(area)} ${cap.hectares} ( ${arpClassic(toArp(area, perchDecimals))} )` : `${cap.extent} ${BLANK} ${cap.hectares}`;
-    y -= z.body * 0.4;
-    ft(f.x0 + f.fw * 0.5, y, extentText, z.body, { anchor: "middle", entity: "extent" });
-    y -= z.body * 1.8;
+    y -= zf.body * 0.4 * g;
+    ft(f.x0 + f.fw * 0.5, y, extentText, zf.body, { anchor: "middle", entity: "extent" });
+    y -= zf.body * 1.8 * g;
     // Bounded as follows, with the ":-" in one column and hanging lines.
     const sides: [string, string][] = [
       [cap.north, s.boundaries.north],
@@ -204,12 +208,12 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
       [cap.south, s.boundaries.south],
       [cap.west, s.boundaries.west],
     ];
-    const labelW = Math.max(...sides.map(([l]) => textWidth(l, z.body)));
-    const colonX = left + f.fw * 0.03 + labelW + z.body * 1.2;
-    const textX = colonX + textWidth(`${cap.by} `, z.body) + z.body * 0.6;
+    const labelW = Math.max(...sides.map(([l]) => textWidth(l, zf.body)));
+    const colonX = left + f.fw * 0.03 + labelW + zf.body * 1.2;
+    const textX = colonX + textWidth(`${cap.by} `, zf.body) + zf.body * 0.6 * g;
     // One row per printed line: the first carries "North by" and ":-", wrapped lines hang under the text.
     const bounded: { x: number; text: string }[][] = sides.flatMap(([label, value]) =>
-      wrap(value.trim() || BLANK, z.body, right - textX).map((l, i) =>
+      wrap(value.trim() || BLANK, zf.body, right - textX).map((l, i) =>
         i === 0
           ? [
               { x: left + f.fw * 0.03, text: label },
@@ -220,26 +224,26 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
       ),
     );
     for (let i = bounded.length - 1; i >= 0; i--) {
-      for (const piece of bounded[i]!) ft(piece.x, y, piece.text, z.body, { entity: "boundaries" });
-      y -= z.body * 1.35;
+      for (const piece of bounded[i]!) ft(piece.x, y, piece.text, zf.body, { entity: "boundaries" });
+      y -= zf.body * 1.35 * g;
     }
-    ft(left, y, extract ? cap.lotBounded.replace("{lot}", lotName(extract)) : cap.entireBounded, z.body, { entity: "boundaries" });
-    y -= z.region * 1.3;
+    ft(left, y, extract ? cap.lotBounded.replace("{lot}", lotName(extract)) : cap.entireBounded, zf.body, { entity: "boundaries" });
+    y -= zf.region * 1.3 * g;
     // District and province, upright capitals.
-    ft(f.x0 + f.fw * 0.5, y, regionLine(s.province, "PROVINCE"), z.region, { anchor: "middle", entity: "region", upright: true });
-    y -= z.region * 1.25;
-    ft(f.x0 + f.fw * 0.5, y, regionLine(s.district, "DISTRICT"), z.region, { anchor: "middle", entity: "region", upright: true });
-    y -= z.region * 0.9;
+    ft(f.x0 + f.fw * 0.5, y, regionLine(s.province, "PROVINCE"), zf.region, { anchor: "middle", entity: "region", upright: true });
+    y -= zf.region * 1.25 * g;
+    ft(f.x0 + f.fw * 0.5, y, regionLine(s.district, "DISTRICT"), zf.region, { anchor: "middle", entity: "region", upright: true });
+    y -= zf.region * 0.9 * g;
     // The title sentence, centred, measured top-down into the space above.
-    const sentence = centredRuns(titleSentence(s, doc.lots, extract), f.x0 + f.fw * 0.5, 0, f.fw * 0.86, z.description, slant);
+    const sentence = centredRuns(titleSentence(s, doc.lots, extract), f.x0 + f.fw * 0.5, 0, f.fw * 0.86, zf.description, slant);
     if (sentence.tooWide) tooWide = true;
     const sentenceTop = y - sentence.height;
     for (const it of sentence.items) footer.push({ ...it, y: it.y + sentenceTop, entity: "title" });
-    y = sentenceTop - z.heading * 0.3;
-    ft(f.x0 + f.fw * 0.5, y, input.blockOut ? cap.blockOutHeading : cap.heading, z.heading, { anchor: "middle", weight: "bold", entity: "heading", upright: true });
-    y -= z.heading * 1.25;
+    y = sentenceTop - zf.heading * 0.3 * g;
+    ft(f.x0 + f.fw * 0.5, y, input.blockOut ? cap.blockOutHeading : cap.heading, zf.heading, { anchor: "middle", weight: "bold", entity: "heading", upright: true });
+    y -= zf.heading * 1.25 * g;
     const scaleY = y;
-    y -= z.body * 1.6;
+    y -= zf.body * 1.6 * g;
     const titleTop = y;
 
     // The drawing band, between the header and the title block, less a strip for the legend and notes.
@@ -288,6 +292,19 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
           ? { code: "DRAWING_OFF_SHEET", severity: "error", message: `At 1:${doc.settings.scale} the drawing doesn't fit the sheet.`, target: { kind: "sheet" }, action: "Choose a smaller scale, a larger sheet, or Automatic.", blocks: ["export"] }
           : { code: "SCALE_TOO_LARGE_AREA", severity: "error", message: "The drawing is too large for any standard scale on this sheet.", target: { kind: "sheet" }, action: "Choose a larger sheet.", blocks: ["export"] },
       );
+    }
+  }
+  // The title block spread into the room the drawing doesn't need at the chosen scale (stage 261): the widest spread that still fits,
+  // up to 1.8 times the spacing. A drawing that fills its band keeps the title block as it was.
+  if (b && chosen.scale) {
+    // The drawing keeps room around it: it may fill at most 55% of its band's height, and 90% of its width, once spread.
+    const roomy = (l: ReturnType<typeof plan>, scale: number) => !b || (((b.maxE - b.minE) * 1000) / scale <= l.vp.w * 0.9 && ((b.maxN - b.minN) * 1000) / scale <= l.vp.h * 0.55);
+    for (let g = 1.8; g > 1.001; g -= 0.1) {
+      const spread = plan(frameFor(chosen.lay.f.paper, landscape), g);
+      if (roomy(spread, chosen.scale) && !spread.tooWide) {
+        chosen = { ...chosen, lay: spread };
+        break;
+      }
     }
   }
   const { lay } = chosen;

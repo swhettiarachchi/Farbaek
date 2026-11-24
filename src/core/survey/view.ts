@@ -7,6 +7,7 @@
  */
 import { canonicalize, sha256Hex } from "../trust/canonical-json";
 import { crsById, type CrsRecord } from "./crs";
+import { withConstructed } from "./construct";
 import { usedPointIds, type SurveyDocument } from "./document";
 import { computeLots, type PlanLots } from "./lots";
 import type { ParcelResult, SurveyPoint } from "./parcel";
@@ -47,11 +48,13 @@ export interface PlanView {
 export function buildPlan(input: PlanInput): PlanView {
   const crs = crsById(input.crsId);
   const doc = input.document;
+  // Lines' constructed corners (ADR 0270), worked out from the surveyed points; lots are computed from surveyed points only.
+  const points = withConstructed(input.points, doc);
   const lots = computeLots(input.points, doc.lots);
   const single = doc.sheet.extractOf ? lots.lots.find((r) => r.lot.id === doc.sheet.extractOf) : lots.lots.length === 1 ? lots.lots[0] : undefined;
   const parcel = single?.parcel ?? null;
-  const sheet = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points: input.points, lots, crs, crsConfirmation: input.crsConfirmation, surveyor: input.surveyor, approval: input.approval, version: input.version });
-  const findings = [...checkSurvey({ points: input.points, crs, crsConfirmed: input.crsConfirmation !== null, document: doc, lots, surveyorProfile: input.surveyor !== null }), ...sheet.findings].sort(
+  const sheet = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points, lots, crs, crsConfirmation: input.crsConfirmation, surveyor: input.surveyor, approval: input.approval, version: input.version });
+  const findings = [...checkSurvey({ points, crs, crsConfirmed: input.crsConfirmation !== null, document: doc, lots, surveyorProfile: input.surveyor !== null }), ...sheet.findings].sort(
     (x, y) => SEVERITY_ORDER.indexOf(x.severity) - SEVERITY_ORDER.indexOf(y.severity),
   );
   const blocksExport = blocked(findings, "export");

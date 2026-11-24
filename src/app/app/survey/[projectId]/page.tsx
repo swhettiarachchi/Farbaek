@@ -48,6 +48,7 @@ import { autoDoubt, doubtContext, drawnWithoutDoubt, planStatus, type PlanStatus
 import { readModelKey } from "@/server/ai/workspace-ai";
 import { fmt } from "@/core/survey/sheet/compose";
 import { compareDocuments, type ChangeArea } from "@/core/survey/compare";
+import { withConstructed } from "@/core/survey/construct";
 import { buildPlan } from "@/core/survey/view";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
@@ -342,7 +343,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
               key={JSON.stringify(doc.rules)}
               projectId={projectId}
               lots={doc.lots}
-              points={data.points}
+              points={withConstructed(data.points, doc)}
               features={doc.features}
               perchDecimals={doc.settings.perchDecimals}
               planRules={doc.rules}

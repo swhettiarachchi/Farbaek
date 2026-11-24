@@ -12,6 +12,7 @@
  * documents are upgraded when read (`parseSurveyDocument`).
  */
 import { z } from "zod";
+import { CONSTRUCTED_MAX, constructedPointSchema } from "./construct";
 import { ARCS_PER_LINE } from "./arcs";
 import { sketchRecordSchema } from "./autosurvey/sketch";
 import { codeEntrySchema, commonCodes, type CodeEntry } from "./codes";
@@ -62,6 +63,11 @@ export const featureSchema = z.object({
    * Absent unless set, so earlier approvals stand.
    */
   dashed: z.boolean().optional(),
+  /**
+   * Drawn on past its first or last point, as a neighbour's wall carrying on past the land's corner is drawn (stage 261, ADR 0269): a short
+   * stub on paper, never a surveyed length. Absent unless set.
+   */
+  runsOn: z.enum(["start", "end", "both"]).optional(),
   /** Runs of its points drawn as a circular curve (arcs.ts, ADR 0247), by index in `points`; absent when it has none. */
   arcs: z.array(z.object({ from: z.number().int().min(0).max(499), to: z.number().int().min(0).max(499) })).min(1).max(ARCS_PER_LINE).optional(),
 });
@@ -207,6 +213,13 @@ export const settingsSchema = z.object({
    * checks still need each one's letter. Absent unless chosen.
    */
   noLotLetters: z.literal(true).optional(),
+  /**
+   * A wall's code lettered small, with an S-shaped tick across the wall beside it, as on practising surveyors' plans (stage 261, ADR 0269).
+   * The surveyor's choice, absent unless chosen.
+   */
+  wallTicks: z.literal(true).optional(),
+  /** The lots' boundaries drawn at the weight of the other lines, as some surveyors draw them (stage 261). Absent unless chosen. */
+  thinBoundary: z.literal(true).optional(),
 });
 export type DrawingSettings = z.infer<typeof settingsSchema>;
 
@@ -266,6 +279,15 @@ export const surveyDocumentSchema = z.object({
    * "Gate" or "Proposed Drain". Presentation only: nothing is measured from them. Absent until the first, so earlier approvals stand.
    */
   texts: z.array(z.object({ id: entityId, text: text(80).pipe(z.string().trim().min(1)), at: pointRef, along: pointRef.optional() })).max(100).optional(),
+  /**
+   * Corners a sketch draws square that nobody surveyed (stage 262, ADR 0270), as recipes from surveyed points (construct.ts), never
+   * coordinates. Only lines and outlines use them; a lot's corner is always surveyed. Absent until the first, so earlier approvals stand.
+   */
+  constructed: z
+    .array(constructedPointSchema)
+    .max(CONSTRUCTED_MAX)
+    .refine((list) => new Set(list.map((c) => c.id)).size === list.length, "Each constructed corner has its own id.")
+    .optional(),
   /** How the crew writes line codes (grammar.ts, ADR 0243). Left out of the approval hash while Farbaek's, so earlier approvals stand. */
   grammar: z.enum(GRAMMARS).default("farbaek"),
   /** Which member's surveyor profile fills the surveyor block. */
@@ -335,9 +357,36 @@ export function emptyDocument(): SurveyDocument {
   };
 }
 
-/** Every point a document uses, by id. */
+/**
+ * Every surveyed point a document uses, by id: a line's constructed corners (ADR 0270) count as the surveyed points they're worked out
+ * from, so the approval covers those. Anything else naming a constructed corner (a lot, a road) names a point that isn't surveyed, and
+ * is refused like any unknown point.
+ */
 export function usedPointIds(doc: SurveyDocument): Set<string> {
+  // The first recipe for an id, as the plan's build takes it (a document never holds two: the schema refuses them).
+  const made = new Map<string, NonNullable<SurveyDocument["constructed"]>[number]>();
+  for (const c of doc.constructed ?? []) if (!made.has(c.id)) made.set(c.id, c);
+  const lines = doc.features.flatMap((f) => f.points).flatMap((id) => {
+    const c = made.get(id);
+    return c ? [c.from, c.to, ...c.ref] : [id];
+  });
+  return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...lines, ...(doc.symbols ?? []).map((s) => s.point), ...(doc.texts ?? []).flatMap((t) => (t.along ? [t.at, t.along] : [t.at]))]);
+}
+
+/** Every point the drawing draws, constructed corners too, but not the points a corner is only squared to: for its extent. */
+export function drawnPointIds(doc: SurveyDocument): Set<string> {
   return new Set([...doc.lots.flatMap((l) => l.points), ...doc.roads.flatMap((r) => [...r.edgeA, ...r.edgeB]), ...doc.adjoining.flatMap((a) => [a.from, a.to]), ...doc.features.flatMap((f) => f.points), ...(doc.symbols ?? []).map((s) => s.point), ...(doc.texts ?? []).flatMap((t) => (t.along ? [t.at, t.along] : [t.at]))]);
+}
+
+/** The document without constructed corners no line uses any more, and without the field once none is left (so approvals stand). */
+export function pruneConstructed(doc: SurveyDocument): SurveyDocument {
+  if (doc.constructed === undefined) return doc;
+  const used = new Set(doc.features.flatMap((f) => f.points));
+  const kept = doc.constructed.filter((c) => used.has(c.id));
+  if (kept.length === doc.constructed.length && kept.length > 0) return doc;
+  const { constructed: _, ...rest } = doc;
+  void _;
+  return kept.length > 0 ? { ...rest, constructed: kept } : rest;
 }
 
 /** A lot's label as plain text, "B1" for B with a raised 1. */

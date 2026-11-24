@@ -27,6 +27,7 @@ import { GRAMMAR } from "@/core/survey/grammar";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
 import { toPage, type SceneItem, type SceneText, type SheetPage } from "@/core/survey/sheet/scene";
+import { refreshCorners } from "@/core/survey/construct";
 import { buildPlan } from "@/core/survey/view";
 import { LAYER_NAMES } from "@/core/survey/assistant/describe";
 import { applyOps, revertPatch, type Applied, type Patch } from "@/core/survey/assistant/apply";
@@ -185,8 +186,11 @@ export function PlanEditor(props: PlanEditorProps) {
     (change: (d: SurveyDocument) => void, key?: string) => {
       if (props.readOnly) return;
       setHistory((h) => {
-        const next = clone(h.stack[h.index]!);
+        let next = clone(h.stack[h.index]!);
         change(next);
+        // A line's points changed (dragged, typed, closed or opened): its constructed corners are worked out again between their new
+        // neighbours, or taken out, and ones no line uses go (ADR 0270).
+        if (next.constructed) next = refreshCorners(next, props.points).plan;
         const now = Date.now();
         const merge = key && h.coalesce && h.coalesce.key === key && now - h.coalesce.at < 1500 && h.index > h.saved;
         const base = h.stack.slice(0, merge ? h.index : h.index + 1);
@@ -195,7 +199,7 @@ export function PlanEditor(props: PlanEditorProps) {
       });
       setMessage(null);
     },
-    [props.readOnly],
+    [props.readOnly, props.points],
   );
   const undo = useCallback(() => setHistory((h) => (h.index > 0 ? { ...h, index: h.index - 1, coalesce: null } : h)), []);
   const redo = useCallback(() => setHistory((h) => (h.index < h.stack.length - 1 ? { ...h, index: h.index + 1, coalesce: null } : h)), []);
@@ -600,9 +604,19 @@ export function PlanEditor(props: PlanEditorProps) {
     if (snap.id === from) return;
     const n = list.length;
     const closed = d.owner === "lot" || doc.features.find((f) => f.id === d.id)?.closed === true;
-    const beside = [list[(d.index + 1) % n], list[(d.index - 1 + n) % n]].filter((_, k) => closed || (k === 0 ? d.index + 1 < n : d.index > 0));
-    if (beside.includes(snap.id)) return setMessage({ tone: "error", text: `${name(snap.id)} is already next to it: nothing was changed.` });
-    update((doc2) => {
+    // The surveyed points on either side, looking past constructed corners (ADR 0270), which stand between the two.
+    const corners = new Set((doc.constructed ?? []).map((c) => c.id));
+    const nearest = (step: 1 | -1) => {
+      for (let k = 1; k < n; k++) {
+        const j = d.index + step * k;
+        if (!closed && (j < 0 || j >= n)) return undefined;
+        const pid = list[((j % n) + n) % n]!;
+        if (!corners.has(pid)) return pid;
+      }
+      return undefined;
+    };
+    if ([nearest(1), nearest(-1)].includes(snap.id)) return setMessage({ tone: "error", text: `${name(snap.id)} is already next to it: nothing was changed.` });
+    const change = (doc2: SurveyDocument) => {
       if (d.owner === "lot") {
         const lot = doc2.lots.find((l) => l.id === d.id)!;
         lot.points[d.index] = snap.id;
@@ -616,8 +630,14 @@ export function PlanEditor(props: PlanEditorProps) {
       }
       const key = `${d.owner}:${d.id}`;
       if (doc2.provenance[key]) doc2.provenance[key] = { ...doc2.provenance[key]!, reviewed: true };
-    });
-    setMessage({ tone: "done", text: `${what} ${name(from)} is now ${name(snap.id)}${d.owner === "lot" ? ": the area, the legs and the checks are worked out again" : ""}.` });
+    };
+    update(change);
+    // A square corner beside the point is worked out again from its new neighbour, or taken out when nothing squares it: said.
+    const tried = clone(doc);
+    change(tried);
+    const gone = tried.constructed ? refreshCorners(tried, props.points).removed : [];
+    const cornerNote = gone.length > 0 ? ` The square corner beside it was taken out: nothing squares it there now.` : "";
+    setMessage({ tone: "done", text: `${what} ${name(from)} is now ${name(snap.id)}${d.owner === "lot" ? ": the area, the legs and the checks are worked out again" : ""}.${cornerNote}` });
   };
 
   const panelsRef = useRef<HTMLDivElement>(null);

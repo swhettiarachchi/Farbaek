@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckIcon, PencilSimpleIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { cornerBetween, type ConstructedPoint } from "@/core/survey/construct";
 import { useState } from "react";
 import { LAYER_NAMES } from "@/core/survey/assistant/describe";
 import { FEATURE_LAYERS, type SurveyDocument } from "@/core/survey/document";
@@ -66,7 +67,58 @@ export function pointsFromNumbers(text: string, points: readonly SurveyPoint[], 
   return { ids };
 }
 
-const numbersOf = (ids: readonly string[], points: readonly SurveyPoint[]) => ids.map((id) => points.find((p) => p.id === id)?.pointId ?? "?").join(", ");
+/** Point numbers in order; a constructed square corner (ADR 0270) as the word corner, as the sketch reader writes it. */
+const numbersOf = (ids: readonly string[], points: readonly SurveyPoint[], doc?: SurveyDocument) => ids.map((id) => ((doc?.constructed ?? []).some((c) => c.id === id) ? "corner" : (points.find((p) => p.id === id)?.pointId ?? "?"))).join(", ");
+
+/**
+ * A line's points from what the surveyor typed (stage 262, ADR 0270): surveyed numbers, with the word corner between two of them for a
+ * square corner that wasn't surveyed. The corner is the plan's own one between those points, or squared to the longest surveyed line at
+ * either of them; when nothing says which way it's square, that's said and nothing changes. A closed outline's last corner word lies on
+ * its closing side.
+ */
+export function lineFromText(text: string, points: readonly SurveyPoint[], current: readonly string[], doc: SurveyDocument, closed: boolean): { ids: string[]; constructed: ConstructedPoint[] } | { problem: string } {
+  const words = text
+    .split(/[\s,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const isCorner = (w: string) => /^corner$/i.test(w);
+  const r = pointsFromNumbers(words.filter((w) => !isCorner(w)).join(" "), points, current);
+  if ("problem" in r) return r;
+  const name = (id: string) => points.find((p) => p.id === id)?.pointId ?? "?";
+  const ids: string[] = [];
+  const made: ConstructedPoint[] = [];
+  const corner = (a: string, b: string): string | { problem: string } => {
+    const c = cornerBetween({ ...doc, constructed: [...(doc.constructed ?? []), ...made] }, points, a, b);
+    if (!c) return { problem: `No surveyed line at ${name(a)} or ${name(b)} says which way the corner between them is square: survey the corner, or leave the word out.` };
+    if (!made.some((x) => x.id === c.id) && !(doc.constructed ?? []).some((x) => x.id === c.id)) made.push(c);
+    return c.id;
+  };
+  const between = "A square corner goes between two numbers: type corner between them.";
+  let n = 0;
+  let pending = false;
+  for (const w of words) {
+    if (isCorner(w)) {
+      if (ids.length === 0) return { problem: between };
+      pending = true;
+      continue;
+    }
+    const pid = r.ids[n++]!;
+    if (pending) {
+      const c = corner(ids.at(-1)!, pid);
+      if (typeof c !== "string") return c;
+      ids.push(c);
+      pending = false;
+    }
+    ids.push(pid);
+  }
+  if (pending) {
+    if (!closed || ids.length < 3) return { problem: between };
+    const c = corner(ids.at(-1)!, ids[0]!);
+    if (typeof c !== "string") return c;
+    ids.push(c);
+  }
+  return { ids, constructed: made };
+}
 
 /**
  * What can be changed about the thing tapped on the sheet (stage 253, ADR 0261), as a website builder's properties panel offers it: a
@@ -260,20 +312,46 @@ export function SelectionEditor(props: {
           />
           Drawn dashed, such as a roof&apos;s edge
         </label>
+        {f.closed ? null : (
+          <label className="grid gap-1">
+            <span className={LABEL_CLASSES}>Drawn on past its ends</span>
+            <select
+              value={f.runsOn ?? ""}
+              disabled={readOnly}
+              onChange={(e) =>
+                update((d) => {
+                  const x = d.features.find((y) => y.id === f.id)!;
+                  const v = e.target.value;
+                  if (v === "start" || v === "end" || v === "both") x.runsOn = v;
+                  else delete x.runsOn;
+                  reviewed(d, key);
+                })
+              }
+              className={inputClasses()}
+            >
+              <option value="">No, it stops at its points</option>
+              <option value="start">Past its first point</option>
+              <option value="end">Past its last point</option>
+              <option value="both">Past both ends</option>
+            </select>
+            <span className="text-sm text-ink-3">A short stub on paper, as a neighbour&apos;s wall carrying on is drawn: never a surveyed length.</span>
+          </label>
+        )}
         <Corners
           key={f.points.join()}
           label="Points, in order"
-          hint="Surveyed point numbers, from one end to the other."
-          initial={numbersOf(f.points, points)}
+          hint="Surveyed point numbers, from one end to the other. Type corner between two numbers for a square corner that wasn't surveyed: it's worked out from the surveyed points."
+          initial={numbersOf(f.points, points, doc)}
           readOnly={readOnly}
           onApply={(text) => {
-            const r = pointsFromNumbers(text, points, f.points);
+            const r = lineFromText(text, points, f.points, doc, f.closed);
             if ("problem" in r) return setProblem(r.problem);
             if (r.ids.length < 2) return setProblem("A line needs at least two points.");
             setProblem(null);
             update((d) => {
               const x = d.features.find((y) => y.id === f.id)!;
               x.points = r.ids;
+              if (r.constructed.length > 0) d.constructed = [...(d.constructed ?? []), ...r.constructed];
               // An outline needs three points; its curves were drawn through the old points, so they go with them.
               if (r.ids.length < 3) x.closed = false;
               delete x.arcs;

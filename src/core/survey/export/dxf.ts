@@ -19,6 +19,7 @@ import { legIndex, type LayerId, type SurveyDocument } from "../document";
 import type { PlanLots } from "../lots";
 import type { SurveyPoint } from "../parcel";
 import { roadCentreline } from "../roads";
+import { RUN_ON_MM } from "../sheet/draw";
 import { formatArp, roundTo, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
 
@@ -130,6 +131,18 @@ export function writeDxf(input: DxfInput): string {
     const pts = f.points.map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
     const curves = pts.length === f.points.length ? f.arcs : undefined;
     if (pts.length >= 2) polyline(f.layer, pts, f.closed, bulges(pts, curves), f.dashed === true);
+    // Carrying on past an end (stage 261): the same stub the sheet draws, its length on paper turned into ground units at the plan's scale.
+    if (!f.closed && f.runsOn && pts.length >= 2) {
+      const on = (RUN_ON_MM * input.scale) / 1000;
+      const stub = (from: { e: number; n: number }, to: { e: number; n: number }) => {
+        const len = Math.hypot(to.e - from.e, to.n - from.n) || 1;
+        polyline(f.layer, [to, { e: to.e + ((to.e - from.e) / len) * on, n: to.n + ((to.n - from.n) / len) * on }], false, [], f.dashed === true);
+      };
+      // Along the line as drawn at its ends (a curve's end runs along its tangent, as the sheet draws it).
+      const ends = densify(pts, curves, 0.002);
+      if (f.runsOn === "start" || f.runsOn === "both") stub(ends[1]!, ends[0]!);
+      if (f.runsOn === "end" || f.runsOn === "both") stub(ends.at(-2)!, ends.at(-1)!);
+    }
     // The extent takes a curve's bulge; the code is written on the line itself, at the middle of the first segment as drawn.
     const drawnLine = densify(pts, curves, 0.05);
     if (curves) all.push(...drawnLine);
