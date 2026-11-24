@@ -111,6 +111,9 @@ describe("a total station's stated precision (stage 267, ADR 0274)", () => {
     expect(precisionFromText("3", "", "2").ok).toBe(false);
     expect(precisionFromText("3″", "2", "2").ok).toBe(false);
     expect(precisionFromText("90", "2", "2").ok).toBe(false);
+    // Numbers to JavaScript, but not figures anyone writes from a specification sheet.
+    for (const odd of ["0x10", "1e1", "0b11", "Infinity", "-1"]) expect(precisionFromText(odd, "2", "2").ok).toBe(false);
+    expect(precisionFromText(" 3 ", ".5", "2.")).toEqual({ ok: true, value: { angleSeconds: 3, distanceMm: 0.5, distancePpm: 2 } });
   });
 
   it("weighs a file by the total station that exports it, else the only one that states one, never a guess between two", () => {
@@ -124,6 +127,14 @@ describe("a total station's stated precision (stage 267, ADR 0274)", () => {
     // Neither exports it: two different figures, so none.
     const other = profile("3", { equipment: [ts("Sokkia", ["gsi"], P3), ts("Leica", ["gsi"], P5)] });
     expect(profilePrecision(other, "sdr")).toBeNull();
+    // Never one instrument's figures for a file another may have made: the one exporting the file states none, or only one of two does.
+    const unstated = profile("5", { equipment: [ts("Sokkia", ["sdr"]), ts("Leica", ["gsi"], P5)] });
+    expect(profilePrecision(unstated, "sdr")).toBeNull();
+    const half = profile("6", { equipment: [ts("Sokkia", ["sdr"], P3), ts("Topcon", ["sdr"])] });
+    expect(profilePrecision(half, "sdr")).toBeNull();
+    // Two that could have made it, stating the same figures.
+    const same = profile("7", { equipment: [ts("Sokkia", ["sdr"], P3), ts("Topcon", ["sdr"], P3)] });
+    expect(profilePrecision(same, "sdr")).toEqual({ ...P3, instrument: "total stations" });
     // A GNSS receiver or a level never weighs a traverse.
     const gnss = profile("4", { equipment: [{ kind: "gnss", make: "Any", model: "RTK", exports: ["sdr"], precision: P3 }] });
     expect(profilePrecision(gnss)).toBeNull();

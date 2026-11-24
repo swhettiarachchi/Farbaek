@@ -50,17 +50,18 @@ export const equipmentSchema = z.object({
 export type Equipment = z.infer<typeof equipmentSchema>;
 
 /**
- * The precision least squares weighs a file's traverse by: the profile's total station that exports the file's format and states
- * one, else its only total station that states one. Never a choice between two that differ: then none, and the note says a typical
+ * The precision least squares weighs a file's traverse by. The instruments that could have made the file are the profile's total
+ * stations that export its format, or, when none is said to, all its total stations. Only when every one of those states a precision,
+ * and they agree: never one instrument's figures for a file another may have made. Otherwise none, and the note says a typical
  * instrument's was used.
  */
 export function profilePrecision(profile: OfficeProfile | null, format: ImportFormat = "sdr"): InstrumentPrecision | null {
   if (!profile) return null;
-  const stated = profile.body.equipment.filter((e) => e.kind === "total_station" && e.precision);
-  const exporting = stated.filter((e) => e.exports.includes(format as (typeof IMPORT_FORMAT_IDS)[number]));
-  const pool = exporting.length > 0 ? exporting : stated;
-  const key = (e: Equipment) => `${e.precision!.angleSeconds}/${e.precision!.distanceMm}/${e.precision!.distancePpm}`;
-  if (pool.length === 0 || new Set(pool.map(key)).size > 1) return null;
+  const stations = profile.body.equipment.filter((e) => e.kind === "total_station");
+  const exporting = stations.filter((e) => e.exports.includes(format as (typeof IMPORT_FORMAT_IDS)[number]));
+  const pool = exporting.length > 0 ? exporting : stations;
+  const key = (e: Equipment) => (e.precision ? `${e.precision.angleSeconds}/${e.precision.distanceMm}/${e.precision.distancePpm}` : "none");
+  if (pool.length === 0 || pool.some((e) => !e.precision) || new Set(pool.map(key)).size > 1) return null;
   const e = pool[0]!;
   const instrument = [e.make, e.model].map((s) => s.trim()).filter(Boolean).join(" ") || "total station";
   return { ...e.precision!, instrument: pool.length === 1 ? instrument : "total stations" };
@@ -71,6 +72,8 @@ export function precisionFromText(angle: string, distance: string, ppm: string):
   const typed = [angle, distance, ppm].map((s) => s.trim());
   if (typed.every((s) => s === "")) return { ok: true, value: null };
   if (typed.some((s) => s === "")) return { ok: false, problem: "Give all three precision figures, or leave all three empty." };
+  // Plain decimals only: "0x10" or "1e1" are numbers to JavaScript, not figures from a specification sheet.
+  if (typed.some((s) => !/^(\d+(\.\d*)?|\.\d+)$/.test(s))) return { ok: false, problem: "Precision: write each figure as a plain number, such as 5 or 1.5." };
   const [a, d, p] = typed.map(Number);
   const parsed = precisionSchema.safeParse({ angleSeconds: a, distanceMm: d, distancePpm: p });
   if (!parsed.success) return { ok: false, problem: "Precision: angles from 0.5 to 60 seconds, distances from 0.1 to 50 mm plus 0 to 50 ppm, as the instrument's specification states." };

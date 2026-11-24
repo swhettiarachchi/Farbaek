@@ -14,7 +14,7 @@
  *   station branching off it moves with it, and every point shot from a station moves with that station: their observations from it
  *   are unchanged. Control, the closing point and heights don't move.
  */
-import { ADJUST_ENGINE, ADJUST_NAMES, type AdjustMethod, adjustRun, type Correction, DEFAULT_PRECISION, type InstrumentPrecision, precisionText, type RunLeg } from "../adjust";
+import { ADJUST_ENGINE, ADJUST_NAMES, type AdjustMethod, adjustRun, type Correction, DEFAULT_PRECISION, type InstrumentPrecision, precisionText, type RunLeg, weighedBy } from "../adjust";
 import type { ImportIssue } from "./delimited";
 import { gap } from "./reduce";
 
@@ -62,7 +62,7 @@ export interface TraverseClosure {
   /** 1 : length ÷ misclosure, or null when it closes exactly. */
   precision: number | null;
   /** The rule the surveyor chose, and what it did (corrections to 0.1 mm, the first `KEPT_STATIONS`); null when the points are as shot. */
-  adjusted: { method: AdjustMethod; engine: string; largest: number; corrections: Correction[]; stats?: { sigma0: number; passes: boolean; precision: InstrumentPrecision } } | null;
+  adjusted: { method: AdjustMethod; engine: string; largest: number; corrections: Correction[]; stats?: { sigma0: number; passes: boolean; side?: "low" | "high" | null; precision: InstrumentPrecision } } | null;
 }
 
 /** How far a carried record may sit from Farbaek's reduction of the shot: 5 mm plus 300 ppm of the shot's length from its station. */
@@ -194,14 +194,20 @@ export function closeTraverse(
     engine: ADJUST_ENGINE,
     largest: moved,
     corrections: r.corrections.slice(0, KEPT_STATIONS).map((c) => ({ station: c.station, dE: tenth(c.dE), dN: tenth(c.dN) })),
-    ...(r.stats ? { stats: { sigma0: Math.round(r.stats.sigma0 * 1000) / 1000, passes: r.stats.passes, precision: r.stats.precision } } : {}),
+    ...(r.stats ? { stats: { sigma0: Math.round(r.stats.sigma0 * 1000) / 1000, passes: r.stats.passes, side: r.stats.side, precision: r.stats.precision } } : {}),
   };
   const said0 = moved < HALF_MM ? `Adjusted by ${ADJUST_NAMES[method]}, as you chose: no station moved by as much as half a millimetre.` : `Adjusted by ${ADJUST_NAMES[method]}, as you chose: the stations moved by up to ${moved.toFixed(3)} m, and the points shot from each station moved with it.`;
   // Least squares (ADR 0274) says what it weighed by and how well the observations fit, so its result is never taken on trust.
   const s = r.stats;
   const worstSd = s ? Math.max(0, ...s.stations.map((x) => Math.hypot(x.sE, x.sN))) : 0;
   const fit = s
-    ? ` Weighted for ${s.precision.angleSeconds}″ angles and ${s.precision.distanceMm} mm + ${s.precision.distancePpm} ppm distances${s.precision === DEFAULT_PRECISION ? " (a typical total station's, not necessarily yours)" : s.precision.instrument ? `, as your office profile gives for the ${s.precision.instrument}` : ""}: σ0 is ${s.sigma0.toFixed(2)}, ${s.passes ? "which passes the χ² test at 95%, so the misclosure is what that precision leads one to expect" : "which fails the χ² test at 95%, so the misclosure is more (or less) than that precision leads one to expect: check the observations, or the precision"}. The largest residuals are ${s.worstDistanceMm.toFixed(1)} mm on a distance and ${s.worstAngleSeconds.toFixed(1)}″ on an angle, and the least certain station has a standard deviation of ${(worstSd * 1000).toFixed(1)} mm.`
+    ? ` Weighted for ${weighedBy(s.precision)}: σ0 is ${s.sigma0.toFixed(2)}, ${
+        s.side === null
+          ? "which passes the χ² test at 95%, so the misclosure is what that precision leads one to expect"
+          : s.side === "high"
+            ? "above the χ² test's range at 95%, so the misclosure is more than that precision leads one to expect: check the observations, or the precision"
+            : "below the χ² test's range at 95%, so the observations agree better than that precision leads one to expect, as when the instrument already adjusted them or the closure is within rounding"
+      }. The largest residuals are ${s.worstDistanceMm.toFixed(1)} mm on a distance and ${s.worstAngleSeconds.toFixed(1)}″ on an angle, and the least certain station has a standard deviation of ${(worstSd * 1000).toFixed(1)} mm${s.side === "high" ? ", scaled by σ0" : ", from the stated precision"}.`
     : "";
   const said = said0 + fit;
   return {

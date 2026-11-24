@@ -3,7 +3,7 @@
  * independent route: the adjusted stations' observations recomputed and their weighted sum of squares compared with what's reported.
  */
 import { describe, expect, it } from "vitest";
-import { adjustRun, DEFAULT_PRECISION, type RunLeg } from "./adjust";
+import { adjustRun, DEFAULT_PRECISION, LEAST_SQUARES_MAX_LEGS, type RunLeg } from "./adjust";
 
 const legs = (...xs: [string, number, number][]): RunLeg[] => xs.map(([to, dE, dN]) => ({ to, dE, dN }));
 
@@ -72,11 +72,11 @@ describe("least squares on a traverse", () => {
       const d1 = Math.hypot(adj[i + 1]!.e - adj[i]!.e, adj[i + 1]!.n - adj[i]!.n);
       vpv += ((d1 - d0) / (0.002 + 2e-6 * d0)) ** 2;
     });
-    vpv += (wrap(az(adj[0]!, adj[1]!) - Math.atan2(run[0]!.dE, run[0]!.dN)) / (5 * rho)) ** 2;
+    vpv += (wrap(az(adj[0]!, adj[1]!) - Math.atan2(run[0]!.dE, run[0]!.dN)) / (5 * Math.SQRT2 * rho)) ** 2;
     for (let k = 1; k < run.length; k++) {
       const obs = wrap(Math.atan2(run[k]!.dE, run[k]!.dN) - Math.atan2(run[k - 1]!.dE, run[k - 1]!.dN));
       const adjAngle = wrap(az(adj[k]!, adj[k + 1]!) - az(adj[k - 1]!, adj[k]!));
-      vpv += (wrap(adjAngle - obs) / (5 * rho)) ** 2;
+      vpv += (wrap(adjAngle - obs) / (5 * Math.SQRT2 * rho)) ** 2;
     }
     expect(r.stats!.sigma0).toBeCloseTo(Math.sqrt(vpv / 2), 6);
     // And it does better than the compass rule by that measure, as least squares must.
@@ -89,12 +89,39 @@ describe("least squares on a traverse", () => {
         const d0 = Math.hypot(l.dE, l.dN);
         t += ((Math.hypot(pts[i + 1]!.e - pts[i]!.e, pts[i + 1]!.n - pts[i]!.n) - d0) / (0.002 + 2e-6 * d0)) ** 2;
       });
-      t += (wrap(az(pts[0]!, pts[1]!) - Math.atan2(run[0]!.dE, run[0]!.dN)) / (5 * rho)) ** 2;
-      for (let k = 1; k < run.length; k++) t += (wrap(wrap(az(pts[k]!, pts[k + 1]!) - az(pts[k - 1]!, pts[k]!)) - wrap(Math.atan2(run[k]!.dE, run[k]!.dN) - Math.atan2(run[k - 1]!.dE, run[k - 1]!.dN))) / (5 * rho)) ** 2;
+      t += (wrap(az(pts[0]!, pts[1]!) - Math.atan2(run[0]!.dE, run[0]!.dN)) / (5 * Math.SQRT2 * rho)) ** 2;
+      for (let k = 1; k < run.length; k++) t += (wrap(wrap(az(pts[k]!, pts[k + 1]!) - az(pts[k - 1]!, pts[k]!)) - wrap(Math.atan2(run[k]!.dE, run[k]!.dN) - Math.atan2(run[k - 1]!.dE, run[k - 1]!.dN))) / (5 * Math.SQRT2 * rho)) ** 2;
       return t;
     };
     expect(sum(r.corrections)).toBeLessThanOrEqual(sum(c.corrections) + 1e-9);
     expect(r.stats!.stations.every((s) => s.sE > 0 && s.sN > 0)).toBe(true);
+  });
+
+  it("says an exact closure fits better than the precision explains, and never makes a station surer than the instrument can", () => {
+    const run = legs(["B", 120.4, 35.2], ["C", -15.7, 98.3], ["D", -110.2, -5.6], ["E", 4.9, -127.4]);
+    const exact = adjustRun(run, { dE: 0, dN: 0 }, "least_squares");
+    if (!exact.ok) throw new Error(exact.problem);
+    expect(exact.stats!.sigma0).toBeCloseTo(0, 9);
+    expect(exact.stats!.passes).toBe(false);
+    expect(exact.stats!.side).toBe("low");
+    // The stations' standard deviations come from the stated precision, not from a σ0 of nothing.
+    expect(exact.stats!.stations.every((s) => s.sE > 1e-4 && s.sN > 1e-4)).toBe(true);
+    // A misclosure far beyond the precision fails high, and scales the stations up by σ0.
+    const bad = adjustRun(run, { dE: 0.4, dN: -0.3 }, "least_squares");
+    if (!bad.ok) throw new Error(bad.problem);
+    expect(bad.stats!.side).toBe("high");
+    // (The geometry moves a little with half a metre of misclosure, so the two agree to within a percent, not exactly.)
+    expect(bad.stats!.stations[0]!.sE / (exact.stats!.stations[0]!.sE * bad.stats!.sigma0)).toBeCloseTo(1, 2);
+  });
+
+  it("adjusts up to its limit of legs, and refuses a longer traverse rather than hold the plan up", () => {
+    const zig = (n: number) => legs(...Array.from({ length: n }, (_, i): [string, number, number] => [`S${i + 1}`, 30, i % 2 === 0 ? 10 : -10]));
+    expect(adjustRun(zig(LEAST_SQUARES_MAX_LEGS), { dE: 0.01, dN: 0.01 }, "least_squares").ok).toBe(true);
+    const long = adjustRun(zig(LEAST_SQUARES_MAX_LEGS + 1), { dE: 0.01, dN: 0.01 }, "least_squares");
+    expect(long.ok).toBe(false);
+    if (!long.ok) expect(long.problem).toContain("compass or transit rule");
+    // The other rules take it.
+    expect(adjustRun(zig(LEAST_SQUARES_MAX_LEGS + 1), { dE: 0.01, dN: 0.01 }, "compass").ok).toBe(true);
   });
 
   it("refuses a precision of nothing, and a leg of no length", () => {

@@ -17,15 +17,17 @@ The owner's brief lists least squares among the calculations AutoSurvey doesn't 
   - the angle between each leg and the next.
 
   These are exactly what the legs were reduced from.
-- **The weights:** each observation is weighted by the instrument's precision. Angles have one standard deviation; distances have a constant plus parts per million of their length.
+- **The weights:** each observation is weighted by the instrument's precision, as its specification states it (ISO 17123-3 and 17123-4): the standard deviation of one direction, and of a distance as a constant plus parts per million of its length. An angle is the difference of two directions, so it is weighed at √2 times the direction's figure, and the first leg's direction from the start's orientation likewise.
+- **Up to 100 legs.** The work grows with the cube of the stations and runs while the plan is drawn: 100 legs take about a tenth of a second, 500 about ten. A longer traverse is refused, with the compass and transit rules offered, so no file (made to be long or not) holds the server up.
 - **The unknowns:** the stations between the start and the closing point. Both ends stay fixed, so a traverse closing on a known point has two observations more than it needs.
 - **The solution:** Gauss-Newton on the weighted normal equations, iterated until no station moves by 1e-10 m.
 - **What it reports:**
   - each station's correction, applied to the points shot from it as the other rules' are;
-  - σ0, the a posteriori standard deviation of unit weight, and whether r·σ0² passes the χ² test at 95% (0.0506 to 7.378 for r = 2);
+  - σ0, the a posteriori standard deviation of unit weight, and whether r·σ0² passes the χ² test at 95% (0.0506 to 7.378 for r = 2), and on which side it falls when it doesn't: above (the misclosure is more than the precision explains: check the observations) or below (they agree better than it, as when the instrument already adjusted them or the closure is within rounding);
   - the largest distance and angle residuals;
-  - each station's standard deviation, scaled by σ0.
-- **The instrument's own precision, from the office profile:** a total station in an office profile may state its precision (angles in seconds, distances in mm plus ppm, as its specification gives them). Generate Plan weighs a file's traverse by the profile's total station that exports the file's format, else its only total station that states one. Two that state different figures, and none exports the format: neither is chosen.
+  - each station's standard deviation from the stated precision, scaled by σ0 only when the test fails high, as adjustment programs report it, so a fit better than the precision never makes a station look surer than the instrument can.
+- **The lasting record says it too:** the version's note ("least squares (5″, 2 mm + 2 ppm, typical)") and the checks and sources report carry the figures and whose they are, not just the rule's name.
+- **The instrument's own precision, from the office profile:** a total station in an office profile may state its precision (a direction in seconds, a distance in mm plus ppm, as its specification gives them). The instruments that could have made a file are the profile's total stations that export its format, or all of them when none is said to. Generate Plan weighs by their precision only when every one of them states one and they agree: never one instrument's figures for a file another may have made.
 - **The precision used is always said.** The note names the instrument ("as your office profile gives for the Sokkia CX-105"), or, without one, says it's a typical total station's (5″ angles, 2 mm + 2 ppm distances), "not necessarily yours". The start screen reads the file with the same precision, so what it shows is what Generate sends, and the rule's hint says where to give the instrument's own.
 - **Stored as JSON in the profile's body,** which has no shape check in the database: no migration. Older profiles read as before, with no precision.
 - **The engine is `adjust/1.1.0`:** the compass and transit rules are unchanged, but the engine that records them has a new method.

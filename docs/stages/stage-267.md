@@ -16,6 +16,18 @@
 - **`components/survey/autosurvey-start.tsx`:** a file adjusted by least squares is read with the profile's precision, so what's shown is what Generate sends.
 - **`components/survey/traverse-choice.tsx`:** "Least squares" among the rules; on the start screen its hint names the profile's instrument and figures, or says where to give them.
 
+## A fresh review found five real faults, fixed before the PR
+
+The reviewer checked the maths against their own solver, with a numerical Jacobian, on nine traverses (zigzags turning nearly 180°, legs almost due south, 30 legs, an exact closure): corrections within 3e-4 mm, σ0 to 1e-11. Then:
+
+1. **The lasting record said "the instrument's precision" when a typical one was used.** The rule's name carried the claim into the version's note and the report, which dropped the figures. Now the name is "least squares", and the note and report say the figures and whose they are.
+2. **An exact closure was told it failed the χ² test and its stations were sure to 0.0 mm.** Now a fit below the test's range is said as better than the precision explains, and the stations' figures come from the stated precision unless the fit is worse.
+3. **A file could be weighed by an instrument that can't have made it** (a Sokkia exporting SDR with no precision, a Leica exporting GSI with one). Now only when every instrument that could have made the file states the same figures.
+4. **No limit on a traverse's length:** 500 legs took ten seconds, and a 2 MB file could hold the server up for hours. Now up to 100 legs, with the other rules offered beyond.
+5. **Angles were weighted √2 too tightly:** a specification states one direction's precision, and an angle is the difference of two. A Monte Carlo run by the reviewer showed the test failing high twice to four times as often as it should.
+
+Also: "0x10" and "1e1" are refused as figures; a long profile name is shortened so the version's note keeps its version; the start screen's hint no longer tells a surveyor who stated two different precisions to state one.
+
 ## Verified
 
 - `least-squares.test.ts` (5 cases, with an independent recomputation).

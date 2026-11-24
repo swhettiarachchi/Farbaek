@@ -357,6 +357,8 @@ describe("Generate Plan with a traverse (stage 231, ADR 0241)", () => {
     const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }, { name: "job.sdr", content: sdr, adjust: "least_squares" }], profileId: "55555555-5555-4555-8555-555555555555" });
     expect(r.result).toMatchObject({ status: "done" });
     expect(traverseOf(2)).toMatchObject({ adjusted: { method: "least_squares", stats: { precision: { ...own, instrument: "Sokkia CX" } } } });
+    // The version's note says what it was weighed by.
+    expect(String(calls.at(-1)!.input.note)).toBe('Drawn by AutoSurvey from 2 files, the traverse adjusted by least squares (2″, 1 mm + 1.5 ppm, from the office profile) as chosen, with the office profile "Sokkia office" (version 1)');
 
     // Without a profile: a typical total station's, and the record says so by its figures.
     calls.length = 0;
@@ -364,6 +366,16 @@ describe("Generate Plan with a traverse (stage 231, ADR 0241)", () => {
     await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }, { name: "job.sdr", content: sdr, adjust: "least_squares" }] });
     expect(traverseOf(2)).toMatchObject({ adjusted: { method: "least_squares", stats: { precision: { angleSeconds: 5, distanceMm: 2, distancePpm: 2 } } } });
     expect((traverseOf(2).adjusted as { stats: { precision: { instrument?: string } } }).stats.precision.instrument).toBeUndefined();
+    expect(String(calls.at(-1)!.input.note)).toBe("Drawn by AutoSurvey from 2 files, the traverse adjusted by least squares (5″, 2 mm + 2 ppm, typical) as chosen");
+
+    // A long profile name is shortened to keep the note within 200 characters, never its version.
+    calls.length = 0;
+    stored.length = 0;
+    (office.profiles[0] as { name: string }).name = "Sokkia CX-105 set-up for the Kandy and Kegalle offices, field crews A and B, 2026";
+    await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }, { name: "job.sdr", content: sdr, adjust: "least_squares" }], profileId: "55555555-5555-4555-8555-555555555555" });
+    const note = String(calls.at(-1)!.input.note);
+    expect(note.length).toBeLessThanOrEqual(200);
+    expect(note).toMatch(/…" \(version 1\)$/);
   });
 
   it("stops before anything is saved when a rule is chosen for a file it can't adjust", async () => {

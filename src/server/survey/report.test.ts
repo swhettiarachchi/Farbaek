@@ -52,6 +52,15 @@ describe("what each import's record says was worked out", () => {
     ]);
   });
 
+  it("says what least squares weighed by and how the fit came out", () => {
+    const ls = (precision: Record<string, unknown>, side: "low" | "high" | null) =>
+      sourceNotes({ reduction: { ...traverse, traverse: { ...traverse.traverse, adjusted: { method: "least_squares", engine: "adjust/1.1.0", largest: 0.004, corrections: [], stats: { sigma0: side === "low" ? 0.01 : 0.8, passes: side === null, side, precision } } } } }).at(-1);
+    expect(ls({ angleSeconds: 5, distanceMm: 2, distancePpm: 2 }, null)).toBe(
+      "Adjusted by least squares, as the surveyor chose (adjust/1.1.0); the largest correction was 0.004 m. Weighted for 5″ directions (7.1″ an angle) and 2 mm + 2 ppm distances, a typical total station's, not necessarily the one used; σ0 0.80, within the χ² test's range at 95%.",
+    );
+    expect(ls({ angleSeconds: 2, distanceMm: 1, distancePpm: 1.5, instrument: "Sokkia CX" }, "low")).toContain("as the office profile gives for the Sokkia CX; σ0 0.01, below the χ² test's range");
+  });
+
   it("leaves out a record it can't read rather than guess at it", () => {
     expect(sourceNotes({})).toEqual([]);
     expect(sourceNotes({ reduction: { points: "many" } })).toEqual([]);

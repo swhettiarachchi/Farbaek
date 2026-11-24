@@ -17,9 +17,13 @@ export const ADJUST_METHODS = ["compass", "transit", "least_squares"] as const;
 export type AdjustMethod = (typeof ADJUST_METHODS)[number];
 
 /** As the surveyor reads them: the rule's name in a sentence. */
-export const ADJUST_NAMES: Record<AdjustMethod, string> = { compass: "the compass rule (Bowditch)", transit: "the transit rule", least_squares: "least squares, weighted by the instrument's precision" };
+export const ADJUST_NAMES: Record<AdjustMethod, string> = { compass: "the compass rule (Bowditch)", transit: "the transit rule", least_squares: "least squares" };
 
-/** An instrument's stated precision: an angle's standard deviation, seconds, and a distance's, millimetres plus parts per million. */
+/**
+ * An instrument's stated precision, as its specification gives it (ISO 17123-3 and 17123-4): the standard deviation of one direction,
+ * seconds, and of a distance, millimetres plus parts per million. An angle is the difference of two directions, so it is weighed at
+ * √2 times the direction's figure.
+ */
 export interface InstrumentPrecision {
   angleSeconds: number;
   distanceMm: number;
@@ -34,6 +38,19 @@ export interface InstrumentPrecision {
  */
 export const DEFAULT_PRECISION: InstrumentPrecision = { angleSeconds: 5, distanceMm: 2, distancePpm: 2 };
 
+/**
+ * What least squares weighed by, in a sentence's words: the figures, and whose they are. A precision with no instrument named is the
+ * typical one, wherever it was read back from.
+ */
+export function weighedBy(p: InstrumentPrecision): string {
+  return `${p.angleSeconds}″ directions (${(p.angleSeconds * Math.SQRT2).toFixed(1)}″ an angle) and ${p.distanceMm} mm + ${p.distancePpm} ppm distances${p.instrument ? `, as the office profile gives for the ${p.instrument}` : ", a typical total station's, not necessarily the one used"}`;
+}
+
+/** The same, short, for a version's note: "5″, 2 mm + 2 ppm, typical". */
+export function weighedShort(p: InstrumentPrecision): string {
+  return `${p.angleSeconds}″, ${p.distanceMm} mm + ${p.distancePpm} ppm, ${p.instrument ? "from the office profile" : "typical"}`;
+}
+
 /** What least squares says about the fit, beside its corrections. */
 export interface LeastSquaresStats {
   /** The a posteriori standard deviation of unit weight: about 1 when the observations agree with the precision they were weighted by. */
@@ -42,11 +59,20 @@ export interface LeastSquaresStats {
   redundancy: number;
   /** Whether σ0² passes the χ² test at 95%: the misclosure is what the stated precision leads one to expect. */
   passes: boolean;
+  /**
+   * Which side of the test's range it fell on when it didn't pass: "high" when the observations fit worse than the precision explains,
+   * "low" when better (an instrument that already adjusted them, a closure within rounding).
+   */
+  side: "low" | "high" | null;
   precision: InstrumentPrecision;
   /** The largest distance residual, mm, and the largest angle residual, seconds. */
   worstDistanceMm: number;
   worstAngleSeconds: number;
-  /** Each adjusted station's standard deviation in easting and northing, metres, scaled by σ0. */
+  /**
+   * Each adjusted station's standard deviation in easting and northing, metres: from the stated precision, and scaled by σ0 only when
+   * the test shows the observations worse than it, as adjustment programs report them. A fit better than the precision never makes a
+   * station look surer than the instrument can make it.
+   */
   stations: { station: string; sE: number; sN: number }[];
 }
 
@@ -111,6 +137,12 @@ export function precisionText(precision: number | null): string {
 /** The χ² bounds at 95% for 2 degrees of freedom: r·σ0² inside them passes. */
 const CHI2_95_R2 = [0.0506, 7.3778] as const;
 
+/**
+ * The most legs least squares adjusts here. Its work grows with the cube of the stations and runs while the plan is drawn, so a long
+ * chain (or a file made to be one) would hold everyone up: 100 legs take a tenth of a second, 500 take ten.
+ */
+export const LEAST_SQUARES_MAX_LEGS = 100;
+
 /** An angle folded into (-π, π]. */
 const wrap = (a: number) => {
   let x = a;
@@ -153,6 +185,7 @@ function leastSquares(legs: readonly RunLeg[], misclosure: { dE: number; dN: num
   const { angleSeconds, distanceMm, distancePpm } = precision;
   if (!(angleSeconds > 0) || !(distanceMm >= 0) || !(distancePpm >= 0) || !(distanceMm > 0 || distancePpm > 0)) return { ok: false, problem: "The instrument's precision must be greater than nothing to weigh the observations by." };
   const n = legs.length;
+  if (n > LEAST_SQUARES_MAX_LEGS) return { ok: false, problem: `Least squares here adjusts a traverse of up to ${LEAST_SQUARES_MAX_LEGS} legs, and this one has ${n}. Choose the compass or transit rule, or keep the points as shot.` };
   if (legs.some((l) => Math.hypot(l.dE, l.dN) < 1e-6)) return { ok: false, problem: "A leg of the traverse has no length, so its direction can't be weighed." };
   // Stations 0 (the start, fixed) to n (the closing point, fixed at its known place); 1 to n-1 are the unknowns.
   const asShot: { e: number; n: number }[] = [{ e: 0, n: 0 }];
@@ -166,7 +199,8 @@ function leastSquares(legs: readonly RunLeg[], misclosure: { dE: number; dN: num
   const angles = azimuths.slice(1).map((z, k) => wrap(z - azimuths[k]!));
   const rho = Math.PI / 648_000;
   const sd = dist.map((d) => distanceMm / 1000 + (distancePpm * 1e-6) * d);
-  const sa = angleSeconds * rho;
+  // A direction's standard deviation, as stated; an angle (and leg 1's direction from the start's orientation) is the difference of two.
+  const sa = Math.SQRT2 * angleSeconds * rho;
   const u = 2 * (n - 1);
   const col = (k: number) => (k >= 1 && k <= n - 1 ? 2 * (k - 1) : -1);
   type Row = { a: number[]; w: number; p: number; kind: "d" | "a" };
@@ -236,14 +270,18 @@ function leastSquares(legs: readonly RunLeg[], misclosure: { dE: number; dN: num
   const s0sq = redundancy > 0 ? vpv / redundancy : 0;
   const corrections: Correction[] = legs.slice(0, -1).map((l, i) => ({ station: l.to, dE: pts[i + 1]!.e - asShot[i + 1]!.e, dN: pts[i + 1]!.n - asShot[i + 1]!.n }));
   const largest = corrections.reduce((m, c) => Math.max(m, Math.hypot(c.dE, c.dN)), 0);
+  const side = redundancy === 2 ? (redundancy * s0sq < CHI2_95_R2[0] ? "low" : redundancy * s0sq > CHI2_95_R2[1] ? "high" : null) : null;
+  // The stations' standard deviations from the stated precision, scaled up by σ0 only when the observations fit worse than it.
+  const scale = side === "high" ? s0sq : 1;
   const stats: LeastSquaresStats = {
     sigma0: Math.sqrt(s0sq),
     redundancy,
-    passes: redundancy === 2 ? redundancy * s0sq >= CHI2_95_R2[0] && redundancy * s0sq <= CHI2_95_R2[1] : true,
+    passes: side === null,
+    side,
     precision,
     worstDistanceMm: Math.max(0, ...rows.filter((r) => r.kind === "d").map((r) => Math.abs(r.w) * 1000)),
     worstAngleSeconds: Math.max(0, ...rows.filter((r) => r.kind === "a").map((r) => Math.abs(r.w) / rho)),
-    stations: legs.slice(0, -1).map((l, i) => ({ station: l.to, sE: Math.sqrt(Math.max(0, s0sq * inverse[2 * i]![2 * i]!)), sN: Math.sqrt(Math.max(0, s0sq * inverse[2 * i + 1]![2 * i + 1]!)) })),
+    stations: legs.slice(0, -1).map((l, i) => ({ station: l.to, sE: Math.sqrt(Math.max(0, scale * inverse[2 * i]![2 * i]!)), sN: Math.sqrt(Math.max(0, scale * inverse[2 * i + 1]![2 * i + 1]!)) })),
   };
   return { ok: true, corrections, largest, stats };
 }

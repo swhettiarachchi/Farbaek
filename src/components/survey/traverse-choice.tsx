@@ -10,13 +10,13 @@ const CHOICES: { value: AdjustMethod | null; label: string; hint: string }[] = [
   {
     value: "least_squares",
     label: "Least squares",
-    hint: "Angles and distances adjusted together, each weighted by a typical total station's precision (5″ angles, 2 mm + 2 ppm distances). It says how well they fit that precision, and how sure each station is.",
+    hint: "Angles and distances adjusted together, each weighted by a typical total station's precision (5″ a direction, 2 mm + 2 ppm a distance). It says how well they fit that precision, and how sure each station is.",
   },
 ];
 
 /** Least squares' hint when the office profile states its total station's precision (ADR 0274). */
 const ownPrecision = (p: InstrumentPrecision) =>
-  `Angles and distances adjusted together, each weighted by the precision your office profile gives for the ${p.instrument ?? "total station"} (${p.angleSeconds}″ angles, ${p.distanceMm} mm + ${p.distancePpm} ppm distances). It says how well they fit that precision, and how sure each station is.`;
+  `Angles and distances adjusted together, each weighted by the precision your office profile gives for the ${p.instrument ?? "total station"} (${p.angleSeconds}″ a direction, ${p.distanceMm} mm + ${p.distancePpm} ppm a distance). It says how well they fit that precision, and how sure each station is.`;
 
 /**
  * How to treat a traverse that closes on a known point (stage 231, ADR 0241): kept as shot unless the surveyor chooses a rule. The
@@ -25,7 +25,7 @@ const ownPrecision = (p: InstrumentPrecision) =>
 export function TraverseChoice({ value, onChange, disabled = false, precision }: { value: AdjustMethod | null; onChange: (m: AdjustMethod | null) => void; disabled?: boolean; precision?: InstrumentPrecision | null }) {
   const chosen = CHOICES.find((c) => c.value === value) ?? CHOICES[0]!;
   // On the start screen (precision given, or null for none): the profile's own, or where to give it. Elsewhere, the typical one.
-  const hint = chosen.value !== "least_squares" || precision === undefined ? chosen.hint : precision ? ownPrecision(precision) : `${chosen.hint} Give your total station's own precision in your office profile, and Generate Plan weighs by it.`;
+  const hint = chosen.value !== "least_squares" || precision === undefined ? chosen.hint : precision ? ownPrecision(precision) : `${chosen.hint} An office profile can give the precision of the total station that made this file, and Generate Plan then weighs by it.`;
   return (
     <div className="grid gap-1.5">
       <p className="text-label font-medium text-ink-2">Adjust the traverse</p>
