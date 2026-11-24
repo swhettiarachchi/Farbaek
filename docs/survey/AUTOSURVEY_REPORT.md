@@ -157,6 +157,7 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
   - a stated extent of whole perches is said to be most likely the deed's.
 - **The deed's extent on the face** (stage 244, ADR 0252): a classic plan can give the deed's extent on its extent line, as the surveyor chooses, with the computed extent kept in the schedule overleaf and the checks saying which is where.
 - **Never a source of coordinates:** every drawn point is a surveyed one; a surveyed point the sketch doesn't number is said, never added; no far edge or outline is guessed.
+- **Every number traceable** (stage 245, ADR 0253): each reading says whether it was read clearly, what's in doubt and where on the photo it is; a doubtful reading is never used as a fact. The sketch interpretation report gives each side with the numbers beside it, every point number and how it matched, and what's uncertain apart, with how sure Farbaek is by a fixed rule.
 - **Compared with a surveyor's own plan** by point numbers (`sketchintel/evaluate.ts`), and run on a real job's folder outside the repository (`real-job.test.ts`).
 
 **The owner's real job (local only, never committed):**
@@ -164,12 +165,13 @@ The brief's sixteen services (§7) are modules in one codebase, not separate ser
 - the surveyor's lot, all but one corner lying 0.043 m off the straight side, 132.70 m² against the plan's 132.53 m²;
 - the surveyor confirmed the plan's 5-perch extent is the deed's; since stage 244 Farbaek prints it on the face as the surveyor's plan does, with the computed 5.25 perches in the schedule;
 - after stage 243, with the sketch read as a surveyor reads it: all 8 of the plan's lines in full, the road drawn between its two surveyed sides and measured at 3.25 to 3.63 m (the plan states 15 ft, its reserved width), the gate read, and the stated 5-perch extent pointed out;
-- the well placed.
+- the well placed;
+- after stage 245, the house wall 12, 9, 6, 4, 3 (as the surveyor named it) drawn in full; 3, 4, 6 and 9 recorded as read with doubt, each with where it sits; 1.43 and 1.58 shown beside their sides, differing from the survey by 1.50 m and 0.40 m, and listed for the surveyor, in line with the surveyor's note that 3 and 4 weren't clearly visible when measured.
 
 The sketch was transcribed in the development session in the reader's format; the production reader runs on it only with the owner's consent.
 
 **Not built:**
-- positions on the photo, since Claude's are approximate;
+- a place on the photo as more than evidence: since stage 245 the reader gives one for each reading, approximate, only to find the writing again;
 - a road from one surveyed edge and a written width; a building's outline from an area without numbered corners;
 - rotated or poor photos are handled only as well as the model reads them, with no preprocessing beyond shrinking.
 
@@ -235,7 +237,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #304 | 241 (Sketch Intelligence Engine) | Merged, live (build 52e29e9ad207) | none |
 | #305 | 242 (point-list printout and DXF points) | Open | **v104:** the owner applies it before the merge |
 | #306 | 243 (reading sketches as surveyors do) | Open, builds on #305 | none |
-| next | 244 (the deed's extent on the face) | Open, builds on #306 | none |
+| #307 | 244 (the deed's extent on the face) | Open | none |
+| next | 245 (the sketch interpretation report) | Open, builds on #307 | none |
 
 Production deploys main by itself. Whether v102 and v103 are applied isn't confirmed. `scripts/vps/check-migrations.ps1` reads both back.
 

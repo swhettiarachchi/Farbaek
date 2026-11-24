@@ -16,12 +16,18 @@ export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPo
   const drawing = doc.sketch?.drawing;
   if (!drawing || (drawing.lines.length === 0 && drawing.symbols.length === 0 && drawing.areas.length === 0)) return null;
   const stated = readStatedExtent(doc.sheet.statedExtent);
-  // A road's reading is its width when it reads as one ("15'"), else its name (stage 243).
+  // A road's reading is its width when it reads as one ("15'"), else its name (stage 243). One read with doubt is never taken, but it's
+  // counted, so a conflict is still asked about (ADR 0253).
   const roads = (doc.sketch?.readings ?? []).filter((r) => r.kind === "road");
-  const widths = roads.filter((r) => writtenWidth(r.text) !== null).map((r) => r.text);
+  const clear = roads.filter((r) => r.certain !== false);
+  const unsure = roads.filter((r) => r.certain === false);
+  const widths = clear.filter((r) => writtenWidth(r.text) !== null).map((r) => r.text);
   // A name only when it reads as a road's name: a bare number or an owner's name is neither.
-  const roadNames = roads.filter((r) => writtenWidth(r.text) === null && isRoadName(r.text)).map((r) => r.text);
-  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames });
+  const roadNames = clear.filter((r) => writtenWidth(r.text) === null && isRoadName(r.text)).map((r) => r.text);
+  // Every doubtful road writing that isn't a width: a name read with doubt keeps an area of the same name from naming the road too.
+  const doubtfulWidths = unsure.filter((r) => writtenWidth(r.text) !== null).map((r) => r.text);
+  const doubtfulRoadNames = unsure.filter((r) => writtenWidth(r.text) === null).map((r) => r.text);
+  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames });
 }
 
 /**

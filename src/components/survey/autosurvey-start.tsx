@@ -236,7 +236,7 @@ export function AutoSurveyStart({
           setDrawn({ next: r.next, failed: true, message: read.message });
           return;
         }
-        // Nothing could be read for certain: said here, where the sketches are, before the plan opens.
+        // Nothing could be read: said here, where the sketches are, before the plan opens.
         if (read.status === "done" && read.readings === 0) {
           setDrawn({ next: r.next, failed: false, message: read.message });
           return;
@@ -257,7 +257,7 @@ export function AutoSurveyStart({
     if (u.kind === "sketch") {
       if (u.problem) return { status: "attention", label: "Needs a look", text: u.problem };
       if (sketchOff) return { status: "off", label: "Not read", text: sketchOff };
-      if (drawn) return drawn.failed ? { status: "off", label: "Not read", text: "Not read. Open the plan to read it from its Draft step." } : { status: "done", label: "Read", text: "Read, but nothing on it could be read for certain." };
+      if (drawn) return drawn.failed ? { status: "off", label: "Not read", text: "Not read. Open the plan to read it from its Draft step." } : { status: "done", label: "Read", text: "Read, but nothing on it could be read." };
       if (!consent) return { status: "off", label: "Not read", text: "Tick the box below to have Claude read what's written on it." };
       if (pending && phase === "reading") return { status: "working", label: "Reading", text: "Claude is reading what's written on it." };
       return { status: "pending", label: "Read next", text: "Claude reads what's written on it once the plan is drawn, and Farbaek checks each measurement against your data." };
