@@ -10,7 +10,8 @@ import { commonCodes } from "@/core/survey/codes";
 import { CRS_REGISTRY, LOCAL_CRS, crsById } from "@/core/survey/crs";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { GRAMMAR, grammarForLibrary, type GrammarId } from "@/core/survey/grammar";
-import { LIBRARY_LIMITS, librarySummary, looksLikeCodeLibrary, parseCodeLibrary, type LibraryRead } from "@/core/survey/codelib";
+import { profileSummary, resolveProfile, type OfficeProfile } from "@/core/survey/profile";
+import { LIBRARY_LIMITS, libraryFor, librarySummary, looksLikeCodeLibrary, parseCodeLibrary, type LibraryRead } from "@/core/survey/codelib";
 import { START_LIMITS, gridProblem, kindOfUpload, notReadYet, pointClashes, readSurveyFile, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
 import type { AdjustMethod } from "@/core/survey/adjust";
 import { IMPORT_LIMITS } from "@/core/survey/import/delimited";
@@ -70,7 +71,15 @@ export function AutoSurveyStart({
   sketchOff,
   aiCost,
   carried = { codes: null, sheet: null },
+  profiles = [],
+  lastProfile = null,
+  lastCrsId = null,
 }: {
+  /** The workspace's office profiles (ADR 0256): one is picked by the files' formats, the one used last, or the only one. */
+  profiles?: OfficeProfile[];
+  lastProfile?: string | null;
+  /** The grid this surveyor last confirmed, to say where the one shown comes from. */
+  lastCrsId?: string | null;
   startingCrsId: string | null;
   surveyorName: string | null;
   disabledReason: string | null;
@@ -91,6 +100,8 @@ export function AutoSurveyStart({
   const [crsId, setCrsId] = useState<string>(crsById(startingCrsId)?.id ?? "");
   const [changingCrs, setChangingCrs] = useState(!crsById(startingCrsId));
   const [title, setTitle] = useState("");
+  // The office profile: null follows what the files and the last choice say; "none" starts from the surveyor's recent plans.
+  const [pick, setPick] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<GenerateState>({ status: "idle" });
   const [pending, startTransition] = useTransition();
@@ -174,6 +185,14 @@ export function AutoSurveyStart({
   const grid = crs ? gridProblem(points, crs) : null;
   const problems = data.filter((u) => u.problem).length + clashes.length + (grid ? 1 : 0);
   const dataBytes = data.reduce((sum, u) => sum + u.content.length, 0);
+  const resolution = resolveProfile(profiles, { formats: reads.map((r) => r.format), lastChosen: lastProfile });
+  const profile = pick === "none" ? null : pick ? (profiles.find((p) => p.id === pick) ?? null) : resolution.chosen;
+  // More than one profile and nothing to tell them apart: asked once, never guessed (ADR 0256).
+  const mustChoose = profiles.length > 1 && pick === null && !resolution.chosen && data.length > 0;
+  // A profile's library longer than a plan keeps: the codes the files use first are kept, and the rest said.
+  const profileLeftOut = profile?.body.codes ? libraryFor(profile.body.codes.entries, points.map((p) => p.code ?? "").filter(Boolean)).leftOut : 0;
+  // Where the grid shown comes from, said only while it's true.
+  const crsNote = profile?.body.crsId && crs?.id === profile.body.crsId ? `From the office profile ${profile.name}.` : crs && crs.id === lastCrsId ? "The one you confirmed on your last survey." : "";
   const sketches = uploads.filter((u): u is Extract<Upload, { kind: "sketch" }> => u.kind === "sketch");
   const libraries = uploads.filter((u): u is Extract<Upload, { kind: "code-library" }> => u.kind === "code-library");
   const library = libraries.length === 1 && libraries[0]!.read.ok ? libraries[0]! : null;
@@ -200,6 +219,8 @@ export function AutoSurveyStart({
       ? "The plan is drawn. Open it below."
       : data.length === 0
       ? "Add at least one survey data file: a points file or an instrument's job export."
+      : mustChoose
+        ? "Choose the office profile for this plan, or none."
       : !crs
         ? "Choose the coordinate system the points are in."
         : problems > 0
@@ -215,7 +236,7 @@ export function AutoSurveyStart({
     startTransition(async () => {
       setPhase("drawing");
       // A request the server refuses before the action runs (too large to carry) comes back as a thrown error: said, not lost.
-      const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content, adjust: u.adjust })), library: library ? { name: library.name, content: library.content } : null, sketches: reading ? sketches.filter((u) => u.photo).length : 0 }).catch(
+      const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content, adjust: u.adjust })), library: library ? { name: library.name, content: library.content } : null, sketches: reading ? sketches.filter((u) => u.photo).length : 0, profileId: profile?.id ?? null }).catch(
         (): GenerateState => ({ status: "error", message: "The files couldn't be sent: they may be too large together. Generate from fewer files, then import the rest into the project.", problems: [] }),
       );
       if (r.status !== "done") {
@@ -377,7 +398,7 @@ export function AutoSurveyStart({
             <div className="grid gap-0.5">
               <span className={LABEL_CLASSES}>Coordinate system of the points</span>
               <p className="text-body text-ink">{crs?.name}</p>
-              <p className="text-sm text-ink-3">The one you confirmed on your last survey.</p>
+              {crsNote ? <p className="text-sm text-ink-3">{crsNote}</p> : null}
             </div>
             <button type="button" onClick={() => setChangingCrs(true)} className={buttonClasses("ghost", "sm")}>
               <PencilSimpleIcon size={16} weight="bold" aria-hidden /> Change
@@ -407,26 +428,67 @@ export function AutoSurveyStart({
             </>
           )}
         </p>
+        {profiles.length > 0 ? (
+          <div className="grid gap-1.5">
+            <label className="grid gap-1.5">
+              <span className={LABEL_CLASSES}>Office profile</span>
+              <select value={pick ?? resolution.chosen?.id ?? ""} onChange={(e) => setPick(e.target.value || null)} disabled={pending || Boolean(drawn)} className={inputClasses()}>
+                {!resolution.chosen && pick === null ? <option value="">Choose one</option> : null}
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+                <option value="none">None: start from my recent plans</option>
+              </select>
+            </label>
+            <p className="text-sm text-ink-3">
+              {profile ? `${profileSummary(profile)} ${pick === null ? resolution.why : "You chose it."}` : pick === "none" ? "The plan starts from your recent plans." : `${resolution.why} Choose the one for this plan.`}
+            </p>
+            {profile?.body.crsId && crs && profile.body.crsId !== crs.id ? (
+              <p className="text-sm text-ink">
+                The profile works in {crsById(profile.body.crsId)?.name}; the coordinate system chosen above is {crs.name}. The plan uses the one chosen above.
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-ink-3">
+            Set up an{" "}
+            <Link href="/app/survey/office" className="font-medium text-accent underline-offset-2 hover:underline">
+              office profile
+            </Link>{" "}
+            once, and every new survey starts from your instruments, code library and sheet.
+          </p>
+        )}
         {library ? (
           <p className="text-sm text-ink-2">
             Codes: your office library, <span className="font-medium text-ink">{library.name}</span>, for you to check once on this plan.
+          </p>
+        ) : profile?.body.codes ? (
+          <p className="text-sm text-ink-2">
+            Codes: the profile&apos;s library ({profile.body.codes.entries.length} codes
+            {profileLeftOut > 0 ? `, of which the ${profile.body.codes.entries.length - profileLeftOut} your files use first are kept` : ""}, {GRAMMAR[profile.body.codes.grammar].label} line words), taken as checked when it was saved.
           </p>
         ) : carried.codes ? (
           <p className="text-sm text-ink-2">
             Codes: the list you checked on <span className="font-medium text-ink">{carried.codes.from}</span> ({carried.codes.count} codes), for you to check once on this plan.
           </p>
         ) : null}
-        {carried.grammar && !(library && grammarForLibrary(library.name)) ? (
+        {!profile?.body.codes && carried.grammar && !(library && grammarForLibrary(library.name)) ? (
           <p className="text-sm text-ink-2">
             Line words: read the {GRAMMAR[carried.grammar.id].label} way ({GRAMMAR[carried.grammar.id].words}), as on <span className="font-medium text-ink">{carried.grammar.from}</span>.
           </p>
         ) : null}
-        {carried.sheet ? (
+        {profile?.body.sheet ? (
+          <p className="text-sm text-ink-2">
+            Sheet: as in the profile ({profile.body.sheet.paper === "auto" ? "paper chosen to fit" : profile.body.sheet.paper}, {profile.body.sheet.orientation}).
+          </p>
+        ) : carried.sheet ? (
           <p className="text-sm text-ink-2">
             Sheet: laid out as on <span className="font-medium text-ink">{carried.sheet.from}</span> ({carried.sheet.paper === "auto" ? "paper chosen to fit" : carried.sheet.paper}, {carried.sheet.orientation}).
           </p>
         ) : null}
-        {dsr && !library && !carried.codes ? <p className="text-sm text-ink-2">These files use the Survey Department&apos;s codes (Chapter XXII), so the plan is drawn with its code list.</p> : null}
+        {dsr && !library && !(profile?.body.codes ?? carried.codes) ? <p className="text-sm text-ink-2">These files use the Survey Department&apos;s codes (Chapter XXII), so the plan is drawn with its code list.</p> : null}
         {sketches.length > 0 && !sketchOff ? (
           <label className="flex min-h-11 items-start gap-3 rounded-sm border border-line bg-canvas-2 p-3 text-sm text-ink">
             <input type="checkbox" checked={consent} disabled={pending || Boolean(drawn)} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />

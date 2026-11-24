@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyDocument } from "@/core/survey/document";
 
 // Shared with the stand-ins below, which vitest moves above everything else.
-const { calls, stored, carried, created, jobs, cutOff } = vi.hoisted(() => ({
+const { calls, stored, carried, created, jobs, cutOff, office } = vi.hoisted(() => ({
+  // The workspace's office profiles (stage 248) and what the store was asked to save or remember.
+  office: { profiles: [] as unknown[], saved: [] as Record<string, unknown>[], chosen: [] as (string | null)[], saveResult: null as unknown },
   // A cut-off run the page shows (stage 235), and whether its record can still be written.
   cutOff: { job: null as unknown, writable: true, latest: 1, conflict: false, sources: [] as unknown[] },
   carried: { value: { codes: null, settings: null } as unknown },
@@ -59,6 +61,14 @@ vi.mock("@/server/survey/store", async () => {
         if (!cutOff.writable) return { ok: false, message: "NOT_FOUND" };
         return { ok: true, value: null };
       },
+      saveOfficeProfile: async (_a: unknown, _b: unknown, input: Record<string, unknown>) => {
+        office.saved.push(input);
+        return office.saveResult ?? { ok: true, value: { id: "33333333-3333-4333-8333-333333333333", version: input.baseVersion ? Number(input.baseVersion) + 1 : 1 } };
+      },
+      chooseOfficeProfile: async (_a: unknown, _b: unknown, id: string | null) => {
+        office.chosen.push(id);
+        return { ok: true, value: null };
+      },
       saveDrawing: async (_a: unknown, _b: unknown, input: Record<string, unknown>) => {
         // Another press saved first: the database refuses a save that doesn't build on the latest version.
         if (cutOff.conflict) return { ok: false, code: "VERSION_CONFLICT", message: "VERSION_CONFLICT" };
@@ -69,6 +79,7 @@ vi.mock("@/server/survey/store", async () => {
   };
 });
 vi.mock("@/server/survey/defaults", () => ({ loadStartingDefaults: async () => carried.value }));
+vi.mock("@/server/survey/profiles", () => ({ loadOfficeProfiles: async () => office.profiles, loadProfileChoice: async () => null, loadProfileVersions: async () => [] }));
 vi.mock("@/server/survey/jobs", async () => {
   const actual = await vi.importActual<typeof import("@/server/survey/jobs")>("@/server/survey/jobs");
   return { ...actual, loadJob: async () => cutOff.job };
@@ -86,7 +97,7 @@ vi.mock("@/server/survey/read", () => ({
   }),
 }));
 
-const { generateSurveyPlanAction } = await import("./actions");
+const { generateSurveyPlanAction, saveOfficeProfileAction } = await import("./actions");
 
 const boundary = ["Point,Easting,Northing,Height,Code", "1,450000.000,700000.000,20.00,CP", "2,450040.000,700000.000,20.00,CP", "3,450040.000,700030.000,20.00,St", "4,450000.000,700030.000,20.00,St"].join("\n");
 const extra = ["Point,Easting,Northing,Height,Code", "10,450020.000,700015.000,20.50,Well"].join("\n");
@@ -108,6 +119,68 @@ beforeEach(() => {
   created.document = null;
   jobs.length = 0;
   Object.assign(cutOff, { job: null, writable: true, latest: 1, conflict: false, sources: [] });
+  Object.assign(office, { profiles: [], saved: [], chosen: [], saveResult: null });
+});
+
+describe("office profiles (stage 248)", () => {
+  const PROFILE = {
+    id: "44444444-4444-4444-8444-444444444444",
+    name: "Sokkia office",
+    version: 3,
+    updatedAt: "2026-11-24T00:00:00Z",
+    body: {
+      crsId: "EPSG:5235",
+      equipment: [{ kind: "total_station", make: "Sokkia", model: "CX", exports: ["sdr", "delimited"] }],
+      codes: { entries: [{ code: "CP", meaning: "Concrete Post", kind: "mark", line: "solid", legend: true }, { code: "St", meaning: "Stake", kind: "mark", line: "solid", legend: true }, { code: "BW", meaning: "Boundary wall", kind: "line", line: "solid", legend: true }], grammar: "carlson" },
+      sheet: { ...emptyDocument().settings, paper: "A3", orientation: "landscape" },
+      statement: "As pointed out by the owner and the neighbours",
+    },
+  };
+
+  it("starts the plan from the chosen profile: its list taken as checked, its sheet and statement, and remembers the choice", async () => {
+    office.profiles = [PROFILE];
+    const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }], profileId: PROFILE.id });
+    expect(r.result?.status).toBe("done");
+    const doc = calls[0]!.input.document as ReturnType<typeof emptyDocument>;
+    expect(doc.codes.map((c) => c.code)).toEqual(["CP", "St", "BW"]);
+    expect(doc.grammar).toBe("carlson");
+    expect(doc.provenance["codes"]).toEqual({ source: "engine", reviewed: true });
+    expect(doc.settings).toMatchObject({ paper: "A3", orientation: "landscape" });
+    expect(doc.sheet.statement).toBe("As pointed out by the owner and the neighbours");
+    expect(office.chosen).toEqual([PROFILE.id]);
+    expect(String(calls.find((c) => c.kind === "draw")!.input.note)).toContain('with the office profile "Sokkia office" (version 3)');
+  });
+
+  it("layers a profile over the surveyor's own defaults: one without a sheet keeps their sheet; none forgets the choice", async () => {
+    const mine = { ...emptyDocument().settings, paper: "A2", orientation: "portrait" };
+    carried.value = { codes: null, settings: { values: mine, from: "Earlier plan" } };
+    office.profiles = [{ ...PROFILE, body: { ...PROFILE.body, sheet: null } }];
+    await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }], profileId: PROFILE.id });
+    const doc = calls[0]!.input.document as ReturnType<typeof emptyDocument>;
+    expect(doc.settings).toMatchObject({ paper: "A2", orientation: "portrait" });
+    expect(doc.provenance["codes"]).toEqual({ source: "engine", reviewed: true });
+    calls.length = 0;
+    await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }] });
+    expect(office.chosen).toEqual([PROFILE.id, null]);
+  });
+
+  it("refuses a profile that isn't in the workspace before anything is saved", async () => {
+    const r = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }], profileId: PROFILE.id });
+    expect(r.result).toMatchObject({ status: "error", message: expect.stringContaining("isn't in this workspace any more") });
+    expect(calls).toEqual([]);
+  });
+
+  it("saves a profile only when it's whole: a name, a known grid, a version to build on when editing", async () => {
+    const ok = await saveOfficeProfileAction({ profileId: null, baseVersion: null, name: "  Leica office  ", body: { ...PROFILE.body, codes: null } as never });
+    expect(ok).toMatchObject({ status: "done", version: 1 });
+    expect(office.saved[0]).toMatchObject({ name: "Leica office", profileId: null });
+    expect(await saveOfficeProfileAction({ profileId: null, baseVersion: null, name: "  ", body: PROFILE.body as never })).toMatchObject({ status: "error" });
+    expect(await saveOfficeProfileAction({ profileId: null, baseVersion: null, name: "Bad grid", body: { ...PROFILE.body, crsId: "EPSG:9999" } as never })).toMatchObject({ status: "error" });
+    expect(await saveOfficeProfileAction({ profileId: PROFILE.id, baseVersion: null, name: "No base", body: PROFILE.body as never })).toMatchObject({ status: "error" });
+    office.saveResult = { ok: false, code: "VERSION_CONFLICT", message: "VERSION_CONFLICT" };
+    expect(await saveOfficeProfileAction({ profileId: PROFILE.id, baseVersion: 3, name: "Late", body: PROFILE.body as never })).toMatchObject({ status: "error", message: expect.stringContaining("newer version of this profile") });
+    expect(office.saved).toHaveLength(2);
+  });
 });
 
 describe("Generate Plan", () => {

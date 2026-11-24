@@ -10,6 +10,7 @@ import { START_LIMITS, gridProblem, pointClashes, readSurveyFile, startName, sta
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
 import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
 import { withDefaults } from "@/core/survey/autosurvey/defaults";
+import { officeProfileBodySchema, profileFromPlan, withProfile, type OfficeProfile } from "@/core/survey/profile";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
@@ -23,6 +24,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { loadStartingDefaults } from "@/server/survey/defaults";
+import { loadOfficeProfiles } from "@/server/survey/profiles";
 import { JobTracker, loadJob } from "@/server/survey/jobs";
 import { SURVEY_MESSAGES, surveyStore, type Actor } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
@@ -217,6 +219,8 @@ const generateInput = z.object({
     .max(START_LIMITS.files),
   /** How many sketch photos the screen will send for reading once the plan is drawn: the job shows that stage (ADR 0239). */
   sketches: z.number().int().min(0).max(SKETCH_LIMITS.photos).default(0),
+  /** The office profile the start screen chose or the surveyor picked (ADR 0256), or none: then the surveyor's recent plans. */
+  profileId: z.string().uuid().nullable().default(null),
   /** An office code library uploaded with the files (ADR 0237): read again here, never trusted from the browser. */
   library: z.object({ name: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/), content: z.string().max(LIBRARY_LIMITS.bytes) }).nullable().default(null),
 });
@@ -261,9 +265,18 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   if (grid) problems.push(grid);
   if (problems.length > 0) return { status: "error", message: problems.length === 1 ? "One thing needs you before the plan can be drawn. Nothing was saved." : `${problems.length} things need you before the plan can be drawn. Nothing was saved.`, problems };
 
-  // A returning surveyor's own defaults (ADR 0237): the code list they checked last and their sheet's presentation, read through
-  // row-level security; an office code library uploaded with the files wins over the carried list, and waits for their check.
-  let document = withDefaults(emptyDocument(), await loadStartingDefaults(g.w.user, g.w.actor.orgId, g.w.actor.userId));
+  // The office profile chosen (ADR 0256), read through row-level security: its list taken as checked, its sheet and statement. Without
+  // one, a returning surveyor's own defaults (ADR 0237). An office code library uploaded with the files wins over either, and waits for
+  // its check.
+  let profile: OfficeProfile | null = null;
+  if (i.profileId) {
+    profile = (await loadOfficeProfiles(g.w.user, g.w.actor.orgId)).find((p) => p.id === i.profileId) ?? null;
+    if (!profile) return { status: "error", message: "That office profile isn't in this workspace any more. Choose another, or none, and generate again. Nothing was saved.", problems: [] };
+  }
+  // The surveyor's own carried defaults first, then the profile over them: a profile without a sheet or a code list keeps theirs.
+  const carried = await loadStartingDefaults(g.w.user, g.w.actor.orgId, g.w.actor.userId);
+  let document = withDefaults(emptyDocument(), { ...carried, ...(profile?.body.codes ? { codes: null, grammar: null } : {}), ...(profile?.body.sheet ? { settings: null } : {}) });
+  if (profile) document = withProfile(document, profile, all.map((p) => p.code ?? "").filter(Boolean));
   if (i.library) {
     const lib = parseCodeLibrary(i.library.content);
     if (!lib.ok) return { status: "error", message: "One thing needs you before the plan can be drawn. Nothing was saved.", problems: [{ file: i.library.name, problem: lib.problem }] };
@@ -275,6 +288,9 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const created = await surveyStore.createProject(g.w.admin, g.w.actor, { name: startName(i.title, reads[0]?.name ?? null, new Date()), planType: "cadastral", crsId: crs.id, confirm: true, document });
   if (!created.ok) return { status: "error", message: created.message, problems: [] };
   const projectId = created.value;
+  // The next plan starts from the same profile, or from none when none was chosen; a choice that can't be recorded (before schema v105)
+  // only means the next one asks again.
+  await surveyStore.chooseOfficeProfile(g.w.admin, g.w.actor, profile?.id ?? null).catch(() => null);
   // The run as a job with real stages, so leaving the page and coming back shows where it stands (ADR 0239).
   const job = await JobTracker.start(g.w.admin, g.w.actor, projectId, generateStages(reads.length, i.sketches, new Date()));
   for (const [n, r] of reads.entries()) {
@@ -297,7 +313,7 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const drawing = await drawFromPoints(
     g.w,
     projectId,
-    `Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}${adjustedNote(reads)}`,
+    `Drawn by AutoSurvey from ${reads.length} ${reads.length === 1 ? "file" : "files"}${adjustedNote(reads)}${profile ? `, with the office profile "${profile.name}" (version ${profile.version})` : ""}`.slice(0, 200),
     // The Survey Department's list replaces only the common one: never an office library or the surveyor's own checked list.
     codesAreCommonList(document.codes) && drawsWithDsrList(all, document.codes) ? "dsr" : "project",
     statedSurveyDate(reads),
@@ -552,4 +568,69 @@ export async function archiveSurveyProjectAction(form: FormData): Promise<void> 
   await surveyStore.archive(g.w.admin, g.w.actor, projectId);
   revalidatePath("/app/survey");
   redirect("/app/survey");
+}
+
+const profileInput = z.object({
+  profileId: z.string().uuid().nullable(),
+  baseVersion: z.number().int().min(1).nullable(),
+  name: z.string().max(80),
+  body: officeProfileBodySchema,
+});
+
+export type ProfileState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string; profileId: string; version: number };
+
+/**
+ * Saves an office profile (stage 248, ADR 0256): a new one, or a new version from the one on screen. Nothing about a piece of land is
+ * in a profile; the body is checked here against the same schema the reader uses, so a profile Generate Plan can't read is never saved.
+ */
+export async function saveOfficeProfileAction(input: z.input<typeof profileInput>): Promise<ProfileState> {
+  const parsed = profileInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Some of the profile's settings weren't valid. Check them and save again. Nothing was saved." };
+  const i = parsed.data;
+  if (!i.name.trim()) return { status: "error", message: "Give the profile a name, such as the instrument or the office it's for." };
+  if ((i.profileId === null) !== (i.baseVersion === null)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const saved = await surveyStore.saveOfficeProfile(g.w.admin, g.w.actor, { profileId: i.profileId, baseVersion: i.baseVersion, name: i.name.trim(), body: i.body });
+  if (!saved.ok)
+    return {
+      status: "error",
+      message:
+        saved.code === "VERSION_CONFLICT"
+          ? "Someone saved a newer version of this profile while you were working. Reload to see it, then make your change again."
+          : saved.code === "QUOTA_EXCEEDED"
+            ? "This workspace has as many office profiles, or versions of this one, as it can keep (50 in use, 200 versions each). Archive one you no longer use."
+            : saved.code === "NOT_FOUND"
+              ? "That profile has been archived, or isn't in this workspace any more. Reload the page."
+              : saved.message,
+    };
+  revalidatePath("/app/survey/office");
+  revalidatePath("/app/survey/new");
+  return { status: "done", message: saved.value.version === 1 ? "Profile saved. New plans can start from it." : `Saved as version ${saved.value.version}. Earlier versions are kept.`, profileId: saved.value.id, version: saved.value.version };
+}
+
+/** Archives an office profile: it's no longer offered; its versions stay for the plans that started from them. */
+export async function archiveOfficeProfileAction(_prev: { status: string }, form: FormData): Promise<{ status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string }> {
+  const input = { profileId: String(form.get("profileId") ?? "") };
+  if (!uuid.safeParse(input.profileId).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const done = await surveyStore.archiveOfficeProfile(g.w.admin, g.w.actor, input.profileId);
+  if (!done.ok) return { status: "error", message: done.code === "NOT_FOUND" ? "That profile isn't in this workspace any more." : done.message };
+  revalidatePath("/app/survey/office");
+  revalidatePath("/app/survey/new");
+  return { status: "done", message: "Archived. New plans won't be offered it." };
+}
+
+/**
+ * Starts an office profile from a plan the surveyor has set up (stage 248): its checked office code list and line words, its sheet and
+ * its statement, and its project's grid. Its instruments are added on the profile page.
+ */
+export async function officeProfileFromPlanAction(input: { projectId: string; name: string }): Promise<ProfileState> {
+  if (!uuid.safeParse(input.projectId).success || typeof input.name !== "string") return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
+  if (!data || !data.drawing.readable) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  return saveOfficeProfileAction({ profileId: null, baseVersion: null, name: input.name.trim().slice(0, 80) || `Set up as on ${data.project.name}`.slice(0, 80), body: profileFromPlan(data.drawing.document, data.project.crsConfirmedAt ? data.project.crsId : null) });
 }

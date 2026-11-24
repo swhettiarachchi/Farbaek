@@ -25,6 +25,7 @@ export const SURVEY_MESSAGES = {
   INVALID_REQUEST: "That request wasn't valid. Nothing was changed.",
   NOT_CONFIGURED: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.",
   FORMAT_NOT_READY: "This kind of file can be imported once Farbaek's database update v104 is applied. Upload the job's .sdr or a points CSV meanwhile.",
+  PROFILES_NOT_READY: "Office profiles can be saved once Farbaek's database update v105 is applied. New plans start from your recent plans meanwhile.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 } as const;
 
@@ -38,6 +39,8 @@ export function surveyError(code: SurveyErrorCode): { ok: false; code: SurveyErr
 export function surveyErrorFrom(message: string): { ok: false; code: SurveyErrorCode; message: string } {
   // A format the database doesn't list yet (stage 242's Sokkia point list and DXF, before schema v104): said, not "try again".
   if (message.includes("survey_sources_format_check")) return surveyError("FORMAT_NOT_READY");
+  // Office profiles before schema v105 (stage 248): the functions aren't there yet.
+  if (message.includes("app_survey_profile_")) return surveyError("PROFILES_NOT_READY");
   const code = (Object.keys(SURVEY_MESSAGES) as SurveyErrorCode[]).find((c) => message.includes(c)) ?? "UNKNOWN";
   if (code === "POINT_CONFLICT") {
     const ids = /POINT_CONFLICT: ([^\n]+)/.exec(message)?.[1]?.slice(0, 120);
@@ -73,6 +76,12 @@ export const surveyStore = {
     rpc(admin, "app_survey_approve", { p_org: a.orgId, p_actor: a.userId, p_project: i.projectId, p_version: i.version, p_crs: i.crsId, p_content_sha256: i.sha256 }, z.string().uuid()),
   recordExport: (admin: SupabaseClient, a: Actor, i: { projectId: string; version: number; kind: string; sha256: string; size: number; options: unknown }) =>
     rpc(admin, "app_survey_record_export", { p_org: a.orgId, p_actor: a.userId, p_project: i.projectId, p_version: i.version, p_kind: i.kind, p_sha256: i.sha256, p_size: i.size, p_options: i.options }, z.string().uuid()),
+  /** Office profiles (v105, ADR 0256): a new one (profileId null) or a new version from the one the surveyor started from. */
+  saveOfficeProfile: (admin: SupabaseClient, a: Actor, i: { profileId: string | null; baseVersion: number | null; name: string; body: unknown }) =>
+    rpc(admin, "app_survey_profile_save", { p_org: a.orgId, p_actor: a.userId, p_profile: i.profileId, p_base_version: i.baseVersion, p_name: i.name, p_body: i.body }, z.array(z.object({ id: z.string().uuid(), version: z.number().int() })).length(1).transform((r) => r[0]!)),
+  archiveOfficeProfile: (admin: SupabaseClient, a: Actor, profileId: string) => rpc(admin, "app_survey_profile_archive", { p_org: a.orgId, p_actor: a.userId, p_profile: profileId }, z.unknown()),
+  /** Remembers the profile a plan was generated with, or (null) forgets the surveyor's choice when they chose none. */
+  chooseOfficeProfile: (admin: SupabaseClient, a: Actor, profileId: string | null) => rpc(admin, "app_survey_profile_choose", { p_org: a.orgId, p_actor: a.userId, p_profile: profileId }, z.unknown()),
   /** AutoSurvey's jobs (v102, ADR 0239): one Generate Plan run, its stages, and its end. */
   jobStart: (admin: SupabaseClient, a: Actor, i: { projectId: string; stages: unknown }) => rpc(admin, "app_survey_job_start", { p_org: a.orgId, p_actor: a.userId, p_project: i.projectId, p_kind: "generate", p_stages: i.stages }, z.string().uuid()),
   jobUpdate: (admin: SupabaseClient, orgId: string, i: { jobId: string; stages: unknown; state: "running" | "done" | "failed" | "interrupted"; result: unknown }) =>
