@@ -20,7 +20,7 @@ import { area, distance, orient, pointSegmentDistance, segmentsIntersect, signed
 import type { SurveyPoint } from "../parcel";
 import { roadWidth } from "../roads";
 import { printable } from "./apply";
-import { classifyArea, classifyLine, LAYER_OF, namesKind, symbolEntry, type LineKind } from "./classify";
+import { classifyArea, classifyLine, isRoadName, LAYER_OF, namesKind, symbolEntry, type LineKind } from "./classify";
 import type { SketchDrawing, SketchLine } from "./drawing";
 import { indexPoints, matchNote, matchPoint, type PointIndex } from "./match";
 
@@ -35,6 +35,12 @@ export interface InterpretOptions {
   widths?: readonly string[];
   /** Road names written in the readings, as written: with one, a road between two surveyed sides can be drawn (stage 243). */
   roadNames?: readonly string[];
+  /**
+   * Road widths and names read with doubt (stage 245, ADR 0253): never taken, and never a reason to draw a road, but counted, so a
+   * conflict with a clear one is still asked about and a width written with doubt isn't said to be missing.
+   */
+  doubtfulWidths?: readonly string[];
+  doubtfulRoadNames?: readonly string[];
 }
 
 export type Level = "strong" | "check";
@@ -524,21 +530,32 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
 
   // ---- A road between two surveyed sides (stage 243), when the sketch names one: its near side is the lot's side facing a line drawn
   // across from it, carried on by the lines drawn on from that side's ends; its far side is that line. Measured, never taken from writing.
-  const widths = (options.widths ?? []).map((w) => ({ w, v: writtenWidth(w) })).filter((x): x is { w: string; v: number } => x.v !== null);
-  const roadNames = [...new Set([...drawing.areas.filter((a) => classifyArea(a.label, codes).kind === "road").map((a) => a.label), ...(options.roadNames ?? [])])];
+  const asWidths = (xs: readonly string[] | undefined) => (xs ?? []).map((w) => ({ w, v: writtenWidth(w) })).filter((x): x is { w: string; v: number } => x.v !== null);
+  const widths = asWidths(options.widths);
+  const unsureWidths = asWidths(options.doubtfulWidths);
+  // Every width written, clear or with doubt, for counting; only a single clear one is ever taken.
+  const allWidths = [...widths, ...unsureWidths.map((x) => ({ ...x, w: `${x.w} (read with doubt)` }))];
+  const takenWidth = allWidths.length === 1 && widths.length === 1 ? widths[0]! : null;
+  // A road's name read with doubt doesn't name a road, even where the reader also gave it as an area (as it's asked to).
+  const doubtfulNames = new Set((options.doubtfulRoadNames ?? []).map((x) => x.trim()));
+  const roadNames = [...new Set([...drawing.areas.filter((a) => classifyArea(a.label, codes).kind === "road" && !doubtfulNames.has(a.label.trim())).map((a) => a.label), ...(options.roadNames ?? [])])];
+  const unsureNames = [...doubtfulNames].filter((x) => isRoadName(x) && !roadNames.includes(x));
   let between: RoadProposal | null = null;
-  if (lot && roadNames.length > 0) {
+  if (lot && roadNames.length + unsureNames.length > 0) {
     const found = roadCandidates(lot);
     const far = [...new Set(found.map((x) => x.far))];
+    const named = [...roadNames.map((x) => `"${x}"`), ...unsureNames.map((x) => `"${x}" (read with doubt)`)];
     // Never chosen between: two lines that could each be the far side, or two names for the one road drawn, are asked about.
     if (far.length > 1)
       ask(far.map((x) => x.line.id), lot.file, `The sketch names a road, and lines on more than one side of the lot could be its far side: through ${far.map((x) => list(ids(x.points))).join("; and through ")}.`, [
         "Which one is the road isn't settled by the sketch, so no road is drawn. Draw it on the Lots step.",
       ]);
-    else if (far.length === 1 && roadNames.length > 1)
-      ask(far.map((x) => x.line.id), lot.file, `The sketch names more than one road (${list(roadNames.map((x) => `"${x}"`))}), and only one is drawn across from the lot: which it is isn't settled.`, [
+    else if (far.length === 1 && named.length > 1)
+      ask(far.map((x) => x.line.id), lot.file, `The sketch names more than one road (${list(named)}), and only one is drawn across from the lot: which it is isn't settled.`, [
         "No road is drawn. Draw it on the Lots step, with its name.",
       ]);
+    else if (far.length === 1 && roadNames.length === 0)
+      ask(far.map((x) => x.line.id), lot.file, `A road's name is written on the sketch as ${named[0]}, so no road is drawn from it.`, ["Check the name on the sketch, and draw the road on the Lots step if it's there."]);
     else if (far.length === 1) between = roadBetween(lot, roadNames[0]!, found.filter((x) => x.far === far[0]).sort((x, y) => x.d - y.d)[0]!);
   }
   if (between) {
@@ -547,14 +564,14 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
     if (!printable(between.name))
       ask(between.from, between.file, `The road's name is written as "${between.name}", which the sheet can't print yet.`, ["The road is drawn without its name. Give the name as the plan should print it, on the Lots step."], { item: between.id, answeredBy: "confirm" });
     const [lo, hi] = [between.widthM.min, between.widthM.max];
-    if (widths.length === 1) {
-      const w = widths[0]!;
+    if (takenWidth) {
+      const w = takenWidth;
       if (w.v < lo - 0.3 || w.v > hi + 0.3)
         ask(between.from, between.file, `The road is written as ${w.w} wide (${m(w.v)}), and it measures ${m(lo)} to ${m(hi)} between its surveyed sides.`, [
           "A written width is often the road's reserved width rather than what's on the ground. The plan draws what was surveyed: confirm the road, and say on the plan which width is stated.",
         ], { item: between.id, answeredBy: "confirm" });
       else between.evidence.push(`It agrees with the ${w.w} written on the sketch.`);
-    }
+    } else if (allWidths.length > 0) between.evidence.push(`A width is written on the sketch (${list(allWidths.map((x) => x.w))}), but none was taken: ${allWidths.length > 1 ? "more than one is written" : "it was read with doubt"}.`);
   }
 
   // ---- Roads: which side of the surveyed edge the road lies on, from where the lot is; and its width, only as written.
@@ -577,15 +594,16 @@ export function interpretSketch(drawing: SketchDrawing, points: readonly SurveyP
       const compass = (from: Point, to: Point) => ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"][Math.round((((deg(Math.atan2(to.e - from.e, to.n - from.n)) % 360) + 360) % 360) / 45) % 8];
       if (oneSide) p.evidence.push(`The lot lies wholly on one side of this edge (to its ${compass(mid, toward)}), so the road lies on the other side, to its ${compass(mid, away)}.`);
       else ask(p.from, p.file, `The lot lies on both sides of the road edge ${list(ids(l.points))}, so which side the road is on isn't clear.`, [], { item: p.id, answeredBy: "road" });
-      if (widths.length === 1 && oneSide) {
-        ask(p.from, p.file, `The road is written as ${widths[0]!.w} wide (${m(widths[0]!.v!)}): its far edge would lie that far to the ${compass(mid, away)} of the surveyed edge.`, [
+      if (takenWidth && oneSide) {
+        ask(p.from, p.file, `The road is written as ${takenWidth.w} wide (${m(takenWidth.v)}): its far edge would lie that far to the ${compass(mid, away)} of the surveyed edge.`, [
           "Farbaek doesn't draw a road from one surveyed edge yet: the far edge isn't drawn, and nothing is guessed in its place.",
         ], { item: p.id, answeredBy: "road" });
       }
     }
     // Answered once the plan draws a road with both its edges.
-    if (widths.length === 0) ask(p.from, p.file, `The width of the road along ${list(ids(l.points))} isn't written on the sketch.`, ["Only its surveyed edge is drawn. Give its width, or survey its far edge."], { item: p.id, answeredBy: "road" });
-    if (widths.length > 1) ask(p.from, p.file, `More than one road width is written on the sketch (${list(widths.map((w) => w.w))}): none was taken.`, [], { item: p.id, answeredBy: "road" });
+    if (allWidths.length === 0) ask(p.from, p.file, `The width of the road along ${list(ids(l.points))} isn't written on the sketch.`, ["Only its surveyed edge is drawn. Give its width, or survey its far edge."], { item: p.id, answeredBy: "road" });
+    else if (allWidths.length > 1) ask(p.from, p.file, `More than one road width is written on the sketch (${list(allWidths.map((w) => w.w))}): none was taken.`, [], { item: p.id, answeredBy: "road" });
+    else if (!takenWidth) ask(p.from, p.file, `The road's width is written on the sketch as ${allWidths[0]!.w}, so it wasn't taken.`, ["Check it on the sketch, and give the width, or survey the road's far edge."], { item: p.id, answeredBy: "road" });
   }
 
   // ---- Symbols: a well drawn at a numbered point.

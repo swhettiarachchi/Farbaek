@@ -1,6 +1,7 @@
 "use client";
 
 import { CameraIcon, CircleNotchIcon, ScribbleIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { readSketchesAction, type SketchReadState } from "@/app/app/survey/ai-actions";
@@ -135,6 +136,12 @@ export function SketchPanel(props: {
               ))}
             </ul>
           ) : null}
+          <p className="text-sm text-ink-2">
+            <Link href={`/app/survey/${props.projectId}/sketch-report`} className="inline-flex min-h-10 items-center font-medium text-accent underline-offset-2 hover:underline">
+              Open the sketch interpretation report
+            </Link>
+            : each side and the numbers beside it, what each means, how sure Farbaek is, and what was read with doubt.
+          </p>
           <Disclosure summary="What was read" hint="Every reading as written, and how it compares with the coordinates.">
             <ul className="grid gap-2.5">
               {(checks ?? sketch.readings.map((reading): ReadingCheck => ({ reading, status: "not_checked", detail: "" }))).map((c) => (
@@ -142,7 +149,7 @@ export function SketchPanel(props: {
                   <StatusGlyph status={STATUS[c.status].glyph} className="mt-0.5" />
                   <span className="grid min-w-0 gap-0.5">
                     <span className="text-ink">
-                      <span className="font-medium">{c.reading.text}</span> {where(c)} <span className="text-ink-3">({STATUS[c.status].label.toLowerCase()})</span>
+                      <span className="font-medium">{c.reading.text}</span> {where(c)} <span className="text-ink-3">({STATUS[c.status].label.toLowerCase()}{c.reading.certain === false ? ", read with doubt" : ""})</span>
                     </span>
                     {c.detail && c.status !== "agrees" ? <span className="text-ink-2">{c.detail}</span> : null}
                     {photoOf(c.reading.file) ? (
@@ -156,7 +163,7 @@ export function SketchPanel(props: {
                 </li>
               ))}
             </ul>
-            {sketch.unreadable.length > 0 ? <p className="mt-3 text-sm text-ink-2">Couldn&apos;t be read for certain: {sketch.unreadable.join("; ")}.</p> : null}
+            {sketch.unreadable.length > 0 ? <p className="mt-3 text-sm text-ink-2">Seen but not read: {sketch.unreadable.join("; ")}.</p> : null}
           </Disclosure>
         </div>
       ) : (
@@ -215,7 +222,7 @@ export function SketchPanel(props: {
         ) : result.status === "done" ? (
           <p role="status" className="text-sm text-ink-2">
             {result.message}
-            {result.unreadable > 0 ? ` ${result.unreadable} ${result.unreadable === 1 ? "thing" : "things"} couldn't be read for certain.` : ""}
+            {result.unreadable > 0 ? ` ${result.unreadable} ${result.unreadable === 1 ? "thing was" : "things were"} seen but not read.` : ""}
           </p>
         ) : null}
       </div>

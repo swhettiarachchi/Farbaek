@@ -17,27 +17,38 @@ import { hasInvisible } from "../import/delimited";
 import type { SurveyPoint } from "../parcel";
 import type { Finding } from "../qc";
 
-export const SKETCH_KINDS = ["point", "distance", "bearing", "feature", "adjoining", "road", "note"] as const;
+export const SKETCH_KINDS = ["point", "distance", "bearing", "dimension", "feature", "adjoining", "road", "note"] as const;
 export type SketchKind = (typeof SKETCH_KINDS)[number];
 
 /** Six photos at most, each shrunk in the browser to about 0.2 to 0.6 MB; the total stays under the 6 MB a form may carry. */
 export const SKETCH_LIMITS = { photos: 6, readings: 300, photoBytes: 1_800_000, totalBytes: 5_500_000 } as const;
 
-/** What the model returns. Every value is text as written: there is no place for a computed, converted or estimated number. */
+/**
+ * What the model returns. Every value is text as written: there is no place for a computed, converted or estimated number. The only
+ * numbers are which photo a reading is on and where on that photo it's written (stage 245, ADR 0253): a place to find it again, 0 to
+ * 1000 across and down the photo as given, never a length, an angle or a coordinate, and never read by anything that draws.
+ */
 export const SketchOutputSchema = z.object({
   readings: z.array(
     z.object({
       image: z.number().describe("Which photo the reading is on, counting from 0 in the order given"),
-      kind: z.enum(SKETCH_KINDS).describe("point: a point number written on the sketch. distance and bearing: a measurement written along a line between two points. feature: a drawn object's label such as fence, wall, drain, building, tree or well. adjoining: who or what owns or lies beyond a boundary, such as Land of A. Perera. road: a road or path's name or width as written. note: any other written note."),
+      kind: z.enum(SKETCH_KINDS).describe("point: a point number written at a corner or mark. distance and bearing: a measurement written along a line between two numbered points (a side, a tie or a diagonal). dimension: a measurement that isn't between two numbered points, such as a building's size, an offset, or a width other than a road's. feature: a drawn object's label such as fence, wall, drain, building, tree or well. adjoining: who or what owns or lies beyond a boundary, such as Land of A. Perera. road: a road or path's name or width as written. note: any other written note."),
       text: z.string().describe("Exactly as written, with its units and symbols, unchanged: 12.45, 41'6\", 123°45'20\", N 45°30' E, Masonry wall"),
       from: z.string().describe("For a distance or bearing: the point number written at one end of its line, or empty if there isn't one"),
       to: z.string().describe("For a distance or bearing: the point number written at the other end, or empty"),
       near: z.string().describe("For anything else: the point number written nearest to it, or empty"),
+      certain: z.boolean().describe("True only when every character is clearly read and what it is (a point number, a side's measurement, a dimension, a label) is clear from where it's written. False when either is in doubt"),
+      doubt: z.string().describe("When not certain: what is unclear and what else it could be, in a few words, such as '3 or 8' or 'a point number, or part of the distance 1.58 beside it'. Empty when certain"),
+      photoX: z.number().describe("Where the middle of the writing is on the photo as given (not turned round): 0 at the left edge to 1000 at the right. Approximate: only so a person can find it on the photo"),
+      photoY: z.number().describe("Where the middle of the writing is on the photo as given: 0 at the top edge to 1000 at the bottom. Approximate: only so a person can find it on the photo"),
     }),
   ),
-  unreadable: z.array(z.string()).describe("Short notes on writing you could see but not read for certain, such as 'the distance between 4 and 5'"),
+  unreadable: z.array(z.string()).describe("Short notes on writing you could see but not read at all, such as 'a figure along the side from 4 to 5'"),
 });
-export type SketchOutput = z.infer<typeof SketchOutputSchema>;
+type ModelReading = z.infer<typeof SketchOutputSchema>["readings"][number];
+/** A reading as `acceptSketch` takes it: how clearly it was read, and where, are optional, as from readers before stage 245. */
+export type SketchOutputReading = Omit<ModelReading, "certain" | "doubt" | "photoX" | "photoY"> & Partial<Pick<ModelReading, "certain" | "doubt" | "photoX" | "photoY">>;
+export type SketchOutput = { readings: SketchOutputReading[]; unreadable: string[] };
 
 /**
  * What the reader is asked for since stage 241 (ADR 0249): the readings, and the drawing itself (lines between numbered points,
@@ -57,8 +68,24 @@ export const sketchReadingSchema = z.object({
   from: short(32),
   to: short(32),
   near: short(32),
+  /** Read with doubt (stage 245, ADR 0253): absent when read clearly, as every reading before it was. Listed apart, never a fact. */
+  certain: z.literal(false).optional(),
+  /** What's unclear about it and what else it could be, in the reader's words. */
+  doubt: short(200).optional(),
+  /** Where it's written on the photo as given, 0 to 1000 across and down: only to find it again, never a measurement. */
+  photo: z.object({ x: z.number().int().min(0).max(1000), y: z.number().int().min(0).max(1000) }).optional(),
 });
 export type SketchReading = z.infer<typeof sketchReadingSchema>;
+
+/** What a model writes in the doubt field when it has none. */
+const NO_DOUBT = /^(?:none|no|nil|n\/?a|-+|nothing|no doubt|not applicable|empty|certain)\.?$/i;
+
+/** A place on the photo from the reader's two numbers, or null when either is missing or off the photo. */
+export function photoPlace(x: unknown, y: unknown): { x: number; y: number } | null {
+  if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const [rx, ry] = [Math.round(x), Math.round(y)];
+  return rx >= 0 && rx <= 1000 && ry >= 0 && ry <= 1000 ? { x: rx, y: ry } : null;
+}
 
 /** What was read from a project's sketches, kept with the plan's version. */
 export const sketchRecordSchema = z.object({
@@ -110,7 +137,23 @@ export function acceptSketch(output: SketchReadOutput, given: readonly string[],
     const text = clean(r.text, 120);
     const [from, to, near] = [clean(r.from, 32), clean(r.to, 32), clean(r.near, 32)];
     if (!text || [text, from, to, near].some(hasInvisible)) continue;
-    readings.push({ id: `r${readings.length + 1}`, file: files[r.image]!, kind: r.kind, text, from, to, near });
+    // A doubt makes the reading uncertain whatever `certain` says; a doubt carrying invisible characters isn't shown, the doubt still stands.
+    // A model fills a required field with "none" or "N/A" when there's nothing to say: that isn't a doubt.
+    const doubt = NO_DOUBT.test(clean(r.doubt, 200)) ? "" : clean(r.doubt, 200);
+    const unsure = r.certain === false || doubt !== "";
+    const photo = photoPlace(r.photoX, r.photoY);
+    readings.push({
+      id: `r${readings.length + 1}`,
+      file: files[r.image]!,
+      kind: r.kind,
+      text,
+      from,
+      to,
+      near,
+      ...(unsure ? { certain: false as const } : {}),
+      ...(doubt && !hasInvisible(doubt) ? { doubt } : {}),
+      ...(photo ? { photo } : {}),
+    });
   }
   return {
     model: clean(model, 80),
@@ -179,13 +222,19 @@ const angleGap = (a: number, b: number) => {
   return d > 180 ? 360 - d : d;
 };
 
-/** One reading checked against the surveyed points, as the plan is shown. */
-export function checkReading(r: SketchReading, byNumber: ReadonlyMap<string, SurveyPoint>, crs: CrsRecord): ReadingCheck {
+/**
+ * One reading checked against the surveyed points, as the plan is shown. Without a confirmed coordinate system (null), point numbers
+ * and labels are still checked; a measurement isn't compared.
+ */
+export function checkReading(r: SketchReading, byNumber: ReadonlyMap<string, SurveyPoint>, crs: CrsRecord | null): ReadingCheck {
+  // A dimension written between two numbered points is a measurement between them, compared as one (ADR 0253).
+  if (r.kind === "dimension" && r.from && r.to) return { ...checkReading({ ...r, kind: "distance" }, byNumber, crs), reading: r };
   if (r.kind === "point") {
     return byNumber.has(r.text) ? { reading: r, status: "agrees", detail: `Point ${r.text} is in the survey files.` } : { reading: r, status: "unmatched", detail: `Point ${r.text} is on ${r.file} but not in the survey files.` };
   }
   if (r.kind !== "distance" && r.kind !== "bearing") {
     if (r.near && !byNumber.has(r.near)) return { reading: r, status: "unmatched", detail: `"${r.text}" is written beside point ${r.near} on ${r.file}, and point ${r.near} isn't in the survey files.` };
+    if (r.kind === "dimension") return { reading: r, status: "not_checked", detail: "A dimension isn't written between two point numbers, so it isn't compared with the survey." };
     return { reading: r, status: "not_checked", detail: "Read for the plan's labels. A label isn't checked against coordinates." };
   }
   if (!r.from || !r.to) return { reading: r, status: "not_checked", detail: "It isn't written between two point numbers on the sketch, so it can't be checked." };
@@ -193,6 +242,7 @@ export function checkReading(r: SketchReading, byNumber: ReadonlyMap<string, Sur
   const b = byNumber.get(r.to);
   const missing = [a ? null : r.from, b ? null : r.to].filter(Boolean);
   if (!a || !b) return { reading: r, status: "unmatched", detail: `It's written between points ${r.from} and ${r.to}, and ${missing.length === 2 ? `neither is` : `point ${missing[0]} isn't`} in the survey files.` };
+  if (!crs) return { reading: r, status: "not_checked", detail: "The project's coordinate system isn't confirmed yet, so it isn't compared with the survey." };
   const dE = b.e - a.e;
   const dN = b.n - a.n;
   const grid = Math.hypot(dE, dN);
@@ -253,14 +303,17 @@ export function sketchFindings(sketch: SketchRecord | null, points: readonly Sur
   const checks = crs ? checkSketch(sketch, points, crs) : [];
   const agree = checks.filter((c) => c.status === "agrees").length;
   const close = checks.filter((c) => c.status === "close").length;
-  const measured = sketch.readings.filter((r) => r.kind === "distance" || r.kind === "bearing").length;
+  const measured = sketch.readings.filter((r) => r.kind === "distance" || r.kind === "bearing" || r.kind === "dimension").length;
+  const doubtful = sketch.readings.filter((r) => r.certain === false).length;
   const compared = `${agree} ${agree === 1 ? "agrees" : "agree"} with the coordinates${close > 0 ? `, and ${close} ${close === 1 ? "is" : "are"} within the usual measuring difference` : ""}`;
+  // A reading made with doubt is said to be one, with the reader's doubt, wherever it's raised (ADR 0253).
+  const doubtNote = (r: SketchReading) => (r.certain === false ? ` It was read with doubt${r.doubt ? `: ${r.doubt.replace(/[.\s]+$/, "")}` : ""}.` : "");
   out.push({
     code: "SKETCH_READ",
     severity: "information",
     message: `${sketch.readings.length} ${sketch.readings.length === 1 ? "thing was" : "things were"} read from ${sketch.files.length} ${sketch.files.length === 1 ? "sketch" : "sketches"} by ${readerName(sketch.model)}${crs ? `: ${compared}` : ""}.`,
     target: { kind: "project" },
-    detail: `${measured} ${measured === 1 ? "is a measurement" : "are measurements"}. Sketches only check the plan: nothing was drawn or moved from them.${sketch.unreadable.length > 0 ? ` Couldn't be read for certain: ${sketch.unreadable.slice(0, 4).join("; ")}.` : ""}`,
+    detail: `${measured} ${measured === 1 ? "is a measurement" : "are measurements"}.${doubtful > 0 ? ` ${doubtful} ${doubtful === 1 ? "was" : "were"} read with doubt, and the sketch report lists ${doubtful === 1 ? "it" : "them"} apart.` : ""} No point was moved and no measurement taken from a sketch: every position is the survey's own.${sketch.unreadable.length > 0 ? ` Seen but not read: ${sketch.unreadable.slice(0, 4).join("; ")}.` : ""}`,
     action: "Nothing to do unless something below needs you.",
     blocks: [],
   });
@@ -274,13 +327,13 @@ export function sketchFindings(sketch: SketchRecord | null, points: readonly Sur
           severity: "professional_review",
           message: c.detail,
           target: { kind: "project" },
-          detail: `Read from ${c.reading.file}. Check the sketch and your field notes: the reading may be wrong, or a point may have been observed or numbered wrongly. Nothing has been changed.`,
+          detail: `Read from ${c.reading.file}.${doubtNote(c.reading)} Check the sketch and your field notes: the reading may be wrong, or a point may have been observed or numbered wrongly. Nothing has been changed.`,
           action: "If the coordinates are right, keep it as surveyed. If the sketch is right, observe the point again and import it under a new number.",
           blocks: ["approval"],
           keep: { key, kept: false },
         });
     } else if (c.status === "unmatched") {
-      out.push({ code: "SKETCH_POINT_UNKNOWN", severity: "warning", message: c.detail, target: { kind: "project" }, action: "Check the number on the sketch, or import the file that has the point.", blocks: [] });
+      out.push({ code: "SKETCH_POINT_UNKNOWN", severity: "warning", message: c.detail, target: { kind: "project" }, ...(c.reading.certain === false ? { detail: doubtNote(c.reading).trim() } : {}), action: "Check the number on the sketch, or import the file that has the point.", blocks: [] });
     }
   }
   return out;

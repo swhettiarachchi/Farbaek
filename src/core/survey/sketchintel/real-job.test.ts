@@ -23,6 +23,7 @@ import { buildPlan } from "../view";
 import { applySketch } from "./apply";
 import { evaluatePlan, type PlanReference } from "./evaluate";
 import { interpretDocument } from "./findings";
+import { sketchReport, sketchReportMarkdown } from "./report";
 
 const DIR = process.env.FARBAEK_REAL_JOB_DIR ?? "";
 
@@ -31,7 +32,7 @@ const trapezoid = (ring: readonly { e: number; n: number }[]) => Math.abs(ring.r
 
 describe.skipIf(!DIR || !existsSync(join(DIR, "job.json")))("a real job, end to end (local only)", () => {
   it("reads, draws, interprets the sketch, checks and compares with the surveyor's plan", () => {
-    const job = JSON.parse(readFileSync(join(DIR, "job.json"), "utf8")) as { survey: string[]; crs: string; sketch: string; reference: string; statedExtent?: string; settings?: Partial<DrawingSettings> };
+    const job = JSON.parse(readFileSync(join(DIR, "job.json"), "utf8")) as { survey: string[]; crs: string; sketch: string; reference: string; statedExtent?: string; settings?: Partial<DrawingSettings>; surveyorNotes?: string[] };
     const crs = crsById(job.crs);
     expect(crs).not.toBeNull();
     const out: string[] = [`# Real job evaluation`, "", `Run ${new Date().toISOString()} on ${job.survey.join(", ")} and ${job.sketch}.`, ""];
@@ -105,6 +106,10 @@ describe.skipIf(!DIR || !existsSync(join(DIR, "job.json")))("a real job, end to 
       );
       writeFileSync(join(DIR, "out", `page${k + 1}.svg`), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${page.widthMm} ${page.heightMm}" width="${page.widthMm * 4}" height="${page.heightMm * 4}" style="background:#fff">${items.join("")}</svg>`);
     });
+    // 6. The sketch interpretation report (stage 245), with what the surveyor said about the job kept apart from what was read.
+    const sr = sketchReport({ sketch: doc.sketch!, points, codes: doc.codes, crs, interpretation });
+    const notes = job.surveyorNotes?.length ? ["", "## What the surveyor said", "", "Kept apart from what was read: the surveyor's own words about the job.", "", ...job.surveyorNotes.map((n) => `- ${n}`)] : [];
+    writeFileSync(join(DIR, "out", "sketch-report.md"), [sketchReportMarkdown(sr), ...notes].join(String.fromCharCode(10)));
     writeFileSync(join(DIR, "out", "evaluation.json"), JSON.stringify({ evaluation: e, interpretation: { ...interpretation, proposals: interpretation.proposals.map((p) => ({ ...p, points: undefined, corners: undefined })) } }, null, 2));
     expect(e.lot.generated.length).toBeGreaterThan(0);
   });

@@ -188,8 +188,8 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   const photos = `${images.length} ${images.length === 1 ? "sketch" : "sketches"}`;
   const drawingParts = (record.drawing?.lines.length ?? 0) + (record.drawing?.symbols.length ?? 0) + (record.drawing?.areas.length ?? 0);
   // Nothing read for certain is no reason for a new version, and earlier readings stay as they were.
-  if (record.readings.length === 0 && drawingParts === 0) await end("done", "Nothing on the photos could be read for certain.");
-  if (record.readings.length === 0 && drawingParts === 0) return { status: "done", message: `Nothing on the ${photos} could be read for certain, so the plan wasn't changed.`, version: baseVersion, readings: 0, unreadable: record.unreadable.length };
+  if (record.readings.length === 0 && drawingParts === 0) await end("done", "Nothing on the photos could be read.");
+  if (record.readings.length === 0 && drawingParts === 0) return { status: "done", message: `Nothing on the ${photos} could be read, so the plan wasn't changed.`, version: baseVersion, readings: 0, unreadable: record.unreadable.length };
   // New readings replace earlier ones, and with them any "keep as surveyed" answers to the earlier ones. The drawing's proposals
   // (ADR 0249) are put on the plan in the same version, each waiting for the surveyor: positions all come from the surveyed points.
   let drawn = 0;
