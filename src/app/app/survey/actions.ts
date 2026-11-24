@@ -449,7 +449,7 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
  * Only a near miss the plan has now can be kept.
  */
 export async function setKeptAsSurveyedAction(input: { projectId: string; baseVersion: number; key: string; keep: boolean }): Promise<SurveyFormState> {
-  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(?:(?:dup|leg):[0-9a-f:|-]{36,120}|sketch:r\d{1,3})$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(?:(?:dup|leg):[0-9a-f:|-]{36,120}|sketch:r\d{1,3}|check:[im]\d{1,3})$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
   const g = await writer();
   if (!g.ok) return { status: "error", message: g.message };
   const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);

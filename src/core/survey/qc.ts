@@ -5,6 +5,7 @@
  * compliance: a plan is final only when its surveyor approves a version.
  */
 import { fitArc } from "./arcs";
+import { sketchCheckFindings } from "./sketchintel/verify";
 import { cornerFits, neighbours } from "./construct";
 import { sketchFindings } from "./autosurvey/sketch";
 import { interpretDocument, sketchQuestionFindings } from "./sketchintel/findings";
@@ -537,6 +538,8 @@ export function checkSurvey(input: QcInput): Finding[] {
   out.push(...sketchFindings(doc.sketch, points, input.crsConfirmed ? crs : null, new Set(doc.kept)));
   // What the sketch's drawing couldn't settle (ADR 0249): asked, never guessed.
   out.push(...sketchQuestionFindings(interpretDocument(doc, points), doc));
+  // An independent check of the plan against the sketch (ADR 0271): its doubts and the lines it found missing, from the plan as it is now.
+  out.push(...sketchCheckFindings(doc, points));
 
   return out.sort((x, y) => SEVERITY_ORDER.indexOf(x.severity) - SEVERITY_ORDER.indexOf(y.severity));
 }

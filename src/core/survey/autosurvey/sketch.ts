@@ -11,6 +11,7 @@
 import { z } from "zod";
 import { correctedReadings } from "../sketchintel/corrected";
 import { SketchDrawingOutput, acceptDrawing, sketchDrawingSchema, type DrawingAnswer } from "../sketchintel/drawing";
+import { sketchCheckSchema } from "../sketchintel/check-record";
 import { bearingFromDeltas, formatDms, parseBearing, toDms } from "../angles";
 import type { CrsRecord } from "../crs";
 import { gridScaleFactor } from "../scale";
@@ -113,6 +114,11 @@ export const sketchRecordSchema = z.object({
     )
     .max(50)
     .optional(),
+  /**
+   * An independent check of the plan against these photos (stage 263, ADR 0271), made after they were read: absent until one is made.
+   * Kept here because only reading writes this record: a plan saved from the browser can't change a check's verdicts.
+   */
+  check: sketchCheckSchema.optional(),
 });
 export type SketchRecord = z.infer<typeof sketchRecordSchema>;
 
@@ -122,6 +128,8 @@ const clean = (s: string | null | undefined, max: number) => {
   const last = cut.charCodeAt(cut.length - 1);
   return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
 };
+/** The same folding and cutting for what an independent check of the plan returns (ADR 0271). */
+export const cleanSketchText = clean;
 
 /**
  * A photo's file name, safe to show and to send: control characters go, and a name with invisible characters (a right-to-left

@@ -12,6 +12,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusGlyph } from "@/components/ui/status-badge";
 import { shrink } from "./photo";
+import { SketchCheckAgain } from "./sketch-check";
 import { sketchesKey, stage, unstage } from "./staging";
 
 const STATUS: Record<ReadingStatus, { glyph: "done" | "info" | "attention" | "off"; label: string }> = {
@@ -150,6 +151,7 @@ export function SketchPanel(props: {
             </Link>
             : each side and the numbers beside it, what each means, how sure Farbaek is, and what was read with doubt.
           </p>
+          {kept.length > 0 ? <SketchCheckAgain projectId={props.projectId} baseVersion={props.baseVersion} check={sketch.check ?? null} off={props.readOff} aiCost={props.aiCost} /> : null}
           <Disclosure summary="What was read" hint="Every reading as written, and how it compares with the coordinates.">
             <ul className="grid gap-2.5">
               {(checks ?? sketch.readings.map((reading): ReadingCheck => ({ reading, status: "not_checked", detail: "" }))).map((c) => (
