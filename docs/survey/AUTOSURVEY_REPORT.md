@@ -6,7 +6,7 @@ The final report the owner's AutoSurvey brief asks for (§28), on 2026-11-23, af
 - **Partly built.**
 - **Not built.**
 
-Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-269.md`, and each decision in ADRs 0233 to 0276.
+Every dataset in the automated tests is synthetic. One real job, supplied by the owner, has been run on the dev PC only, outside the repository (section 7). Each stage's own record is in `docs/stages/stage-222.md` to `stage-270.md`, and each decision in ADRs 0233 to 0277.
 
 ## 1. Survey Studio before AutoSurvey, and its weaknesses
 
@@ -262,7 +262,7 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #323 | 266 (leader lines for crowded legs, built as 251 and parked) | Merged | none |
 | #324 | 267 (least squares, the instrument's precision in the office profile) | Merged, live (build b1e70133c482) | none |
 | #325 | 268 (plans over several sheets) | Open | none |
-| next | 269 (curved lot boundaries) | Open, on #325 | none |
+| next | 269 (curved lot boundaries), 270 (learning from corrections) | Open, on #325 | none |
 
 Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
@@ -272,7 +272,7 @@ Production deploys main by itself. **v102 and v103 were found missing on 2026-11
 - **Labels and layout:** overlapping sheets and the DXF's paper space per sheet (plans over several sheets are drawn since stage 268, ADR 0275); leader lines in the DXF (the sheet and PDF have them since stage 266, ADR 0259). Crowded legs can still be left to the schedule (stage 240) where even leaders don't fit.
 - **Codes:** curves on lot corners read from PC/PT codes (curved lot boundaries are given on the plan since stage 269, ADR 0276, with their radius and length along the arc); offsets, rectangles and jogs; a firm's own word list.
 - **Computation:** least squares over networks and with heights; balancing angles first; adjusting a field book's legs.
-- **Profiles:** learning from corrections (suggestions kept apart until approved), CAD layer and text styles, title-block fields other than the statement, plan numbering.
+- **Profiles:** learning from corrections to sketch readings (drafting choices and codes are suggested for the office profile since stage 270, ADR 0277), CAD layer and text styles, title-block fields other than the statement, plan numbering.
 - **Jobs:** finishing a cut-off sketch read without the browser that started it (since stage 250 the photos stay in that browser until the read is saved, and the project offers to finish it); server-side resumable uploads in chunks; a timer for the jobs sweep. Incremental regeneration is decided, not built (ADR 0258): the plan is worked out again in about 5 ms, and tests hold that a correction changes only what depends on it.
 - **Files:** reading PDFs, Word files and DWG, and a DXF's lines; Topcon raw files; keeping a camera's full-size original.
 - **Platform:** the success metrics (§26) that production doesn't record: time to first preview, findings across plans, refused exports, and a comparison with the same job by hand (`docs/survey/METRICS.md`, stage 237, says how the rest are read); malware scanning of uploads; signed download links.

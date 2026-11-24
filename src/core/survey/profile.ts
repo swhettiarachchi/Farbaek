@@ -19,6 +19,7 @@ import { libraryFor } from "./codelib";
 import { crsById } from "./crs";
 import { DEFAULT_STATEMENT, settingsSchema, type SurveyDocument } from "./document";
 import { GRAMMARS, type GrammarId } from "./grammar";
+import { DRAFTING_SETTINGS, type DraftingSetting } from "./learning";
 import type { ImportFormat } from "./import/detect";
 
 export const IMPORT_FORMAT_IDS = ["delimited", "geojson", "gsi", "sdr", "landxml", "jobxml", "fieldbook", "sokkialist", "dxf"] as const satisfies readonly ImportFormat[];
@@ -80,7 +81,8 @@ export function precisionFromText(angle: string, distance: string, ppm: string):
   return { ok: true, value: parsed.data };
 }
 
-const sheetSchema = settingsSchema.pick(Object.fromEntries(CARRIED_SETTINGS.map((k) => [k, true])) as { [K in (typeof CARRIED_SETTINGS)[number]]: true });
+// The sheet's presentation, and the drafting choices a profile can carry (learned from the surveyor's plans, stage 270, ADR 0277).
+const sheetSchema = settingsSchema.pick(Object.fromEntries([...CARRIED_SETTINGS, ...DRAFTING_SETTINGS].map((k) => [k, true])) as { [K in (typeof CARRIED_SETTINGS)[number] | DraftingSetting]: true });
 
 export const officeProfileBodySchema = z.object({
   /** The grid this office works in, offered first; never assumed for a file without the surveyor's confirmation. */
@@ -92,6 +94,8 @@ export const officeProfileBodySchema = z.object({
   sheet: sheetSchema.nullable(),
   /** The statement printed bottom left, in the office's words; empty for Farbaek's default. */
   statement: name(200),
+  /** Suggestions learned from the surveyor's plans that they turned down (stage 270, ADR 0277), by key: not offered again. */
+  declined: z.array(z.string().max(1000)).max(100).optional(),
 });
 export type OfficeProfileBody = z.infer<typeof officeProfileBodySchema>;
 
@@ -154,7 +158,8 @@ export function withProfile(doc: SurveyDocument, profile: OfficeProfile, usedCod
 /** A profile body from a plan the surveyor has already set up: its checked office list and line words, its sheet and its statement. */
 export function profileFromPlan(doc: SurveyDocument, crsId: string | null): OfficeProfileBody {
   const checked = doc.provenance["codes"]?.reviewed === true && doc.codes.length > 0 && !codesAreCommonList(doc.codes) && !codesAreDsrList(doc.codes);
-  const sheet = Object.fromEntries(CARRIED_SETTINGS.map((k) => [k, doc.settings[k]])) as CarriedSettings;
+  // Its drafting choices too (ADR 0277), those it has on.
+  const sheet = { ...(Object.fromEntries(CARRIED_SETTINGS.map((k) => [k, doc.settings[k]])) as CarriedSettings), ...Object.fromEntries(DRAFTING_SETTINGS.filter((k) => doc.settings[k] === true).map((k) => [k, true])) };
   return {
     crsId: crsById(crsId) ? crsId : null,
     equipment: [],

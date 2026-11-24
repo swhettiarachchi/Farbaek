@@ -13,6 +13,14 @@ const RECENT = 5;
  * client, so nothing outside what they can already open is used. A read that fails gives no defaults, never an error.
  */
 export async function loadStartingDefaults(client: SupabaseClient, orgId: string, userId: string): Promise<StartingDefaults> {
+  return defaultsFrom(await loadRecentPlans(client, orgId, userId));
+}
+
+/**
+ * This surveyor's own recent plans in this workspace, newest first, each at its latest version: what their defaults (ADR 0237) and the
+ * suggestions learned for their office profiles (ADR 0277) come from. Read through row-level security; a read that fails gives none.
+ */
+export async function loadRecentPlans(client: SupabaseClient, orgId: string, userId: string): Promise<EarlierPlan[]> {
   try {
     const { data: projects } = await client
       .from("survey_projects")
@@ -23,15 +31,15 @@ export async function loadStartingDefaults(client: SupabaseClient, orgId: string
       .order("updated_at", { ascending: false })
       .limit(RECENT);
     const rows = z.array(z.object({ id: z.string().uuid(), name: z.string() })).safeParse(projects);
-    if (!rows.success || rows.data.length === 0) return defaultsFrom([]);
+    if (!rows.success || rows.data.length === 0) return [];
     const plans: EarlierPlan[] = [];
     for (const p of rows.data) {
       const { data } = await client.from("survey_drawings").select("document").eq("project_id", p.id).order("version", { ascending: false }).limit(1).maybeSingle();
       const doc = data ? parseSurveyDocument((data as { document: unknown }).document) : null;
       if (doc) plans.push({ name: p.name, document: doc });
     }
-    return defaultsFrom(plans);
+    return plans;
   } catch {
-    return defaultsFrom([]);
+    return [];
   }
 }

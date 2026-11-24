@@ -25,7 +25,8 @@ import { approvalHash, buildPlan } from "@/core/survey/view";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
-import { loadStartingDefaults } from "@/server/survey/defaults";
+import { loadRecentPlans, loadStartingDefaults } from "@/server/survey/defaults";
+import { applySuggestion, declineSuggestion } from "@/core/survey/learning";
 import { loadOfficeProfiles } from "@/server/survey/profiles";
 import { JobTracker, loadJob } from "@/server/survey/jobs";
 import { SURVEY_MESSAGES, surveyStore, type Actor } from "@/server/survey/store";
@@ -704,6 +705,30 @@ export async function saveOfficeProfileAction(input: z.input<typeof profileInput
   revalidatePath("/app/survey/office");
   revalidatePath("/app/survey/new");
   return { status: "done", message: saved.value.version === 1 ? "Profile saved. New plans can start from it." : `Saved as version ${saved.value.version}. Earlier versions are kept.`, profileId: saved.value.id, version: saved.value.version };
+}
+
+const suggestionInput = z.object({ profileId: z.string().uuid(), baseVersion: z.number().int().min(1), key: z.string().min(1).max(1000), accept: z.boolean() });
+
+/**
+ * Adds a suggestion learned from the surveyor's plans to their office profile, or turns it down so it isn't offered again (stage 270,
+ * ADR 0277). Either way a new version. The suggestion is worked out again here from their own plans and the profile as saved: what the
+ * browser sends is only which one, never what it changes.
+ */
+export async function answerProfileSuggestionAction(input: z.input<typeof suggestionInput>): Promise<ProfileState> {
+  const parsed = suggestionInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const i = parsed.data;
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const profile = (await loadOfficeProfiles(g.w.user, g.w.actor.orgId)).find((p) => p.id === i.profileId);
+  if (!profile) return { status: "error", message: "That profile has been archived, or isn't in this workspace any more. Reload the page." };
+  if (profile.version !== i.baseVersion) return { status: "error", message: "Someone saved a newer version of this profile while you were working. Reload to see it. Nothing was saved." };
+  const recent = await loadRecentPlans(g.w.user, g.w.actor.orgId, g.w.actor.userId);
+  const body = i.accept ? applySuggestion(profile.body, recent, i.key) : declineSuggestion(profile.body, recent, i.key);
+  if (!body) return { status: "error", message: "That suggestion no longer applies: your plans or the profile have changed since the page was opened. Reload to see what's suggested now. Nothing was saved." };
+  const r = await saveOfficeProfileAction({ profileId: profile.id, baseVersion: profile.version, name: profile.name, body });
+  if (r.status !== "done") return r;
+  return { ...r, message: i.accept ? `Added to the profile, as version ${r.version}. New plans start from it.` : `It won't be suggested again (version ${r.version}).` };
 }
 
 /** Archives an office profile: it's no longer offered; its versions stay for the plans that started from them. */

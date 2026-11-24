@@ -4,12 +4,15 @@ import { notFound } from "next/navigation";
 import { archiveOfficeProfileAction } from "../actions";
 import { Card, CardTitle, PageHeader } from "@/components/app/primitives";
 import { OfficeProfileForm, ProfileFromPlan } from "@/components/survey/office-profile-form";
+import { ProfileSuggestions } from "@/components/survey/profile-suggestions";
+import { suggestionsFor } from "@/core/survey/learning";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Disclosure } from "@/components/ui/disclosure";
 import { LocalTime } from "@/components/ui/local-time";
 import { profileSummary } from "@/core/survey/profile";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
+import { loadRecentPlans } from "@/server/survey/defaults";
 import { loadOfficeProfiles, loadProfileVersions } from "@/server/survey/profiles";
 import { loadAppContext } from "@/server/workspace/context";
 
@@ -25,6 +28,8 @@ export default async function OfficeProfilesPage() {
   const client = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const profiles = client ? await loadOfficeProfiles(client, ctx.current.id) : [];
   const versions = client ? await Promise.all(profiles.map((p) => loadProfileVersions(client, p.id))) : [];
+  // What this surveyor's own recent plans suggest for each profile (ADR 0277): offered, never applied.
+  const recentPlans = client ? await loadRecentPlans(client, ctx.current.id, ctx.user.id) : [];
   const { data: recent } = client
     ? await client.from("survey_projects").select("id, name").eq("org_id", ctx.current.id).is("archived_at", null).order("updated_at", { ascending: false }).limit(10)
     : { data: [] };
@@ -52,6 +57,7 @@ export default async function OfficeProfilesPage() {
             .
           </p>
           <div className="mt-4 grid gap-3">
+            <ProfileSuggestions profileId={p.id} version={p.version} suggestions={suggestionsFor(p.body, recentPlans)} disabledReason={disabledReason} />
             <Disclosure summary="Change it" hint="Saving makes a new version; the earlier ones are kept.">
               <OfficeProfileForm profile={p} disabledReason={disabledReason} />
             </Disclosure>
