@@ -11,6 +11,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   FloppyDiskIcon,
+  LineSegmentsIcon,
   LockSimpleIcon,
   LockSimpleOpenIcon,
   MagnifyingGlassMinusIcon,
@@ -40,6 +41,7 @@ import { handoffKey } from "./assistant/handoff";
 import { CodesPanel, SheetFields, describeSelection, type SurveyorOption } from "./plan-panels";
 import { SheetSvg } from "./sheet-svg";
 import { setPlanUnsaved } from "./unsaved-plan";
+import { DrawLineBar, SelectionEditor, cannotFinish, nextDrawing, type Drawing } from "./selection-editor";
 
 export type { SurveyorOption } from "./plan-panels";
 
@@ -95,6 +97,21 @@ export function PlanEditor(props: PlanEditorProps) {
   // Items picked in order (shift, ctrl or cmd plus a tap, or "Select several" on phones), for "these points".
   const [picked, setPicked] = useState<string[]>([]);
   const [several, setSeveral] = useState(false);
+  // Drawing a line (stage 253, ADR 0261): the surveyed points tapped, in order, and what the line is. Null when not drawing.
+  const [drawing, setDrawing] = useState<Drawing | null>(null);
+  /** From the Selected tab, under the sheet on a phone, the bar it opens above the sheet is brought into view once it's there. */
+  const revealDraw = useRef(false);
+  const drawRef = useCallback((el: HTMLDivElement | null) => {
+    if (!el || !revealDraw.current) return;
+    revealDraw.current = false;
+    el.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }, []);
+  const startDrawing = (reveal: boolean) => {
+    setSeveral(false);
+    setPicked([]);
+    revealDraw.current = reveal;
+    setDrawing({ points: [], layer: "WALLS", code: "MW", closed: false });
+  };
   const [message, setMessage] = useState<{ tone: "done" | "error"; text: string } | null>(null);
   const [saving, startSaving] = useTransition();
   // The assistant's change while it waits for Apply, shown on the sheet, and what the last turn changed, marked until the next.
@@ -104,7 +121,8 @@ export function PlanEditor(props: PlanEditorProps) {
   // The codes on the points the library doesn't know, for the Codes tab's suggestions (ADR 0246): worked out only while it's open.
   const unknown = useMemo(() => (tab === "codes" ? unknownCodes(props.points, doc.codes, GRAMMAR[doc.grammar ?? "farbaek"]) : []), [tab, props.points, doc.codes, doc.grammar]);
   const shown = preview?.ok ? preview.doc : doc;
-  const markSet = useMemo(() => new Set(preview?.ok ? preview.touched : marks), [preview, marks]);
+  // The line being drawn marks its points, so what's been tapped shows on the sheet.
+  const markSet = useMemo(() => new Set(preview?.ok ? preview.touched : drawing ? drawing.points.map((id) => `pt:${id}`) : marks), [preview, marks, drawing]);
 
   // An approved, unedited version shows the surveyor's details as they approved them, as the PDF does.
   const plan = useMemo(
@@ -313,7 +331,7 @@ export function PlanEditor(props: PlanEditorProps) {
       drag.current = null;
       return;
     }
-    if (item?.entity && canDrag(item) && (e.pointerType === "mouse" || selected === item.entity)) {
+    if (!drawing && item?.entity && canDrag(item) && (e.pointerType === "mouse" || selected === item.entity)) {
       const base = doc.labelOffsets[item.entity] ?? { dx: 0, dy: 0 };
       // The place the label is drawn at (ADR 0242): the offset is measured from it, so the label stays where it's dropped.
       const slot = base.slot ?? (item.kind === "text" ? item.slot : undefined);
@@ -369,6 +387,12 @@ export function PlanEditor(props: PlanEditorProps) {
     // A tap without movement selects what was tapped, or clears the selection. With shift, ctrl or cmd, or "Select several", it adds
     // the item to the picked ones, in order, or takes it out again.
     const entity = d.kind === "label" ? d.entity : d.entity;
+    // Drawing a line: a tapped point (its mark, number or corner) is the line's next point; anything else is left alone.
+    if (drawing) {
+      const point = entity && /^(pt|mark|corner):/.test(entity) ? entity.slice(entity.indexOf(":") + 1) : null;
+      if (point && props.points.some((p) => p.id === point)) setDrawing((x) => (x ? nextDrawing(x, point) : x));
+      return;
+    }
     if ((several || e.shiftKey || e.ctrlKey || e.metaKey) && entity) {
       setPicked((p) => (p.includes(entity) ? p.filter((x) => x !== entity) : [...p, entity]));
       setSelected(entity);
@@ -395,8 +419,11 @@ export function PlanEditor(props: PlanEditorProps) {
     else if (e.key === "-") zoomAt(0.8);
     else if (e.key === "0") setView(fullView);
     else if (e.key === "Escape") {
-      setSelected(null);
-      setPicked([]);
+      if (drawing) setDrawing(null);
+      else {
+        setSelected(null);
+        setPicked([]);
+      }
     }
     else if (e.key.startsWith("Arrow")) {
       e.preventDefault();
@@ -523,6 +550,14 @@ export function PlanEditor(props: PlanEditorProps) {
       <button type="button" aria-pressed={several} aria-label="Select several" title="Select several: tap points in order. Shift, Ctrl or Cmd and a click do the same." onClick={() => setSeveral((v) => !v)} className={buttonClasses(several ? "primary" : "secondary", "icon")}>
         <SelectionPlusIcon size={16} weight="bold" aria-hidden />
       </button>
+      {/* A phone's toolbar has no room for it: there, "Draw a line" is on the Selected tab. */}
+      {props.readOnly ? null : (
+        <span className="contents max-sm:hidden">
+          <button type="button" aria-pressed={drawing !== null} aria-label="Draw a line" title="Draw a line: tap surveyed points in order, then Finish." onClick={() => (drawing ? setDrawing(null) : startDrawing(false))} className={buttonClasses(drawing ? "primary" : "secondary", "icon")}>
+            <LineSegmentsIcon size={16} weight="bold" aria-hidden />
+          </button>
+        </span>
+      )}
       <span className="contents lg:hidden">
         <ToolButton label={full ? "Leave full screen" : "Draw full screen"} onClick={() => setFull((f) => !f)} icon={full ? <CornersInIcon size={16} weight="bold" aria-hidden /> : <ArrowsOutIcon size={16} weight="bold" aria-hidden />} />
       </span>
@@ -648,9 +683,19 @@ export function PlanEditor(props: PlanEditorProps) {
                   Put the label back
                 </button>
               ) : null}
+              {selected ? <SelectionEditor key={selected} entity={selected} doc={doc} points={props.points} update={update} readOnly={Boolean(props.readOnly)} onEditSheet={() => setTab("sheet")} onRemoved={() => setSelected(null)} /> : null}
             </>
+          ) : selected ? (
+            <SelectionEditor key={selected} entity={selected} doc={doc} points={props.points} update={update} readOnly={Boolean(props.readOnly)} onEditSheet={() => setTab("sheet")} onRemoved={() => setSelected(null)} />
           ) : (
-            <p className="text-sm text-ink-2">Tap a line, point or label on the sheet to see where its figures come from. On a touch screen, tap a label before dragging it.</p>
+            <div className="grid gap-3">
+              <p className="text-sm text-ink-2">Tap a line, point, lot or label on the sheet to see where its figures come from and change what can be changed. On a touch screen, tap a label before dragging it.</p>
+              {props.readOnly || drawing ? null : (
+                <button type="button" onClick={() => startDrawing(true)} className={buttonClasses("secondary", "sm", "w-fit")}>
+                  <LineSegmentsIcon size={16} weight="bold" aria-hidden /> Draw a line
+                </button>
+              )}
+            </div>
           )}
         </div>
       ) : null}
@@ -659,6 +704,20 @@ export function PlanEditor(props: PlanEditorProps) {
       {tab === "codes" ? <CodesPanel doc={doc} update={update} readOnly={Boolean(props.readOnly)} unknown={unknown} /> : null}
     </div>
   );
+
+  const finishLine = () => {
+    if (!drawing || drawing.points.length < 2 || cannotFinish(drawing, docRef.current)) return;
+    const line = drawing;
+    const closed = line.closed && line.points.length >= 3;
+    update((d) => void d.features.push({ id: `f-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, layer: line.layer, code: line.code.trim().slice(0, 12), closed, points: line.points }));
+    setDrawing(null);
+    setMessage({ tone: "done", text: `${closed ? "Outline" : "Line"} drawn through ${line.points.map((id) => props.points.find((p) => p.id === id)?.pointId ?? "?").join(", ")}.` });
+  };
+  const drawBar = drawing ? (
+    <div ref={drawRef} className="scroll-mt-28 lg:scroll-mt-16">
+      <DrawLineBar drawing={drawing} setDrawing={(change) => setDrawing((x) => (x ? change(x) : x))} doc={doc} points={props.points} onFinish={finishLine} onCancel={() => setDrawing(null)} />
+    </div>
+  ) : null;
 
   const note = message ? (
     <p role={message.tone === "error" ? "alert" : "status"} className={`flex items-start gap-2 text-sm ${message.tone === "error" ? "text-failed" : "text-ink-2"}`}>
@@ -672,6 +731,7 @@ export function PlanEditor(props: PlanEditorProps) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col gap-2 bg-canvas px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] [--tab-bar:0px]">
         {toolbar}
+        {drawBar}
         {note}
         {canvas}
       </div>
@@ -682,6 +742,7 @@ export function PlanEditor(props: PlanEditorProps) {
     // The panel sits beside the sheet only when the editor itself has room for both (a container query), not at a fixed screen size.
     <div className={`@container grid gap-3 ${props.assistantAiOff !== undefined ? "pb-[calc(var(--assist-bar,10rem)+2rem)] lg:pb-0" : ""}`}>
       {toolbar}
+      {drawBar}
       {note}
       <div className="grid gap-4 @4xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="grid min-w-0 content-start gap-3 @4xl:sticky @4xl:top-16 @4xl:self-start">
