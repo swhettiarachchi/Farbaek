@@ -69,6 +69,7 @@ const SETTING_LABELS: Record<keyof DrawingSettings, string> = {
   wallTicks: "Walls lettered small with a tick",
   thinBoundary: "Lot boundaries drawn thin",
   deedExtentOnFace: "The deed's extent on the face",
+  severalSheets: "Over several sheets",
 };
 
 const short = (s: string) => (s.length > 80 ? `${s.slice(0, 79)}…` : s);

@@ -224,6 +224,13 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
             ))}
           </select>
         </label>
+        {/* ADR 0275: only with a scale chosen, since Automatic picks one that fits; off removes the setting entirely. */}
+        {st.scale !== null || st.severalSheets === true
+          ? check("Over several sheets when the drawing doesn't fit at this scale", st.severalSheets === true, (d, v) => {
+              if (v) d.settings.severalSheets = true;
+              else delete d.settings.severalSheets;
+            })
+          : null}
         {check("Slanted lettering", st.slant, (d, v) => void (d.settings.slant = v))}
         {check("Bearings and distances on the face", st.faceDimensions, (d, v) => void (d.settings.faceDimensions = v))}
         {check("Boundaries schedule overleaf", st.overleaf, (d, v) => void (d.settings.overleaf = v))}

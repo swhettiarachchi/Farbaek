@@ -28,6 +28,7 @@ import { drawTexts } from "./texts";
 import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads, quadsOverlap, textQuad, type DrawCtx } from "./draw";
 import { advanceWidth, textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import { SRI_LANKA_CLASSIC_V1 as T } from "./template";
+import { MAX_GRID_PLACES, MAX_SHEETS, clipItems, gridEdges, keyToSheets, matchLines, matchSpot, numberSheets, showsDrawing, tileGrid, type Sheet } from "./tiles";
 
 const PREFERRED_SCALES = [500, 1000, 1250, 2000, 2500, 4000, 5000, 10000] as const;
 
@@ -283,6 +284,10 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
       }
     }
   }
+  // A drawing too big for one sheet at the scale chosen, drawn over several when the surveyor asked for that (ADR 0275): on A3 when the
+  // paper is automatic, the size most offices print.
+  const several = !chosen && Boolean(b) && doc.settings.scale !== null && doc.settings.severalSheets === true;
+  if (!chosen && several) chosen = { lay: plan(frameFor(doc.settings.paper === "auto" ? "A3" : doc.settings.paper, landscape)), scale: doc.settings.scale };
   if (!chosen) {
     // Nothing fits: lay out on the largest paper allowed and report it.
     const lay = plan(frameFor(doc.settings.paper === "auto" ? "A2" : doc.settings.paper, landscape));
@@ -290,14 +295,14 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     if (b) {
       findings.push(
         doc.settings.scale
-          ? { code: "DRAWING_OFF_SHEET", severity: "error", message: `At 1:${doc.settings.scale} the drawing doesn't fit the sheet.`, target: { kind: "sheet" }, action: "Choose a smaller scale, a larger sheet, or Automatic.", blocks: ["export"] }
+          ? { code: "DRAWING_OFF_SHEET", severity: "error", message: `At 1:${doc.settings.scale} the drawing doesn't fit the sheet.`, target: { kind: "sheet" }, action: "Choose a smaller scale, a larger sheet or Automatic, or draw it over several sheets at this scale (Sheet tab).", blocks: ["export"] }
           : { code: "SCALE_TOO_LARGE_AREA", severity: "error", message: "The drawing is too large for any standard scale on this sheet.", target: { kind: "sheet" }, action: "Choose a larger sheet.", blocks: ["export"] },
       );
     }
   }
   // The title block spread into the room the drawing doesn't need at the chosen scale (stage 261): the widest spread that still fits,
   // up to 1.8 times the spacing. A drawing that fills its band keeps the title block as it was.
-  if (b && chosen.scale) {
+  if (b && chosen.scale && !several) {
     // The drawing keeps room around it: it may fill at most 55% of its band's height, and 90% of its width, once spread.
     const roomy = (l: ReturnType<typeof plan>, scale: number) => !b || (((b.maxE - b.minE) * 1000) / scale <= l.vp.w * 0.9 && ((b.maxN - b.minN) * 1000) / scale <= l.vp.h * 0.55);
     for (let g = 1.8; g > 1.001; g -= 0.1) {
@@ -314,18 +319,20 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   const z = f.size;
   const front: SceneItem[] = [{ kind: "path", points: [[f.x0, f.y0], [f.x0 + f.fw, f.y0], [f.x0 + f.fw, f.y0 + f.fh], [f.x0, f.y0 + f.fh]], closed: true, width: T.lines.frame, color: "ink", layer: "SHEET" }];
   front.push(...lay.items);
+  // Where the drawing goes among the sheet's items: after the frame and the header, before the title block, which paints over it.
+  const drawAt = front.length;
 
   // --- The drawing.
-  const drawing: SceneItem[] = [];
   let viewport: Viewport | null = null;
-  let drawingCtx: DrawCtx | null = null;
+  const drawings: SceneItem[][] = [];
+  const contexts: DrawCtx[] = [];
+  let cut: { sheets: Sheet[]; cols: number; rows: number; area: [number, number, number, number]; parts: { sheet: Sheet; viewport: Viewport; items: SceneItem[] }[] } | null = null;
   const needle = { x: f.x0 + f.fw * 0.92, top: lay.bandTop + f.fh * 0.01, h: f.fh * 0.13 };
   const checkLine = f.fw * 0.5 >= 104 ? { x: f.x0 + f.fw * 0.97 - 100, y: lay.titleTop - z.small * 1.2 } : null;
-  if (b && scale) {
-    viewport = { ...lay.vp, scale, centreE: (b.minE + b.maxE) / 2, centreN: (b.minN + b.maxN) / 2 };
-    // Text in the drawing stays inside the frame and above the Reference and title block.
-    const ctx = drawCtx(drawing, viewport, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, { boundary: T.lines.boundary, feature: T.lines.feature, thin: T.lines.thin }, slant, [f.x0 + 1, lay.bandTop, f.x0 + f.fw - 1, lay.vp.y + lay.vp.h]);
-    drawingCtx = ctx;
+  // One sheet's drawing at the viewport given, its words kept within `within`.
+  const drawPlan = (drawing: SceneItem[], v: Viewport, within: [number, number, number, number], reserve: (ctx: DrawCtx) => void = () => {}): DrawCtx => {
+    const ctx = drawCtx(drawing, v, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, { boundary: T.lines.boundary, feature: T.lines.feature, thin: T.lines.thin }, slant, within);
+    reserve(ctx);
     // The north arrow and the check line are drawn later, outside this context: reserve their room first.
     ctx.placer.add([[needle.x - needle.h * 0.2, needle.top], [needle.x + needle.h * 0.2, needle.top], [needle.x + needle.h * 0.2, needle.top + needle.h], [needle.x - needle.h * 0.2, needle.top + needle.h]]);
     if (checkLine) ctx.placer.add([[checkLine.x, checkLine.y - z.small * 2], [checkLine.x + 100, checkLine.y - z.small * 2], [checkLine.x + 100, checkLine.y + 1], [checkLine.x, checkLine.y + 1]]);
@@ -340,7 +347,48 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     // The surveyor's dimension lines (stage 265, ADR 0273), before the words, which keep clear of them.
     drawDimensions(ctx, doc.dimensions ?? [], doc.settings.distanceDecimals);
     drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
-    front.push(...drawing);
+    return ctx;
+  };
+  if (b && scale) {
+    viewport = { ...lay.vp, scale, centreE: (b.minE + b.maxE) / 2, centreN: (b.minN + b.maxN) / 2 };
+    // The grid filled to the same margins as the one-sheet fit (90% wide, 88% high), so a drawing too big for one sheet makes two at least.
+    const grid = several ? tileGrid(b, lay.vp, scale, { w: 0.9, h: 0.88 }) : null;
+    let refused = false;
+    if (grid && grid.tiles.length > MAX_GRID_PLACES) {
+      refused = true;
+      findings.push({ code: "SHEETS_TOO_MANY", severity: "error", message: `At 1:${scale} the drawing spans ${grid.cols} by ${grid.rows} sheets; Farbaek draws a plan over ${MAX_SHEETS} sheets at most.`, target: { kind: "sheet" }, action: "Choose a smaller scale or a larger sheet.", blocks: ["export"] });
+    } else if (grid && grid.tiles.length > 1) {
+      // Each sheet's part of the drawing, cut at its drawing area's edge; its words kept inside it, clear of the match lines' words.
+      const area: [number, number, number, number] = [lay.vp.x, lay.vp.y, lay.vp.x + lay.vp.w, lay.vp.y + lay.vp.h];
+      const drawn = grid.tiles.map((g) => {
+        const v: Viewport = { ...lay.vp, scale, centreE: g.centreE, centreN: g.centreN };
+        const raw: SceneItem[] = [];
+        const ctx = drawPlan(raw, v, area, (c) => gridEdges(g.col, g.row, grid.cols, grid.rows).forEach((e) => c.placer.add(matchSpot(area, e, z.small).quad)));
+        return { g, v, ctx, items: clipItems(raw, area, 0.5) };
+      });
+      const shown = drawn.filter((d) => showsDrawing(d.items, area));
+      if (shown.length > MAX_SHEETS) {
+        refused = true;
+        findings.push({ code: "SHEETS_TOO_MANY", severity: "error", message: `At 1:${scale} the drawing needs ${shown.length} sheets; Farbaek draws a plan over ${MAX_SHEETS} at most.`, target: { kind: "sheet" }, action: "Choose a smaller scale or a larger sheet.", blocks: ["export"] });
+      } else if (shown.length >= 2) {
+        const sheets = numberSheets(shown.map((d) => d.g));
+        cut = { sheets, cols: grid.cols, rows: grid.rows, area, parts: shown.map((d) => ({ sheet: sheets.find((s) => s.col === d.g.col && s.row === d.g.row)!, viewport: d.v, items: d.items })) };
+        cut.parts.sort((p, q) => p.sheet.n - q.sheet.n);
+        for (const d of shown) contexts.push(d.ctx);
+        for (const p of cut.parts) drawings.push(p.items);
+        viewport = cut.parts[0]?.viewport ?? viewport;
+        findings.push({ code: "SHEETS_SPLIT", severity: "information", message: `At 1:${scale} the drawing is drawn over ${sheets.length} sheets, each with match lines to the next and a key to the sheets.`, target: { kind: "sheet" }, action: "Check each sheet. The boundaries schedule overleaf covers the whole plan.", blocks: [] });
+      }
+    }
+    if (several && !cut && !refused) {
+      findings.push({ code: "DRAWING_OFF_SHEET", severity: "error", message: `At 1:${scale} the drawing doesn't fit the sheet.`, target: { kind: "sheet" }, action: "Choose a smaller scale or a larger sheet.", blocks: ["export"] });
+    }
+    if (!cut) {
+      // Text in the drawing stays inside the frame and above the Reference and title block.
+      const drawing: SceneItem[] = [];
+      contexts.push(drawPlan(drawing, viewport, [f.x0 + 1, lay.bandTop, f.x0 + f.fw - 1, lay.vp.y + lay.vp.h]));
+      drawings.push(drawing);
+    }
   }
   // North needle, right of the drawing band.
   {
@@ -393,7 +441,26 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
       ? `Coordinates: ${input.crs.name}.${input.crsConfirmation ? ` ${input.crsConfirmation}.` : ""}`
       : `Grid: ${input.crs.name}${input.crs.epsg ? ` (EPSG:${input.crs.epsg})` : ""}. ${input.crsConfirmation ? `${input.crsConfirmation}.` : "Not confirmed by a person."}`;
   front.push(plotStamp(input, f.w, f.h, f.m, Math.max(1.5, z.small * 0.8)));
-  const pages: SheetPage[] = [{ widthMm: f.w, heightMm: f.h, role: "front", items: front }];
+  const keyOf = (self: Sheet, all: readonly Sheet[], cols: number, rows: number): SceneItem[] => {
+    const x0 = lay.vp.x + lay.vp.w + 2;
+    const w = f.x0 + f.fw - 2 - x0;
+    const top = needle.top + needle.h + z.body * 2;
+    const h = Math.min(w * (rows / Math.max(cols, rows)), 40);
+    return [
+      { kind: "text", x: x0 + w / 2, y: top - z.body * 0.6, text: `Sheet ${self.n} of ${all.length}`, size: z.body, weight: "bold", font: "sans", anchor: "middle", rotate: 0, color: "ink", layer: "SHEET", entity: "sheet-key" },
+      ...keyToSheets({ x: x0, y: top, w, h }, self, all, cols, rows, z.small, T.lines.thin),
+    ];
+  };
+  const pages: SheetPage[] = cut
+    ? cut.parts.map((p) => ({
+        widthMm: f.w,
+        heightMm: f.h,
+        role: "front" as const,
+        items: [...front.slice(0, drawAt), ...p.items, ...matchLines(cut!.area, p.sheet, cut!.sheets, z.small, T.lines.thin), ...front.slice(drawAt), ...keyOf(p.sheet, cut!.sheets, cut!.cols, cut!.rows)],
+        viewport: p.viewport,
+        sheet: { n: p.sheet.n, of: cut!.sheets.length },
+      }))
+    : [{ widthMm: f.w, heightMm: f.h, role: "front", items: [...front.slice(0, drawAt), ...(drawings[0] ?? []), ...front.slice(drawAt)] }];
   if (doc.settings.overleaf) {
     pages.push(
       ...overleafPages(input, {
@@ -413,10 +480,10 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   }
   // Drawing text that covers the Reference, the notes or the title block.
   const titleBoxes = front.filter((i): i is SceneText => i.kind === "text" && (i.layer === "TITLE" || i.layer === "SHEET")).map(textQuad);
-  const onTitle = drawing.filter((i): i is SceneText => i.kind === "text").filter((t) => titleBoxes.some((q) => quadsOverlap(textQuad(t), q)));
+  const onTitle = drawings.flat().filter((i): i is SceneText => i.kind === "text").filter((t) => titleBoxes.some((q) => quadsOverlap(textQuad(t), q)));
   if (onTitle.length > 0) {
     findings.push({ code: "LABELS_ON_TITLE", severity: "warning", message: `${onTitle.length === 1 ? "A label in the drawing covers" : `${onTitle.length} labels in the drawing cover`} the Reference or the title.`, target: { kind: "sheet" }, detail: onTitle.slice(0, 4).map((t) => `"${t.text.slice(0, 30)}"`).join(", "), action: "Drag it clear in the editor, or choose a larger sheet or scale.", blocks: [] });
   }
-  commonFindings(pages, drawing, scale, findings, { inner: [f.x0, f.y0, f.x0 + f.fw, f.y0 + f.fh], ctx: drawingCtx });
+  commonFindings(pages, drawings, scale, findings, { inner: [f.x0, f.y0, f.x0 + f.fw, f.y0 + f.fh], ctx: contexts });
   return { pages, viewport, scale, suggestedScale: suggested, paper: f.paper, findings };
 }

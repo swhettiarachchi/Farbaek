@@ -28,6 +28,7 @@ import { LabelSession, solveLabels } from "./labels";
 import { drawTexts } from "./texts";
 import { Placer, atPage, textQuad, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawRoads, drawScaleBar, drawSimpleNorth, overlappingEntities, overlappingLabels, suggestScale, type DrawCtx } from "./draw";
 import { textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
+import { MAX_GRID_PLACES, MAX_SHEETS, clipItems, gridEdges, keyToSheets, matchLines, matchSpot, numberSheets, showsDrawing, tileGrid, type Sheet } from "./tiles";
 import type { SheetTemplate } from "./template";
 
 export { fmt } from "../units";
@@ -110,18 +111,37 @@ export function drawnExtent(doc: SurveyDocument, byId: Map<string, SurveyPoint>)
 /** The plan's entire area (kept in deed-extent.ts, where the deed's extent on the face needs it too). */
 export { entireAreaM2 };
 
+function mergeContexts(ctxs: readonly DrawCtx[]): { outside: string[]; joined: { what: string; offM: number }[]; cramped: string[] } {
+  const counts = ctxs.map((c) => {
+    const m = new Map<string, number>();
+    for (const w of c.outside) m.set(w, (m.get(w) ?? 0) + 1);
+    return m;
+  });
+  const outside = [...counts[0]!.keys()].flatMap((w) => Array.from({ length: Math.min(...counts.map((m) => m.get(w) ?? 0)) }, () => w));
+  const joined = new Map<string, { what: string; offM: number }>();
+  for (const j of ctxs.flatMap((c) => c.joined ?? [])) if ((joined.get(j.what)?.offM ?? -1) < j.offM) joined.set(j.what, j);
+  return { outside, joined: [...joined.values()], cramped: [...new Set(ctxs.flatMap((c) => c.cramped))] };
+}
+
 /** Findings that apply to every layout: crowded labels, scripts the fonts can't draw. */
-export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: number | null, findings: Finding[], frame: { inner: [number, number, number, number]; ctx: DrawCtx | null } | null = null): void {
+export function commonFindings(pages: SheetPage[], drawing: SceneItem[] | SceneItem[][], scale: number | null, findings: Finding[], frame: { inner: [number, number, number, number]; ctx: DrawCtx | DrawCtx[] | null } | null = null): void {
+  // A plan over several sheets (ADR 0275) has a drawing and a context per sheet: each sheet's labels are checked on their own page, and
+  // what the contexts noted is said once.
+  const drawings: SceneItem[][] = drawing.length > 0 && Array.isArray(drawing[0]) ? (drawing as SceneItem[][]) : [drawing as SceneItem[]];
+  const ctxs: DrawCtx[] = frame?.ctx ? (Array.isArray(frame.ctx) ? frame.ctx : [frame.ctx]) : [];
+  // One sheet: what its context noted, as it was. Several: a word is off the sheet only when no sheet found it a place (each sheet's
+  // context finds no place for the words of the others); a wall along a boundary once, at its farthest; a cramped lot once.
+  const merged = ctxs.length === 0 ? null : ctxs.length === 1 ? { outside: ctxs[0]!.outside, joined: ctxs[0]!.joined ?? [], cramped: ctxs[0]!.cramped } : mergeContexts(ctxs);
   if (frame) {
     // Nothing may run past the sheet's border: what's cut off on paper is missing from a legal document.
     const [x0, y0, x1, y1] = frame.inner;
-    const off = pages[0]!.items.filter((i): i is SceneText => i.kind === "text" && i.entity !== "plot-stamp").filter((t) => textQuad(t).some(([x, y]) => x < x0 - 0.2 || x > x1 + 0.2 || y < y0 - 0.2 || y > y1 + 0.2));
-    const outside = [...new Set([...(frame.ctx?.outside ?? []), ...off.map((t) => t.text)])];
+    const off = pages.filter((p) => p.role === "front").flatMap((p) => p.items.filter((i): i is SceneText => i.kind === "text" && i.entity !== "plot-stamp")).filter((t) => textQuad(t).some(([x, y]) => x < x0 - 0.2 || x > x1 + 0.2 || y < y0 - 0.2 || y > y1 + 0.2));
+    const outside = [...new Set([...(merged?.outside ?? []), ...off.map((t) => t.text)])];
     if (outside.length > 0) {
       findings.push({ code: "TEXT_OFF_SHEET", severity: "error", message: "Some text runs past the sheet's border, so it would be cut off.", target: { kind: "sheet" }, detail: outside.slice(0, 4).map((t) => `"${t.slice(0, 40)}"`).join(", "), action: "Shorten it, choose a larger sheet or scale, or drag the label inside the border.", blocks: ["export"] });
     }
     // Lines drawn as the boundary they run along (stage 261, ADR 0269): said, so nothing is hidden by it.
-    const joined = frame.ctx?.joined ?? [];
+    const joined = merged?.joined ?? [];
     if (joined.length > 0) {
       const most = Math.max(...joined.map((j) => j.offM));
       findings.push({
@@ -134,11 +154,11 @@ export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: 
         blocks: [],
       });
     }
-    if (frame.ctx && frame.ctx.cramped.length > 0) {
-      findings.push({ code: "LOT_LABEL_CRAMPED", severity: "warning", message: `The label of lot ${frame.ctx.cramped.join(", lot ")} is bigger than the lot${scale ? ` at 1:${scale}` : ""}.`, target: { kind: "sheet" }, action: "It's written at the lot's widest point. Check it reads clearly, or choose a larger scale.", blocks: [] });
+    if (merged && merged.cramped.length > 0) {
+      findings.push({ code: "LOT_LABEL_CRAMPED", severity: "warning", message: `The label of lot ${merged.cramped.join(", lot ")} is bigger than the lot${scale ? ` at 1:${scale}` : ""}.`, target: { kind: "sheet" }, action: "It's written at the lot's widest point. Check it reads clearly, or choose a larger scale.", blocks: [] });
     }
   }
-  const crowded = overlappingLabels(drawing);
+  const crowded = drawings.flatMap((d) => overlappingLabels(d));
   if (crowded.length > 0) {
     findings.push({
       code: "LABELS_OVERLAP",
@@ -162,6 +182,9 @@ export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: 
  * The sheet, with its labels placed together (ADR 0242): drawn once recording each label's candidates, solved, and drawn again with
  * the solved places when that improves anything. `greedy` keeps the first pass, each label at its first free place, for comparison.
  */
+/** A sheet's front pages: one, or one per sheet of a plan over several (ADR 0275). */
+const fronts = (s: ComposedSheet) => s.pages.filter((p) => p.role === "front");
+
 export function composeSheet(input: ComposeInput, placement: "solved" | "greedy" = "solved"): ComposedSheet {
   const placed = (inp: ComposeInput) => {
     const once = (labels: LabelSession) => (inp.document.settings.template === "classic" ? composeClassic({ ...inp, labels }) : composePanel({ ...inp, labels }));
@@ -181,7 +204,8 @@ export function composeSheet(input: ComposeInput, placement: "solved" | "greedy"
   let result: ComposedSheet | null = null;
   // Leaving labels off moves the others, which can crowd legs that were clear: those are added, a few rounds at most. The set only grows.
   for (let round = 0, current = sheet; round < 4; round++) {
-    const more = crowdedLegs(input.lots, overlappingEntities(current.pages[0]!.items)).filter((l) => !chosen.has(l.key));
+    // Every front page: a plan over several sheets (ADR 0275) has crowded legs on any of them.
+    const more = crowdedLegs(input.lots, fronts(current).flatMap((p) => overlappingEntities(p.items))).filter((l) => !chosen.has(l.key));
     if (more.length === 0) break;
     for (const l of more) chosen.set(l.key, l);
     current = placed({ ...held, scheduledLegs: { keys: new Set(chosen.keys()), note: scheduleNote([...chosen.values()]) } });
@@ -192,7 +216,8 @@ export function composeSheet(input: ComposeInput, placement: "solved" | "greedy"
   const stops = (s: ComposedSheet) => new Set(s.findings.filter((f) => f.blocks.includes("export")).map((f) => f.code));
   const before = stops(sheet);
   const newStop = [...stops(result)].some((c) => !before.has(c));
-  if (newStop || overlappingLabels(result.pages[0]!.items).length >= overlappingLabels(sheet.pages[0]!.items).length) {
+  const crowding = (s: ComposedSheet) => fronts(s).reduce((n, p) => n + overlappingLabels(p.items).length, 0);
+  if (newStop || crowding(result) >= crowding(sheet)) {
     sheet.findings.push({ code: "LEGS_NOT_SCHEDULED", severity: "information", message: "Leaving the crowded legs to the boundaries schedule didn't make the face clearer at this scale, so every leg is lettered on it.", target: { kind: "sheet" }, action: "Choose a larger scale or sheet, or drag the crowded labels clear in the editor.", blocks: [] });
     return sheet;
   }
@@ -250,11 +275,21 @@ export class Column {
   overflow = false;
   constructor(
     readonly x: number,
-    top: number,
+    readonly top: number,
     readonly w: number,
     readonly bottom: number,
   ) {
     this.y = top;
+  }
+  /** Room of `h` mm for a drawing in the column (a key to the sheets): its top, or null and overflow when it doesn't fit. */
+  reserve(h: number): number | null {
+    if (!this.fits(h)) {
+      this.overflow = true;
+      return null;
+    }
+    const top = this.y;
+    this.y += h;
+    return top;
   }
   fits(h: number): boolean {
     return this.y + h <= this.bottom;
@@ -368,39 +403,86 @@ function composePanel(input: ComposeInput): ComposedSheet {
 
   const byId = new Map(input.points.map((p) => [p.id, p]));
   const b = bounds(drawnExtent(doc, byId));
-  let drawingCtx: DrawCtx | null = null;
   let viewport: Viewport | null = null;
   let suggested: number | null = null;
   let scale: number | null = null;
-  const drawing: SceneItem[] = [];
+  const sizes = { label: t.text.label, small: t.text.small, lotLabel: t.text.body * 1.35, body: t.text.body, heading: t.text.heading };
+  const strokes = { boundary: t.lines.boundary, feature: t.lines.feature, thin: t.lines.thin };
+  const slant = doc.settings.slant ? 12 : 0;
+  // One sheet's drawing: everything in the drawing area, at the viewport given, words kept within `bounds`.
+  const drawPlan = (out: SceneItem[], v: Viewport, bounds: [number, number, number, number], reserve: (ctx: DrawCtx) => void = () => {}): DrawCtx => {
+    const ctx = drawCtx(out, v, input, sizes, strokes, slant, bounds);
+    reserve(ctx);
+    const first = input.lots.lots.find((r) => r.parcel && r.parcel.vertices.length >= 3)?.parcel ?? null;
+    drawRoads(ctx, doc.roads);
+    drawFeatures(ctx, first ? atPage(ctx, first.labelAt) : null);
+    drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: doc.sheet.extractOf || null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals, scheduled: input.scheduledLegs?.keys });
+    drawCorners(ctx, input.lots, { numbers: true, circles: doc.settings.noCornerCircles !== true });
+    drawLoosePoints(ctx, input.points, input.lots);
+    if (doc.settings.noLotLetters !== true) drawLotLabels(ctx, input.lots, { extentUnder: input.lots.lots.length === 1 ? (a) => formatArp(toArp(a, doc.settings.perchDecimals)) : null, highlight: doc.sheet.extractOf || null });
+    drawAdjoining(ctx, doc.adjoining, input.lots);
+    // The surveyor's dimension lines (stage 265, ADR 0273), before the words, which keep clear of them.
+    drawDimensions(ctx, doc.dimensions ?? [], doc.settings.distanceDecimals);
+    drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
+    drawSimpleNorth(ctx, v.x + v.w - 10, v.y + 12, input.crs?.kind === "local");
+    drawScaleBar(ctx, v.x + 4, v.y + v.h - 6, true);
+    if (v.w >= 104) drawCheckLine(ctx, v.x + 2, v.y + 6);
+    return ctx;
+  };
+  // The sheets the drawing is cut into (ADR 0275), when it doesn't fit one at the scale chosen and the surveyor asked for that.
+  let cut: { sheets: Sheet[]; cols: number; rows: number; parts: { sheet: Sheet; viewport: Viewport; items: SceneItem[]; ctx: DrawCtx }[] } | null = null;
+  const drawings: SceneItem[][] = [];
+  const contexts: DrawCtx[] = [];
   if (b) {
     suggested = suggestScale(b.maxE - b.minE, b.maxN - b.minN, vp.w, vp.h);
     scale = doc.settings.scale ?? suggested;
     if (scale === null) {
-      findings.push({ code: "SCALE_TOO_LARGE_AREA", severity: "error", message: "The drawing is too large for any standard scale on this sheet.", target: { kind: "sheet" }, action: "Choose a larger sheet.", blocks: ["export"] });
+      findings.push({ code: "SCALE_TOO_LARGE_AREA", severity: "error", message: "The drawing is too large for any standard scale on this sheet.", target: { kind: "sheet" }, action: "Choose a larger sheet, or choose a scale and draw it over several sheets.", blocks: ["export"] });
     } else {
       viewport = { ...vp, scale, centreE: (b.minE + b.maxE) / 2, centreN: (b.minN + b.maxN) / 2 };
       const kmm = 1000 / scale;
-      if ((b.maxE - b.minE) * kmm > vp.w || (b.maxN - b.minN) * kmm > vp.h) {
-        findings.push({ code: "DRAWING_OFF_SHEET", severity: "error", message: `At 1:${scale} the drawing doesn't fit the sheet.`, target: { kind: "sheet" }, detail: `It needs ${fmt((b.maxE - b.minE) * kmm, 0)} × ${fmt((b.maxN - b.minN) * kmm, 0)} mm; the drawing area is ${fmt(vp.w, 0)} × ${fmt(vp.h, 0)} mm.`, action: suggested ? `Use 1:${suggested}, or a larger sheet.` : "Use a larger sheet.", blocks: ["export"] });
+      const tooBig = (b.maxE - b.minE) * kmm > vp.w || (b.maxN - b.minN) * kmm > vp.h;
+      const grid = tooBig && doc.settings.severalSheets === true && doc.settings.scale !== null ? tileGrid(b, vp, scale) : null;
+      // Over several sheets (ADR 0275): the grid places drawn to find those that show the drawing, up to a limit past which the scale
+      // is plainly wrong; then twelve sheets at most. Fewer than two that show anything is one sheet after all.
+      let refused = false;
+      if (grid && grid.tiles.length > MAX_GRID_PLACES) {
+        refused = true;
+        findings.push({ code: "SHEETS_TOO_MANY", severity: "error", message: `At 1:${scale} the drawing spans ${grid.cols} by ${grid.rows} sheets; Farbaek draws a plan over ${MAX_SHEETS} sheets at most.`, target: { kind: "sheet" }, action: suggested ? `Use 1:${suggested} on one sheet, a smaller scale, or a larger sheet.` : "Use a smaller scale or a larger sheet.", blocks: ["export"] });
+      } else if (grid && grid.tiles.length > 1) {
+        const area: [number, number, number, number] = [vp.x, vp.y, vp.x + vp.w, vp.y + vp.h];
+        const at = scale;
+        const drawn = grid.tiles.map((g) => {
+          const v: Viewport = { ...vp, scale: at, centreE: g.centreE, centreN: g.centreN };
+          const raw: SceneItem[] = [];
+          // Where a neighbouring sheet could continue the drawing, its match line's words: kept clear before anything is placed.
+          const ctx = drawPlan(raw, v, area, (c) => gridEdges(g.col, g.row, grid.cols, grid.rows).forEach((e) => c.placer.add(matchSpot(area, e, t.text.small).quad)));
+          return { g, v, ctx, items: clipItems(raw, area, 0.5) };
+        });
+        const shown = drawn.filter((d) => showsDrawing(d.items, area));
+        if (shown.length > MAX_SHEETS) {
+          refused = true;
+          findings.push({ code: "SHEETS_TOO_MANY", severity: "error", message: `At 1:${scale} the drawing needs ${shown.length} sheets; Farbaek draws a plan over ${MAX_SHEETS} at most.`, target: { kind: "sheet" }, action: suggested ? `Use 1:${suggested} on one sheet, a smaller scale, or a larger sheet.` : "Use a smaller scale or a larger sheet.", blocks: ["export"] });
+        } else if (shown.length >= 2) {
+          const sheets = numberSheets(shown.map((d) => d.g));
+          cut = { sheets, cols: grid.cols, rows: grid.rows, parts: shown.map((d, i) => ({ sheet: sheets.find((s) => s.col === d.g.col && s.row === d.g.row) ?? sheets[i]!, viewport: d.v, items: d.items, ctx: d.ctx })) };
+          cut.parts.sort((p, q) => p.sheet.n - q.sheet.n);
+          viewport = cut.parts[0]?.viewport ?? viewport;
+          for (const p of cut.parts) {
+            drawings.push(p.items);
+            contexts.push(p.ctx);
+          }
+          findings.push({ code: "SHEETS_SPLIT", severity: "information", message: `At 1:${scale} the drawing is drawn over ${sheets.length} sheets, each with match lines to the next and a key to the sheets.`, target: { kind: "sheet" }, action: "Check each sheet. The boundaries schedule overleaf covers the whole plan.", blocks: [] });
+        }
       }
-      const ctx = drawCtx(drawing, viewport, input, { label: t.text.label, small: t.text.small, lotLabel: t.text.body * 1.35, body: t.text.body, heading: t.text.heading }, { boundary: t.lines.boundary, feature: t.lines.feature, thin: t.lines.thin }, doc.settings.slant ? 12 : 0, [vp.x - 4, vp.y - 4, vp.x + vp.w + 4, vp.y + vp.h + 4]);
-      drawingCtx = ctx;
-      const first = input.lots.lots.find((r) => r.parcel && r.parcel.vertices.length >= 3)?.parcel ?? null;
-      drawRoads(ctx, doc.roads);
-      drawFeatures(ctx, first ? atPage(ctx, first.labelAt) : null);
-      drawLots(ctx, input.lots, { legLabels: doc.settings.faceDimensions, highlight: doc.sheet.extractOf || null, secondDecimals: doc.settings.secondDecimals, distanceDecimals: doc.settings.distanceDecimals, scheduled: input.scheduledLegs?.keys });
-      drawCorners(ctx, input.lots, { numbers: true, circles: doc.settings.noCornerCircles !== true });
-      drawLoosePoints(ctx, input.points, input.lots);
-      if (doc.settings.noLotLetters !== true) drawLotLabels(ctx, input.lots, { extentUnder: input.lots.lots.length === 1 ? (a) => formatArp(toArp(a, doc.settings.perchDecimals)) : null, highlight: doc.sheet.extractOf || null });
-      drawAdjoining(ctx, doc.adjoining, input.lots);
-      // The surveyor's dimension lines (stage 265, ADR 0273), before the words, which keep clear of them.
-      drawDimensions(ctx, doc.dimensions ?? [], doc.settings.distanceDecimals);
-      drawTexts(ctx, first ? atPage(ctx, first.labelAt) : null);
-      drawSimpleNorth(ctx, viewport.x + viewport.w - 10, viewport.y + 12, input.crs?.kind === "local");
-      drawScaleBar(ctx, viewport.x + 4, viewport.y + viewport.h - 6, true);
-      if (viewport.w >= 104) drawCheckLine(ctx, viewport.x + 2, viewport.y + 6);
-      front.push(...drawing);
+      if (!cut && tooBig && !refused) {
+        findings.push({ code: "DRAWING_OFF_SHEET", severity: "error", message: `At 1:${scale} the drawing doesn't fit the sheet.`, target: { kind: "sheet" }, detail: `It needs ${fmt((b.maxE - b.minE) * kmm, 0)} × ${fmt((b.maxN - b.minN) * kmm, 0)} mm; the drawing area is ${fmt(vp.w, 0)} × ${fmt(vp.h, 0)} mm.`, action: suggested ? `Use 1:${suggested}, a larger sheet, or draw it over several sheets at this scale (Sheet tab).` : "Use a larger sheet, or draw it over several sheets at this scale (Sheet tab).", blocks: ["export"] });
+      }
+      if (!cut) {
+        const drawing: SceneItem[] = [];
+        contexts.push(drawPlan(drawing, viewport, [vp.x - 4, vp.y - 4, vp.x + vp.w + 4, vp.y + vp.h + 4]));
+        drawings.push(drawing);
+      }
     }
   }
 
@@ -417,29 +499,37 @@ function composePanel(input: ComposeInput): ComposedSheet {
     input.scheduledLegs?.note ?? "",
   ].filter(Boolean);
 
-  const panels = buildPanels(input, notes);
-  if (landscape) {
-    for (const p of panels) p(columns[0]!);
-  } else {
-    const split = Math.ceil(panels.length / 2);
-    panels.slice(0, split).forEach((p) => p(columns[0]!));
-    panels.slice(split).forEach((p) => p(columns[1]!));
-  }
-  for (const c of columns) front.push(...c.items);
-  if (columns.some((c) => c.overflow)) {
+  // One front page: the frame, the drawing (or this sheet's part of it), and the panel, with the sheet's own key when it's one of several.
+  let overflow = false;
+  const frontPage = (drawing: SceneItem[], part: { sheet: Sheet; viewport: Viewport } | null): SheetPage => {
+    const items: SceneItem[] = [...front, ...drawing];
+    const cols = columns.map((c) => new Column(c.x, c.top, c.w, c.bottom));
+    if (part && cut) items.push(...matchLines([vp.x, vp.y, vp.x + vp.w, vp.y + vp.h], part.sheet, cut.sheets, t.text.small, t.lines.thin));
+    const panels = buildPanels(input, notes, part && cut ? { self: part.sheet, sheets: cut.sheets, cols: cut.cols, rows: cut.rows } : null);
+    if (landscape) {
+      for (const p of panels) p(cols[0]!);
+    } else {
+      const split = Math.ceil(panels.length / 2);
+      panels.slice(0, split).forEach((p) => p(cols[0]!));
+      panels.slice(split).forEach((p) => p(cols[1]!));
+    }
+    for (const c of cols) items.push(...c.items);
+    if (cols.some((c) => c.overflow)) overflow = true;
+    items.push(plotStamp(input, w, h, m, 1.6));
+    return { widthMm: w, heightMm: h, role: "front", items, ...(part ? { viewport: part.viewport, sheet: { n: part.sheet.n, of: cut!.sheets.length } } : {}) };
+  };
+  const pages: SheetPage[] = cut ? cut.parts.map((p) => frontPage(p.items, p)) : [frontPage(drawings[0] ?? [], null)];
+  if (overflow) {
     findings.push({ code: "TEXT_OVERFLOW", severity: "error", message: "The sheet's text doesn't all fit in its panel.", target: { kind: "sheet" }, action: "Choose a larger sheet or landscape, or shorten the longest fields.", blocks: ["export"] });
   }
-
-  front.push(plotStamp(input, w, h, m, 1.6));
-  const pages: SheetPage[] = [{ widthMm: w, heightMm: h, role: "front", items: front }];
   if (doc.settings.overleaf) pages.push(...overleafPages(input, { w, h, m, text: t.text, frame: t.lines.frame, thin: t.lines.thin, planCaption: t.captions.planNumber }));
-  commonFindings(pages, drawing, scale, findings, { inner: [m, m, w - m, h - m], ctx: drawingCtx });
+  commonFindings(pages, drawings, scale, findings, { inner: [m, m, w - m, h - m], ctx: contexts });
   return { pages, viewport, scale, suggestedScale: suggested, paper, findings };
 }
 
 type Panel = (c: Column) => void;
 
-function buildPanels(input: ComposeInput, notes: string[]): Panel[] {
+function buildPanels(input: ComposeInput, notes: string[], several: { self: Sheet; sheets: readonly Sheet[]; cols: number; rows: number } | null = null): Panel[] {
   const { template: t, document: doc } = input;
   const cap = t.captions;
   const s = doc.sheet;
@@ -457,6 +547,18 @@ function buildPanels(input: ComposeInput, notes: string[]): Panel[] {
     if (!input.approval) c.text("DRAFT. Not certified: the plan is certified only by the licensed surveyor's signature on the printed sheet.", T.small, { color: "red", anchor: "middle" });
     c.rule(t.lines.panel);
   });
+
+  // A plan over several sheets (ADR 0275): which sheet this is, and the key to them all with this one marked.
+  if (several) {
+    panels.push((c) => {
+      c.text(`Sheet ${several.self.n} of ${several.sheets.length}`, T.heading, { weight: "bold" });
+      const boxH = Math.min(18, ((c.w - 2) / several.cols) * several.rows);
+      const top = c.reserve(boxH + 1.5);
+      if (top !== null) c.items.push(...keyToSheets({ x: c.x + 1, y: top + 1, w: c.w - 2, h: boxH }, several.self, several.sheets, several.cols, several.rows, T.small, t.lines.thin));
+      c.text("Each sheet continues where its match lines say.", T.small, { color: "muted" });
+      c.rule(t.lines.panel);
+    });
+  }
 
   panels.push((c) => {
     c.text(cap.extent, T.heading, { weight: "bold" });
