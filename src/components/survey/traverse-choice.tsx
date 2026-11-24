@@ -7,6 +7,11 @@ const CHOICES: { value: AdjustMethod | null; label: string; hint: string }[] = [
   { value: null, label: "Keep as shot", hint: "The points stay where the observations put them, and the misclosure is only reported." },
   { value: "compass", label: "Compass rule", hint: "Bowditch: each station moves in proportion to its distance along the traverse. Suits angles and distances measured with similar care." },
   { value: "transit", label: "Transit rule", hint: "Eastings and northings are corrected in proportion to their own sizes. Suits angles measured with more care than distances." },
+  {
+    value: "least_squares",
+    label: "Least squares",
+    hint: "Angles and distances adjusted together, each weighted by a typical total station's precision (5″ angles, 2 mm + 2 ppm distances). It says how well they fit that precision, and how sure each station is.",
+  },
 ];
 
 /**

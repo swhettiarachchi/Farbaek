@@ -85,7 +85,7 @@ describe("a total station job's traverse", () => {
     expect(at(r, "A")).toEqual(at(plain, "A"));
     expect(at(r, "BS")).toEqual(at(plain, "BS"));
     expect(at(r, "d3").z).toBe(at(plain, "d3").z);
-    expect(r.reduced!.traverse!.adjusted).toMatchObject({ method: "compass", engine: "adjust/1.0.0", largest: expect.closeTo(Math.hypot(kC, kC), 9) });
+    expect(r.reduced!.traverse!.adjusted).toMatchObject({ method: "compass", engine: "adjust/1.1.0", largest: expect.closeTo(Math.hypot(kC, kC), 9) });
     const closure = r.issues.find((i) => i.code === "TRAVERSE_CLOSURE")!.message;
     expect(closure).toBe(
       "The traverse from station A through B and C closes on point A 0.020 m out (easting -0.014 m, northing -0.014 m) over 341.44 m, 1 in 17,072. Adjusted by the compass rule (Bowditch), as you chose: the stations moved by up to 0.012 m, and the points shot from each station moved with it. Angles weren't balanced first, since the angular misclosure isn't worked out, and heights weren't adjusted.",

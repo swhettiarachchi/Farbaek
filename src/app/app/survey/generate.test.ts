@@ -334,7 +334,7 @@ describe("Generate Plan with a traverse (stage 231, ADR 0241)", () => {
     stored.length = 0;
     const adjusted = await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }, { name: "job.sdr", content: sdr, adjust: "compass" }] });
     expect(adjusted.result).toMatchObject({ status: "done" });
-    expect(traverseOf(2)).toMatchObject({ adjusted: { method: "compass", engine: "adjust/1.0.0" } });
+    expect(traverseOf(2)).toMatchObject({ adjusted: { method: "compass", engine: "adjust/1.1.0" } });
     expect(String(calls.at(-1)!.input.note)).toBe("Drawn by AutoSurvey from 2 files, the traverse adjusted by the compass rule (Bowditch) as chosen");
     // C moved towards closing the loop, by under a centimetre in each direction.
     const c = stored.find((p) => p.pointId === "C")!;
