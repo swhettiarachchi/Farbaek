@@ -239,8 +239,8 @@ So the brief's 30-second target can't be called met or missed until a real Gener
 | #307 | 244 (the deed's extent on the face) | Merged, live (build 73408c17ac24) | none |
 | #308 | 245 (the sketch interpretation report) | Merged, live | none |
 | #309 | 246 (doubt where it's real, crossing lines) | Merged, live (build 98cc285939fc) | none |
-| #310 | 247 (where each number is written) | Open | none |
-| next | 248 (office profiles) | Open, on #310 | **v105**, applied before the merge with the owner's standing go |
+| #310 | 247 (where each number is written) | Merged, live | none |
+| next | 248 (office profiles) | Open | **v105:** the owner applies it before the merge (the line is in the PR); until then profiles can't be saved and say so, and Generate Plan works as before |
 
 Production deploys main by itself. **v102 and v103 were found missing on 2026-11-24 and applied the same day** with the owner's go (`apply-migration.ps1`, hash-checked), and read back `t` by `scripts/vps/check-migrations.ps1`; v104 was applied and read back that day too.
 
