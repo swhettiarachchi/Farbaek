@@ -38,8 +38,10 @@ export type TaskInput = z.infer<typeof taskInputSchema>;
 /** A title for a task from its instruction, until the person gives one: its first words. */
 export function titleFor(instruction: string): string {
   const s = instruction.replace(/\s+/g, " ").trim();
-  if (s.length <= 60) return s || "Scheduled task";
-  const cut = s.slice(0, 60);
+  // By whole characters: a cut through the middle of one (an emoji is two units) leaves something no database will store.
+  const letters = Array.from(s);
+  if (letters.length <= 60) return s || "Scheduled task";
+  const cut = letters.slice(0, 60).join("");
   const space = cut.lastIndexOf(" ");
   return `${(space > 30 ? cut.slice(0, space) : cut).replace(/[,.;:!?-]+$/, "")}…`;
 }
@@ -88,21 +90,38 @@ export const MAX_LATE_MINUTES = 6 * 60;
 export type RunOutcome =
   /** The answer was written. */
   | { kind: "done"; conversationId: string; messageId: string | null }
-  /** Nothing worth trying again: no AI usage left, the person can't use AI here any more, the request was refused. */
-  | { kind: "skipped"; detail: string }
+  /**
+   * Nothing worth trying again: no AI usage left, the person can't use AI here any more, the request was refused. `blameless` when
+   * it was Farbaek's own doing (its limit for the day): that one isn't counted towards pausing the task.
+   */
+  | { kind: "skipped"; detail: string; blameless?: boolean }
   /** It may work if tried again: a provider was down, the answer was cut off. */
   | { kind: "retry"; detail: string }
   /** It failed, and trying again wouldn't help. */
   | { kind: "failed"; detail: string };
 
 /**
- * What a failed turn means for the run, from the status the turn answered with: 402 and 403 are the plan and the person's access
- * (skipped, never retried: trying again would only fail the same way), 429 and 5xx are passing trouble.
+ * What a turn refused before it started means for the run, from the status it answered with:
+ * - 401, 402 and 403 are the person's access and their plan's usage: skipped, never retried, since trying again fails the same way;
+ * - 429 is Farbaek's own limit for the day: skipped, and not held against the task;
+ * - 409 (an answer is still being written in the task's conversation) and 5xx are passing trouble, tried again;
+ * - anything else failed, and trying again wouldn't help.
  */
 export function outcomeOfRefusal(status: number, message: string): RunOutcome {
   if (status === 402 || status === 403 || status === 401) return { kind: "skipped", detail: message };
-  if (status === 429 || status >= 500) return { kind: "retry", detail: message };
+  if (status === 429) return { kind: "skipped", detail: message, blameless: true };
+  if (status === 409 || status >= 500) return { kind: "retry", detail: message };
   return { kind: "failed", detail: message };
+}
+
+/**
+ * Why a task can't run on the plan its owner has now (a trial that ended, a smaller plan chosen), or null. `position` is its place
+ * among their active tasks in the workspace, oldest first, from 1: the ones made first keep running.
+ */
+export function planProblem(schedule: Schedule, limit: ScheduledLimit, position: number): string | null {
+  if (!limit.hourly && shortestGapMinutes(schedule.repeat) < 1440) return "Paused by Farbaek: your plan runs a task once a day at most. Change its schedule, or choose a larger plan, then resume it.";
+  if (position > limit.active) return `Paused by Farbaek: your plan keeps ${limit.active} scheduled ${limit.active === 1 ? "task" : "tasks"} active at once, and this is one more. Pause or remove another, or choose a larger plan, then resume it.`;
+  return null;
 }
 
 export interface Settled {
@@ -114,22 +133,26 @@ export interface Settled {
   nextRunAt: Date | null;
   /** Set when Farbaek pauses the task itself. */
   pauseReason: string | null;
+  /** Due times in a row that didn't finish, after this one. */
+  failuresInRow: number;
 }
 
 /**
  * How a run is recorded and what the task does next. `attempt` is this try's number, `failuresInRow` the count before this run, and
- * `runsFinished` the due times finished before it.
+ * `runsFinished` the schedule's due times finished before it. A run the person started by hand (`manual`) isn't one of the
+ * schedule's: it isn't counted, and the database puts the schedule's own next time back.
  */
-export function settle(outcome: RunOutcome, task: { schedule: Schedule; attempt: number; failuresInRow: number; runsFinished: number }, now: Date): Settled {
+export function settle(outcome: RunOutcome, task: { schedule: Schedule; attempt: number; failuresInRow: number; runsFinished: number; manual?: boolean }, now: Date): Settled {
   if (outcome.kind === "retry" && task.attempt <= RETRY_AFTER_MINUTES.length) {
-    return { status: "failed", detail: outcome.detail, retryAt: new Date(now.getTime() + RETRY_AFTER_MINUTES[task.attempt - 1]! * 60_000), nextRunAt: null, pauseReason: null };
+    return { status: "failed", detail: outcome.detail, retryAt: new Date(now.getTime() + RETRY_AFTER_MINUTES[task.attempt - 1]! * 60_000), nextRunAt: null, pauseReason: null, failuresInRow: task.failuresInRow };
   }
   const status = outcome.kind === "done" ? "done" : outcome.kind === "skipped" ? "skipped" : "failed";
   const detail = outcome.kind === "done" ? null : outcome.kind === "retry" ? `${outcome.detail} Tried ${task.attempt} times.` : outcome.detail;
-  const nextRunAt = nextRun(task.schedule, now, task.runsFinished + 1);
-  const failures = status === "done" ? 0 : task.failuresInRow + 1;
-  const pauseReason = nextRunAt !== null && failures >= PAUSE_AFTER_FAILURES ? `Paused by Farbaek: its last ${failures} runs didn't finish. The latest: ${detail ?? "no reason was recorded."}`.slice(0, 300) : null;
-  return { status, detail, retryAt: null, nextRunAt, pauseReason };
+  const nextRunAt = nextRun(task.schedule, now, task.manual ? task.runsFinished : task.runsFinished + 1);
+  const blameless = outcome.kind === "skipped" && outcome.blameless === true;
+  const failures = status === "done" ? 0 : blameless ? task.failuresInRow : task.failuresInRow + 1;
+  const pauseReason = nextRunAt !== null && !blameless && failures >= PAUSE_AFTER_FAILURES ? `Paused by Farbaek: its last ${failures} runs didn't finish. The latest: ${detail ?? "no reason was recorded."}`.slice(0, 300) : null;
+  return { status, detail, retryAt: null, nextRunAt, pauseReason, failuresInRow: failures };
 }
 
 /** Whether a due time is too old to run: the server was down past it. */

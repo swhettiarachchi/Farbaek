@@ -64,11 +64,24 @@ describe("when a schedule runs next", () => {
     expect(nextRun(s, at("2026-11-25T03:30:00Z"))!.toISOString()).toBe("2026-11-25T04:30:00.000Z");
   });
 
-  it("runs a one-off once, and never again", () => {
+  it("runs a one-off at its time, and never after it", () => {
     const s = sched({ kind: "once", date: "2026-12-01", time: "17:00" });
     expect(nextRun(s, at("2026-11-25T00:00:00Z"))!.toISOString()).toBe("2026-12-01T11:30:00.000Z");
     expect(nextRun(s, at("2026-12-01T11:30:00Z"))).toBeNull();
-    expect(nextRun(s, at("2026-11-25T00:00:00Z"), 1)).toBeNull();
+    // It is over by its time, not by a count: a run made by hand beforehand leaves it standing, and a task that has run before
+    // can be given a one-off time ahead.
+    expect(nextRun(s, at("2026-11-25T00:00:00Z"), 1)!.toISOString()).toBe("2026-12-01T11:30:00.000Z");
+    expect(nextRun(s, at("2026-12-01T11:30:00Z"), 0)).toBeNull();
+  });
+
+  it("keeps an hourly task on its minute where the clocks move by half an hour", () => {
+    // Lord Howe Island puts its clocks back 30 minutes on 5 April 2026 and forward 30 on 4 October: an hour of minutes can miss "00".
+    const s = sched({ kind: "hourly", minute: 0 }, "Australia/Lord_Howe");
+    for (const from of ["2026-04-04T13:00:00Z", "2026-04-04T14:30:00Z", "2026-04-04T15:10:00Z", "2026-10-03T14:00:00Z", "2026-10-03T15:20:00Z", "2026-10-03T16:05:00Z"]) {
+      const next = nextRun(s, at(from))!;
+      expect(next.getTime()).toBeGreaterThan(at(from).getTime());
+      expect(wallClock("Australia/Lord_Howe", next).mi).toBe(0);
+    }
   });
 
   it("ends on its last day, that day included, or after its number of runs", () => {
@@ -100,6 +113,15 @@ describe("a schedule as stored and as said", () => {
     expect(scheduleSchema.safeParse(sched({ kind: "daily", time: "24:00" })).success).toBe(false);
     expect(scheduleSchema.safeParse(sched({ kind: "weekly", days: [], time: "09:00" })).success).toBe(false);
     expect(scheduleSchema.safeParse(sched({ kind: "once", date: "2026-13-01", time: "09:00" })).success).toBe(false);
+  });
+
+  it("refuses a day the calendar lacks, and a zone that isn't one by name", () => {
+    expect(scheduleSchema.safeParse(sched({ kind: "once", date: "2027-02-31", time: "09:00" })).success).toBe(false);
+    expect(scheduleSchema.safeParse(sched({ kind: "once", date: "2027-02-29", time: "09:00" })).success).toBe(false);
+    expect(scheduleSchema.safeParse(sched({ kind: "once", date: "2028-02-29", time: "09:00" })).success).toBe(true);
+    expect(scheduleSchema.safeParse(sched({ kind: "daily", time: "09:00" }, "Asia/Colombo", { kind: "on", date: "2027-04-31" })).success).toBe(false);
+    for (const zone of ["+05:30", "asia/colombo", "GMT+5", "Asia", ""]) expect(scheduleSchema.safeParse(sched({ kind: "daily", time: "09:00" }, zone)).success, zone).toBe(false);
+    for (const zone of ["UTC", "Asia/Colombo", "America/Argentina/Buenos_Aires", "Etc/GMT+5", "Australia/Lord_Howe"]) expect(scheduleSchema.safeParse(sched({ kind: "daily", time: "09:00" }, zone)).success, zone).toBe(true);
   });
 
   it("says each schedule in a sentence", () => {

@@ -106,8 +106,11 @@ const GAP_OUTPUT_TOKENS = 500;
 /** A summary of a long conversation's earlier part (stage 207): at most about 350 words, with room for a short think. */
 const SUMMARY_OUTPUT_TOKENS = 1_000;
 
+/** What a turn answers when its conversation can't take another message. A run with no person there to start a new chat reads it. */
+export const CONVERSATION_FULL = "This conversation is as long as a conversation can be. Start a new chat to carry on.";
+
 const CHAT_ERRORS: Record<string, { status: number; message: string }> = {
-  CHAT_LIMIT: { status: 409, message: "This conversation is as long as a conversation can be. Start a new chat to carry on." },
+  CHAT_LIMIT: { status: 409, message: CONVERSATION_FULL },
   FILE_NOT_FOUND: { status: 404, message: "One of the attached files isn't available anymore. Remove it and attach it again." },
   TOO_MANY_FILES: { status: 409, message: "That's more files than a chat can hold at once. Remove some, then try again." },
   INVALID_MESSAGE: { status: 400, message: "Write a message or attach a file first." },

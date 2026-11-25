@@ -31,7 +31,8 @@ union all select 'v101 chat memory', to_regclass('public.chat_memories') is not 
 union all select 'v102 survey jobs', to_regclass('public.survey_jobs') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_survey_job_update')
 union all select 'v103 survey sketch photos', to_regclass('public.survey_sketch_photos') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_survey_keep_sketches')
 union all select 'v104 survey more formats', exists (select 1 from pg_catalog.pg_constraint where conname = 'survey_sources_format_check' and pg_catalog.pg_get_constraintdef(oid) like '%sokkialist%')
-union all select 'v105 survey office profiles', to_regclass('public.survey_office_profiles') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_survey_profile_choose');
+union all select 'v105 survey office profiles', to_regclass('public.survey_office_profiles') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_survey_profile_choose')
+union all select 'v106 scheduled tasks', to_regclass('public.scheduled_tasks') is not null and to_regclass('public.scheduled_task_runs') is not null and exists (select 1 from pg_catalog.pg_proc where proname = 'app_scheduled_claim') and exists (select 1 from pg_catalog.pg_proc where proname = 'app_scheduled_run_finish' and pronargs = 10) and exists (select 1 from pg_catalog.pg_proc where proname = 'app_scheduled_tasks_export') and exists (select 1 from pg_catalog.pg_trigger where tgname = 'scheduled_tasks_leave_with_member') and exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'scheduled_tasks' and column_name = 'resume_at');
 rollback;
 SQL
 '@

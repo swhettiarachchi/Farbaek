@@ -43,7 +43,7 @@ describe("the public front door", () => {
   });
 
   it("is reached by the server's own timers directly, never through the public name", () => {
-    for (const script of ["scripts/vps/jobs.sh", "scripts/vps/sweep.sh", "scripts/vps/apple-web-secret.sh"]) {
+    for (const script of ["scripts/vps/jobs.sh", "scripts/vps/sweep.sh", "scripts/vps/scheduled.sh", "scripts/vps/apple-web-secret.sh"]) {
       expect(readFileSync(script, "utf8"), script).toContain("http://127.0.0.1:3000/api/internal/");
     }
     expect(caddy).toContain("ask http://app:3000/api/sites/tls-allowed");

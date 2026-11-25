@@ -11,10 +11,19 @@ import { z } from "zod";
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const time = z.string().regex(TIME);
-const date = z.string().regex(DATE);
+/** A day that exists: "2027-02-31" has the shape of a date and isn't one. */
+export function isRealDate(s: string): boolean {
+  if (!DATE.test(s)) return false;
+  const [y, m, d] = [Number(s.slice(0, 4)), Number(s.slice(5, 7)), Number(s.slice(8, 10))];
+  return y >= 2000 && d <= new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+const date = z.string().regex(DATE).refine(isRealDate, "Not a day in the calendar.");
 
-/** Whether the runtime knows this IANA time zone. */
+// A zone by its name, as browsers report it ("Asia/Colombo", "America/Argentina/Buenos_Aires", "UTC"): never a bare offset.
+const ZONE_NAME = /^(UTC|[A-Z][A-Za-z_]+([/][A-Za-z0-9_+-]+){1,2})$/;
+/** Whether this is an IANA time zone the runtime knows. */
 export function isTimeZone(tz: string): boolean {
+  if (!ZONE_NAME.test(tz)) return false;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });
     return true;
@@ -110,8 +119,9 @@ function runsOn(repeat: Repeat, y: number, m: number, d: number): boolean {
 }
 
 /**
- * When the schedule runs next, strictly after `after`; null when it has ended. `runsSoFar` counts the runs already started, for a
- * schedule that ends after a number of them.
+ * When the schedule runs next, strictly after `after`; null when it has ended. `runsSoFar` counts the schedule's runs already
+ * made, for one that ends after a number of them. A one-time schedule is over once its time has passed, however many runs were made
+ * (a run started by hand before it leaves it standing; one that has run can be given a new time).
  */
 export function nextRun(schedule: Schedule, after: Date, runsSoFar = 0): Date | null {
   const { repeat, timeZone, end } = schedule;
@@ -126,12 +136,13 @@ export function nextRun(schedule: Schedule, after: Date, runsSoFar = 0): Date | 
     const [y, m, d] = ymd(repeat.date);
     const [h, mi] = hm(repeat.time);
     const at = instantOf(timeZone, { y, m, d, h, mi });
-    return runsSoFar === 0 && at.getTime() > after.getTime() ? within(at) : null;
+    return at.getTime() > after.getTime() ? within(at) : null;
   }
   if (repeat.kind === "hourly") {
     // By the zone's own minutes: an offset of a half or three-quarter hour (Sri Lanka's is 5:30) moves "on the hour" off UTC's.
     let t = Math.floor(after.getTime() / MIN) * MIN + MIN;
-    for (let k = 0; k < 60 && wallClock(timeZone, new Date(t)).mi !== repeat.minute; k++) t += MIN;
+    // Up to two hours of minutes: where the clocks move by half an hour (Lord Howe Island), an hour of them can miss the minute.
+    for (let k = 0; k < 120 && wallClock(timeZone, new Date(t)).mi !== repeat.minute; k++) t += MIN;
     return within(new Date(t));
   }
   const [h, mi] = hm(repeat.time);

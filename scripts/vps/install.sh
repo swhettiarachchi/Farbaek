@@ -14,6 +14,8 @@ main() {
   install -m 755 "$app/scripts/vps/deploy.sh" /usr/local/bin/farbaek-deploy
   install -m 755 "$app/scripts/vps/sweep.sh" /usr/local/bin/farbaek-sweep
   install -m 755 "$app/scripts/vps/jobs.sh" /usr/local/bin/farbaek-jobs
+  # People's scheduled tasks (ADR 0278): the every-minute call that starts the ones that are due.
+  install -m 755 "$app/scripts/vps/scheduled.sh" /usr/local/bin/farbaek-scheduled
   install -m 755 "$app/scripts/vps/set-env.sh" /usr/local/bin/farbaek-set-env
   # The database on this server (ADR 0036).
   install -m 755 "$app/scripts/vps/supabase-setup.sh" /usr/local/bin/farbaek-supabase-setup
@@ -34,6 +36,8 @@ main() {
   for arg in "$@"; do
     case "$arg" in
       --enable-timers) systemctl enable --now farbaek-deploy.timer farbaek-sweep.timer farbaek-jobs.timer ;;
+      # Scheduled tasks start within a minute of their time (without it, within 15 minutes, by the sweep).
+      --enable-scheduled-timer) systemctl enable --now farbaek-scheduled.timer ;;
       # Once the database runs here: nightly backups and a weekly restore test.
       --enable-db-timers) systemctl enable --now farbaek-db-backup.timer farbaek-db-restore-test.timer ;;
       # Once Sign in with Apple is set up: the hourly check on Auth's secret.
@@ -41,7 +45,7 @@ main() {
     esac
   done
   local t
-  for t in deploy sweep jobs db-backup db-restore-test apple-secret; do echo "timer $t: $(systemctl is-enabled farbaek-$t.timer 2>/dev/null || true)"; done
+  for t in deploy sweep jobs scheduled db-backup db-restore-test apple-secret; do echo "timer $t: $(systemctl is-enabled farbaek-$t.timer 2>/dev/null || true)"; done
 }
 
 main "$@"

@@ -81,6 +81,7 @@ const claimedSchema = z.object({
   attempt: z.number().int(),
   runs_finished: z.number().int(),
   failures_in_row: z.number().int(),
+  manual: z.boolean(),
 });
 
 export interface ClaimedRun {
@@ -98,6 +99,8 @@ export interface ClaimedRun {
   attempt: number;
   runsFinished: number;
   failuresInRow: number;
+  /** Started by the person with Run now, apart from the schedule. */
+  manual: boolean;
 }
 
 export interface RunFinish {
@@ -110,14 +113,21 @@ export interface RunFinish {
   nextRunAt: Date | null;
   retryAt: Date | null;
   pauseReason: string | null;
+  /** The task's due times in a row that didn't finish, after this one. */
+  failuresInRow: number;
 }
 
 export interface ScheduledStore {
   /** Tasks that are due, each now leased to this runner; null when the database couldn't be asked. */
   claim(limit: number): Promise<ClaimedRun[] | null>;
-  /** Records how a run went; false when this try had already been given up on, or it couldn't be recorded. */
-  finish(i: RunFinish): Promise<boolean>;
+  /**
+   * Records how a run went: "stale" when this try had already been given up on (another has replaced it), "error" when the
+   * database couldn't be reached, which is worth asking again.
+   */
+  finish(i: RunFinish): Promise<"recorded" | "stale" | "error">;
   linkConversation(taskId: string, conversationId: string): Promise<void>;
+  /** The task's place among its owner's active tasks in the workspace, oldest first, from 1; null when it couldn't be read. */
+  position(orgId: string, ownerId: string, taskId: string): Promise<number | null>;
 }
 
 export function createScheduledStore(admin: SupabaseClient): ScheduledStore {
@@ -141,6 +151,7 @@ export function createScheduledStore(admin: SupabaseClient): ScheduledStore {
         attempt: r.attempt,
         runsFinished: r.runs_finished,
         failuresInRow: r.failures_in_row,
+        manual: r.manual,
       }));
     },
     async finish(i) {
@@ -154,11 +165,19 @@ export function createScheduledStore(admin: SupabaseClient): ScheduledStore {
         p_next_run_at: i.nextRunAt?.toISOString() ?? null,
         p_retry_at: i.retryAt?.toISOString() ?? null,
         p_pause_reason: i.pauseReason,
+        p_failures: i.failuresInRow,
       });
-      return !error && data === true;
+      return error ? "error" : data === true ? "recorded" : "stale";
     },
     async linkConversation(taskId, conversationId) {
       await admin.rpc("app_scheduled_task_conversation", { p_task: taskId, p_conversation: conversationId });
+    },
+    async position(orgId, ownerId, taskId) {
+      // Named by workspace and owner: this client isn't held to a person's own rows by row-level security.
+      const { data, error } = await admin.from("scheduled_tasks").select("id").eq("org_id", orgId).eq("owner_id", ownerId).eq("state", "active").is("archived_at", null).order("created_at", { ascending: true }).order("id", { ascending: true }).limit(200);
+      if (error || !data) return null;
+      const at = data.findIndex((r) => r.id === taskId);
+      return at < 0 ? null : at + 1;
     },
   };
 }
@@ -188,6 +207,8 @@ export interface TaskRun {
   taskId: string;
   dueAt: string;
   status: "running" | "retrying" | "done" | "failed" | "skipped";
+  /** Started by the person with Run now. */
+  manual: boolean;
   detail: string | null;
   conversationId: string | null;
   finishedAt: string | null;
@@ -249,18 +270,22 @@ const runRow = z.object({
   task_id: z.uuid(),
   due_at: z.string(),
   status: z.enum(["running", "retrying", "done", "failed", "skipped"]),
+  manual: z.boolean(),
   detail: z.string().nullable(),
   conversation_id: z.uuid().nullable(),
   finished_at: z.string().nullable(),
 });
 
-/** The latest runs of the person's tasks in this workspace, newest first. */
-export async function listRuns(client: SupabaseClient, orgId: string, limit = 100): Promise<TaskRun[]> {
-  const { data, error } = await client.from("scheduled_task_runs").select("id, task_id, due_at, status, detail, conversation_id, finished_at").eq("org_id", orgId).order("due_at", { ascending: false }).limit(limit);
-  if (error) return [];
+/**
+ * The latest runs of the person's tasks in this workspace, newest first. A task whose runs are older than these shows its last run
+ * from its own row (`lastRunAt`, `lastStatus`). Null when they couldn't be read: never shown as "no runs".
+ */
+export async function listRuns(client: SupabaseClient, orgId: string, limit = 400): Promise<TaskRun[] | null> {
+  const { data, error } = await client.from("scheduled_task_runs").select("id, task_id, due_at, status, manual, detail, conversation_id, finished_at").eq("org_id", orgId).order("due_at", { ascending: false }).limit(limit);
+  if (error) return null;
   const rows = z.array(runRow).safeParse(data ?? []);
-  if (!rows.success) return [];
-  return rows.data.map((r) => ({ id: r.id, taskId: r.task_id, dueAt: r.due_at, status: r.status, detail: r.detail, conversationId: r.conversation_id, finishedAt: r.finished_at }));
+  if (!rows.success) return null;
+  return rows.data.map((r) => ({ id: r.id, taskId: r.task_id, dueAt: r.due_at, status: r.status, manual: r.manual, detail: r.detail, conversationId: r.conversation_id, finishedAt: r.finished_at }));
 }
 
 /** One of the person's own tasks, for an action that changes it. */

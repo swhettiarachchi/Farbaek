@@ -6,10 +6,11 @@ import { openAiKey } from "@/server/ai/openai-second-checker";
 import { providerHealth, recordProviderResult } from "@/server/ai/provider-health";
 import { chatModels } from "@/server/chat/setup";
 import { createChatWrites, readPath, readSummaries } from "@/server/chat/store";
-import { prepareTurn, type TurnDeps } from "@/server/chat/turn";
+import { CONVERSATION_FULL, prepareTurn, type TurnDeps } from "@/server/chat/turn";
 import { platformModels } from "@/server/platform/state";
 import { webResearch } from "@/server/web/wiring";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
+import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
 /**
  * One Chat turn made on the server with no page open (stage 271, ADR 0278): the same turn the Chat page makes (the same routing,
@@ -20,7 +21,7 @@ import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 export interface HeadlessTurn {
   orgId: string;
   userId: string;
-  /** The conversation to carry on, or null to start one. A conversation that is gone, archived or someone else's starts a new one. */
+  /** The conversation to carry on, or null to start one. A conversation that is gone, archived, full or someone else's starts a new one. */
   conversationId: string | null;
   /** The name a new conversation is given. */
   title: string;
@@ -38,8 +39,8 @@ export type HeadlessResult =
 export interface HeadlessEnv {
   /** The person's own conversation in this workspace, or null. */
   conversation(orgId: string, userId: string, id: string): Promise<{ id: string; leafId: string | null; archived: boolean; titled: boolean; title: string; projectId: string | null } | null>;
-  /** Starts a conversation with a name that stays; null when it couldn't be made. */
-  startConversation(orgId: string, userId: string, title: string): Promise<string | null>;
+  /** Gives a conversation the turn has just started a name that stays, so Chat doesn't rename it from its first answer. */
+  nameConversation(orgId: string, userId: string, conversationId: string, title: string): Promise<void>;
   /** The turn's own dependencies for this person, or why AI can't be used. */
   turnDeps(orgId: string, userId: string): Promise<{ ok: true; deps: TurnDeps } | { ok: false; status: number; message: string }>;
   /** Told as soon as the conversation is known, so a turn that is cut off and tried again writes into the same one. */
@@ -50,20 +51,14 @@ export async function runHeadlessTurn(env: HeadlessEnv, i: HeadlessTurn, signal:
   const built = await env.turnDeps(i.orgId, i.userId);
   if (!built.ok) return { ok: false, status: built.status, message: built.message, conversationId: i.conversationId };
 
-  // The task's own conversation, when it's still the person's and not put away; otherwise a new one under the task's name.
+  // The task's own conversation, when it's still the person's, not put away, and has an answer to carry on from. Otherwise the turn
+  // starts a new one with the question, as the first message of a new chat does: a conversation is never made ahead of its question.
   let conversation = i.conversationId ? await env.conversation(i.orgId, i.userId, i.conversationId) : null;
-  if (conversation?.archived) conversation = null;
-  let conversationId = conversation?.id ?? null;
-  if (!conversationId) {
-    conversationId = await env.startConversation(i.orgId, i.userId, i.title);
-    if (!conversationId) return { ok: false, status: 503, message: "A conversation for the answer couldn't be started.", conversationId: null };
-  }
-  await env.onConversation?.(conversationId);
-
-  const request: TurnRequest = {
+  if (conversation?.archived || !conversation?.leafId) conversation = null;
+  const request = (carryOn: typeof conversation): TurnRequest => ({
     action: "send",
-    conversationId,
-    parentId: conversation?.leafId ?? null,
+    conversationId: carryOn?.id ?? null,
+    parentId: carryOn?.leafId ?? null,
     text: i.text,
     files: [],
     model: "auto",
@@ -74,9 +69,20 @@ export async function runHeadlessTurn(env: HeadlessEnv, i: HeadlessTurn, signal:
     mode: "text",
     aspect: "1:1",
     projectId: null,
-  };
-  const prepared = await prepareTurn(built.deps, { orgId: i.orgId, userId: i.userId, request });
-  if (!prepared.ok) return { ok: false, status: prepared.status, message: prepared.message, conversationId };
+  });
+  let prepared = await prepareTurn(built.deps, { orgId: i.orgId, userId: i.userId, request: request(conversation) });
+  // A conversation that has gone since it was read, or is as long as one can be, isn't a reason to fail: a person would start a new
+  // chat, and so does the run.
+  if (!prepared.ok && conversation && (prepared.status === 404 || prepared.message === CONVERSATION_FULL)) {
+    conversation = null;
+    prepared = await prepareTurn(built.deps, { orgId: i.orgId, userId: i.userId, request: request(null) });
+  }
+  if (!prepared.ok) return { ok: false, status: prepared.status, message: prepared.message, conversationId: conversation?.id ?? null };
+  if (!conversation) {
+    // Named by the person's task, and remembered at once: a run that is cut off and tried again carries on in the same one.
+    await env.nameConversation(i.orgId, i.userId, prepared.conversationId, i.title).catch(() => undefined);
+    await env.onConversation?.(prepared.conversationId).catch(() => undefined);
+  }
 
   let messageId: string | null = null;
   let chars = 0;
@@ -113,16 +119,19 @@ export function headlessEnv(admin: SupabaseClient, onConversation?: (conversatio
   };
   return {
     conversation: own,
-    async startConversation(orgId, userId, title) {
-      const started = await writes.start({ orgId, actor: userId, projectId: null, title });
-      if (!started.ok) return null;
-      // Named by the person's task, so Chat doesn't rename it from its first answer.
-      await admin.rpc("app_chat_update", { p_org: orgId, p_actor: userId, p_conversation: started.value, p_title: title.slice(0, 120), p_pinned: null, p_archived: null, p_project_set: false, p_project: null });
-      return started.value;
+    async nameConversation(orgId, userId, conversationId, title) {
+      await admin.rpc("app_chat_update", { p_org: orgId, p_actor: userId, p_conversation: conversationId, p_title: title.slice(0, 120), p_pinned: null, p_archived: null, p_project_set: false, p_project: null });
     },
     async turnDeps(orgId, userId) {
       // The server's client, scoped by workspace and person in every query, as a background run has no session.
       const base = createSupabaseWriteDeps(admin, admin, userId);
+      // What the Chat page checks from the person's session before a turn, checked here from the database: they are still in the
+      // workspace with a role that may use its AI, and Farbaek hasn't paused the workspace. Lost access isn't worth trying again.
+      const role = await base.role(orgId);
+      if (!role || !CONTRIBUTOR_ROLES.includes(role)) return { ok: false, status: 403, message: "You can no longer use AI in this workspace, so this didn't run." };
+      const org = await admin.from("organizations").select("suspended_at").eq("id", orgId).maybeSingle();
+      if (org.error) return { ok: false, status: 503, message: "The workspace couldn't be read just now." };
+      if (!org.data || org.data.suspended_at) return { ok: false, status: 403, message: "Farbaek has paused this workspace, so this didn't run." };
       const models = await chatModels(orgId, base);
       if (!models.claude && !models.openai) return { ok: false, status: 503, message: models.error ?? "AI isn't connected on this server yet." };
       const images = imageGeneration();

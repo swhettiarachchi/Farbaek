@@ -4,7 +4,7 @@ The running record of the program the owner set on 2026-11-22. Read this first i
 
 **Rule for this file:** a line says "done" only when the work is merged or has a test or a live check behind it. Everything else says what it is waiting for.
 
-## Where it stands (2026-11-23)
+## Where it stands (2026-11-25)
 
 | Work | State | Waiting for |
 | --- | --- | --- |
@@ -12,18 +12,19 @@ The running record of the program the owner set on 2026-11-22. Read this first i
 | Stage 209: the audit and five faults fixed | Merged as #275 | The next desktop release, for its desktop fix |
 | Stage 210: the black cat is the logo (ADR 0226) | Merged and live | New app releases for the icon on phones and the desktop |
 | Stage 211: Dark for every signed-in page, beside Crystal White (ADR 0227) | Merged as #276 and live | Nothing |
-| Stage 211, part 2: the public site in Dark, with the control in its footer (ADR 0232) | Built and tested, PR open | The owner merges |
+| Stage 211, part 2: the public site in Dark, with the control in its footer (ADR 0232) | Merged as #282 and live | Nothing |
 | Stage 212, part 1: the main screen is a greeting and one box that asks or builds; Chat is a phone tab (ADR 0228) | Merged as #277 and #279, and live | Nothing |
-| Stage 212, part 2: every signed-in page in one frame on wide screens, a shorter sidebar in the spaces' colours (ADR 0230) | Built and tested, PR #280 open | The owner merges |
-| Stage 212, what is left: Chat, the studios and Build's workspace sharing the one frame component; "Build" opening one place; one plus menu in Chat | Not started | #280 first |
+| Stage 212, part 2: every signed-in page in one frame on wide screens, a shorter sidebar in the spaces' colours (ADR 0230) | Merged as #280, with #283 (the studios in the frame) and #285 (every page full screen) | Nothing |
+| Stage 212, what is left: "Build" opening one place; one plus menu in Chat | Not started | Nothing |
 | Stage 213, part 1: one registry of the models Farbaek uses (ADR 0229) | Merged as #278 | Nothing |
-| Stage 213, part 2: staff see which prices to read again, on the office's Models page | Built and tested, PR open. Not seen in a browser: the console needs a staff sign-in | The owner merges |
+| Stage 213, part 2: staff see which prices to read again, on the office's Models page | Merged as #284. Not seen in a browser: the console needs a staff sign-in | Nothing |
 | Stage 213, what is left: both routers reading the registry; dating the seven prices that have no day | Not started | Nothing |
-| Stage 218, part 1: the suggested prices worked out in code, with a page to decide from (ADR 0231) | Built and tested, PR #281 open | The owner merges, then decides the prices, monthly or yearly for the smallest plan, the hours and seats, and what each plan includes |
+| Stage 218, part 1: the suggested prices worked out in code, with a page to decide from (ADR 0231) | Merged as #281 | The owner decides the prices, monthly or yearly for the smallest plan, the hours and seats, and what each plan includes |
+| Stage 271 (the order's 215 and 216, first part): scheduled tasks. A person writes what Farbaek should do and when; the server runs it as a Chat turn as them, once for each due time, with retries, a pause after five that didn't finish, a history of runs and a notice (ADR 0278) | Built and tested, PR open | The owner applies migration v106 and reads it back, merges, then switches the every-minute timer on. A real run on production is the first live check |
 | Skills inventory, master audit, the study of the reference products | Written | Nothing |
 | Research on providers and platforms | 2 of 7 notes complete, 5 partial | Finishing the 5, a few at a time |
 
-The server was running main's latest build when checked on 2026-11-23 (`/api/health` asked at the server's own address).
+The server was running main's latest build when checked on 2026-11-25 (`/api/health` showed the build of #327's merge). Survey Studio's AutoSurvey stages 222 to 270 (#286 to #327) were merged in between and are recorded in `docs/stages/`.
 
 ## The order of work
 
@@ -36,8 +37,8 @@ The brief asks for everything. This is the order that makes each stage stand on 
 | 212 | One navigation: Chat as the simple home, the other tools as workspaces, "Build" opening one place, one button system | Five navigation systems confuse people today | Nothing |
 | 213 | One model registry: every model's id, price, name, capabilities, status and dates in one place, read by both routers | Grok and failover both need it first | Nothing |
 | 214 | Grok as a provider, and Live Intelligence: `x_search` and `web_search` with sources and times, topics to follow | The brief's real-time knowledge | An xAI key, a budget, and a yes to sending people's questions to a new provider |
-| 215 | Durable work: run state out of the server's memory, and one queue in Postgres with retries, timeouts and dead letters | Scheduling and persistent agents can't stand on a 40-minute run in memory | Nothing. A migration |
-| 216 | A scheduler and triggers people can set, and persistent agents with a goal, a budget and pause, resume and stop | The brief's highest priority | Nothing. A migration |
+| 215 | Durable work: run state out of the server's memory, and one queue in Postgres with retries, timeouts and dead letters | Scheduling and persistent agents can't stand on a 40-minute run in memory | Done for scheduled runs in stage 271 (claimed under a lease in Postgres, retried, timed out at ten minutes, paused after five failures). Agent builds and workflows still hold their run in the server's memory |
+| 216 | A scheduler and triggers people can set, and persistent agents with a goal, a budget and pause, resume and stop | The brief's highest priority | The scheduler is stage 271. Next: triggers other than time (a webhook in), then persistent agents. Each a migration |
 | 217 | One command center: what's running, waiting, failed and needs approval, with one pause | Follows 215 and 216 | Nothing |
 | 218 | Plans: a blended unit-economics model for $3.99, $20, $50, $100 and $200, with a limit for each kind of use, then the catalog | Needs real cost numbers from stage 210's research | A yes before anything live changes: prices in Dodo, the App Store and Google Play |
 | 219 | Product analytics in Office Space: active people, retention, churn, cost per finished task | Investors need actuals | Nothing |
@@ -48,7 +49,7 @@ The brief asks for everything. This is the order that makes each stage stand on 
 
 ## What only the owner can do
 
-- **Now:** apply v101 and merge #273. The line is in the PR.
+- **Now:** apply migration v106 (scheduled tasks) and read it back, merge its pull request, then switch the every-minute timer on. The lines are in the PR and in `docs/stages/stage-271.md`.
 - **For Grok (stage 214):** an xAI account and API key, and a monthly budget. The research found prices of $2 in and $6 out per million tokens for the flagship, and $5 per thousand posts fetched by `x_search`. It could not confirm that the API is offered in Sri Lanka; signing up is the test.
 - **For new prices (stage 218):** a yes before live plans change.
 - **For the desktop fix in stage 209:** publishing the next desktop release.
@@ -73,7 +74,8 @@ The brief asks for everything. This is the order that makes each stage stand on 
 | `FARBAEK_DESIGN_SYSTEM.md` | Stage 211 |
 | `FARBAEK_MODEL_REGISTRY.md`, `FARBAEK_INTELLIGENCE_ARCHITECTURE.md` | Stage 213 |
 | `FARBAEK_XAI_INTEGRATION.md` | Stage 214 |
-| `FARBAEK_AUTOMATION_SPEC.md`, `FARBAEK_AGENT_RUNTIME.md` | Stages 215 and 216 |
+| `FARBAEK_AUTOMATION_SPEC.md` | Written, 2026-11-25 (stage 271) |
+| `FARBAEK_AGENT_RUNTIME.md` | With persistent agents |
 | `FARBAEK_SUBSCRIPTION_ECONOMICS.md` | Stage 218 |
 | `FARBAEK_VOICE_ASSISTANT.md` | Stage 220 |
 | `FARBAEK_PRODUCT_ARCHITECTURE.md`, `FARBAEK_SECURITY_REVIEW.md`, `FARBAEK_API_AUDIT.md`, `FARBAEK_TEST_REPORT.md` | Written as their stages land; the security outline today is `docs/security/threat-model.md` |
