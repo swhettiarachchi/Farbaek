@@ -11,9 +11,13 @@ const at = (minutesAgo: number) => new Date(Date.UTC(2026, 10, 16, 9, 30) - minu
 /** A second sample (stage 206): a question in Sinhala typed in English letters, answered from the web with its sources. */
 export const SAMPLE_RESEARCH_ID = "00000000-0000-4000-8000-00000000c4a8";
 
+/** A third sample (stage 273): a request said with a time, which Farbaek offers to schedule under its answer. */
+export const SAMPLE_SCHEDULE_ID = "00000000-0000-4000-8000-00000000c4a9";
+
 export const SAMPLE_CHATS: ConversationSummary[] = [
   { id: SAMPLE_CHAT_ID, title: "Sample: launch week for a bakery", pinned: false, archived: false, projectId: null, updatedAt: at(5), shared: false },
   { id: SAMPLE_RESEARCH_ID, title: "Sample: an answer with sources, in Sinhala", pinned: false, archived: false, projectId: null, updatedAt: at(3), shared: false },
+  { id: SAMPLE_SCHEDULE_ID, title: "Sample: a request to schedule", pinned: false, archived: false, projectId: null, updatedAt: at(2), shared: false },
 ];
 
 const QUESTION_1 = "00000000-0000-4000-8000-00000000c4b1";
@@ -179,8 +183,51 @@ export const SAMPLE_RESEARCH_MESSAGES: ChatMessage[] = [
   },
 ];
 
+const SCHEDULE_QUESTION = "00000000-0000-4000-8000-00000000c4d1";
+const SCHEDULE_ANSWER = "00000000-0000-4000-8000-00000000c4d2";
+
+/**
+ * The third sample: a request said with a time ("every morning at 8"). It is answered once, and under the answer Farbaek offers to
+ * do it at that time from then on (ADR 0280). The headlines are made up and say so.
+ */
+export const SAMPLE_SCHEDULE_MESSAGES: ChatMessage[] = [
+  {
+    ...base,
+    id: SCHEDULE_QUESTION,
+    parentId: null,
+    role: "user",
+    content: "Sample: send me a short summary of the AI news every morning at 8",
+    modelName: null,
+    thinkingMs: null,
+    createdAt: at(2),
+    siblings: [SCHEDULE_QUESTION],
+  },
+  {
+    ...base,
+    id: SCHEDULE_ANSWER,
+    parentId: SCHEDULE_QUESTION,
+    role: "assistant",
+    modelName: "Sample answer",
+    thinkingMs: null,
+    createdAt: at(1),
+    siblings: [SCHEDULE_ANSWER],
+    content: [
+      "This is a sample answer, written by hand to show the screen. The headlines below are made up.",
+      "",
+      "**Today's summary would read like this:**",
+      "",
+      "- **A sample headline about a new model.** One or two sentences on what changed and why it matters to you.",
+      "- **A sample headline about a product launch.** What it does, who it is for, and what it costs.",
+      "- **A sample headline about research.** The finding in plain words, and how sure it is.",
+      "",
+      "You asked for this every morning at 8, so the offer under this answer would set that up: Farbaek would write the summary by itself at that time and tell you when it has.",
+    ].join("\n"),
+  },
+];
+
 /** Each sample conversation's messages, by its id. */
 export const SAMPLE_CONVERSATIONS: Readonly<Record<string, ChatMessage[]>> = {
   [SAMPLE_CHAT_ID]: SAMPLE_MESSAGES,
   [SAMPLE_RESEARCH_ID]: SAMPLE_RESEARCH_MESSAGES,
+  [SAMPLE_SCHEDULE_ID]: SAMPLE_SCHEDULE_MESSAGES,
 };

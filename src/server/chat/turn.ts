@@ -235,8 +235,11 @@ async function toModelInput(reads: ChatReads, context: { kept: ContextMessage[];
 const asContext = (m: ChatMessage): ContextMessage => ({ id: m.id, role: m.role, kind: m.kind, content: m.content, status: m.status, files: m.files.map((f) => ({ id: f.id, name: f.name, kind: f.kind, size: f.size, generated: f.generated })) });
 
 /** Checks the turn, reserves usage and writes the question and an empty answer. Nothing is written when it fails. */
-export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId: string; request: TurnRequest }): Promise<TurnFailure | PreparedTurn> {
+export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId: string; request: TurnRequest; note?: string }): Promise<TurnFailure | PreparedTurn> {
   const { orgId, userId, request } = input;
+  // A note from Farbaek's own server beside the person's message, for the model only: a scheduled run says it is one (ADR 0280).
+  // Never from a browser: the turn's route doesn't pass it.
+  const serverNote = input.note?.trim() ? input.note.trim().slice(0, 1_000) : null;
   const actor = userId;
 
   // 1. What the turn builds on.
@@ -424,7 +427,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // The AI names a chat with its first answer that finishes: a first answer that failed leaves it to the next.
   const needsTitle = !conversationId || (!conversationTitled && !base.some((m) => m.role === "assistant" && m.status === "complete"));
   // Enough for whichever candidate answers: the one standing by may cost more per word.
-  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + webTokens + summaryTokens + memoryTokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
+  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + webTokens + summaryTokens + memoryTokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + approxTokens(serverNote ?? "") + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
 
   const reserved = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units, manual: MANUAL, billing: plan.value });
   if (!reserved.ok) return refused(reserved.code === "QUOTA_EXCEEDED" || reserved.code === "TRIAL_CAP_REACHED" ? 402 : reserved.code === "PLATFORM_DAILY_LIMIT" ? 429 : 503, reserved.message);
@@ -625,6 +628,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       }
       // A request to act on the computer that was searched anyway (the person asked for a search) still carries its note.
       if (action && searching && webContext) webContext = `${computerNote(action)}\n${webContext}`;
+      if (serverNote) withContext(modelInput, serverNote);
       if (rememberedNote) withContext(modelInput, rememberedNote);
       if (memoryContext) withContext(modelInput, memoryContext);
       if (webContext) withContext(modelInput, webContext);
@@ -636,6 +640,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       const older = [...withFiles].filter((id) => id !== newest);
       if (!outcome.ok && !outcome.aborted && outcome.failure === "INCOMPLETE" && !added && thinkingAt === null && older.length > 0) {
         const lean = headed(await toModelInput(deps.reads, { kept: keptMessages, withFiles: new Set(newest && withFiles.has(newest) ? [newest] : []) }));
+        if (serverNote) withContext(lean, serverNote);
         if (rememberedNote) withContext(lean, rememberedNote);
         if (memoryContext) withContext(lean, memoryContext);
         if (webContext) withContext(lean, webContext);

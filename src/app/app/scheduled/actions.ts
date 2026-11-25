@@ -9,9 +9,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { sameInstruction } from "@/core/automation/offer";
 import { describeSchedule, nextRun } from "@/core/automation/schedule";
-import { SCHEDULED_LIMITS, scheduleProblem, taskInputSchema, titleFor, type ScheduledLimit } from "@/core/automation/tasks";
-import { archiveTask, readTask, runTaskNow, saveTask, setTaskState, type StoreResult } from "@/server/automation/store";
+import { DEFAULT_OPTIONS, SCHEDULED_LIMITS, scheduleProblem, taskInputSchema, titleFor, type ScheduledLimit } from "@/core/automation/tasks";
+import { archiveTask, listTasks, readTask, runTaskNow, saveTask, setTaskState, type StoreResult } from "@/server/automation/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { resolvePlan } from "@/server/workspace/ai-usage";
@@ -88,24 +89,33 @@ const saveInput = z.object({
 
 /** Saves a new task, or a change to one from the version on screen. */
 export async function saveScheduledTaskAction(input: z.input<typeof saveInput>): Promise<ScheduledState> {
+  return (await save(input, true)).state;
+}
+
+/**
+ * The save itself. `refresh` re-reads the Scheduled page for whoever is on it; a save made from Chat leaves it be, so the chat the
+ * person is in isn't re-read under them (the Scheduled page reads its tasks afresh whenever it is opened).
+ */
+async function save(input: z.input<typeof saveInput>, refresh: boolean): Promise<{ state: ScheduledState; sentence: string | null }> {
+  const no = (message: string) => ({ state: { status: "error" as const, message }, sentence: null });
   const raw = saveInput.safeParse(input);
-  if (!raw.success || (raw.data.taskId === null) !== (raw.data.baseVersion === null)) return { status: "error", message: "That couldn't be read. Nothing was saved." };
+  if (!raw.success || (raw.data.taskId === null) !== (raw.data.baseVersion === null)) return no("That couldn't be read. Nothing was saved.");
   const instruction = plain(raw.data.instruction).trim();
-  if (!instruction) return { status: "error", message: "Say what Farbaek should do." };
+  if (!instruction) return no("Say what Farbaek should do.");
   const parsed = taskInputSchema.safeParse({ title: plain(raw.data.title).trim() || titleFor(instruction), instruction, schedule: raw.data.schedule, options: raw.data.options });
   if (!parsed.success) {
     const where = parsed.error.issues[0]?.path[0];
-    return { status: "error", message: where === "instruction" ? "The instruction is too long: keep it under 4,000 characters." : where === "title" ? "The name is too long: keep it under 80 characters." : "That schedule couldn't be read. Check its time and days, then save again." };
+    return no(where === "instruction" ? "The instruction is too long: keep it under 4,000 characters." : where === "title" ? "The name is too long: keep it under 80 characters." : "That schedule couldn't be read. Check its time and days, then save again.");
   }
   const g = await writer();
-  if (!g.ok) return { status: "error", message: g.message };
-  if (!(await withinRate(g.w, "save", 40))) return { status: "error", message: "That's a lot of changes in an hour. Wait a little, then carry on." };
+  if (!g.ok) return no(g.message);
+  if (!(await withinRate(g.w, "save", 40))) return no("That's a lot of changes in an hour. Wait a little, then carry on.");
   const now = new Date();
   // An edit keeps the runs it has already made counted against "ends after N runs".
   const existing = raw.data.taskId ? await readTask(g.w.user, g.w.orgId, raw.data.taskId) : null;
-  if (raw.data.taskId && !existing) return { status: "error", message: "That task isn't here any more. Reload the page." };
+  if (raw.data.taskId && !existing) return no("That task isn't here any more. Reload the page.");
   const problem = scheduleProblem(parsed.data.schedule, g.w.limit, now, existing?.runsFinished ?? 0);
-  if (problem) return { status: "error", message: problem };
+  if (problem) return no(problem);
   const saved = await saveTask(g.w.admin, g.w, {
     taskId: raw.data.taskId,
     baseVersion: raw.data.baseVersion,
@@ -116,9 +126,68 @@ export async function saveScheduledTaskAction(input: z.input<typeof saveInput>):
     nextRunAt: nextRun(parsed.data.schedule, now, existing?.runsFinished ?? 0),
     maxActive: g.w.limit.active,
   });
-  if (!saved.ok) return refused(saved, g.w.limit);
-  revalidatePath("/app/scheduled");
-  return { status: "done", message: `Saved. ${describeSchedule(parsed.data.schedule)}` };
+  if (!saved.ok) return { state: refused(saved, g.w.limit), sentence: null };
+  if (refresh) revalidatePath("/app/scheduled");
+  const sentence = describeSchedule(parsed.data.schedule);
+  return { state: { status: "done", message: `Saved. ${sentence}` }, sentence };
+}
+
+// ---- From Chat (stage 273, ADR 0280) -------------------------------------------------------------------------------------------
+
+export type ScheduleOfferState =
+  /** Worth offering: nothing like it is scheduled. */
+  | { status: "offer" }
+  /** The person has this very instruction scheduled already: said, not offered again. */
+  | { status: "scheduled"; sentence: string; paused: boolean }
+  /** Not offered: it couldn't be checked, this person can't schedule here, or this chat is a scheduled task's own. */
+  | { status: "off" };
+
+/** The person's task with this very instruction that still runs or is paused, if any. Read as them: their own tasks only. */
+async function scheduledAlready(instruction: string, conversationId: string | null): Promise<{ status: "none" } | { status: "unknown" } | { status: "task's own chat" } | { status: "same"; sentence: string; paused: boolean }> {
+  const ctx = await loadAppContext();
+  const user = ctx?.current && ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  if (!ctx?.current || !user) return { status: "unknown" };
+  const tasks = await listTasks(user, ctx.current.id);
+  if (!tasks) return { status: "unknown" };
+  // A chat a scheduled task writes its answers into ends on that task's instruction, run after run: nothing is offered there,
+  // whether the task still runs or has ended.
+  if (conversationId && tasks.some((t) => t.conversationId === conversationId)) return { status: "task's own chat" };
+  const same = tasks.find((t) => t.state !== "ended" && sameInstruction(t.instruction, plain(instruction)));
+  return same ? { status: "same", sentence: same.schedule ? describeSchedule(same.schedule) : "", paused: same.state === "paused" } : { status: "none" };
+}
+
+/**
+ * Whether to offer, under a Chat answer, to schedule what was asked. The same instruction already scheduled is said as scheduled,
+ * so the offer isn't made twice; a scheduled task's own chat is never offered in.
+ */
+export async function scheduleOfferStateAction(instruction: string, conversationId: string | null): Promise<ScheduleOfferState> {
+  if (typeof instruction !== "string" || instruction.length > 8_000) return { status: "off" };
+  const conversation = typeof conversationId === "string" && uuid.safeParse(conversationId).success ? conversationId : null;
+  const ctx = await loadAppContext();
+  if (!ctx?.current) return { status: "off" };
+  // The demo workspace shows the offer; pressing it says the workspace is read-only.
+  if (ctx.mode === "demo") return { status: "offer" };
+  if (!ctx.writes.enabled || !ctx.role || !CONTRIBUTOR_ROLES.includes(ctx.role)) return { status: "off" };
+  const already = await scheduledAlready(instruction, conversation);
+  if (already.status === "same") return { status: "scheduled", sentence: already.sentence, paused: already.paused };
+  return already.status === "none" ? { status: "offer" } : { status: "off" };
+}
+
+const fromChatInput = z.object({ instruction: z.string().max(8_000), schedule: z.unknown() });
+
+/**
+ * Schedules what the person asked in Chat, from the offer under its answer: the same checks as the Scheduled page's own save (the
+ * person, their plan, the schedule, when it runs next). The same instruction already scheduled is said, not saved a second time, so
+ * a press repeated after a dropped answer, or from a second tab, makes one task.
+ */
+export async function scheduleFromChatAction(input: z.input<typeof fromChatInput>): Promise<ScheduledState> {
+  const raw = fromChatInput.safeParse(input);
+  if (!raw.success) return { status: "error", message: "That couldn't be read. Nothing was scheduled." };
+  const already = await scheduledAlready(raw.data.instruction, null);
+  if (already.status === "same") return { status: "done", message: `This is already scheduled. ${already.sentence}`.trim() };
+  const saved = await save({ taskId: null, baseVersion: null, title: "", instruction: raw.data.instruction, schedule: raw.data.schedule, options: DEFAULT_OPTIONS }, false);
+  if (saved.state.status !== "done") return saved.state;
+  return { status: "done", message: `Scheduled. ${saved.sentence ?? ""} Its answers will be in Chat, under its own name.`.replace("  ", " ") };
 }
 
 /** Pause, or resume from its next time ahead. */

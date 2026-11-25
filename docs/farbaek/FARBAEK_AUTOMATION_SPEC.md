@@ -2,7 +2,7 @@
 
 What the owner's brief asks of automation, what exists today, and what comes next. A line says "built" only when it has a test or a look in a browser behind it; the stage and the ADR are named so the claim can be checked.
 
-Last updated: 2026-11-25 (stage 271).
+Last updated: 2026-11-25 (stage 273).
 
 ## What the brief asks for
 
@@ -29,8 +29,8 @@ Tell Farbaek what to do in plain words, and it does the work by itself: on a sch
 | Tasks that do more than answer: build, make an image or a video, act on a computer | Not built. A run is a Chat turn | After triggers |
 | Persistent agents: a goal, a budget, memory of their own, pause, resume and stop | Not built | Stage 216, part 2 |
 | Saved progress inside one long run (checkpoints) | Not built for scheduled runs. Workflows have checkpoints between steps (ADR 0092) | With persistent agents |
-| Creating a task from inside Chat ("do this every morning") | Not built | Small, after triggers |
-| A command center: running, waiting, failed, needs approval | Not built. The operator sees the tick in Office Space's jobs list | Stage 217 |
+| Creating a task from inside Chat | Built: a request said with a time ("send me the AI news every morning at 8") is answered, and a chip under the answer offers to schedule it. The rule for when to offer is measured on 149 written messages. The task keeps its own chat; its answers arriving in the chat it was asked in is not built | ADR 0280, `src/components/chat/schedule-offer.tsx`, `src/core/automation/offer.ts` |
+| A command center: running, waiting, failed, needs approval | A first piece: Home shows a person's scheduled work in one card (what runs next, what it last did, anything paused) and leads with a task Farbaek paused (ADR 0281). One place for every agent, with its own pause, cost and history, is not built. The operator sees the tick in Office Space's jobs list | Stage 217 |
 | An audit trail a person can read | The task's runs are its record. Changes to a task are versioned but not listed for the person yet | With the command center |
 | Cost shown per task | Not built. Usage is on Billing, with every other use | With the command center |
 
@@ -38,7 +38,7 @@ Tell Farbaek what to do in plain words, and it does the work by itself: on a sch
 
 1. Every minute the server's timer calls `POST /api/internal/jobs/scheduled` with the scheduler's secret, from inside the app container. Until that timer is switched on, the 15-minute sweep makes the same call.
 2. The app asks the database for due tasks, up to the room it has (three runs at once). The database locks each, gives it a 15-minute lease and makes or reuses the run row for that due time.
-3. The owner's plan is read, and a task it no longer allows is paused with the reason. Otherwise each claimed run becomes one Chat turn as the task's owner, in the task's own conversation, with a ten-minute limit. The turn checks that the person is still in the workspace with a role that may use its AI.
+3. The owner's plan is read, and a task it no longer allows is paused with the reason. Otherwise each claimed run becomes one Chat turn as the task's owner, in the task's own conversation, with a ten-minute limit. The turn checks that the person is still in the workspace with a role that may use its AI. The model is told, beside the instruction, that this is a scheduled task due now, so "remind me…" is answered as the reminder (ADR 0280).
 4. The outcome is settled by tested rules: done, skipped (it wouldn't work if tried again), tried again later, or failed. The task's next time is worked out from its schedule and stored with the outcome in one database call, which refuses a stale attempt and leaves a task alone that its owner changed meanwhile. A call that fails is made again.
 5. If the person asked to be told, the notifier sends its email and push.
 

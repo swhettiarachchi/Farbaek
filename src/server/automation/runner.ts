@@ -1,6 +1,6 @@
 import "server-only";
 import { nextRun, scheduleSchema } from "@/core/automation/schedule";
-import { DEFAULT_OPTIONS, outcomeOfRefusal, planProblem, settle, taskOptionsSchema, tooLate, type RunOutcome, type ScheduledLimit, type Settled } from "@/core/automation/tasks";
+import { DEFAULT_OPTIONS, RUN_NOTE, UNREADABLE_SCHEDULE, outcomeOfRefusal, planProblem, settle, taskOptionsSchema, tooLate, type RunOutcome, type ScheduledLimit, type Settled } from "@/core/automation/tasks";
 import type { ScheduledNotice } from "@/server/email/notify";
 import type { HeadlessResult, HeadlessTurn } from "./headless-chat";
 import type { ClaimedRun, ScheduledStore } from "./store";
@@ -80,8 +80,7 @@ export async function runClaimed(deps: RunnerDeps, run: ClaimedRun): Promise<key
 
   // A schedule that no longer reads can't say when to run next: the task is paused and says so, rather than run on a guess.
   if (!schedule.success) {
-    const why = "Paused by Farbaek: its schedule couldn't be read. Open it and save its schedule again.";
-    return record({ status: "failed", detail: "Its schedule couldn't be read.", retryAt: null, nextRunAt: null, pauseReason: why, failuresInRow: run.failuresInRow + 1 }, run.conversationId, null);
+    return record({ status: "failed", detail: "Its schedule couldn't be read.", retryAt: null, nextRunAt: null, pauseReason: UNREADABLE_SCHEDULE, failuresInRow: run.failuresInRow + 1 }, run.conversationId, null);
   }
   const position = { schedule: schedule.data, attempt: run.attempt, failuresInRow: run.failuresInRow, runsFinished: run.runsFinished, manual: run.manual };
 
@@ -106,7 +105,7 @@ export async function runClaimed(deps: RunnerDeps, run: ClaimedRun): Promise<key
   } else {
     const opts = options.success ? options.data : DEFAULT_OPTIONS;
     try {
-      const result = await deps.turn({ orgId: run.orgId, userId: run.ownerId, conversationId: run.conversationId, title: run.title, text: run.instruction, web: opts.web, effort: opts.effort }, AbortSignal.timeout(TURN_TIMEOUT_MS), run.taskId);
+      const result = await deps.turn({ orgId: run.orgId, userId: run.ownerId, conversationId: run.conversationId, title: run.title, text: run.instruction, web: opts.web, effort: opts.effort, note: RUN_NOTE }, AbortSignal.timeout(TURN_TIMEOUT_MS), run.taskId);
       outcome = outcomeOf(result);
       conversationId = result.conversationId ?? conversationId;
       messageId = result.ok ? result.messageId : null;

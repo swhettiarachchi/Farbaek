@@ -28,6 +28,8 @@ export interface HeadlessTurn {
   text: string;
   web: boolean;
   effort: ChatEffort;
+  /** Said to the model beside the message, and never shown as the person's words: what kind of run this is. */
+  note?: string;
 }
 
 export type HeadlessResult =
@@ -70,12 +72,13 @@ export async function runHeadlessTurn(env: HeadlessEnv, i: HeadlessTurn, signal:
     aspect: "1:1",
     projectId: null,
   });
-  let prepared = await prepareTurn(built.deps, { orgId: i.orgId, userId: i.userId, request: request(conversation) });
+  const note = i.note ? { note: i.note } : {};
+  let prepared = await prepareTurn(built.deps, { orgId: i.orgId, userId: i.userId, request: request(conversation), ...note });
   // A conversation that has gone since it was read, or is as long as one can be, isn't a reason to fail: a person would start a new
   // chat, and so does the run.
   if (!prepared.ok && conversation && (prepared.status === 404 || prepared.message === CONVERSATION_FULL)) {
     conversation = null;
-    prepared = await prepareTurn(built.deps, { orgId: i.orgId, userId: i.userId, request: request(null) });
+    prepared = await prepareTurn(built.deps, { orgId: i.orgId, userId: i.userId, request: request(null), ...note });
   }
   if (!prepared.ok) return { ok: false, status: prepared.status, message: prepared.message, conversationId: conversation?.id ?? null };
   if (!conversation) {

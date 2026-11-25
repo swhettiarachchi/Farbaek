@@ -106,6 +106,7 @@ export interface TaskFormStart {
 export function TaskForm({
   start,
   seed,
+  carried,
   limit,
   disabledReason,
   serverNow,
@@ -114,6 +115,8 @@ export function TaskForm({
 }: {
   start?: TaskFormStart;
   seed?: { title: string; instruction: string; repeat: Repeat };
+  /** A request carried from Chat, to be changed before it is saved: the form starts on it, with its schedule read from its words. */
+  carried?: string;
   limit: ScheduledLimit;
   disabledReason: string | null;
   serverNow: number;
@@ -124,10 +127,12 @@ export function TaskForm({
   const router = useRouter();
   const first = start?.schedule ?? null;
   const zone = useTimeZone(first?.timeZone ?? "UTC");
-  // What the schedule goes back to when the person's words stop describing one.
-  const fallback = first?.repeat ?? seed?.repeat ?? FIRST_REPEAT;
+  // A carried request is read once, as the form appears in the browser.
+  const [carriedRead] = useState(() => (carried && !start ? scheduleFromWords(carried, new Date(), zone) : null));
+  // What the schedule goes back to when the person's words stop describing one. For a carried request, what its words said.
+  const fallback = first?.repeat ?? carriedRead?.schedule.repeat ?? seed?.repeat ?? FIRST_REPEAT;
   const [title, setTitle] = useState(start?.title ?? seed?.title ?? "");
-  const [instruction, setInstruction] = useState(start?.instruction ?? seed?.instruction ?? "");
+  const [instruction, setInstruction] = useState(start?.instruction ?? carried ?? seed?.instruction ?? "");
   const [repeat, setRepeat] = useState<Repeat>(fallback);
   const [end, setEnd] = useState<ScheduleEnd>(first?.end ?? NEVER);
   const [options, setOptions] = useState<TaskOptions>(start?.options ?? DEFAULT_OPTIONS);
@@ -135,7 +140,7 @@ export function TaskForm({
   const [lastTime, setLastTime] = useState(fallback.kind === "hourly" ? "09:00" : fallback.time);
   // Once the person sets the schedule themselves, their words no longer move it. A task being changed is theirs already.
   const [touched, setTouched] = useState(Boolean(start));
-  const [fromWords, setFromWords] = useState<{ timeAssumed: boolean; hourAssumed: boolean } | null>(null);
+  const [fromWords, setFromWords] = useState<{ timeAssumed: boolean; hourAssumed: boolean } | null>(carriedRead ? { timeAssumed: carriedRead.timeAssumed, hourAssumed: carriedRead.hourAssumed } : null);
   const [lastDayPressed, setLastDayPressed] = useState(false);
   const [result, setResult] = useState<ScheduledState>({ status: "idle" });
   const [pending, startTransition] = useTransition();
