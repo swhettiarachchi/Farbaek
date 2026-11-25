@@ -59,7 +59,7 @@ const CORE: NavItem[] = [
   { href: "/app/video", label: "Video", short: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua", about: "Make short videos with sound, from words or a picture.", also: ["Video studio", "Videos", "Video generation", "Film"] },
   { href: "/app/build", label: "Build", short: "Build", icon: HammerIcon, tone: "text-spark-leaf", about: "Everything the agent is building or has built." },
   { href: "/app/projects", label: "Projects", short: "Projects", icon: SquaresFourIcon, about: "Your sites and apps." },
-  { href: "/app/scheduled", label: "Scheduled", short: "Scheduled", icon: CalendarCheckIcon, about: "Work Farbaek does by itself, at the times you set.", also: ["Scheduled tasks", "Automations", "Recurring", "Reminders", "Schedule"] },
+  { href: "/app/scheduled", label: "Scheduled", short: "Scheduled", icon: CalendarCheckIcon, about: "Work Farbaek does by itself, at the times you set.", also: ["Scheduled tasks", "Automations", "Recurring", "Reminders", "Schedule", "Agents", "Personal agents"] },
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckSquareOffsetIcon, about: "Changes waiting for your yes or no." },
 ];
 

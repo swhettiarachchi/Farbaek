@@ -42,6 +42,8 @@ export interface ScheduledNotice {
   detail: string | null;
   /** Where the answer is, when there is one. */
   conversationId: string | null;
+  /** The task is an agent's work (stage 275): it is shown and changed on the Agents tab. */
+  agent?: boolean;
 }
 
 export interface Notifier {
@@ -92,11 +94,19 @@ export function checksEmail(n: ChecksNotice): { subject: string; lines: string[]
 /** What a scheduled run's email says, and where it leads. */
 export function scheduledEmail(n: ScheduledNotice): { subject: string; lines: string[]; link: { label: string; path: string } } {
   const title = short(n.taskTitle);
-  const link = n.status === "done" && n.conversationId ? { label: "Read the answer", path: `/app/chat/${encodeURIComponent(n.conversationId)}` } : { label: "Open Scheduled", path: "/app/scheduled" };
-  if (n.status === "done") return { subject: `Done: ${title}`, lines: ["Your scheduled task ran, and its answer is in Chat."], link };
+  const link =
+    n.status === "done" && n.conversationId
+      ? { label: "Read the answer", path: `/app/chat/${encodeURIComponent(n.conversationId)}` }
+      : n.agent
+        ? { label: "Open Agents", path: "/app/scheduled/agents" }
+        : { label: "Open Scheduled", path: "/app/scheduled" };
+  if (n.status === "done") return { subject: `Done: ${title}`, lines: [n.agent ? "Your agent worked, and its answer is in Chat." : "Your scheduled task ran, and its answer is in Chat."], link };
   return {
     subject: n.status === "skipped" ? `Skipped: ${title}` : `Didn't finish: ${title}`,
-    lines: [n.detail ?? (n.status === "skipped" ? "This run was skipped." : "This run didn't finish."), "Its schedule is on the Scheduled page, where you can run it again, change it or pause it."],
+    lines: [
+      n.detail ?? (n.status === "skipped" ? "This run was skipped." : "This run didn't finish."),
+      n.agent ? "It is on the Scheduled page, under Agents, where you can start it again, change it or pause it." : "Its schedule is on the Scheduled page, where you can run it again, change it or pause it.",
+    ],
     link,
   };
 }

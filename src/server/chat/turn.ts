@@ -234,12 +234,19 @@ async function toModelInput(reads: ChatReads, context: { kept: ContextMessage[];
 
 const asContext = (m: ChatMessage): ContextMessage => ({ id: m.id, role: m.role, kind: m.kind, content: m.content, status: m.status, files: m.files.map((f) => ({ id: f.id, name: f.name, kind: f.kind, size: f.size, generated: f.generated })) });
 
+/**
+ * The longest note Farbaek's own server may put beside a message. An agent's run carries its notes from earlier runs there
+ * (`AGENT_RUN_NOTE_MAX`, ADR 0282): cut shorter, the agent would be told it has notes and be given none of them. It is counted in
+ * the turn's reservation like the rest of what the model reads.
+ */
+export const SERVER_NOTE_MAX = 6_000;
+
 /** Checks the turn, reserves usage and writes the question and an empty answer. Nothing is written when it fails. */
 export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId: string; request: TurnRequest; note?: string }): Promise<TurnFailure | PreparedTurn> {
   const { orgId, userId, request } = input;
   // A note from Farbaek's own server beside the person's message, for the model only: a scheduled run says it is one (ADR 0280).
   // Never from a browser: the turn's route doesn't pass it.
-  const serverNote = input.note?.trim() ? input.note.trim().slice(0, 1_000) : null;
+  const serverNote = input.note?.trim() ? input.note.trim().slice(0, SERVER_NOTE_MAX) : null;
   const actor = userId;
 
   // 1. What the turn builds on.

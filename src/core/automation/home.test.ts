@@ -36,7 +36,7 @@ describe("scheduled work on Home", () => {
   it("lists what runs next, soonest first, with each schedule in a sentence", () => {
     const home = scheduledOnHome([task("late", { nextRunAt: "2026-11-27T08:00:00Z" }), task("soon", { nextRunAt: "2026-11-25T13:00:00Z" })], [], NOW)!;
     expect(home.rows.map((r) => r.id)).toEqual(["soon", "late"]);
-    expect(home.rows[0]).toEqual({ id: "soon", title: "Task soon", kind: "next", when: "later", nextRunAt: "2026-11-25T13:00:00Z", line: "Every day at 8:00 AM, UTC." });
+    expect(home.rows[0]).toEqual({ id: "soon", title: "Task soon", kind: "next", when: "later", nextRunAt: "2026-11-25T13:00:00Z", line: "Every day at 8:00 AM, UTC.", href: "/app/scheduled" });
     expect(home.more).toBe(0);
     expect(home.stopped).toEqual([]);
     expect(home.lastRun).toBeNull();
@@ -74,8 +74,18 @@ describe("scheduled work on Home", () => {
 
   it("puts a task Farbaek paused first, with why, and names it as the person's to look at", () => {
     const home = scheduledOnHome([task("a"), stopped("b")], [], NOW)!;
-    expect(home.rows[0]).toEqual({ id: "b", title: "Task b", kind: "stopped", when: null, nextRunAt: null, line: "Its last 5 runs didn't finish. The latest: It broke." });
-    expect(home.stopped).toEqual([{ id: "b", title: "Task b", reason: "Its last 5 runs didn't finish. The latest: It broke." }]);
+    expect(home.rows[0]).toEqual({ id: "b", title: "Task b", kind: "stopped", when: null, nextRunAt: null, line: "Its last 5 runs didn't finish. The latest: It broke.", href: "/app/scheduled" });
+    expect(home.stopped).toEqual([{ id: "b", title: "Task b", reason: "Its last 5 runs didn't finish. The latest: It broke.", agent: false }]);
+  });
+
+  it("sends an agent's work to the Agents tab, where it is listed, and a task to the Scheduled page", () => {
+    const home = scheduledOnHome([task("t"), task("a", { agent: true, nextRunAt: "2026-11-25T13:00:00Z" }), { ...stopped("s"), agent: true }], [], NOW)!;
+    expect(home.rows.map((r) => [r.id, r.href])).toEqual([
+      ["s", "/app/scheduled/agents"],
+      ["a", "/app/scheduled/agents"],
+      ["t", "/app/scheduled"],
+    ]);
+    expect(home.stopped).toEqual([expect.objectContaining({ id: "s", agent: true })]);
   });
 
   it("stops leading with a task Farbaek paused after a week, but keeps its row", () => {

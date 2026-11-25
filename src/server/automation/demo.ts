@@ -1,5 +1,6 @@
 import { nextRun, type Schedule } from "@/core/automation/schedule";
 import { DEFAULT_OPTIONS } from "@/core/automation/tasks";
+import type { Agent } from "./agents";
 import type { ScheduledTask, TaskRun } from "./store";
 
 /**
@@ -24,6 +25,7 @@ export function demoScheduled(now: Date): { tasks: ScheduledTask[]; runs: TaskRu
     runsFinished: 0,
     version: 1,
     createdAt: ago(24 * 9),
+    agentId: null,
     ...more,
   });
   const tasks = [
@@ -39,7 +41,7 @@ export function demoScheduled(now: Date): { tasks: ScheduledTask[]; runs: TaskRu
   };
   const run = (n: number, t: ScheduledTask, back: number, status: TaskRun["status"], detail: string | null): TaskRun => {
     const at = before(t, back);
-    return { id: `00000000-0000-4000-8000-0000000001${String(n).padStart(2, "0")}`, taskId: t.id, dueAt: at, status, manual: false, detail, conversationId: null, finishedAt: at };
+    return { id: `00000000-0000-4000-8000-0000000001${String(n).padStart(2, "0")}`, taskId: t.id, dueAt: at, status, manual: false, detail, conversationId: null, finishedAt: at, startedAt: at, note: null };
   };
   const runs = [
     run(1, tasks[0]!, 0, "done", "Sample run: a real one links to its answer in Chat."),
@@ -55,4 +57,42 @@ export function demoScheduled(now: Date): { tasks: ScheduledTask[]; runs: TaskRu
     if (newest && (newest.status === "done" || newest.status === "failed" || newest.status === "skipped")) Object.assign(t, { lastRunAt: newest.dueAt, lastStatus: newest.status });
   }
   return { tasks, runs };
+}
+
+/**
+ * A sample agent for the read-only demo workspace (stage 275): made up, labelled "Sample" in its name, and never saved or run. It
+ * shows what the Agents tab looks like with an agent that has worked a few times; nothing here reaches a model.
+ */
+export function demoAgents(now: Date): { agent: Agent; runs: TaskRun[] | null; runsIn30Days: number | null; notesGiven: number | null }[] {
+  const hour = 3_600_000;
+  const schedule: Schedule = { repeat: { kind: "weekly", days: [1], time: "09:00" }, timeZone: "UTC", end: { kind: "never" } };
+  const goal = "Keep track of what our three closest competitors change: prices, new features and announcements. Each time, tell me what is new since last time and what it means for us.";
+  const task: ScheduledTask = {
+    id: "00000000-0000-4000-8000-000000000a01",
+    title: "Sample: Scout",
+    instruction: goal,
+    schedule,
+    options: DEFAULT_OPTIONS,
+    state: "active",
+    stateReason: null,
+    conversationId: null,
+    nextRunAt: nextRun(schedule, now, 3)?.toISOString() ?? null,
+    lastRunAt: null,
+    lastStatus: "done",
+    runsFinished: 3,
+    version: 1,
+    createdAt: new Date(now.getTime() - 24 * 24 * hour).toISOString(),
+    agentId: "00000000-0000-4000-8000-000000000a00",
+  };
+  // Its sample runs sit on its own times: the three Mondays before now.
+  const monday = (back: number): string => nextRun(schedule, new Date(now.getTime() - (back + 1) * 7 * 24 * hour), 0)?.toISOString() ?? new Date(now.getTime() - back * 7 * 24 * hour).toISOString();
+  const run = (n: number, back: number, note: string): TaskRun => ({ id: `00000000-0000-4000-8000-000000000a1${n}`, taskId: task.id, dueAt: monday(back), status: "done", manual: false, detail: null, conversationId: null, finishedAt: monday(back), startedAt: monday(back), note });
+  const runs = [
+    run(1, 0, "Sample run. One of the three raised its mid plan by a few dollars and added a yearly discount; the other two are unchanged. Next: read each company's changelog for features shipped this month."),
+    run(2, 1, "Sample run. Compared the three pricing pages against last week's notes: no changes. One announced a new integration on its blog. Next: check the pricing pages again and look for the integration's price."),
+    run(3, 2, "Sample run. Listed the three competitors and recorded their plans and prices as a starting point. Next: compare each pricing page against this record."),
+  ];
+  task.lastRunAt = runs[0]!.dueAt;
+  const agent: Agent = { id: task.agentId!, name: "Sample: Scout", goal, runsLimit: 10, useMemory: true, notesFrom: null, version: 1, createdAt: task.createdAt, task };
+  return [{ agent, runs, runsIn30Days: 3, notesGiven: 3 }];
 }

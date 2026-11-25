@@ -65,7 +65,7 @@ export interface NeedsYouFacts extends WaitingChanges {
   /** Runs stopped on a question this person is allowed to answer. */
   questions: readonly { id: string; taskTitle: string }[];
   /** The person's scheduled tasks that Farbaek paused itself in the last few days, each with why (stage 274). Missing: none. */
-  scheduledStopped?: readonly { id: string; title: string; reason: string }[];
+  scheduledStopped?: readonly { id: string; title: string; reason: string; agent?: boolean }[];
 }
 
 export interface NeedsYou {
@@ -116,20 +116,24 @@ export function needsYou({ questions, mine, expired, others, scheduledStopped = 
   }
 
   // A scheduled task Farbaek paused has stopped running until the person looks: after their approvals, before what only expired.
+  // An agent's work is listed on the Agents tab (stage 275), so that is where its link goes.
   if (scheduledStopped.length === 1) {
+    const one = scheduledStopped[0]!;
     return {
       tone: "action",
-      title: "A scheduled task was paused",
-      body: `"${scheduledStopped[0]!.title}". ${scheduledStopped[0]!.reason}`,
-      action: { label: "See it", href: "/app/scheduled" },
+      title: one.agent ? "An agent was paused" : "A scheduled task was paused",
+      body: `"${one.title}". ${one.reason}`,
+      action: { label: "See it", href: one.agent ? "/app/scheduled/agents" : "/app/scheduled" },
     };
   }
   if (scheduledStopped.length > 1) {
+    const agents = scheduledStopped.filter((s) => s.agent).length;
+    const all = scheduledStopped.length;
     return {
       tone: "action",
-      title: `${scheduledStopped.length} scheduled tasks were paused`,
-      body: "Farbaek paused them, and each says why and what to do. They won't run while they're paused.",
-      action: { label: "See them", href: "/app/scheduled" },
+      title: agents === all ? `${all} agents were paused` : agents === 0 ? `${all} scheduled tasks were paused` : `${all} scheduled tasks and agents were paused`,
+      body: agents > 0 && agents < all ? "Farbaek paused them, and each says why and what to do, on the Scheduled page and its Agents tab. They won't run while they're paused." : "Farbaek paused them, and each says why and what to do. They won't run while they're paused.",
+      action: { label: "See them", href: agents === all ? "/app/scheduled/agents" : "/app/scheduled" },
     };
   }
 

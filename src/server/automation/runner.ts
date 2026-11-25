@@ -1,6 +1,7 @@
 import "server-only";
+import { agentRunNote, limitProblem, noteFromAnswer } from "@/core/automation/agents";
 import { nextRun, scheduleSchema } from "@/core/automation/schedule";
-import { DEFAULT_OPTIONS, RUN_NOTE, UNREADABLE_SCHEDULE, outcomeOfRefusal, planProblem, settle, taskOptionsSchema, tooLate, type RunOutcome, type ScheduledLimit, type Settled } from "@/core/automation/tasks";
+import { DEFAULT_OPTIONS, RUN_NOTE, UNREADABLE_SCHEDULE, WORKSPACE_PAUSED, outcomeOfRefusal, planProblem, settle, taskOptionsSchema, tooLate, type RunOutcome, type ScheduledLimit, type Settled } from "@/core/automation/tasks";
 import type { ScheduledNotice } from "@/server/email/notify";
 import type { HeadlessResult, HeadlessTurn } from "./headless-chat";
 import type { ClaimedRun, ScheduledStore } from "./store";
@@ -53,6 +54,12 @@ export async function runClaimed(deps: RunnerDeps, run: ClaimedRun): Promise<key
   const options = taskOptionsSchema.safeParse(run.options);
   const wants = options.success ? options.data.notify : DEFAULT_OPTIONS.notify;
 
+  // Set just before a finished agent's run is recorded: what it leaves for the next one.
+  let noteToKeep: string | null = null;
+  // Set when the person has been told this already (an agent passed over for its limit, run after run): nobody is told again.
+  let quiet = false;
+  // Set once the task is known to be an agent's: what the person is sent then points at the Agents tab.
+  let ofAgent = false;
   /** Records the outcome, asking again when the database couldn't be reached; then tells the person when that is due. */
   const record = async (settled: Settled, conversationId: string | null, messageId: string | null): Promise<keyof Omit<TickResult, "claimed">> => {
     let recorded: "recorded" | "stale" | "error" = "error";
@@ -69,11 +76,12 @@ export async function runClaimed(deps: RunnerDeps, run: ClaimedRun): Promise<key
       return settled.retryAt ? "retrying" : settled.status;
     }
     if (settled.retryAt) return "retrying";
+    if (noteToKeep) await deps.store.runNote(run.runId, noteToKeep).catch(() => deps.log?.("scheduled.note_not_kept", { task: run.taskId }));
     // A finished run is told when the person asked: once for runs skipped in a row, not every time. A task Farbaek paused is always
     // told, since it has stopped running.
     const repeatSkip = settled.status === "skipped" && run.failuresInRow > 0;
-    if (deps.notify && ((wants && !repeatSkip) || settled.pauseReason)) {
-      await deps.notify({ userId: run.ownerId, taskTitle: run.title, status: settled.status, detail: settled.pauseReason ?? settled.detail, conversationId: settled.status === "done" ? conversationId : null }).catch(() => undefined);
+    if (deps.notify && ((wants && !repeatSkip && !quiet) || settled.pauseReason)) {
+      await deps.notify({ userId: run.ownerId, taskTitle: run.title, status: settled.status, detail: settled.pauseReason ?? settled.detail, conversationId: settled.status === "done" ? conversationId : null, ...(ofAgent ? { agent: true } : {}) }).catch(() => undefined);
     }
     return settled.status;
   };
@@ -100,21 +108,48 @@ export async function runClaimed(deps: RunnerDeps, run: ClaimedRun): Promise<key
   let outcome: RunOutcome;
   let conversationId = run.conversationId;
   let messageId: string | null = null;
+  // What the run leaves for the agent's next one (stage 275): kept once the run is recorded as done.
+  let agentNote: string | null = null;
+  // Whose work this is: an agent's task runs with the agent's notes, memory choice and limit; any other runs as it always did.
+  const agent = tooLate(run.dueAt, deps.now()) ? null : await deps.store.agent(run.taskId).catch(() => "error" as const);
+  ofAgent = agent !== null && agent !== "error";
   if (tooLate(run.dueAt, deps.now())) {
     outcome = { kind: "skipped", detail: "Farbaek wasn't running at this time, so this run was missed.", blameless: true };
+  } else if (agent === "error") {
+    // Run blind, an agent would work without its limit or its notes: better tried again in a few minutes.
+    outcome = { kind: "retry", detail: "The run couldn't be prepared." };
+  } else if (agent?.archived) {
+    // Removed between the claim and now: its task has been put away with it, and nothing is run in its name.
+    outcome = { kind: "skipped", detail: "Its agent was removed, so this didn't run.", blameless: true };
+    quiet = true;
+  } else if (agent && limitProblem(agent)) {
+    // Its own limit, set by the person: the run is passed over and the agent stays on, to work again when it has room.
+    outcome = { kind: "skipped", detail: limitProblem(agent)!, blameless: true };
+    quiet = agent.toldLimit;
   } else {
     const opts = options.success ? options.data : DEFAULT_OPTIONS;
     try {
-      const result = await deps.turn({ orgId: run.orgId, userId: run.ownerId, conversationId: run.conversationId, title: run.title, text: run.instruction, web: opts.web, effort: opts.effort, note: RUN_NOTE }, AbortSignal.timeout(TURN_TIMEOUT_MS), run.taskId);
+      const result = await deps.turn(
+        // An agent whose notes were cleared since its chat began starts a new chat: the old one holds the answers that were cleared.
+        { orgId: run.orgId, userId: run.ownerId, conversationId: agent?.newChat ? null : run.conversationId, title: run.title, text: run.instruction, web: opts.web, effort: opts.effort, note: agent ? agentRunNote(agent) : RUN_NOTE, ...(agent ? { memory: agent.useMemory } : {}) },
+        AbortSignal.timeout(TURN_TIMEOUT_MS),
+        run.taskId,
+      );
       outcome = outcomeOf(result);
+      // Whoever paused the workspace's agents knows, and the app says so on every page: nobody is told run by run.
+      if (!result.ok && result.status === WORKSPACE_PAUSED) quiet = true;
       conversationId = result.conversationId ?? conversationId;
       messageId = result.ok ? result.messageId : null;
+      if (agent && result.ok && result.status === "complete") agentNote = noteFromAnswer(result.text);
     } catch (e) {
       outcome = { kind: "retry", detail: "The run stopped unexpectedly." };
       deps.log?.("scheduled.turn_threw", { task: run.taskId, reason: e instanceof Error ? e.name : "unknown" });
     }
   }
-  return record(settle(outcome, position, deps.now()), conversationId, messageId);
+  const settled = settle(outcome, position, deps.now());
+  // The note goes on the run before the person is told: a note that can't be kept loses a line of memory, never the run.
+  if (agentNote && settled.status === "done") noteToKeep = agentNote;
+  return record(settled, conversationId, messageId);
 }
 
 /** Claims up to `limit` due tasks and runs them, a few at a time. Null when the database couldn't be asked. */

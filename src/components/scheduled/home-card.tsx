@@ -27,7 +27,7 @@ export function ScheduledHomeCard({ home }: { home: ScheduledOnHome }) {
             const badge = r.kind === "stopped" ? STOPPED_BADGE : r.kind === "paused" ? stateBadge("paused", false) : r.when === "running" ? stateBadge("active", true) : null;
             return (
               <li key={r.id}>
-                <Link href="/app/scheduled" className="group grid gap-1 py-3">
+                <Link href={r.href} className="group grid gap-1 py-3">
                   <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                     <span className="line-clamp-2 min-w-0 text-body font-medium group-hover:text-accent">{r.title}</span>
                     {badge ? <StatusBadge status={badge.status} label={badge.label} /> : null}
