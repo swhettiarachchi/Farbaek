@@ -3,7 +3,7 @@
 - **Date:** 2026-11-25
 - **Branch:** `feat/stage-271-scheduled`, from main at #327's merge
 - **Decision:** ADR 0278. The automation record is `docs/farbaek/FARBAEK_AUTOMATION_SPEC.md`.
-- **Migration:** v106, `20270116090000_scheduled_tasks.sql`. To be applied and read back before the merge. **New dependency:** none. **New provider:** none.
+- **Migration:** v106, `20270116090000_scheduled_tasks.sql`. **Applied to production by the owner on 2026-11-25, read-back `check|t`.** It went on after the merge, not before: #328 was live for a while without it, and the Scheduled page said its tasks couldn't be read. Read again signed in after the migration, the page shows "Schedule your first task" with no fault. **New dependency:** none. **New provider:** none.
 - **Skills used:**
   - `farbaek-ui` and `farbaek-human-made` for the page (tokens, pills, the thirteen status kinds, sentences for counts, plain words);
   - `premium-app-ui` for the structure (one job per screen, every state designed) and its checklist;
@@ -82,8 +82,8 @@ Two reviewers read the code without my notes, one on the server and database, on
 
 ## For the owner, before and after the merge
 
-1. **Before merging:** apply v106 and read it back. The line is in the pull request.
-2. **Merge** the pull request. Production deploys by itself.
+1. Done: v106 is on production (`check|t`, 2026-11-25).
+2. Done: #328 is merged and live (build `bc473b7cb6bb`).
 3. **Once, on the server:** `sudo bash /opt/farbaek/app/scripts/vps/install.sh --enable-scheduled-timer`. Without it tasks still run, up to 15 minutes late.
 4. **Then the live check:** schedule one task a few minutes ahead, and read its answer in Chat.
 
