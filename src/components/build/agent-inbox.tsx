@@ -2,8 +2,7 @@ import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusGlyph, type Status } from "@/components/ui/status-badge";
-import { RUN_STATUS_LABELS } from "@/core/agent/cloud-run";
-import { INBOX_LANE_LABELS, INBOX_LANES, firstSentence, type InboxLane, type ProposalState } from "@/core/agent/inbox";
+import { INBOX_LANE_LABELS, INBOX_LANES, laneSummary, type InboxLane, type ProposalState } from "@/core/agent/inbox";
 import type { RunView } from "@/server/cloud-agent/store";
 import { CoreMark, type CoreMarkState } from "./core-mark";
 
@@ -20,22 +19,6 @@ function markState(lane: InboxLane, run: RunView): CoreMarkState {
   if (lane === "working") return "working";
   if (lane === "review") return "review";
   return run.status === "finished" ? "done" : "stopped";
-}
-
-function summary(lane: InboxLane, run: RunView, proposal: ProposalState | null): string {
-  switch (lane) {
-    case "needs_you":
-      return "Waiting for you to approve a command before it carries on.";
-    case "working":
-      return run.steps > 0 ? `Working, step ${run.steps}.` : "Getting ready.";
-    case "review":
-      return proposal === "blocked"
-        ? "Its change was stopped by the plan's checks. Open it to see why."
-        : (firstSentence(run.finish?.summary) ?? "The change is ready for your review.");
-    case "done":
-      if (proposal === "applied") return firstSentence(run.finish?.summary) ?? "Applied to the project.";
-      return firstSentence(run.outcome) ?? RUN_STATUS_LABELS[run.status];
-  }
 }
 
 /** The done lane shows this many; the rest are on the Build page. */
@@ -91,7 +74,7 @@ export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunV
                           <span className="mt-0.5 block truncate text-xs text-ink-3" title={r.projectName}>
                             {r.projectName} · <RelativeTime iso={r.endedAt ?? r.startedAt} />
                           </span>
-                          <span className="mt-1.5 line-clamp-2 block text-label leading-snug text-ink-2">{summary(lane, r, proposal)}</span>
+                          <span className="mt-1.5 line-clamp-2 block text-label leading-snug text-ink-2">{laneSummary(lane, r, proposal)}</span>
                           <span className={`mt-2 inline-flex items-center gap-1 text-xs font-medium ${lane === "needs_you" ? "text-approval" : "text-accent"}`}>
                             {style.action} <ArrowRightIcon size={14} weight="bold" aria-hidden />
                           </span>

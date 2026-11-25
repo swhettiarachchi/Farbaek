@@ -4,7 +4,7 @@
  * one that finished with a change still to review is ready for them; the rest
  * are working or done.
  */
-import type { RunStatus } from "./cloud-run";
+import { RUN_STATUS_LABELS, type RunStatus } from "./cloud-run";
 
 export const INBOX_LANES = ["needs_you", "working", "review", "done"] as const;
 export type InboxLane = (typeof INBOX_LANES)[number];
@@ -42,6 +42,21 @@ export function groupInbox<R extends InboxRun>(runs: readonly R[], proposals: Re
   }
   lanes.done = lanes.done.slice(0, doneLimit);
   return lanes;
+}
+
+/** Where a run stands, in one line: what it waits for, what it is doing, or how it ended. */
+export function laneSummary(lane: InboxLane, run: { status: RunStatus; steps: number; outcome: string | null; finish: { summary: string } | null }, proposal: ProposalState | null): string {
+  switch (lane) {
+    case "needs_you":
+      return "Waiting for you to approve a command before it carries on.";
+    case "working":
+      return run.steps > 0 ? `Working, step ${run.steps}.` : "Getting ready.";
+    case "review":
+      return proposal === "blocked" ? "Its change was stopped by the plan's checks. Open it to see why." : (firstSentence(run.finish?.summary) ?? "The change is ready for your review.");
+    case "done":
+      if (proposal === "applied") return firstSentence(run.finish?.summary) ?? "Applied to the project.";
+      return firstSentence(run.outcome) ?? RUN_STATUS_LABELS[run.status];
+  }
 }
 
 /** The workspace's agents at a glance, for the presence orb in the app's chrome. */

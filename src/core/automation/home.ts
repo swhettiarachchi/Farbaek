@@ -33,6 +33,10 @@ export interface HomeRun {
   status: "running" | "retrying" | "done" | "failed" | "skipped";
   conversationId: string | null;
   finishedAt: string | null;
+  /** Why it didn't simply finish, when it didn't. */
+  detail?: string | null;
+  /** What a finished run of an agent did and will do next (stage 275). */
+  note?: string | null;
 }
 
 export interface HomeRow {
@@ -91,10 +95,36 @@ export const HOME_RECENT_DAYS = 7;
 const time = (iso: string | null): number => (iso ? Date.parse(iso) : Number.NaN);
 
 /**
- * `runs` are the person's latest runs, any order; null when they couldn't be read, and then nothing is said about a last run or a
- * run under way. Null back when there is nothing to show: Home then says nothing about scheduled work.
+ * The runs that ended, newest first, each with its task's name and the chat that holds its answer. Only of tasks still listed (an
+ * ended one too). A run that finished links to its chat only while that is still the task's chat: one replaced or deleted since
+ * doesn't hold the answer.
  */
-export function scheduledOnHome(tasks: readonly HomeTask[], runs: readonly HomeRun[] | null, now: Date): ScheduledOnHome | null {
+export function endedRuns(tasks: readonly HomeTask[], runs: readonly HomeRun[] | null): (HomeLastRun & { agent: boolean; said: string | null })[] {
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  return [...(runs ?? [])]
+    .filter((r): r is HomeRun & { status: "done" | "failed" | "skipped" } => byId.has(r.taskId) && (r.status === "done" || r.status === "failed" || r.status === "skipped"))
+    .sort((a, b) => time(b.finishedAt ?? b.dueAt) - time(a.finishedAt ?? a.dueAt))
+    .map((r) => {
+      const task = byId.get(r.taskId)!;
+      return {
+        taskId: task.id,
+        title: task.title,
+        at: r.finishedAt ?? r.dueAt,
+        status: r.status,
+        conversationId: r.status === "done" && r.conversationId !== null && r.conversationId === task.conversationId ? r.conversationId : null,
+        agent: Boolean(task.agent),
+        // What the run itself said: an agent's note of what it did, or why a run didn't finish.
+        said: (r.status === "done" ? r.note : r.detail)?.trim() || null,
+      };
+    });
+}
+
+/**
+ * `runs` are the person's latest runs, any order; null when they couldn't be read, and then nothing is said about a last run or a
+ * run under way. Null back when there is nothing to show: Home then says nothing about scheduled work. `most` is how many rows
+ * to give: three on Home, all of them where the whole list is shown.
+ */
+export function scheduledOnHome(tasks: readonly HomeTask[], runs: readonly HomeRun[] | null, now: Date, most: number = HOME_ROWS): ScheduledOnHome | null {
   const recent = (iso: string | null) => now.getTime() - time(iso) <= HOME_RECENT_DAYS * 86_400_000;
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const newestFirst = [...(runs ?? [])].filter((r) => byId.has(r.taskId)).sort((a, b) => time(b.dueAt) - time(a.dueAt));
@@ -108,21 +138,8 @@ export function scheduledOnHome(tasks: readonly HomeTask[], runs: readonly HomeR
   }
 
   // The newest run that ended, of any task still listed (an ended one too): it is what Farbaek last did.
-  const ended = newestFirst
-    .filter((r): r is HomeRun & { status: "done" | "failed" | "skipped" } => r.status === "done" || r.status === "failed" || r.status === "skipped")
-    .sort((a, b) => time(b.finishedAt ?? b.dueAt) - time(a.finishedAt ?? a.dueAt))[0];
-  const lastTask = ended ? byId.get(ended.taskId)! : null;
-  const lastRun: HomeLastRun | null =
-    ended && lastTask
-      ? {
-          taskId: lastTask.id,
-          title: lastTask.title,
-          at: ended.finishedAt ?? ended.dueAt,
-          status: ended.status,
-          // The answers are in the task's own chat; a run whose chat has since been replaced or deleted has no link.
-          conversationId: ended.status === "done" && ended.conversationId !== null && ended.conversationId === lastTask.conversationId ? ended.conversationId : null,
-        }
-      : null;
+  const newest = endedRuns(tasks, runs)[0];
+  const lastRun: HomeLastRun | null = newest ? { taskId: newest.taskId, title: newest.title, at: newest.at, status: newest.status, conversationId: newest.conversationId } : null;
 
   // A task whose schedule has ended runs no more and asks for nothing: it stays on the Scheduled page.
   const live = tasks.filter((t) => t.state !== "ended");
@@ -141,8 +158,8 @@ export function scheduledOnHome(tasks: readonly HomeTask[], runs: readonly HomeR
     ...paused.map((t): HomeRow => ({ id: t.id, title: t.title, kind: "paused", when: null, nextRunAt: null, line: sentence(t), href: hrefOf(t) })),
   ];
   return {
-    rows: all.slice(0, HOME_ROWS),
-    more: Math.max(0, all.length - HOME_ROWS),
+    rows: all.slice(0, most),
+    more: Math.max(0, all.length - most),
     // A pause is recorded with the run that caused it, so the task's last run is when it was paused.
     stopped: stopped.filter((t) => recent(t.lastRunAt)).map((t) => ({ id: t.id, title: t.title, reason: stoppedReason(t.stateReason!), agent: Boolean(t.agent) })),
     lastRun,
