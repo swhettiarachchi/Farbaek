@@ -66,6 +66,7 @@ function fakeDeps(over: { role?: OrgRole | null; billing?: BillingSnapshot | nul
     settleUsage: async (input) => (calls.push({ name: "settle", input }), over.settleFails ? { ok: false, error: "boom" } : { ok: true, value: null }),
     newEventId: () => "key-1",
     now: () => NOW,
+    wait: async () => undefined,
   };
   return { deps, calls };
 }

@@ -512,7 +512,8 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
           z.object({
             operation: z.enum(USAGE_OPERATIONS),
             status: z.enum(["reserved", "settled", "refunded"]),
-            refund_reason: z.enum(["failed", "free_retry", "stopped"]).nullable(),
+            // A reason this build doesn't know reads as a plain failure, so a newer one never breaks the page.
+            refund_reason: z.enum(["failed", "free_retry", "stopped", "interrupted"]).nullable().catch("failed"),
             model: z.string().nullable(),
             credits: z.number().int(),
             input_tokens: z.number().int().nullable(),

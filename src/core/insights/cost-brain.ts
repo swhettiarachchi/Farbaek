@@ -11,7 +11,7 @@ import { USAGE_OPERATION_LABELS, type UsageOperation } from "@/config/usage";
 export interface LedgerEntry {
   operation: UsageOperation;
   status: "reserved" | "settled" | "refunded";
-  refundReason: "failed" | "free_retry" | "stopped" | null;
+  refundReason: "failed" | "free_retry" | "stopped" | "interrupted" | null;
   model: string | null;
   units: number;
   inputTokens: number | null;
@@ -47,7 +47,7 @@ export interface TaskCost {
   /** All of it, as a share of this period's allowance. */
   percent: number | null;
   estimated: boolean;
-  refunds: { failed: number; freeRetry: number; stopped: number };
+  refunds: { failed: number; freeRetry: number; stopped: number; interrupted: number };
   sandbox: { sessions: number; minutes: number; running: number };
 }
 
@@ -89,6 +89,8 @@ export function taskCost(entries: readonly LedgerEntry[], sandboxes: readonly Sa
       failed: refunded.filter((e) => e.refundReason === "failed" || e.refundReason === null).length,
       freeRetry: refunded.filter((e) => e.refundReason === "free_retry").length,
       stopped: refunded.filter((e) => e.refundReason === "stopped").length,
+      // Closed by Farbaek because its server stopped before the call ended (ADR 0279).
+      interrupted: refunded.filter((e) => e.refundReason === "interrupted").length,
     },
     sandbox: {
       sessions: sandboxes.length,

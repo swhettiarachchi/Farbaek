@@ -3,7 +3,7 @@ import { getPlan } from "@/core/billing/catalog";
 import { resolveEffectivePlan, trialWindow } from "@/core/billing/trial";
 import type { WalletView } from "@/core/billing/wallet";
 import { FREE_WHILE_TESTING, USAGE_OPERATIONS, isFreeWhileTesting } from "@/config/usage";
-import { aiAvailability, reserveMetered, resolveMetering, settleAsFreeRetry, typicalUnits, unitsFor, type AiUsageDeps, type FreeUsageDeps, type UsageContext } from "./ai-usage";
+import { aiAvailability, refundUsage, reserveMetered, resolveMetering, settleAsFreeRetry, settleUsage, typicalUnits, unitsFor, type AiUsageDeps, type FreeUsageDeps, type UsageContext } from "./ai-usage";
 
 const NOW = new Date("2026-10-14T10:00:00.000Z");
 const free = resolveEffectivePlan({ state: "free" }, NOW);
@@ -146,5 +146,54 @@ describe("free retries", () => {
     // Free has no hold-back, so a retry there is settled like any call.
     expect(await settleAsFreeRetry(none.d, { orgId: "o1", entryId: "e1", usage, plan: free })).toEqual({ free: false, recorded: true });
     expect(none.calls.map((c) => c.status)).toEqual(["settled"]);
+  });
+});
+
+describe("a settlement the database couldn't be reached for (ADR 0279)", () => {
+  const usage = { model: "claude-sonnet-5-5", inputTokens: 1_000, outputTokens: 500 };
+  /** A database that answers each settlement in turn from `answers`, then succeeds. */
+  function deps(answers: ({ ok: false; error: string } | "throws")[]) {
+    const calls: Parameters<AiUsageDeps["settleUsage"]>[0][] = [];
+    const waits: number[] = [];
+    const left = [...answers];
+    const d: AiUsageDeps = {
+      listUsageGrants: async () => [],
+      reserveUsage: async () => ({ ok: true, value: "e1" }),
+      settleUsage: async (input) => {
+        calls.push(input);
+        const next = left.shift();
+        if (next === "throws") throw new Error("fetch failed");
+        return next ?? { ok: true, value: null };
+      },
+      wait: async (ms) => void waits.push(ms),
+    };
+    return { d, calls, waits };
+  }
+
+  it("is asked again, so a call that worked isn't left unrecorded for one dropped request", async () => {
+    const once = deps([{ ok: false, error: "fetch failed" }]);
+    expect(await settleUsage(once.d, { orgId: "o1", entryId: "e1", usage })).toEqual({ ok: true, value: null });
+    expect(once.calls).toHaveLength(2);
+    expect(once.waits).toEqual([200]);
+    // A request that throws is a dropped request too.
+    const thrown = deps(["throws", { ok: false, error: "upstream timed out" }]);
+    expect(await refundUsage(thrown.d, { orgId: "o1", entryId: "e1", usage: null, reason: "failed" })).toEqual({ ok: true, value: null });
+    expect(thrown.calls).toHaveLength(3);
+    expect(thrown.waits).toEqual([200, 1000]);
+  });
+
+  it("stops after three tries and says it failed, never throwing into the call that worked", async () => {
+    const down = deps([{ ok: false, error: "fetch failed" }, { ok: false, error: "fetch failed" }, { ok: false, error: "fetch failed" }]);
+    expect(await settleUsage(down.d, { orgId: "o1", entryId: "e1", usage })).toEqual({ ok: false, error: "fetch failed" });
+    expect(down.calls).toHaveLength(3);
+  });
+
+  it("isn't asked again when the database itself refused: the entry is closed, or the retry reserve is used", async () => {
+    for (const error of ["NOT_FOUND", "INVALID_STATUS", "RETRY_CAP"]) {
+      const refused = deps([{ ok: false, error }]);
+      expect(await settleUsage(refused.d, { orgId: "o1", entryId: "e1", usage })).toEqual({ ok: false, error });
+      expect(refused.calls).toHaveLength(1);
+      expect(refused.waits).toEqual([]);
+    }
   });
 });

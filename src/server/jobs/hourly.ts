@@ -21,6 +21,7 @@ import { runOutcomeWatches } from "@/server/jobs/outcome-watch";
 import { outcomeWatchDeps } from "@/server/jobs/outcome-watch-wiring";
 import { runPlatformAlerts } from "@/server/jobs/platform-alerts";
 import { platformAlertDeps } from "@/server/jobs/platform-alerts-wiring";
+import { releaseStaleUsage } from "@/server/jobs/stale-usage";
 import { runRenewalReminders } from "@/server/jobs/renewal-reminders";
 import { renewalReminderDeps } from "@/server/jobs/renewal-reminders-wiring";
 import { runTrialReminders } from "@/server/jobs/trial-reminders";
@@ -66,6 +67,8 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
     // Runs whose server stopped (a restart mid-run) say so within the hour, not only when someone opens a page (stage 209).
     // Before the workflow sweep, which reads a step's run to tell "still working" from "ended".
     staleRuns: await runJob("stale_runs", createSupabaseAdminClient(), async (admin) => ({ interrupted: await createSupabaseRunStore(admin).interruptStale(new Date(now.getTime() - RUN_STALE_AFTER_MS)) })),
+    // AI usage reserved by a call whose server stopped before it settled (ADR 0279) goes back to the workspace's plan.
+    staleUsage: await runJob("stale_usage", createSupabaseAdminClient(), (admin) => releaseStaleUsage(admin)),
     // Governed workflows (ADR 0092): a missed hook is caught here.
     workflows: await runJob("workflows", createSupabaseAdminClient(), (admin) => sweepWorkflows(admin)),
     // Payment webhooks that failed or arrived while processing was busy (ADR 0100).

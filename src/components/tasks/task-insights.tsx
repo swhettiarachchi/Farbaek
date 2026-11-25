@@ -58,7 +58,7 @@ export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "
   // A task can run across months, so its share is of one period's allowance, not of this month's.
   const of = period === "trial" ? "of the trial's AI usage" : "of a month's AI usage on this plan";
   const nothing = cost.operations.length === 0 && cost.sandbox.sessions === 0;
-  const refunds = cost.refunds.failed + cost.refunds.freeRetry + cost.refunds.stopped;
+  const refunds = cost.refunds.failed + cost.refunds.freeRetry + cost.refunds.stopped + cost.refunds.interrupted;
   return (
     <section aria-labelledby="cost-title" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -99,7 +99,7 @@ export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "
           <ul className="grid gap-1 text-sm leading-relaxed text-ink-2">
             {refunds > 0 ? (
               <li>
-                Given back, so not counted: {[cost.refunds.failed ? `${cost.refunds.failed} failed` : null, cost.refunds.freeRetry ? `${cost.refunds.freeRetry} free retry` : null, cost.refunds.stopped ? `${cost.refunds.stopped} stopped` : null].filter(Boolean).join(", ")}.
+                Given back, so not counted: {[cost.refunds.failed ? `${cost.refunds.failed} failed` : null, cost.refunds.freeRetry ? `${cost.refunds.freeRetry} free retry` : null, cost.refunds.stopped ? `${cost.refunds.stopped} stopped` : null, cost.refunds.interrupted ? `${cost.refunds.interrupted} cut off when Farbaek restarted` : null].filter(Boolean).join(", ")}.
               </li>
             ) : null}
             {cost.sandbox.sessions > 0 ? (
