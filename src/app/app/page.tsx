@@ -26,65 +26,21 @@ import { siteDomain } from "@/server/publish/config";
 import { FIRST_STEPS_COOKIE, hiddenWorkspaces } from "@/server/workspace/first-steps";
 import { loadAppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
-import { isRunLiveHere } from "@/server/cloud-agent/executor";
-import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { currentExecutionMode } from "@/server/execution/sandbox";
-import { createSupabaseRunStore, listRuns, proposalStates, type RunView } from "@/server/cloud-agent/store";
-import { RUN_STALE_AFTER_MS, isLive } from "@/core/agent/cloud-run";
-import { groupInbox, type ProposalState } from "@/core/agent/inbox";
+import { groupInbox } from "@/core/agent/inbox";
+import { loadInbox } from "@/server/cloud-agent/inbox";
 import { AgentInbox } from "@/components/build/agent-inbox";
 import { LiveRefresh } from "@/components/app/live-refresh";
-import { createSupabaseServerClient } from "@/server/supabase/server";
 import { aiMeter, loadUsageSummary } from "@/server/workspace/usage-summary";
 import { PAGE_STACK } from "@/components/ui/surfaces";
 import { ScheduledHomeCard } from "@/components/scheduled/home-card";
-import { scheduledOnHome, type HomeRun, type HomeTask } from "@/core/automation/home";
-import { demoScheduled } from "@/server/automation/demo";
-import { listHomeTasks, listRuns as listScheduledRuns } from "@/server/automation/store";
+import { scheduledOnHome } from "@/core/automation/home";
+import { loadScheduledWork } from "@/server/automation/work";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
 export const metadata: Metadata = { title: "Home" };
 
 const number = new Intl.NumberFormat("en-US");
-
-/** Recent runs and the state of their proposals, read as the person. Null when they can't be read. */
-async function loadInbox(orgId: string): Promise<{ runs: RunView[]; proposals: Map<string, ProposalState> } | null> {
-  const client = await createSupabaseServerClient();
-  if (!client) return null;
-  try {
-    let runs = await listRuns(client, orgId, { limit: 16 });
-    // A run that's live in the database but not on this server stopped reporting when its server went away, so it
-    // isn't really waiting for anyone. The run's own page clears these too; Home mustn't keep asking until someone opens it.
-    if (runs.some((r) => isLive(r.status) && !isRunLiveHere(r.id))) {
-      const admin = createSupabaseAdminClient();
-      if (admin && (await createSupabaseRunStore(admin).interruptStale(new Date(Date.now() - RUN_STALE_AFTER_MS))) > 0) runs = await listRuns(client, orgId, { limit: 16 });
-    }
-    const ids = runs.filter((r) => r.status === "finished" && r.proposalId).map((r) => r.proposalId!);
-    return { runs, proposals: await proposalStates(client, orgId, ids) };
-  } catch {
-    return null;
-  }
-}
-
-/** How many of the person's latest runs Home reads: enough to find the last one that ended and any under way. */
-const HOME_RUNS = 30;
-
-/**
- * The person's own scheduled tasks and their latest runs, read as them (stage 274). When the tasks can't be read Home shows none:
- * the Scheduled page is where that is said. Runs that can't be read leave the card without its last run. The demo shows its
- * labelled samples.
- */
-async function loadScheduled(mode: string, orgId: string): Promise<{ tasks: HomeTask[]; runs: HomeRun[] | null }> {
-  if (mode === "demo") return demoScheduled(new Date());
-  if (mode !== "live") return { tasks: [], runs: [] };
-  try {
-    const client = await createSupabaseServerClient();
-    const tasks = client ? ((await listHomeTasks(client, orgId)) ?? []) : [];
-    return { tasks, runs: client && tasks.length > 0 ? await listScheduledRuns(client, orgId, HOME_RUNS) : [] };
-  } catch {
-    return { tasks: [], runs: [] };
-  }
-}
 
 export default async function MissionControl() {
   const ctx = await loadAppContext();
@@ -97,7 +53,7 @@ export default async function MissionControl() {
     // Without these records the steps still read tasks; they never claim more than they can see.
     ctx.reader.getFirstStepRecords(ws.id).catch(() => ({ latestProofPack: null, verifiedTaskId: null, liveSite: null })),
     cookies(),
-    loadScheduled(ctx.mode, ws.id),
+    loadScheduledWork(ctx.mode, ws.id),
   ]);
   const { tasks, projects } = usage;
   const ai = usage.wallet ? aiMeter(usage.wallet) : null;
@@ -120,7 +76,7 @@ export default async function MissionControl() {
   const sorted = await waitingChanges(ctx.reader, { orgId: ws.id, tasks, archivedProjects: archived, role: ctx.role, permissions: ctx.permissions, tour }, new Date());
   // Only the person who started a run, or an owner or admin, can answer it.
   const questions = lanes.needs_you.filter((r) => !archived.has(r.projectId) && (tour || manager || r.startedBy === ctx.user.id));
-  const scheduled = scheduledOnHome(scheduledWork.tasks, scheduledWork.runs, new Date());
+  const scheduled = scheduledOnHome(scheduledWork.tasks ?? [], scheduledWork.runs, new Date());
   // A task Farbaek paused is this person's turn only if they can resume it: someone who can't sees it in the card, not as a step.
   const canSchedule = tour || (ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role));
   const needs = tour || ctx.writes.enabled ? needsYou({ ...sorted, questions, scheduledStopped: canSchedule ? scheduled?.stopped : [] }) : null;
@@ -216,8 +172,9 @@ export default async function MissionControl() {
           <CardTitle id="inbox-heading" icon={HammerIcon}>
             What the agent is doing
           </CardTitle>
-          <Link href="/app/build" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
-            Build <ArrowRightIcon size={14} weight="bold" aria-hidden />
+          {/* Everything Farbaek is doing, builds and scheduled work alike, is on one page (stage 276). */}
+          <Link href="/app/work" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
+            All work <ArrowRightIcon size={14} weight="bold" aria-hidden />
           </Link>
         </div>
         {ctx.mode !== "live" ? (

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nextRun, type Schedule } from "./schedule";
-import { BY_FARBAEK, HOME_ROWS, scheduledOnHome, stoppedReason, type HomeRun, type HomeTask } from "./home";
+import { BY_FARBAEK, HOME_ROWS, endedRuns, scheduledOnHome, stoppedReason, type HomeRun, type HomeTask } from "./home";
 import { PAUSE_AFTER_FAILURES, SCHEDULED_LIMITS, UNREADABLE_SCHEDULE, planProblem, settle } from "./tasks";
 
 const NOW = new Date("2026-11-25T12:00:00Z");
@@ -170,6 +170,33 @@ describe("the last thing Farbaek did", () => {
     expect(scheduledOnHome([over], [run("r", "2026-11-10T09:00:00Z", "done", { conversationId: "c-r" })], NOW)).toBeNull();
     expect(scheduledOnHome([over], [], NOW)).toBeNull();
     expect(scheduledOnHome([over], null, NOW)).toBeNull();
+  });
+});
+
+describe("every run that ended, and every row", () => {
+  it("lists the runs that ended newest first, each with its task's name, what it said and whose it is", () => {
+    const tasks = [task("t", { conversationId: "c-t" }), task("a", { agent: true })];
+    const runs = [
+      run("t", "2026-11-24T08:00:00Z", "done", { conversationId: "c-t" }),
+      run("a", "2026-11-25T08:00:00Z", "done", { note: "  Compared prices.  ", detail: "not said for a run that finished" }),
+      run("t", "2026-11-23T08:00:00Z", "skipped", { detail: "This month's AI usage is used up.", note: "not said for a run that didn't finish" }),
+      run("t", "2026-11-25T11:59:00Z", "running"),
+      run("gone", "2026-11-25T09:00:00Z", "done"),
+    ];
+    expect(endedRuns(tasks, runs)).toEqual([
+      { taskId: "a", title: "Task a", at: "2026-11-25T08:00:00Z", status: "done", conversationId: null, agent: true, said: "Compared prices." },
+      { taskId: "t", title: "Task t", at: "2026-11-24T08:00:00Z", status: "done", conversationId: "c-t", agent: false, said: null },
+      { taskId: "t", title: "Task t", at: "2026-11-23T08:00:00Z", status: "skipped", conversationId: null, agent: false, said: "This month's AI usage is used up." },
+    ]);
+    expect(endedRuns(tasks, null)).toEqual([]);
+  });
+
+  it("gives every row where the whole list is shown, and three on Home", () => {
+    const many = ["a", "b", "c", "d", "e"].map((id, i) => task(id, { nextRunAt: `2026-11-2${6 + i}T08:00:00Z` }));
+    expect(scheduledOnHome(many, [], NOW)!.rows).toHaveLength(HOME_ROWS);
+    const all = scheduledOnHome(many, [], NOW, Number.POSITIVE_INFINITY)!;
+    expect(all.rows.map((r) => r.id)).toEqual(["a", "b", "c", "d", "e"]);
+    expect(all.more).toBe(0);
   });
 });
 

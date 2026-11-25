@@ -19,8 +19,8 @@ The 55 sections of the two briefs cover 32 subjects; many sections of B repeat s
 | | Subjects |
 | --- | --- |
 | Done | 3: the existing core modules kept and in use (A21), billing for today's plans (A28), checkpoints between sessions (B21) |
-| Partly | 27 |
-| Not started | 2: the agent command center (A7), Grok, X search and the X connector (B9) |
+| Partly | 28 |
+| Not started | 1: Grok, X search and the X connector (B9), which waits on the owner's xAI key |
 | Waiting on the owner | an xAI key and budget, an X developer account, a paid video key, the price decision, and the DNS fault at Spaceship |
 
 Inside the "Partly" subjects, whole parts are also not started: the Audio Studio, the phone voice assistant, the three modes, the visual workflow builder, triggers other than time, the investor report, and most of Telepathy. (Schedules were on this list until stage 271.)
@@ -71,9 +71,9 @@ Research complete. Part 1 is built (stage 275, ADR 0282): an agent with a name, 
 | Rules for a task on a person's computer (browser, files) | Written and tested, not wired to anything (ADR 0225) |
 | Isolated browser for agents, persistent workspace, credential vault for connectors, one task timeline | Not started |
 
-### A7 Agent command center (Antigravity): Not started
+### A7 Agent command center (Antigravity): Partly
 
-Approvals, the runs list and a workspace-wide "Pause agents now" exist on separate pages. No one place shows every agent, its stage, tools, cost, waiting approvals and results. Home now shows a person's scheduled work in one card and leads with a task Farbaek paused (ADR 0281): a first piece, for scheduled tasks only.
+A first version is built (stage 276, ADR 0283): the All work page lists the agent's builds, changes waiting for a yes or no, workflows, scheduled tasks and agents in one place, sorted into needs you, in progress, scheduled and just finished, with the workspace's one pause (which stops scheduled work too since stage 275). Home shows scheduled work in one card and leads with a task Farbaek paused (ADR 0281). **Not built:** each agent's tools, stage and cost in its row; acting from the row (every row opens its own page); the paired desktop agents; an owner's view of other members' work.
 
 ### A8 Claude ecosystem: Partly
 
@@ -111,7 +111,7 @@ Present: identity, conversations, memory, metering and usage, approvals, audit, 
 | Conditions, loops with limits | Not started |
 | Durable execution that survives a restart, retries, dead letters, checkpoints, idempotency | Partly: scheduled runs are claimed once under a lease in Postgres, retried twice, given ten minutes, and the task pauses itself after five that didn't finish (ADR 0278). Usage reserved by a call a restart cut off is given back each hour (ADR 0279). Agent builds and workflows still hold their run in the web server's memory for at most 40 minutes; no checkpoints inside a run |
 | Autonomy levels (Observe to Delegated) | Partly: the build agent has levels 0 to 4; automations have none |
-| Command center | Not started |
+| Command center | Partly: the All work page and one pause (ADR 0283). Cost and acting from a row are not built |
 
 ### A15, B8 Universal voice assistant: Partly in the browser, Not started on phones
 
@@ -258,7 +258,7 @@ Everything not done, in the order that lets each part stand on the one before. I
 2. Durable work: done for scheduled runs (stage 271) and for usage a restart left reserved (stage 272). Still to do: agent builds and workflows out of the server's memory, with checkpoints.
 3. Automation: schedules are built (stage 271) and Chat offers them (stage 273). Still to do: event triggers and webhooks in, workflows from words, a visual builder, conditions.
 4. Persistent agents: part 1 is built (stage 275): name, goal, schedule, a limit in runs, notes of its own, the memory switch, progress, pause, resume, remove. Still to do: a budget in AI usage, tools, more than one piece of work, talking to an agent.
-5. One command center with one pause, for workflows and agents.
+5. One command center with one pause: a first version is built (stage 276, All work). Still to do: each thing's cost, acting from the row, an owner's view of everyone's work.
 6. **Telepathy part 1:** project awareness in Chat, one memory across spaces, suggested next steps with "why this" and corrections.
 7. **The three modes:** Standard, Advanced, Professional.
 8. Build starting in one place; one sidebar across the spaces; **the professional-colours pass** (after the owner's answer).

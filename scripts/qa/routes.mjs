@@ -13,7 +13,7 @@ export const STATIC_ROUTES = [
   // The signed-in app.
   "/app", "/app/chat", "/app/images", "/app/video", "/app/agents", "/app/approvals", "/app/billing", "/app/build", "/app/help", "/app/help/new", "/app/mesh",
   "/app/more", "/app/new", "/app/workbench", "/app/projects", "/app/rescue", "/app/sandbox", "/app/sandbox/new", "/app/settings",
-  "/app/tasks", "/app/scheduled", "/app/scheduled/agents", "/app/templates", "/app/workspaces/new", "/app/skills",
+  "/app/tasks", "/app/work", "/app/scheduled", "/app/scheduled/agents", "/app/templates", "/app/workspaces/new", "/app/skills",
   "/app/activity", "/app/incidents", "/app/integrations", "/app/policies", "/app/trust", "/app/workflows", "/app/workflows/new",
   // Survey Studio.
   "/app/survey", "/app/survey/new", "/app/survey/profile", "/app/survey/office",

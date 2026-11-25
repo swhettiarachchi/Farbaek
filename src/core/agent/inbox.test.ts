@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PRESENCE_LABELS, agentPresence, firstSentence, groupInbox, inboxLane, type ProposalState } from "./inbox";
+import { PRESENCE_LABELS, agentPresence, firstSentence, groupInbox, inboxLane, type ProposalState, laneSummary } from "./inbox";
 
 describe("inboxLane", () => {
   it("puts a run waiting on an approval in Needs you, and live runs in Working", () => {
@@ -40,6 +40,26 @@ describe("groupInbox", () => {
     expect(lanes.review.map((r) => r.id)).toEqual(["b"]);
     // A proposal that couldn't be read never counts as waiting for review.
     expect(lanes.done.map((r) => r.id)).toEqual(["d", "e"]);
+  });
+});
+
+describe("laneSummary", () => {
+  const base = { status: "working" as const, steps: 0, outcome: null, finish: null };
+
+  it("says what a run waits for, what it is doing, and how it ended", () => {
+    expect(laneSummary("needs_you", { ...base, status: "waiting" }, null)).toBe("Waiting for you to approve a command before it carries on.");
+    expect(laneSummary("working", base, null)).toBe("Getting ready.");
+    expect(laneSummary("working", { ...base, steps: 7 }, null)).toBe("Working, step 7.");
+    expect(laneSummary("done", { ...base, status: "failed", outcome: "The build broke. More detail." }, null)).toBe("The build broke.");
+    expect(laneSummary("done", { ...base, status: "cancelled" }, null)).toBe("Cancelled");
+    expect(laneSummary("done", { ...base, status: "finished", finish: { summary: "Added opening hours. And a map." } }, "applied")).toBe("Added opening hours.");
+    expect(laneSummary("done", { ...base, status: "finished" }, "applied")).toBe("Applied to the project.");
+  });
+
+  it("says a change is ready for review in the run's own words, and says so when the plan's checks stopped it", () => {
+    expect(laneSummary("review", { ...base, status: "finished", finish: { summary: "Added opening hours. And a map." } }, "pending")).toBe("Added opening hours.");
+    expect(laneSummary("review", { ...base, status: "finished" }, "pending")).toBe("The change is ready for your review.");
+    expect(laneSummary("review", { ...base, status: "finished", finish: { summary: "Added opening hours." } }, "blocked")).toBe("Its change was stopped by the plan's checks. Open it to see why.");
   });
 });
 

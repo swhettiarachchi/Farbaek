@@ -21,6 +21,7 @@ import {
   ImageSquareIcon,
   LifebuoyIcon,
   ListBulletsIcon,
+  ListChecksIcon,
   PackageIcon,
   PlugsConnectedIcon,
   ScalesIcon,
@@ -65,6 +66,7 @@ const CORE: NavItem[] = [
 
 /** Useful, not needed every day: one labelled group, opened when wanted. Survey Studio leads it: a specialist's space (ADR 0216). */
 const TOOLS: NavItem[] = [
+  { href: "/app/work", label: "All work", short: "All work", icon: ListChecksIcon, about: "Everything Farbaek is doing for you, and one pause.", also: ["Command center", "In progress", "Running", "What Farbaek is doing"] },
   { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListBulletsIcon, about: "Every piece of work, and where it stands." },
   { href: "/app/survey", label: "Survey Studio", short: "Survey", icon: CompassToolIcon, about: "Land survey plans from field data, drawn to scale as PDF and DXF.", also: ["Survey", "Land survey", "Cadastral", "Survey plan", "DXF"] },
   { href: "/app/sandbox", label: "Test space", short: "Test space", icon: TerminalWindowIcon, about: "Run an app and try it, safely apart from everything else.", also: ["Sandbox", "Terminal"] },
