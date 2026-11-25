@@ -4,7 +4,7 @@
  * are the email's own. A device gets them only after its person turned
  * notifications on there; a device its push service calls gone is removed.
  */
-import { checksEmail, runEmail, type Notifier } from "@/server/email/notify";
+import { checksEmail, runEmail, scheduledEmail, type Notifier, type ScheduledNotice } from "@/server/email/notify";
 import { log } from "@/server/observability/log";
 import { sendPush, type PushMessage, type PushOutcome, type PushSubscriptionKeys } from "./send";
 import type { VapidKeys } from "./web-push";
@@ -44,6 +44,12 @@ export function checksFinishedMessage(n: Parameters<Notifier["checksFinished"]>[
   return { title: email.subject, body: line(email.lines[0] ?? "", 160), url: `/app/tasks/${encodeURIComponent(n.taskId)}`, tag: `checks:${n.taskId}` };
 }
 
+/** The words for a scheduled run that ended, as its email says them. */
+export function scheduledFinishedMessage(n: ScheduledNotice): PushMessage {
+  const email = scheduledEmail(n);
+  return { title: email.subject, body: line(email.lines[0] ?? "", 160), url: email.link.path, tag: `scheduled:${n.conversationId ?? n.taskTitle}` };
+}
+
 export function createPushNotifier(deps: PushDeps): Notifier {
   async function deliver(kind: string, userId: string, message: PushMessage | null) {
     if (!message) return;
@@ -57,6 +63,7 @@ export function createPushNotifier(deps: PushDeps): Notifier {
   return {
     buildFinished: (n) => deliver("build_finished", n.userId, buildFinishedMessage(n)),
     checksFinished: (n) => deliver("checks_finished", n.userId, checksFinishedMessage(n)),
+    scheduledFinished: (n) => deliver("scheduled_finished", n.userId, scheduledFinishedMessage(n)),
   };
 }
 
@@ -68,5 +75,6 @@ export function combineNotifiers(...list: (Notifier | null)[]): Notifier | null 
   return {
     buildFinished: async (n) => void (await Promise.allSettled(live.map((x) => x.buildFinished(n)))),
     checksFinished: async (n) => void (await Promise.allSettled(live.map((x) => x.checksFinished(n)))),
+    scheduledFinished: async (n) => void (await Promise.allSettled(live.map((x) => x.scheduledFinished?.(n)))),
   };
 }

@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { startDueTasks } from "@/server/automation/wiring";
 import { checkSchedulerToken } from "@/server/jobs/auth";
 import { log } from "@/server/observability/log";
 import { noteJobRun } from "@/server/ops/jobs";
@@ -33,13 +35,22 @@ export async function POST(request: Request) {
     now: () => new Date(),
     randomKey: () => crypto.randomUUID(),
   });
+  // People's scheduled tasks that are due (ADR 0278) start here too, so they run within 15 minutes of their time on a server whose
+  // every-minute timer isn't switched on yet. Claimed under a lease, so the two timers never run one due time twice. Claimed after
+  // the sweep, whichever way it went: a run starts once this request has answered, and its lease shouldn't wait on the sweep.
+  const startScheduled = () =>
+    startDueTasks((work) => after(work))
+      .then((tick) => (tick.status === "not_configured" ? undefined : noteJobRun(admin, "scheduled_tasks", tick.status !== "failed", tick.status === "ran" ? `Started ${tick.claimed}; ${tick.running} running.` : tick.status)))
+      .catch(() => undefined);
   try {
     const swept = await service.sweep();
     await noteJobRun(admin, "sandbox_sweep", true);
+    await startScheduled();
     return json({ data: swept });
   } catch (e) {
     log("error", "sandbox.sweep_failed", { error: e instanceof Error ? e.message : String(e) });
     await noteJobRun(admin, "sandbox_sweep", false, "The sweep failed; see the app log.");
+    await startScheduled();
     return problem(500, "INTERNAL", "The sweep failed; it is safe to run again.");
   }
 }

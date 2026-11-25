@@ -7,7 +7,7 @@
 import type { Notifier } from "@/server/email/notify";
 import { log } from "@/server/observability/log";
 import { http2Transport, sendApns, type ApnsConfig, type ApnsEnvironment, type ApnsTransport } from "./apns";
-import { buildFinishedMessage, checksFinishedMessage } from "./notifier";
+import { buildFinishedMessage, checksFinishedMessage, scheduledFinishedMessage } from "./notifier";
 import type { PushMessage, PushOutcome } from "./send";
 
 export interface PhonePushDeps {
@@ -47,5 +47,6 @@ export function createPhonePushNotifier(deps: PhonePushDeps): Notifier {
   return {
     buildFinished: (n) => deliver("build_finished", n.userId, buildFinishedMessage(n)),
     checksFinished: (n) => deliver("checks_finished", n.userId, checksFinishedMessage(n)),
+    scheduledFinished: (n) => deliver("scheduled_finished", n.userId, scheduledFinishedMessage(n)),
   };
 }

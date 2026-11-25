@@ -35,6 +35,7 @@ It's still one long-lived Node server with one replica, because agent runs live 
   - the log is `/var/log/farbaek/deploy.log`.
 - **Sandbox cleanup:** `farbaek-sweep.timer` calls `POST /api/internal/sandbox/sweep` every 15 minutes, from inside the app container, which already holds `SANDBOX_CRON_SECRET`.
 - **Hourly jobs (ADR 0063):** `farbaek-jobs.timer` calls `POST /api/internal/jobs/trial-reminders` the same way, every hour. It sends the trial reminders that are due and records each one in `trial_reminders`. Safe to run again: `sudo systemctl start farbaek-jobs`, then `journalctl -u farbaek-jobs -n 5`.
+- **Scheduled tasks (ADR 0278):** `farbaek-scheduled.timer` calls `POST /api/internal/jobs/scheduled` the same way, every minute, and the app starts the tasks people scheduled that are due. Turn it on once with `sudo bash /opt/farbaek/app/scripts/vps/install.sh --enable-scheduled-timer`. Without it the 15-minute sweep starts them, so a task still runs, up to 15 minutes late. Safe to run again: `sudo systemctl start farbaek-scheduled`, then `journalctl -u farbaek-scheduled -n 5`.
 - **Secrets:** they live only in `/opt/farbaek/env/production.env` (mode 600, owner `farbaek`).
   - The build reads that file as a secret mount, so the `NEXT_PUBLIC_*` values get inlined and nothing is written into a layer.
   - The running app gets it from compose's `env_file`.
@@ -49,7 +50,7 @@ It's still one long-lived Node server with one replica, because agent runs live 
 | `deploy/vps/searxng/settings.yml` | Mounted read-only into SearXNG (stage 205) |
 | `deploy/vps/production.env.example` | Copied once to `/opt/farbaek/env/production.env` |
 | `deploy/vps/systemd/*` | `/etc/systemd/system/` |
-| `scripts/vps/deploy.sh`, `sweep.sh`, `jobs.sh` | `/usr/local/bin/farbaek-deploy`, `farbaek-sweep`, `farbaek-jobs` |
+| `scripts/vps/deploy.sh`, `sweep.sh`, `jobs.sh`, `scheduled.sh` | `/usr/local/bin/farbaek-deploy`, `farbaek-sweep`, `farbaek-jobs`, `farbaek-scheduled` |
 | `scripts/vps/bootstrap.sh`, `install.sh` | Run by hand: the first setup, and after these files change |
 
 ## Setting up a server from nothing

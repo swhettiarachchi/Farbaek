@@ -10,6 +10,8 @@ export const JOBS = [
   { key: "hourly_jobs", label: "Hourly jobs", every: "hourly: trial reminders, alerts, outcome watch and incident escalation", lateAfterHours: 3 },
   { key: "db_backup", label: "Nightly backup", every: "nightly at 02:30 UTC", lateAfterHours: 30 },
   { key: "restore_test", label: "Backup restore test", every: "weekly on Sundays", lateAfterHours: 8 * 24 },
+  // People's scheduled tasks (ADR 0278): every minute by its own timer, and every 15 minutes with the sandbox sweep until that's installed.
+  { key: "scheduled_tasks", label: "Scheduled tasks", every: "every minute", lateAfterHours: 1 },
 ] as const;
 
 export type JobKey = (typeof JOBS)[number]["key"];

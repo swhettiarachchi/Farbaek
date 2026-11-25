@@ -38,9 +38,12 @@ export async function GET() {
   // What the person asked Farbaek AI to remember (stage 207). An older database without it adds nothing rather than failing the export.
   const remembered = await admin.rpc("app_chat_memories_export", { p_user: ctx.user.id });
   if (remembered.error) log("warn", "account.export_without_memories", { error: remembered.error.message.slice(0, 120) });
+  // What the person scheduled Farbaek to do by itself (stage 271). An older database without it adds nothing rather than failing the export.
+  const scheduled = await admin.rpc("app_scheduled_tasks_export", { p_user: ctx.user.id });
+  if (scheduled.error) log("warn", "account.export_without_scheduled", { error: scheduled.error.message.slice(0, 120) });
   log("info", "account.exported", { user: ctx.user.id });
   const day = new Date().toISOString().slice(0, 10);
-  return new Response(`${JSON.stringify({ ...(data as Record<string, unknown>), shared_projects: shared.data ?? [], ...(remembered.error ? { chat_memories: null, chat_memories_note: "What you asked Farbaek AI to remember couldn't be read for this download. Download again later, or see it under Memory in Chat's settings." } : { chat_memories: remembered.data ?? [] }) }, null, 2)}\n`, {
+  return new Response(`${JSON.stringify({ ...(data as Record<string, unknown>), shared_projects: shared.data ?? [], ...(remembered.error ? { chat_memories: null, chat_memories_note: "What you asked Farbaek AI to remember couldn't be read for this download. Download again later, or see it under Memory in Chat's settings." } : { chat_memories: remembered.data ?? [] }), ...(scheduled.error ? { scheduled_tasks: null, scheduled_tasks_note: "Your scheduled tasks couldn't be read for this download. Download again later, or see them on the Scheduled page." } : { scheduled_tasks: scheduled.data ?? [] }) }, null, 2)}\n`, {
     headers: {
       "content-type": "application/json; charset=utf-8",
       "content-disposition": `attachment; filename="farbaek-my-data-${day}.json"`,
