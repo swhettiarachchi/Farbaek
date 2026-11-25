@@ -6,8 +6,11 @@
  * that expire soonest, under the organization lock, and issues this period's
  * grant on first use. After the call it settles to the real token cost
  * (src/core/billing/rate-card.ts) and gives back the rest. A call that
- * produces nothing usable is refunded in full. If settling fails after a
- * success, the reservation keeps counting (fail closed).
+ * produces nothing usable is refunded in full. A settlement the database
+ * couldn't be reached for is asked again, twice; one that still fails is
+ * logged with its entry. Its reservation is then left open, and the hourly
+ * job that closes reservations nothing settled gives it back (ADR 0279):
+ * a person is never charged for a call Farbaek couldn't record.
  *
  * Units are internal only. People see the share of their usage used, when
  * it resets and what rolled over (ADR 0019), never units or costs.
@@ -19,12 +22,17 @@ import { resolveEffectivePlan, trialPlan, type BillingSnapshot, type EffectivePl
 import { currentGrant, walletView, type GrantRow, type GrantSpec, type WalletView } from "@/core/billing/wallet";
 import type { DraftFailure, ProviderUsage } from "@/server/ai/contract-drafter";
 import type { ModelSelection } from "@/server/ai/providers";
+import { log } from "@/server/observability/log";
 import { MESSAGES, codeFromDatabaseError, fail, type RpcResult, type WriteDeps, type WriteErrorCode, type WriteResult } from "./use-cases";
 
 /** The most one call may reserve or settle (the database's own bound). */
 const MAX_UNITS_PER_CALL = 10_000_000;
 
-export type RefundReason = "failed" | "free_retry" | "stopped";
+/**
+ * Why a reservation was given back. "interrupted" is written only by the hourly job that closes reservations a stopped server left
+ * open (ADR 0279): no call refunds with it.
+ */
+export type RefundReason = "failed" | "free_retry" | "stopped" | "interrupted";
 
 export interface AiUsageDeps {
   /** The workspace's grants that haven't expired, read as the person. */
@@ -36,9 +44,11 @@ export interface AiUsageDeps {
     status: "settled" | "refunded";
     units: number;
     usage: ProviderUsage | null;
-    refundReason: RefundReason | null;
+    refundReason: Exclude<RefundReason, "interrupted"> | null;
     retryCap: number | null;
   }): Promise<RpcResult<null>>;
+  /** Waits between tries at a settlement; the tests don't. */
+  wait?(ms: number): Promise<void>;
 }
 
 /**
@@ -203,18 +213,31 @@ export async function reserveMetered(
   return reserved.ok ? { ok: true, value: { entryId: reserved.value.entryId, units: reserved.value.units } } : reserved;
 }
 
-const safely = (p: Promise<RpcResult<null>>): Promise<RpcResult<null>> => p.catch(() => ({ ok: false as const, error: "SETTLE_FAILED" }));
+/** The database's own refusals of a settlement: the entry is closed already, or the request is one it won't take. Asking again answers the same. */
+const SETTLE_REFUSED = /NOT_FOUND|INVALID_STATUS|RETRY_CAP/;
+/** Asking again when the database couldn't be reached: a call that worked must not go unrecorded for one dropped request. */
+const SETTLE_RETRY_MS = [200, 1_000] as const;
+
+async function settling(deps: AiUsageDeps, input: Parameters<AiUsageDeps["settleUsage"]>[0]): Promise<RpcResult<null>> {
+  let last: RpcResult<null> = { ok: false, error: "SETTLE_FAILED" };
+  for (let i = 0; i <= SETTLE_RETRY_MS.length; i++) {
+    last = await deps.settleUsage(input).catch(() => ({ ok: false as const, error: "SETTLE_FAILED" }));
+    if (last.ok || SETTLE_REFUSED.test(last.error)) return last;
+    if (i < SETTLE_RETRY_MS.length) await (deps.wait ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))))(SETTLE_RETRY_MS[i]!);
+  }
+  // Never recorded: said in the log with the entry, so it can be found; the hourly job gives the reservation back (ADR 0279).
+  log("error", "usage.settle_failed", { entry: input.entryId, status: input.status, reason: last.ok ? null : last.error.slice(0, 120) });
+  return last;
+}
 
 /** Settles a call to its real cost. */
 export function settleUsage(deps: AiUsageDeps, input: { orgId: string; entryId: string; usage: ProviderUsage }): Promise<RpcResult<null>> {
-  return safely(deps.settleUsage({ ...input, status: "settled", units: unitsFor(input.usage), refundReason: null, retryCap: null }));
+  return settling(deps, { ...input, status: "settled", units: unitsFor(input.usage), refundReason: null, retryCap: null });
 }
 
 /** Gives a call's whole reservation back. The real cost is still recorded, for Farbaek's own accounts. */
-export function refundUsage(deps: AiUsageDeps, input: { orgId: string; entryId: string; usage: ProviderUsage | null; reason: Exclude<RefundReason, "free_retry"> }): Promise<RpcResult<null>> {
-  return safely(
-    deps.settleUsage({ orgId: input.orgId, entryId: input.entryId, status: "refunded", units: input.usage ? unitsFor(input.usage) : 0, usage: input.usage, refundReason: input.reason, retryCap: null }),
-  );
+export function refundUsage(deps: AiUsageDeps, input: { orgId: string; entryId: string; usage: ProviderUsage | null; reason: Exclude<RefundReason, "free_retry" | "interrupted"> }): Promise<RpcResult<null>> {
+  return settling(deps, { orgId: input.orgId, entryId: input.entryId, status: "refunded", units: input.usage ? unitsFor(input.usage) : 0, usage: input.usage, refundReason: input.reason, retryCap: null });
 }
 
 /**
@@ -226,7 +249,7 @@ export async function settleAsFreeRetry(deps: AiUsageDeps, input: { orgId: strin
   const units = unitsFor(input.usage);
   const cap = input.plan.limits.retryUnitsPerMonth;
   if (cap !== null && cap > 0) {
-    const refunded = await safely(deps.settleUsage({ orgId: input.orgId, entryId: input.entryId, units, status: "refunded", usage: input.usage, refundReason: "free_retry", retryCap: cap }));
+    const refunded = await settling(deps, { orgId: input.orgId, entryId: input.entryId, units, status: "refunded", usage: input.usage, refundReason: "free_retry", retryCap: cap });
     if (refunded.ok) return { free: true, recorded: true };
   }
   const settled = await settleUsage(deps, input);

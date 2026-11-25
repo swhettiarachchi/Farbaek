@@ -56,7 +56,7 @@ The person's tasks, each with its schedule in a sentence, its next time, its lat
 - A retry sends the instruction again; the conversation keeps the earlier attempt that stopped.
 - A day or a date said without its time, in the middle of a sentence, is not read ("remind me on 1 December to renew"): the person sets it in the form. Reading less is the price of never reading the subject as the schedule.
 - **Known, and not fixed here:**
-  - a turn cut off by a restart leaves its usage reservation unsettled. That is Chat's own behaviour, found by this stage's review, and wants its own fix for Chat and scheduled runs together;
+  - a turn cut off by a restart left its usage reservation unsettled: Chat's own behaviour, found by this stage's review. Fixed for every kind of call in stage 272 (ADR 0279);
   - a model's refusal to answer is tried again like any failed answer, twice more;
   - a schedule edited while its run is under way can make one run more than "ends after N runs" allows.
 - **Not yet:**

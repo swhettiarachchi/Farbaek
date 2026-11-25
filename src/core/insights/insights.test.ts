@@ -63,6 +63,8 @@ describe("Cost Brain", () => {
         entry({ status: "refunded", refundReason: "failed", units: 999 }),
         entry({ status: "refunded", refundReason: "free_retry", units: 999 }),
         entry({ operation: "second_check", status: "refunded", refundReason: "stopped", model: "gpt-6.1-terra", units: 999 }),
+        // A reservation Farbaek closed because its server stopped before the call ended (ADR 0279): given back, counted apart.
+        entry({ status: "refunded", refundReason: "interrupted", model: null, units: 0, inputTokens: null, outputTokens: null, cacheReadTokens: null, cacheWriteTokens: null }),
       ],
       [
         { billedSeconds: 125, state: "terminated" },
@@ -72,7 +74,7 @@ describe("Cost Brain", () => {
     );
     expect(c.percent).toBe(4.5);
     expect(c.estimated).toBe(true);
-    expect(c.refunds).toEqual({ failed: 1, freeRetry: 1, stopped: 1 });
+    expect(c.refunds).toEqual({ failed: 1, freeRetry: 1, stopped: 1, interrupted: 1 });
     expect(c.sandbox).toEqual({ sessions: 2, minutes: 3, running: 1 });
     expect(c.operations.map((o) => [o.operation, o.calls, o.percent, o.estimated])).toEqual([
       ["agent_step", 2, 4, false],
