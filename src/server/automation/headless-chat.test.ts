@@ -10,7 +10,10 @@ import type { ChatModel, ChatOutcome } from "@/server/ai/chat-model";
 import type { ChatWrites } from "@/server/chat/store";
 import type { TurnDeps } from "@/server/chat/turn";
 import type { AiUsageDeps, UsageContext } from "@/server/workspace/ai-usage";
-import { runHeadlessTurn, type HeadlessEnv, type HeadlessTurn } from "./headless-chat";
+import { AGENT_RUN_NOTE_MAX, agentRunNote } from "@/core/automation/agents";
+import { WORKSPACE_PAUSED, WORKSPACE_PAUSED_MESSAGE, outcomeOfRefusal } from "@/core/automation/tasks";
+import { SERVER_NOTE_MAX } from "@/server/chat/turn";
+import { runHeadlessTurn, workspaceRefusal, type HeadlessEnv, type HeadlessTurn } from "./headless-chat";
 
 vi.mock("server-only", () => ({}));
 
@@ -63,6 +66,8 @@ interface World {
   full?: boolean;
   reserveError?: string;
   refuse?: { status: number; message: string };
+  /** What the person asked Farbaek to remember. */
+  memories?: string[];
 }
 
 function setup(world: World) {
@@ -105,6 +110,7 @@ function setup(world: World) {
       pendingFiles: async () => [],
       conversation: async (id) => (id === OLD && world.conversation ? { id, titled: true, title: "Morning news", projectId: null } : id === NEW ? { id, titled: false, title: "", projectId: null } : null),
       projectExists: async () => false,
+      ...(world.memories ? { memories: async () => (calls.push({ name: "memories", input: null }), world.memories!) } : {}),
     },
     claude: model,
     openai: null,
@@ -127,6 +133,26 @@ function setup(world: World) {
 
 const turn = (conversationId: string | null): HeadlessTurn => ({ orgId: ORG, userId: USER, conversationId, title: "Morning news", text: "Research the latest news and summarise it.", web: false, effort: "balanced" });
 const go = (s: ReturnType<typeof setup>, conversationId: string | null) => runHeadlessTurn(s.env, turn(conversationId), new AbortController().signal);
+
+describe("what stops a run before anything is spent", () => {
+  it("is a workspace that is gone or that Farbaek has paused, which isn't worth trying again", () => {
+    expect(workspaceRefusal(null)).toEqual({ status: 403, message: "Farbaek has paused this workspace, so this didn't run." });
+    expect(workspaceRefusal({ suspended_at: "2026-11-25T00:00:00Z", agents_paused_at: null })?.status).toBe(403);
+  });
+
+  it("is the workspace's own pause of its agents, which the task isn't blamed for and which lifts by itself", () => {
+    const paused = workspaceRefusal({ suspended_at: null, agents_paused_at: "2026-11-25T00:00:00Z" })!;
+    expect(paused.status).toBe(WORKSPACE_PAUSED);
+    expect(outcomeOfRefusal(paused.status, paused.message)).toEqual({ kind: "skipped", detail: WORKSPACE_PAUSED_MESSAGE, blameless: true });
+    // Farbaek's own pause comes first: it isn't lifted by the workspace.
+    expect(workspaceRefusal({ suspended_at: "2026-11-25T00:00:00Z", agents_paused_at: "2026-11-25T00:00:00Z" })?.status).toBe(403);
+  });
+
+  it("is nothing for a workspace that is running", () => {
+    expect(workspaceRefusal({ suspended_at: null, agents_paused_at: null })).toBeNull();
+    expect(workspaceRefusal({ suspended_at: null })).toBeNull();
+  });
+});
 
 describe("a scheduled run's Chat turn", () => {
   it("starts the task's conversation with its first question, names it by the task and remembers it", async () => {
@@ -186,6 +212,31 @@ describe("a scheduled run's Chat turn", () => {
     asked.length = 0;
     await go(setup({ conversation: null }), null);
     expect(asked.at(-1)!.messages.findLast((m) => m.role === "user")!.parts.some((p) => p.type === "context" && p.text === note)).toBe(false);
+  });
+
+  it("carries a note as long as an agent's whole: its lead and every note from its earlier runs reach the model", async () => {
+    // The longest an agent's run is told (AGENT_RUN_NOTE_MAX): cut short, it would be told it has notes and be given none.
+    const notes = Array.from({ length: 8 }, (_, i) => ({ at: "2026-11-24T08:00:00Z", note: `${i} ${"x".repeat(480)}` }));
+    const note = agentRunNote({ name: "Scout", notes });
+    expect(note.length).toBeGreaterThan(4_000);
+    expect(note.length).toBeLessThanOrEqual(SERVER_NOTE_MAX);
+    expect(AGENT_RUN_NOTE_MAX).toBeLessThanOrEqual(SERVER_NOTE_MAX);
+    const s = setup({ conversation: null });
+    asked.length = 0;
+    await runHeadlessTurn(s.env, { ...turn(null), note }, new AbortController().signal);
+    const said = asked.at(-1)!.messages.findLast((m) => m.role === "user")!;
+    const carried = said.parts.filter((p) => p.type === "context").map((p) => p.text ?? "");
+    expect(carried).toContain(note);
+    expect(carried.join("\n")).toContain("- 24 Nov: 7 x");
+  });
+
+  it("gives back the answer's text, and reads the person's memory unless the run is set not to (an agent's choice)", async () => {
+    const s = setup({ conversation: null, memories: ["Prefers short answers."] });
+    expect(await go(s, null)).toMatchObject({ ok: true, status: "complete", text: "Today's news, in short.", chars: 23 });
+    expect(s.calls.filter((c) => c.name === "memories")).toHaveLength(1);
+    const off = setup({ conversation: null, memories: ["Prefers short answers."] });
+    await runHeadlessTurn(off.env, { ...turn(null), memory: false }, new AbortController().signal);
+    expect(off.calls.filter((c) => c.name === "memories")).toHaveLength(0);
   });
 
   it("answers as the Chat page would when usage has run out or the person can't use AI here, and makes nothing", async () => {

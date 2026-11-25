@@ -102,6 +102,16 @@ describe("what Home leads with", () => {
     expect(needsYou({ ...none, scheduledStopped: [] })).toBeNull();
   });
 
+  it("says an agent that was paused as an agent, and opens the Agents tab, where it is listed", () => {
+    const agent = { id: "a1", title: "Scout", reason: "Its last 5 runs didn't finish.", agent: true };
+    const task = { id: "s1", title: "Morning news", reason: "Its last 5 runs didn't finish." };
+    expect(needsYou({ ...none, scheduledStopped: [agent] })).toMatchObject({ title: "An agent was paused", body: `"Scout". Its last 5 runs didn't finish.`, action: { label: "See it", href: "/app/scheduled/agents" } });
+    expect(needsYou({ ...none, scheduledStopped: [agent, { ...agent, id: "a2" }] })).toMatchObject({ title: "2 agents were paused", action: { href: "/app/scheduled/agents" } });
+    const mixed = needsYou({ ...none, scheduledStopped: [agent, task] })!;
+    expect(mixed).toMatchObject({ title: "2 scheduled tasks and agents were paused", action: { href: "/app/scheduled" } });
+    expect(mixed.body).toContain("its Agents tab");
+  });
+
   it("isn't the turn of someone who can only look, and offers them nothing to press", () => {
     expect(needsYou({ ...none, others: 1 })).toMatchObject({ tone: "idle", title: "A change is waiting for someone else's yes or no", action: null });
     expect(needsYou({ ...none, others: 2 })).toMatchObject({ title: "2 changes are waiting for someone else's yes or no", action: null });

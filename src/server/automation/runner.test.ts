@@ -3,6 +3,7 @@
  * recorded as, when it's tried again, when the task is paused, and who is told. SYNTHETIC values.
  */
 import { describe, expect, it, vi } from "vitest";
+import type { AgentContext } from "@/core/automation/agents";
 import type { ScheduledLimit } from "@/core/automation/tasks";
 import type { ScheduledNotice } from "@/server/email/notify";
 import type { HeadlessResult } from "./headless-chat";
@@ -30,24 +31,41 @@ const run = (o: Partial<ClaimedRun> = {}): ClaimedRun => ({
   manual: false,
   ...o,
 });
-const DONE: HeadlessResult = { ok: true, conversationId: "55555555-5555-4555-8555-555555555555", messageId: "66666666-6666-4666-8666-666666666666", status: "complete", error: null, chars: 900 };
+const DONE: HeadlessResult = { ok: true, conversationId: "55555555-5555-4555-8555-555555555555", messageId: "66666666-6666-4666-8666-666666666666", status: "complete", error: null, chars: 900, text: "I compared the three pricing pages. One changed.\n\nNext: read their changelogs." };
+const SCOUT: AgentContext = { agentId: "77777777-7777-4777-8777-777777777777", name: "Scout", goal: "Watch my competitors.", runsLimit: 30, useMemory: true, archived: false, runsIn30Days: 3, toldLimit: false, newChat: false, notes: [{ at: "2026-11-24T03:30:00Z", note: "Listed the competitors. Next: compare prices." }] };
 const USED_UP: HeadlessResult = { ok: false, status: 402, message: "This month's AI usage is used up.", conversationId: null };
 
-function setup(result: HeadlessResult | (() => Promise<HeadlessResult>), o: { recorded?: ("recorded" | "stale" | "error")[]; limit?: ScheduledLimit | null; position?: number | null } = {}) {
+function setup(result: HeadlessResult | (() => Promise<HeadlessResult>), o: { recorded?: ("recorded" | "stale" | "error")[]; limit?: ScheduledLimit | null; position?: number | null; agent?: AgentContext | null | "error" | "throws"; noteFails?: boolean } = {}) {
   const finished: RunFinish[] = [];
   const told: ScheduledNotice[] = [];
   const waits: number[] = [];
+  const notes: { runId: string; note: string }[] = [];
+  const logged: string[] = [];
   const answers = [...(o.recorded ?? [])];
   const turn = vi.fn(async () => (typeof result === "function" ? result() : result));
   const deps: RunnerDeps = {
-    store: { claim: async () => [], finish: async (i) => (finished.push(i), answers.shift() ?? "recorded"), linkConversation: async () => undefined, position: async () => (o.position === undefined ? 1 : o.position) },
+    store: {
+      claim: async () => [],
+      finish: async (i) => (finished.push(i), answers.shift() ?? "recorded"),
+      linkConversation: async () => undefined,
+      position: async () => (o.position === undefined ? 1 : o.position),
+      agent: async () => {
+        if (o.agent === "throws") throw new Error("down");
+        return o.agent ?? null;
+      },
+      runNote: async (runId, note) => {
+        if (o.noteFails) throw new Error("NOTE_NOT_KEPT");
+        notes.push({ runId, note });
+      },
+    },
     turn,
     ...(o.limit !== undefined ? { limit: async () => o.limit ?? null } : {}),
     notify: async (n) => void told.push(n),
     now: () => NOW,
     sleep: async (ms) => void waits.push(ms),
+    log: (event) => void logged.push(event),
   };
-  return { deps, finished, told, turn, waits };
+  return { deps, finished, told, turn, waits, notes, logged };
 }
 
 describe("a scheduled run", () => {
@@ -194,6 +212,141 @@ describe("a scheduled run", () => {
     await runClaimed(s.deps, run());
     expect(s.finished).toHaveLength(1);
     expect(s.told).toEqual([]);
+  });
+});
+
+describe("while the workspace's agents are paused", () => {
+  const PAUSED: HeadlessResult = { ok: false, status: 423, message: "An owner or admin paused agents in this workspace, so this didn't run.", conversationId: null };
+
+  it("passes the run over without holding it against the task, keeps its next time, and tells nobody run by run", async () => {
+    const s = setup(PAUSED);
+    expect(await runClaimed(s.deps, run({ failuresInRow: 4 }))).toBe("skipped");
+    expect(s.finished[0]).toMatchObject({ status: "skipped", detail: expect.stringContaining("paused agents in this workspace"), retryAt: null, nextRunAt: new Date("2026-11-26T03:30:00Z"), pauseReason: null, failuresInRow: 4 });
+    expect(s.told).toEqual([]);
+    const first = setup(PAUSED);
+    await runClaimed(first.deps, run());
+    expect(first.told).toEqual([]);
+  });
+
+  it("stops an agent's run the same way, and keeps no note", async () => {
+    const s = setup(PAUSED, { agent: SCOUT });
+    expect(await runClaimed(s.deps, run())).toBe("skipped");
+    expect(s.notes).toEqual([]);
+    expect(s.told).toEqual([]);
+  });
+});
+
+describe("a run of an agent's task", () => {
+  const note = (s: ReturnType<typeof setup>) => (s.turn.mock.calls[0] as unknown as [{ note?: string; memory?: boolean }])[0];
+
+  it("is told it is the agent's run with its notes, and leaves a note of what it did for the next", async () => {
+    const s = setup(DONE, { agent: SCOUT });
+    expect(await runClaimed(s.deps, run({ title: "Scout", instruction: "Watch my competitors." }))).toBe("done");
+    expect(note(s).note).toContain('the goal of "Scout", an agent the person set up in Farbaek');
+    expect(note(s).note).toContain("- 24 Nov: Listed the competitors. Next: compare prices.");
+    expect(note(s).note).not.toMatch(/scheduled in Farbaek, and it is due now/);
+    expect(note(s).memory).toBe(true);
+    expect(s.notes).toEqual([{ runId: run().runId, note: "I compared the three pricing pages. One changed. Next: read their changelogs." }]);
+    expect(s.told).toHaveLength(1);
+  });
+
+  it("isn't given what the person asked Farbaek to remember when the agent is set that way", async () => {
+    const s = setup(DONE, { agent: { ...SCOUT, useMemory: false } });
+    await runClaimed(s.deps, run());
+    expect(note(s).memory).toBe(false);
+  });
+
+  it("leaves a plain task as it was: the scheduled note, memory as ever, and no note kept", async () => {
+    const s = setup(DONE, { agent: null });
+    await runClaimed(s.deps, run());
+    expect(note(s).note).toMatch(/scheduled in Farbaek, and it is due now/);
+    expect(note(s).memory).toBeUndefined();
+    expect(s.notes).toEqual([]);
+  });
+
+  it("is passed over at its limit without a turn, stays on for its next time, and isn't counted against it", async () => {
+    const s = setup(DONE, { agent: { ...SCOUT, runsIn30Days: 30 } });
+    expect(await runClaimed(s.deps, run({ failuresInRow: 2 }))).toBe("skipped");
+    expect(s.turn).not.toHaveBeenCalled();
+    expect(s.finished[0]).toMatchObject({ status: "skipped", detail: expect.stringContaining("which is its limit"), retryAt: null, nextRunAt: new Date("2026-11-26T03:30:00Z"), pauseReason: null, failuresInRow: 2 });
+    expect(s.notes).toEqual([]);
+    // The person is told, the first time.
+    const first = setup(DONE, { agent: { ...SCOUT, runsIn30Days: 30 } });
+    await runClaimed(first.deps, run());
+    expect(first.told).toEqual([expect.objectContaining({ status: "skipped", detail: expect.stringContaining("which is its limit") })]);
+  });
+
+  it("tells of reaching its limit once, not at every time it is passed over", async () => {
+    const s = setup(DONE, { agent: { ...SCOUT, runsIn30Days: 30, toldLimit: true } });
+    expect(await runClaimed(s.deps, run())).toBe("skipped");
+    expect(s.told).toEqual([]);
+  });
+
+  it("keeps no note when the answer didn't finish, or when the try had been given up on", async () => {
+    const cut = setup({ ...DONE, status: "stopped" }, { agent: SCOUT });
+    expect(await runClaimed(cut.deps, run())).toBe("retrying");
+    expect(cut.notes).toEqual([]);
+    const stale = setup(DONE, { agent: SCOUT, recorded: ["stale"] });
+    await runClaimed(stale.deps, run());
+    expect(stale.notes).toEqual([]);
+  });
+
+  it("keeps no note for an answer with nothing to keep, and still records the run", async () => {
+    const s = setup({ ...DONE, text: "" }, { agent: SCOUT });
+    expect(await runClaimed(s.deps, run())).toBe("done");
+    expect(s.notes).toEqual([]);
+  });
+
+  it("doesn't run for an agent that was removed after the run was claimed, as an agent's or as a plain task", async () => {
+    const s = setup(DONE, { agent: { ...SCOUT, archived: true } });
+    expect(await runClaimed(s.deps, run())).toBe("skipped");
+    expect(s.turn).not.toHaveBeenCalled();
+    expect(s.finished[0]).toMatchObject({ status: "skipped", detail: "Its agent was removed, so this didn't run.", pauseReason: null, failuresInRow: 0 });
+    expect(s.told).toEqual([]);
+  });
+
+  it("starts a new chat when its notes were cleared since its chat began, and carries on its chat otherwise", async () => {
+    const OLD = "88888888-8888-4888-8888-888888888888";
+    const fresh = setup(DONE, { agent: { ...SCOUT, newChat: true, notes: [] } });
+    await runClaimed(fresh.deps, run({ conversationId: OLD }));
+    expect((fresh.turn.mock.calls[0] as unknown as [{ conversationId: string | null }])[0].conversationId).toBeNull();
+    const same = setup(DONE, { agent: SCOUT });
+    await runClaimed(same.deps, run({ conversationId: OLD }));
+    expect((same.turn.mock.calls[0] as unknown as [{ conversationId: string | null }])[0].conversationId).toBe(OLD);
+  });
+
+  it("says in what it sends that the task is an agent's, so the link goes to the Agents tab; a plain task's doesn't", async () => {
+    const s = setup(DONE, { agent: SCOUT });
+    await runClaimed(s.deps, run());
+    expect(s.told[0]).toMatchObject({ agent: true });
+    const plain = setup(DONE, { agent: null });
+    await runClaimed(plain.deps, run());
+    expect(plain.told[0]).not.toHaveProperty("agent");
+  });
+
+  it("records the run and logs it when the note couldn't be kept: a line of memory is lost, never the run", async () => {
+    const s = setup(DONE, { agent: SCOUT, noteFails: true });
+    expect(await runClaimed(s.deps, run())).toBe("done");
+    expect(s.logged).toContain("scheduled.note_not_kept");
+    expect(s.told).toHaveLength(1);
+  });
+
+  it("is tried again, not run blind, when it can't be told whether the task is an agent's", async () => {
+    for (const agent of ["error", "throws"] as const) {
+      const s = setup(DONE, { agent });
+      expect(await runClaimed(s.deps, run())).toBe("retrying");
+      expect(s.turn).not.toHaveBeenCalled();
+      expect(s.finished[0]).toMatchObject({ status: "failed", detail: expect.stringContaining("The run couldn't be prepared.") });
+    }
+  });
+
+  it("doesn't ask whose task it is for a run that is too late to make", async () => {
+    const agent = { ...SCOUT };
+    const s = setup(DONE, { agent });
+    const asked = vi.spyOn(s.deps.store, "agent");
+    expect(await runClaimed(s.deps, run({ dueAt: new Date("2026-11-24T03:30:00Z") }))).toBe("skipped");
+    expect(asked).not.toHaveBeenCalled();
+    expect(s.turn).not.toHaveBeenCalled();
   });
 });
 

@@ -3,7 +3,8 @@
 import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { saveScheduledTaskAction, type ScheduledState } from "@/app/app/scheduled/actions";
+import { saveAgentAction, saveScheduledTaskAction, type ScheduledState } from "@/app/app/scheduled/actions";
+import { AGENT_LIMITS_TEXT, runsIn30Days, suggestedRunsLimit } from "@/core/automation/agents";
 import { clock, describeSchedule, isTimeZone, nextRun, wallClock, type Repeat, type Schedule, type ScheduleEnd } from "@/core/automation/schedule";
 import { DEFAULT_OPTIONS, TASK_LIMITS, scheduleProblem, type ScheduledLimit, type TaskOptions } from "@/core/automation/tasks";
 import { scheduleFromWords } from "@/core/automation/words";
@@ -98,15 +99,25 @@ export interface TaskFormStart {
   state: "active" | "paused" | "ended";
 }
 
+/** Makes the form an agent's (stage 275): a name and a goal, the same schedule, and its limit and memory choice. */
+export interface AgentFormStart {
+  /** The agent being changed; missing for a new one. */
+  start?: { agentId: string; version: number; runsLimit: number; useMemory: boolean };
+}
+
 /**
  * One scheduled task, new or changed (stage 271, ADR 0278): what Farbaek should do, and when. For a new task the schedule is read
  * from the person's own words as they write ("every weekday at 8:30"), shown in a sentence, and theirs to change before anything is
  * saved. `serverNow` is the server's clock at render, so the page and the browser first draw the same thing.
+ *
+ * With `agent` it is an agent's form (stage 275, ADR 0282): the instruction is its goal, its name is asked for up front, and it has
+ * a limit on its runs and a choice about memory. Everything about when is the same.
  */
 export function TaskForm({
   start,
   seed,
   carried,
+  agent,
   limit,
   disabledReason,
   serverNow,
@@ -114,6 +125,7 @@ export function TaskForm({
   onDone,
 }: {
   start?: TaskFormStart;
+  agent?: AgentFormStart;
   seed?: { title: string; instruction: string; repeat: Repeat };
   /** A request carried from Chat, to be changed before it is saved: the form starts on it, with its schedule read from its words. */
   carried?: string;
@@ -142,6 +154,9 @@ export function TaskForm({
   const [touched, setTouched] = useState(Boolean(start));
   const [fromWords, setFromWords] = useState<{ timeAssumed: boolean; hourAssumed: boolean } | null>(carriedRead ? { timeAssumed: carriedRead.timeAssumed, hourAssumed: carriedRead.hourAssumed } : null);
   const [lastDayPressed, setLastDayPressed] = useState(false);
+  // An agent's limit follows its schedule until the person sets one themselves.
+  const [limitSet, setLimitSet] = useState<number | null>(agent?.start?.runsLimit ?? null);
+  const [useMemory, setUseMemory] = useState(agent?.start?.useMemory ?? true);
   const [result, setResult] = useState<ScheduledState>({ status: "idle" });
   const [pending, startTransition] = useTransition();
   const box = useRef<HTMLTextAreaElement>(null);
@@ -190,11 +205,16 @@ export function TaskForm({
   // What the server will check again: said here first, so Save is never a surprise.
   const problem = instruction.trim() ? scheduleProblem(schedule, limit, now, start?.runsFinished ?? 0) : null;
   const next = problem ? null : nextRun(schedule, now, start?.runsFinished ?? 0);
-  const off = disabledReason ?? (!instruction.trim() ? "Say what Farbaek should do first." : problem);
+  const off = disabledReason ?? (agent && !title.trim() ? "Give it a name first." : !instruction.trim() ? (agent ? "Say what it should work toward first." : "Say what Farbaek should do first.") : problem);
+  const runsLimit = limitSet ?? suggestedRunsLimit(schedule);
+  const due = runsIn30Days(repeat);
 
   const save = () =>
     startTransition(async () => {
-      const r = await saveScheduledTaskAction({ taskId: start?.taskId ?? null, baseVersion: start?.version ?? null, title, instruction, schedule, options }).catch((): ScheduledState => ({ status: "error", message: "The connection dropped. Nothing was saved. Try again." }));
+      const dropped = (): ScheduledState => ({ status: "error", message: "The connection dropped. Nothing was saved. Try again." });
+      const r = agent
+        ? await saveAgentAction({ agentId: agent.start?.agentId ?? null, baseVersion: agent.start?.version ?? null, name: title, goal: instruction, runsLimit, useMemory, schedule, options }).catch(dropped)
+        : await saveScheduledTaskAction({ taskId: start?.taskId ?? null, baseVersion: start?.version ?? null, title, instruction, schedule, options }).catch(dropped);
       setResult(r);
       if (r.status !== "done") return;
       if (!start) {
@@ -208,6 +228,8 @@ export function TaskForm({
         setTouched(false);
         setFromWords(null);
         setLastDayPressed(false);
+        setLimitSet(null);
+        setUseMemory(true);
       }
       router.refresh();
       onDone?.();
@@ -215,24 +237,45 @@ export function TaskForm({
 
   const id = start?.taskId ?? "new";
   // The folded choices in a sentence, so what is set is read without opening them.
-  const choices = `${title.trim() ? "Named. " : ""}${options.effort === "quick" ? "Quick" : options.effort === "thorough" ? "Thorough" : "Balanced"} thought, ${options.web ? "checks the web when needed" : "no web"}, ${options.notify ? "tells you when it has run" : "doesn't tell you when it has run"}.`;
+  const choices = `${!agent && title.trim() ? "Named. " : ""}${options.effort === "quick" ? "Quick" : options.effort === "thorough" ? "Thorough" : "Balanced"} thought, ${options.web ? "checks the web when needed" : "no web"}, ${options.notify ? "tells you when it has run" : "doesn't tell you when it has run"}${agent ? (useMemory ? ", uses what you asked Farbaek to remember" : ", doesn't use what you asked Farbaek to remember") : ""}.`;
   const readNote = fromWords
     ? ` Read from your words${fromWords.timeAssumed ? ", with a usual time since you gave none" : fromWords.hourAssumed && repeat.kind !== "hourly" ? `, taking the hour as ${clock(repeat.time)}` : ""}. Change it above if it isn't what you meant.`
     : "";
   return (
     <div className="grid gap-4">
+      {agent ? (
+        <label className="grid gap-1.5 sm:max-w-sm">
+          <span className={LABEL_CLASSES}>Its name</span>
+          <input
+            value={title}
+            maxLength={AGENT_LIMITS_TEXT.name}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setResult({ status: "idle" });
+            }}
+            placeholder="Scout"
+            className={inputClasses()}
+          />
+        </label>
+      ) : null}
       <label className="grid gap-1.5">
-        <span className={LABEL_CLASSES}>What should Farbaek do?</span>
+        <span className={LABEL_CLASSES}>{agent ? "What should it work toward?" : "What should Farbaek do?"}</span>
         <textarea
           ref={box}
           value={instruction}
-          maxLength={TASK_LIMITS.instruction}
+          maxLength={agent ? AGENT_LIMITS_TEXT.goal : TASK_LIMITS.instruction}
           rows={4}
           onChange={(e) => onInstruction(e.target.value)}
-          placeholder="Research the latest AI news every morning and give me a short summary with sources."
+          placeholder={agent ? "Keep track of what my closest competitors change, and tell me what is new since last time." : "Research the latest AI news every morning and give me a short summary with sources."}
           className={inputClasses("min-h-28 resize-y py-2.5 leading-relaxed")}
         />
-        <span className="text-sm text-ink-3">{touched ? "Write it as you would ask in Chat." : "Write it as you would ask in Chat. Say when, and the schedule below follows your words."}</span>
+        <span className="text-sm text-ink-3">
+          {agent
+            ? "Write its goal as you would explain it to a colleague. Each time it works, it picks the next useful piece and builds on its notes from before."
+            : touched
+              ? "Write it as you would ask in Chat."
+              : "Write it as you would ask in Chat. Say when, and the schedule below follows your words."}
+        </span>
       </label>
 
       <fieldset className="grid gap-3 rounded-md border border-line p-3 sm:p-4">
@@ -335,14 +378,36 @@ export function TaskForm({
         </p>
       </fieldset>
 
+      {agent ? (
+        <div className="grid gap-1.5">
+          <NumberField
+            label="Most runs in any 30 days"
+            value={runsLimit}
+            min={1}
+            max={AGENT_LIMITS_TEXT.runs}
+            onChange={(n) => {
+              setLimitSet(n);
+              setResult({ status: "idle" });
+            }}
+            className="sm:max-w-56"
+          />
+          <p className="text-sm text-ink-3">
+            Its limit, so it can never use more than you meant. This schedule comes due {due === 1 ? "once" : `${due} times`} in 30 days at most.
+            {runsLimit < due ? " With a lower limit it stops early, and works again as older runs pass 30 days." : ""}
+          </p>
+        </div>
+      ) : null}
+
       {/* What most tasks leave as it is, said in the fold's own line so nothing is hidden: opened to change it. */}
       <Disclosure summary="More choices" hint={choices}>
         <div className="grid gap-4 pt-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid content-start gap-1.5">
-              <span className={LABEL_CLASSES}>Name</span>
-              <input value={title} maxLength={TASK_LIMITS.title} onChange={(e) => setTitle(e.target.value)} placeholder="Taken from your words if left empty" className={inputClasses()} />
-            </label>
+            {agent ? null : (
+              <label className="grid content-start gap-1.5">
+                <span className={LABEL_CLASSES}>Name</span>
+                <input value={title} maxLength={TASK_LIMITS.title} onChange={(e) => setTitle(e.target.value)} placeholder="Taken from your words if left empty" className={inputClasses()} />
+              </label>
+            )}
             <label className="grid content-start gap-1.5">
               <span className={LABEL_CLASSES}>How much thought</span>
               <select value={options.effort} onChange={(e) => setOptions({ ...options, effort: e.target.value as TaskOptions["effort"] })} className={inputClasses()}>
@@ -361,13 +426,19 @@ export function TaskForm({
               <input type="checkbox" checked={options.notify} onChange={(e) => setOptions({ ...options, notify: e.target.checked })} className="size-5 shrink-0 accent-[var(--color-accent)]" />
               Tell me when it has run
             </label>
+            {agent ? (
+              <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
+                <input type="checkbox" checked={useMemory} onChange={(e) => setUseMemory(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-accent)]" />
+                Use what I asked Farbaek to remember
+              </label>
+            ) : null}
           </div>
         </div>
       </Disclosure>
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={save} disabled={Boolean(off) || pending} className={buttonClasses("primary", "md")}>
-          {pending ? "Saving…" : start ? "Save changes" : "Schedule it"}
+          {pending ? "Saving…" : start ? "Save changes" : agent ? "Start the agent" : "Schedule it"}
         </button>
         {off && !pending ? <p className="min-w-0 basis-full text-sm text-ink-3 sm:flex-1 sm:basis-0">{off}</p> : null}
       </div>

@@ -11,6 +11,7 @@ import { platformModels } from "@/server/platform/state";
 import { webResearch } from "@/server/web/wiring";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
+import { WORKSPACE_PAUSED, WORKSPACE_PAUSED_MESSAGE } from "@/core/automation/tasks";
 
 /**
  * One Chat turn made on the server with no page open (stage 271, ADR 0278): the same turn the Chat page makes (the same routing,
@@ -30,11 +31,16 @@ export interface HeadlessTurn {
   effort: ChatEffort;
   /** Said to the model beside the message, and never shown as the person's words: what kind of run this is. */
   note?: string;
+  /** False when the run mustn't be given what the person asked Farbaek to remember (an agent set that way). Missing: it is. */
+  memory?: boolean;
 }
+
+/** The most of an answer's text a run keeps to read its note from: far more than an answer's opening and its last line need. */
+const ANSWER_KEPT = 60_000;
 
 export type HeadlessResult =
   /** The turn ran: `status` says how it ended. */
-  | { ok: true; conversationId: string; messageId: string | null; status: "complete" | "stopped" | "failed"; error: string | null; chars: number }
+  | { ok: true; conversationId: string; messageId: string | null; status: "complete" | "stopped" | "failed"; error: string | null; chars: number; text: string }
   /** The turn was refused before it started, with the status the Chat page would have answered with. */
   | { ok: false; status: number; message: string; conversationId: string | null };
 
@@ -47,6 +53,17 @@ export interface HeadlessEnv {
   turnDeps(orgId: string, userId: string): Promise<{ ok: true; deps: TurnDeps } | { ok: false; status: number; message: string }>;
   /** Told as soon as the conversation is known, so a turn that is cut off and tried again writes into the same one. */
   onConversation?(conversationId: string): Promise<void>;
+}
+
+/**
+ * Why the workspace's own state stops a run before anything is spent, or null. A workspace that is gone or that Farbaek has paused
+ * isn't worth trying again. The workspace's own button that stops every agent stops this work too: it is an agent's, with nobody
+ * watching, and it starts again at its next time once agents are resumed.
+ */
+export function workspaceRefusal(org: { suspended_at?: string | null; agents_paused_at?: string | null } | null): { status: number; message: string } | null {
+  if (!org || org.suspended_at) return { status: 403, message: "Farbaek has paused this workspace, so this didn't run." };
+  if (org.agents_paused_at) return { status: WORKSPACE_PAUSED, message: WORKSPACE_PAUSED_MESSAGE };
+  return null;
 }
 
 export async function runHeadlessTurn(env: HeadlessEnv, i: HeadlessTurn, signal: AbortSignal): Promise<HeadlessResult> {
@@ -65,7 +82,7 @@ export async function runHeadlessTurn(env: HeadlessEnv, i: HeadlessTurn, signal:
     files: [],
     model: "auto",
     effort: i.effort,
-    memory: true,
+    memory: i.memory !== false,
     web: i.web,
     research: "auto",
     mode: "text",
@@ -89,20 +106,24 @@ export async function runHeadlessTurn(env: HeadlessEnv, i: HeadlessTurn, signal:
 
   let messageId: string | null = null;
   let chars = 0;
+  let text = "";
   let done: Extract<TurnEvent, { type: "done" }> | null = null;
   const emit = (e: TurnEvent) => {
     if (e.type === "start") messageId = e.answer.id;
-    else if (e.type === "text") chars += e.v.length;
-    else if (e.type === "done") done = e;
+    else if (e.type === "text") {
+      chars += e.v.length;
+      // The start and the end are what a note is read from: when an answer outgrows the room, its middle goes.
+      text = text.length + e.v.length <= ANSWER_KEPT ? text + e.v : (text + e.v).slice(0, ANSWER_KEPT / 2) + (text + e.v).slice(-ANSWER_KEPT / 2);
+    } else if (e.type === "done") done = e;
   };
   try {
     await prepared.run(emit, signal);
   } catch (e) {
-    return { ok: true, conversationId: prepared.conversationId, messageId, status: "failed", error: e instanceof Error ? e.name : "The answer couldn't be written.", chars };
+    return { ok: true, conversationId: prepared.conversationId, messageId, status: "failed", error: e instanceof Error ? e.name : "The answer couldn't be written.", chars, text };
   }
   const end = done as Extract<TurnEvent, { type: "done" }> | null;
-  if (!end) return { ok: true, conversationId: prepared.conversationId, messageId, status: "failed", error: "The answer ended without saying how.", chars };
-  return { ok: true, conversationId: prepared.conversationId, messageId, status: end.status, error: end.error, chars };
+  if (!end) return { ok: true, conversationId: prepared.conversationId, messageId, status: "failed", error: "The answer ended without saying how.", chars, text };
+  return { ok: true, conversationId: prepared.conversationId, messageId, status: end.status, error: end.error, chars, text };
 }
 
 /** The real environment: Farbaek's models and the database, through the server's key, scoped to the person in every read. */
@@ -132,9 +153,10 @@ export function headlessEnv(admin: SupabaseClient, onConversation?: (conversatio
       // workspace with a role that may use its AI, and Farbaek hasn't paused the workspace. Lost access isn't worth trying again.
       const role = await base.role(orgId);
       if (!role || !CONTRIBUTOR_ROLES.includes(role)) return { ok: false, status: 403, message: "You can no longer use AI in this workspace, so this didn't run." };
-      const org = await admin.from("organizations").select("suspended_at").eq("id", orgId).maybeSingle();
+      const org = await admin.from("organizations").select("suspended_at, agents_paused_at").eq("id", orgId).maybeSingle();
       if (org.error) return { ok: false, status: 503, message: "The workspace couldn't be read just now." };
-      if (!org.data || org.data.suspended_at) return { ok: false, status: 403, message: "Farbaek has paused this workspace, so this didn't run." };
+      const stopped = workspaceRefusal(org.data);
+      if (stopped) return { ok: false, ...stopped };
       const models = await chatModels(orgId, base);
       if (!models.claude && !models.openai) return { ok: false, status: 503, message: models.error ?? "AI isn't connected on this server yet." };
       const images = imageGeneration();

@@ -19,8 +19,8 @@ The 55 sections of the two briefs cover 32 subjects; many sections of B repeat s
 | | Subjects |
 | --- | --- |
 | Done | 3: the existing core modules kept and in use (A21), billing for today's plans (A28), checkpoints between sessions (B21) |
-| Partly | 26 |
-| Not started | 3: persistent agents (A5, A13, B7), the agent command center (A7), Grok, X search and the X connector (B9) |
+| Partly | 27 |
+| Not started | 2: the agent command center (A7), Grok, X search and the X connector (B9) |
 | Waiting on the owner | an xAI key and budget, an X developer account, a paid video key, the price decision, and the DNS fault at Spaceship |
 
 Inside the "Partly" subjects, whole parts are also not started: the Audio Studio, the phone voice assistant, the three modes, the visual workflow builder, triggers other than time, the investor report, and most of Telepathy. (Schedules were on this list until stage 271.)
@@ -57,9 +57,9 @@ The whole transformation is under way, not finished. The approval rules (product
 
 Studied and tested in the owner's signed-in ChatGPT. The OpenAI API research note is partial. **A4.2 images from ChatGPT for Farbaek:** one picture was generated (a clock with task cards, meant for an empty state). It hasn't been brought into the product.
 
-### A5 Dots and A13, B7 Persistent personal agents: Not started
+### A5 Dots and A13, B7 Persistent personal agents: Partly
 
-Research complete. Nothing built: no agent with a lasting goal, schedule, budget, memory scope, progress or pause, resume and stop.
+Research complete. Part 1 is built (stage 275, ADR 0282): an agent with a name, a lasting goal, a schedule, a limit on its runs in any 30 days, notes of its own that carry from run to run and that the person can read and clear, a switch for the person's memory, progress run by run, and pause, resume, work now and remove. It lives on the Agents tab of the Scheduled page. **Not built:** a budget in AI usage and the cost of each agent, agents that use tools or act on a computer, more than one piece of work for an agent, talking to an agent with its goal in mind, a character or face. **No agent has run on production yet.**
 
 ### A6, A14 Secure work environment (Muse): Partly
 
@@ -186,7 +186,7 @@ Plans bound by hash, approvals, ProofPack, receipts, undo, history, the rules en
 | The pages inside the app (Projects, Tasks, Approvals, Workflows, Agents, Integrations, Settings, Billing and others) | Partly: they have the new frame and Dark; their content wasn't redesigned |
 | Public: homepage, spaces, pricing, security, privacy, legal, sign-in | Partly: Dark added; not redesigned in this program |
 | Public: features, solutions, docs, API docs, about, contact, help, changelog | Not started (these pages don't exist) |
-| App sections that don't exist yet: Automation, Agents (persistent), Research, Audio, Voice, Telepathy, MCP | Not started |
+| App sections that don't exist yet | Partly: Scheduled exists, with Tasks and Agents (stages 271 and 275). Research, Audio, Voice, Telepathy and MCP have no section yet |
 
 ### A24 Mobile: Partly
 
@@ -257,7 +257,7 @@ Everything not done, in the order that lets each part stand on the one before. I
 1. Done on 2026-11-23: the DNS at Spaceship (the owner).
 2. Durable work: done for scheduled runs (stage 271) and for usage a restart left reserved (stage 272). Still to do: agent builds and workflows out of the server's memory, with checkpoints.
 3. Automation: schedules are built (stage 271) and Chat offers them (stage 273). Still to do: event triggers and webhooks in, workflows from words, a visual builder, conditions.
-4. Persistent agents: goal, schedule, budget, memory scope, progress, pause, resume, stop.
+4. Persistent agents: part 1 is built (stage 275): name, goal, schedule, a limit in runs, notes of its own, the memory switch, progress, pause, resume, remove. Still to do: a budget in AI usage, tools, more than one piece of work, talking to an agent.
 5. One command center with one pause, for workflows and agents.
 6. **Telepathy part 1:** project awareness in Chat, one memory across spaces, suggested next steps with "why this" and corrections.
 7. **The three modes:** Standard, Advanced, Professional.

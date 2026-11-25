@@ -80,6 +80,13 @@ export function scheduleProblem(schedule: Schedule, limit: ScheduledLimit, now: 
   return null;
 }
 
+/**
+ * The status a run is refused with while the workspace's agents are paused (the button on Problems and pause, ADR 0282): work
+ * Farbaek does by itself stops with every other agent, and starts again at its next time once they are resumed.
+ */
+export const WORKSPACE_PAUSED = 423;
+export const WORKSPACE_PAUSED_MESSAGE = "An owner or admin paused agents in this workspace, so this didn't run. It runs again at its next time once they resume them on the Problems and pause page.";
+
 /** Tries at one due time: the first, then two more, 2 and 10 minutes later, for failures that may pass (a provider down, a timeout). */
 export const RETRY_AFTER_MINUTES = [2, 10] as const;
 /** Due times in a row that didn't finish before Farbaek pauses the task and says so: it stops spending, and nobody is left guessing. */
@@ -109,7 +116,8 @@ export type RunOutcome =
  */
 export function outcomeOfRefusal(status: number, message: string): RunOutcome {
   if (status === 402 || status === 403 || status === 401) return { kind: "skipped", detail: message };
-  if (status === 429) return { kind: "skipped", detail: message, blameless: true };
+  // Farbaek's own limit for the day, or the workspace's agents paused by its owner: nothing the task did.
+  if (status === 429 || status === WORKSPACE_PAUSED) return { kind: "skipped", detail: message, blameless: true };
   if (status === 409 || status >= 500) return { kind: "retry", detail: message };
   return { kind: "failed", detail: message };
 }

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { NewTask } from "@/components/scheduled/new-task";
+import { ScheduledTabs } from "@/components/scheduled/tabs";
 import { TaskList } from "@/components/scheduled/task-list";
 import { SCHEDULED_LIMITS, type ScheduledLimit } from "@/core/automation/tasks";
 import { demoScheduled } from "@/server/automation/demo";
@@ -28,7 +29,10 @@ export default async function ScheduledPage() {
   const admin = live ? createSupabaseAdminClient() : null;
   // The demo workspace shows made-up tasks, named as samples: nothing there is saved or run.
   const sample = ctx.mode === "demo" ? demoScheduled(new Date()) : null;
-  const tasks = sample ? sample.tasks : user ? await listTasks(user, ctx.current.id) : [];
+  const all = sample ? sample.tasks : user ? await listTasks(user, ctx.current.id) : [];
+  // An agent's work is shown and changed with its agent, on the Agents tab (stage 275): here are the tasks that are no agent's.
+  const tasks = all ? all.filter((t) => !t.agentId) : null;
+  const agentsWork = all ? all.filter((t) => t.agentId && t.state === "active").length : 0;
   const runs = sample ? sample.runs : user && tasks && tasks.length > 0 ? await listRuns(user, ctx.current.id) : [];
   // The server's clock at render: the forms start from it, so the page and the browser first draw the same thing.
   const serverNow = new Date().getTime();
@@ -46,11 +50,13 @@ export default async function ScheduledPage() {
           : !user || !admin
             ? "Scheduled tasks aren't set up on this server."
             : null;
-  const active = (tasks ?? []).filter((t) => t.state === "active").length;
+  // What the plan's limit counts: every active task, an agent's work among them.
+  const active = (all ?? []).filter((t) => t.state === "active").length;
 
   return (
     <div className="grid max-w-3xl gap-6 lg:gap-8">
       <PageHeader title="Scheduled" description="Tell Farbaek what to do and when. It does the work by itself at that time, writes the answer into Chat, and tells you when it has run." />
+      <ScheduledTabs current="tasks" />
 
       {tasks === null ? <Notice tone="warning">Your scheduled tasks couldn&apos;t be read just now. Reload the page: nothing has been lost.</Notice> : null}
       {disabledReason ? <Notice>{disabledReason}</Notice> : null}
@@ -62,7 +68,7 @@ export default async function ScheduledPage() {
             Your tasks
           </CardTitle>
           <p className="text-sm text-ink-2">
-            {active} of {limit.active} active on your plan. {limit.hourly ? "A task can run as often as every hour." : "A task runs once a day at most."} Each run uses your plan&apos;s AI usage, as a message in Chat does.
+            {active} of {limit.active} active on your plan{agentsWork > 0 ? `, counting ${agentsWork === 1 ? "one agent's work" : `the work of ${agentsWork} agents`}` : ""}. {limit.hourly ? "A task can run as often as every hour." : "A task runs once a day at most."} Each run uses your plan&apos;s AI usage, as a message in Chat does.
           </p>
           <TaskList tasks={tasks} runs={runs ?? []} limit={limit} disabledReason={disabledReason} serverNow={serverNow} />
         </section>

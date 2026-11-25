@@ -1,17 +1,20 @@
 "use server";
 
 /**
- * Scheduled tasks' actions (stage 271, ADR 0278): save, pause, resume, run now and remove. Each checks the person and their plan's
- * limits here, then goes through a service-only function that checks the person again. When a task runs next is worked out here, on
- * the server, from the schedule saved: the browser never says when.
+ * Scheduled tasks' actions (stage 271, ADR 0278): save, pause, resume, run now and remove; and agents' own (stage 275, ADR 0282):
+ * save, remove and clear notes. Each checks the person and their plan's limits here, then goes through a service-only function that
+ * checks the person again. When a task runs next is worked out here, on the server, from the schedule saved: the browser never says
+ * when. An agent is paused, resumed and started by hand through its task, with the task's own actions.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { AGENT_LIMITS, agentInputSchema } from "@/core/automation/agents";
 import { sameInstruction } from "@/core/automation/offer";
 import { describeSchedule, nextRun } from "@/core/automation/schedule";
 import { DEFAULT_OPTIONS, SCHEDULED_LIMITS, scheduleProblem, taskInputSchema, titleFor, type ScheduledLimit } from "@/core/automation/tasks";
+import { archiveAgent, clearAgentNotes, saveAgent } from "@/server/automation/agents";
 import { archiveTask, listTasks, readTask, runTaskNow, saveTask, setTaskState, type StoreResult } from "@/server/automation/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -28,6 +31,8 @@ interface Writer {
   orgId: string;
   userId: string;
   limit: ScheduledLimit;
+  /** Agents the plan lets this person keep here. */
+  agents: number;
 }
 
 async function writer(): Promise<{ ok: true; w: Writer } | { ok: false; message: string }> {
@@ -43,7 +48,7 @@ async function writer(): Promise<{ ok: true; w: Writer } | { ok: false; message:
   // The plan, read on the server: when it can't be read, nothing is scheduled (never the largest plan's limits by default).
   const plan = await resolvePlan(createSupabaseWriteDeps(user, admin, ctx.user.id), ctx.current.id);
   if (!plan.ok) return { ok: false, message: "Your plan couldn't be confirmed just now, so nothing was changed. Try again in a moment." };
-  return { ok: true, w: { admin, user, orgId: ctx.current.id, userId: ctx.user.id, limit: SCHEDULED_LIMITS[plan.value.plan.planId] } };
+  return { ok: true, w: { admin, user, orgId: ctx.current.id, userId: ctx.user.id, limit: SCHEDULED_LIMITS[plan.value.plan.planId], agents: AGENT_LIMITS[plan.value.plan.planId] } };
 }
 
 const uuid = z.uuid();
@@ -114,6 +119,8 @@ async function save(input: z.input<typeof saveInput>, refresh: boolean): Promise
   // An edit keeps the runs it has already made counted against "ends after N runs".
   const existing = raw.data.taskId ? await readTask(g.w.user, g.w.orgId, raw.data.taskId) : null;
   if (raw.data.taskId && !existing) return no("That task isn't here any more. Reload the page.");
+  // An agent's work is changed with its agent, so its name, goal and limit can't drift apart from the task.
+  if (existing?.agentId) return no("This is an agent's work. Change it on the Agents tab.");
   const problem = scheduleProblem(parsed.data.schedule, g.w.limit, now, existing?.runsFinished ?? 0);
   if (problem) return no(problem);
   const saved = await saveTask(g.w.admin, g.w, {
@@ -229,8 +236,117 @@ export async function removeScheduledTaskAction(_previous: { status: string }, f
   if (!uuid.safeParse(taskId).success) return { status: "error", message: "That task doesn't exist." };
   const g = await writer();
   if (!g.ok) return { status: "error", message: g.message };
+  // An agent's work goes when its agent is removed: taken away alone, it would leave an agent with nothing to do. A task that
+  // can't be read can't be shown to be no agent's, so it isn't removed either.
+  const task = await readTask(g.w.user, g.w.orgId, taskId);
+  if (!task) return { status: "error", message: "That task isn't here any more, or couldn't be read just now. Reload the page." };
+  if (task.agentId) return { status: "error", message: "This is an agent's work. Remove the agent on the Agents tab." };
   const r = await archiveTask(g.w.admin, g.w, taskId);
   if (!r.ok) return refused(r, g.w.limit) as { status: "error"; message: string };
   revalidatePath("/app/scheduled");
   return { status: "done", message: "Removed. Its past answers are still in Chat." };
+}
+
+// ---- Agents (stage 275, ADR 0282) ----------------------------------------------------------------------------------------------
+
+const refusedAgent = (r: Extract<StoreResult<unknown>, { ok: false }>, w: Writer): ScheduledState => ({
+  status: "error",
+  message:
+    r.code === "AGENT_LIMIT"
+      ? `Your plan keeps ${w.agents} ${w.agents === 1 ? "agent" : "agents"}. Remove one first, or choose a larger plan.`
+      : r.code === "QUOTA_EXCEEDED"
+        ? `Your plan keeps ${w.limit.active} scheduled ${w.limit.active === 1 ? "task" : "tasks"} active at once, and an agent's work is one of them. Pause or remove one first, or choose a larger plan.`
+        : r.code === "VERSION_CONFLICT"
+          ? "This agent was changed somewhere else while you were working. Reload to see it, then make your change again."
+          : r.code === "NOT_FOUND"
+            ? "That agent isn't here any more. Reload the page."
+            : r.code === "FORBIDDEN"
+              ? "Viewers can read the workspace but can't use its AI."
+              : "That couldn't be saved just now. Nothing was changed. Try again.",
+});
+
+const agentSaveInput = z.object({
+  agentId: uuid.nullable(),
+  baseVersion: z.number().int().min(1).nullable(),
+  name: z.string().max(200),
+  goal: z.string().max(8000),
+  runsLimit: z.number(),
+  useMemory: z.boolean(),
+  schedule: z.unknown(),
+  options: z.unknown(),
+});
+
+/** Saves a new agent with the task that does its work, or a change to both from the version on screen. */
+export async function saveAgentAction(input: z.input<typeof agentSaveInput>): Promise<ScheduledState> {
+  const no = (message: string): ScheduledState => ({ status: "error", message });
+  const raw = agentSaveInput.safeParse(input);
+  if (!raw.success || (raw.data.agentId === null) !== (raw.data.baseVersion === null)) return no("That couldn't be read. Nothing was saved.");
+  const name = plain(raw.data.name).replace(/\s+/g, " ").trim();
+  const goal = plain(raw.data.goal).trim();
+  if (!name) return no("Give it a name.");
+  if (!goal) return no("Say what it should work toward.");
+  const who = agentInputSchema.safeParse({ name, goal, runsLimit: raw.data.runsLimit, useMemory: raw.data.useMemory });
+  if (!who.success) {
+    const where = who.error.issues[0]?.path[0];
+    return no(where === "name" ? "The name is too long: keep it under 40 characters." : where === "goal" ? "The goal is too long: keep it under 2,000 characters." : "Its limit is a whole number of runs from 1 to 750.");
+  }
+  const work = taskInputSchema.safeParse({ title: who.data.name, instruction: who.data.goal, schedule: raw.data.schedule, options: raw.data.options });
+  if (!work.success) return no("That schedule couldn't be read. Check its time and days, then save again.");
+  const g = await writer();
+  if (!g.ok) return no(g.message);
+  if (!(await withinRate(g.w, "agent", 40))) return no("That's a lot of changes in an hour. Wait a little, then carry on.");
+  const now = new Date();
+  // A change keeps the runs its task has already made counted against "ends after N runs".
+  let runsFinished = 0;
+  if (raw.data.agentId) {
+    const tasks = await listTasks(g.w.user, g.w.orgId);
+    const task = tasks?.find((t) => t.agentId === raw.data.agentId);
+    if (!task) return no(tasks ? "That agent isn't here any more. Reload the page." : "That couldn't be saved just now. Nothing was changed. Try again.");
+    runsFinished = task.runsFinished;
+  }
+  const problem = scheduleProblem(work.data.schedule, g.w.limit, now, runsFinished);
+  if (problem) return no(problem);
+  const saved = await saveAgent(g.w.admin, g.w, {
+    agentId: raw.data.agentId,
+    baseVersion: raw.data.baseVersion,
+    name: who.data.name,
+    goal: who.data.goal,
+    runsLimit: who.data.runsLimit,
+    useMemory: who.data.useMemory,
+    schedule: work.data.schedule,
+    options: work.data.options,
+    nextRunAt: nextRun(work.data.schedule, now, runsFinished),
+    maxActive: g.w.limit.active,
+    maxAgents: g.w.agents,
+  });
+  if (!saved.ok) return refusedAgent(saved, g.w);
+  revalidatePath("/app/scheduled", "layout");
+  return { status: "done", message: `Saved. ${describeSchedule(work.data.schedule)}` };
+}
+
+type Pressed = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string };
+
+/** Removes an agent and stops its work (for ConfirmAction). Its past answers stay in Chat. */
+export async function removeAgentAction(_previous: { status: string }, form: FormData): Promise<Pressed> {
+  const agentId = String(form.get("agentId") ?? "");
+  if (!uuid.safeParse(agentId).success) return { status: "error", message: "That agent doesn't exist." };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const r = await archiveAgent(g.w.admin, g.w, agentId);
+  if (!r.ok) return refusedAgent(r, g.w) as { status: "error"; message: string };
+  revalidatePath("/app/scheduled", "layout");
+  return { status: "done", message: "Removed. Its past answers are still in Chat." };
+}
+
+/** Clears what an agent remembers of its earlier runs (for ConfirmAction): its next run starts without notes. */
+export async function clearAgentNotesAction(_previous: { status: string }, form: FormData): Promise<Pressed> {
+  const agentId = String(form.get("agentId") ?? "");
+  if (!uuid.safeParse(agentId).success) return { status: "error", message: "That agent doesn't exist." };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  if (!(await withinRate(g.w, "agent", 40))) return { status: "error", message: "That's a lot of changes in an hour. Wait a little, then carry on." };
+  const r = await clearAgentNotes(g.w.admin, g.w, agentId);
+  if (!r.ok) return refusedAgent(r, g.w) as { status: "error"; message: string };
+  revalidatePath("/app/scheduled", "layout");
+  return { status: "done", message: "Cleared. Its next run starts a new chat, without notes. Its past answers are still in Chat." };
 }

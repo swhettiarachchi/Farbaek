@@ -17,7 +17,14 @@ export interface HomeTask {
   /** When its last run was recorded. A task Farbaek paused was paused then. */
   lastRunAt: string | null;
   conversationId: string | null;
+  /** The task is an agent's work (stage 275): it is shown and changed on the Agents tab, not among the tasks. */
+  agent?: boolean;
 }
+
+/** Where a task is shown and changed: an agent's work is on the Agents tab. */
+export const SCHEDULED_HREF = "/app/scheduled";
+export const AGENTS_HREF = "/app/scheduled/agents";
+const hrefOf = (t: { agent?: boolean }) => (t.agent ? AGENTS_HREF : SCHEDULED_HREF);
 
 /** What Home reads of a run. */
 export interface HomeRun {
@@ -41,6 +48,8 @@ export interface HomeRow {
   nextRunAt: string | null;
   /** Its schedule in a sentence, or why Farbaek paused it. */
   line: string;
+  /** The page that lists it. */
+  href: string;
 }
 
 /** The newest finished run among the person's tasks: what Farbaek last did by itself. */
@@ -59,7 +68,7 @@ export interface ScheduledOnHome {
   /** Scheduled and paused tasks that Home doesn't show. */
   more: number;
   /** Tasks Farbaek paused itself in the last few days: each is the person's to look at. */
-  stopped: { id: string; title: string; reason: string }[];
+  stopped: { id: string; title: string; reason: string; agent: boolean }[];
   lastRun: HomeLastRun | null;
 }
 
@@ -127,15 +136,15 @@ export function scheduledOnHome(tasks: readonly HomeTask[], runs: readonly HomeR
   const sentence = (t: HomeTask) => (t.schedule ? describeSchedule(t.schedule) : "Its schedule couldn't be read.");
   const all: HomeRow[] = [
     // What Farbaek stopped comes first: it is the one thing here that wants the person.
-    ...stopped.map((t): HomeRow => ({ id: t.id, title: t.title, kind: "stopped", when: null, nextRunAt: null, line: stoppedReason(t.stateReason!) })),
-    ...next.map((t): HomeRow => ({ id: t.id, title: t.title, kind: "next", when: whenOf(t), nextRunAt: whenOf(t) === "later" ? t.nextRunAt : null, line: sentence(t) })),
-    ...paused.map((t): HomeRow => ({ id: t.id, title: t.title, kind: "paused", when: null, nextRunAt: null, line: sentence(t) })),
+    ...stopped.map((t): HomeRow => ({ id: t.id, title: t.title, kind: "stopped", when: null, nextRunAt: null, line: stoppedReason(t.stateReason!), href: hrefOf(t) })),
+    ...next.map((t): HomeRow => ({ id: t.id, title: t.title, kind: "next", when: whenOf(t), nextRunAt: whenOf(t) === "later" ? t.nextRunAt : null, line: sentence(t), href: hrefOf(t) })),
+    ...paused.map((t): HomeRow => ({ id: t.id, title: t.title, kind: "paused", when: null, nextRunAt: null, line: sentence(t), href: hrefOf(t) })),
   ];
   return {
     rows: all.slice(0, HOME_ROWS),
     more: Math.max(0, all.length - HOME_ROWS),
     // A pause is recorded with the run that caused it, so the task's last run is when it was paused.
-    stopped: stopped.filter((t) => recent(t.lastRunAt)).map((t) => ({ id: t.id, title: t.title, reason: stoppedReason(t.stateReason!) })),
+    stopped: stopped.filter((t) => recent(t.lastRunAt)).map((t) => ({ id: t.id, title: t.title, reason: stoppedReason(t.stateReason!), agent: Boolean(t.agent) })),
     lastRun,
   };
 }

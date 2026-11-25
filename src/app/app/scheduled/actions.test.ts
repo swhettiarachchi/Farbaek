@@ -17,6 +17,8 @@ const { world, calls } = vi.hoisted(() => ({
     now: null as unknown,
     // The person's own tasks, as the page reads them; null when they can't be read.
     tasks: [] as Record<string, unknown>[] | null,
+    // What the database answers for an agent's save, removal or clearing; null: it goes through.
+    agent: null as unknown,
   },
   calls: [] as { kind: string; input: Record<string, unknown> }[],
 }));
@@ -65,7 +67,22 @@ vi.mock("@/server/automation/store", () => ({
   },
 }));
 
-import { removeScheduledTaskAction, runScheduledTaskNowAction, saveScheduledTaskAction, scheduleFromChatAction, scheduleOfferStateAction, setScheduledTaskStateAction } from "./actions";
+vi.mock("@/server/automation/agents", () => ({
+  saveAgent: async (_admin: unknown, _w: unknown, input: Record<string, unknown>) => {
+    calls.push({ kind: "agent-save", input });
+    return world.agent ?? { ok: true, value: { id: "44444444-4444-4444-8444-444444444444", taskId: "22222222-2222-4222-8222-222222222222", version: 1 } };
+  },
+  archiveAgent: async (_admin: unknown, _w: unknown, agentId: string) => {
+    calls.push({ kind: "agent-archive", input: { agentId } });
+    return world.agent ?? { ok: true, value: null };
+  },
+  clearAgentNotes: async (_admin: unknown, _w: unknown, agentId: string) => {
+    calls.push({ kind: "agent-clear", input: { agentId } });
+    return world.agent ?? { ok: true, value: null };
+  },
+}));
+
+import { clearAgentNotesAction, removeAgentAction, removeScheduledTaskAction, runScheduledTaskNowAction, saveAgentAction, saveScheduledTaskAction, scheduleFromChatAction, scheduleOfferStateAction, setScheduledTaskStateAction } from "./actions";
 
 const TASK = "22222222-2222-4222-8222-222222222222";
 const CHAT = "33333333-3333-4333-8333-333333333333";
@@ -75,7 +92,7 @@ const fresh = (more: Record<string, unknown> = {}) => ({ taskId: null, baseVersi
 const saved = () => calls.filter((c) => c.kind === "save");
 
 beforeEach(() => {
-  Object.assign(world, { mode: "live", role: "owner", writes: true, plan: "plus", rate: true, task: null, save: null, state: null, now: null, tasks: [] });
+  Object.assign(world, { mode: "live", role: "owner", writes: true, plan: "plus", rate: true, task: null, save: null, state: null, now: null, tasks: [], agent: null });
   calls.length = 0;
 });
 
@@ -222,6 +239,11 @@ describe("pause, resume, run now and remove", () => {
     expect(calls.some((c) => c.kind === "now")).toBe(false);
     const form = new FormData();
     form.set("taskId", TASK);
+    // A task that can't be read can't be shown to be no agent's, so it isn't removed: taken away, it could leave an agent with no work.
+    world.task = null;
+    expect(await removeScheduledTaskAction({ status: "idle" }, form)).toMatchObject({ status: "error", message: expect.stringContaining("couldn't be read") });
+    expect(calls.some((c) => c.kind === "archive")).toBe(false);
+    world.task = { id: TASK, agentId: null, runsFinished: 0 };
     expect((await removeScheduledTaskAction({ status: "idle" }, form)).status).toBe("done");
     expect(calls.find((c) => c.kind === "archive")!.input).toEqual({ taskId: TASK });
   });
@@ -296,5 +318,118 @@ describe("scheduling from Chat (stage 273)", () => {
     expect(await scheduleFromChatAction({ instruction: ASKED, schedule: { repeat: { kind: "sometimes" } } })).toMatchObject({ status: "error" });
     expect(await scheduleFromChatAction({ instruction: "   ", schedule: daily })).toMatchObject({ status: "error" });
     expect(await scheduleFromChatAction({ instruction: "x".repeat(9_000), schedule: daily })).toMatchObject({ status: "error" });
+  });
+});
+
+describe("agents (stage 275)", () => {
+  const AGENT = "44444444-4444-4444-8444-444444444444";
+  const agent = (more: Record<string, unknown> = {}) => ({ agentId: null, baseVersion: null, name: "Scout", goal: "Keep track of what my competitors change.", runsLimit: 35, useMemory: true, schedule: daily, options, ...more });
+  const agentSaves = () => calls.filter((c) => c.kind === "agent-save");
+  const form = (id: string) => {
+    const f = new FormData();
+    f.set("agentId", id);
+    return f;
+  };
+
+  it("saves a new agent with the plan's limits and the server's own next time, whatever the browser sent", async () => {
+    const before = Date.now();
+    const r = await saveAgentAction({ ...agent({ name: "  Scout   the  second ", goal: "  Watch prices.  " }), nextRunAt: "2001-01-01T00:00:00Z", maxAgents: 999, maxActive: 999 } as never);
+    expect(r).toEqual({ status: "done", message: "Saved. Every day at 8:00 AM, Colombo time." });
+    const input = agentSaves()[0]!.input;
+    expect(input).toMatchObject({ agentId: null, baseVersion: null, name: "Scout the second", goal: "Watch prices.", runsLimit: 35, useMemory: true, maxActive: 10, maxAgents: 5 });
+    const next = input.nextRunAt as Date;
+    expect(next.getTime()).toBeGreaterThan(before);
+    expect(next.toISOString().slice(11, 16)).toBe("02:30");
+  });
+
+  it("refuses a missing name or goal, a name or goal too long, a limit out of range and a schedule that isn't one, and saves nothing", async () => {
+    for (const [bad, says] of [
+      [{ name: "   " }, "Give it a name."],
+      [{ goal: " " }, "Say what it should work toward."],
+      [{ name: "x".repeat(41) }, "The name is too long: keep it under 40 characters."],
+      [{ goal: "x".repeat(2001) }, "The goal is too long: keep it under 2,000 characters."],
+      [{ runsLimit: 0 }, "Its limit is a whole number of runs from 1 to 750."],
+      [{ runsLimit: 751 }, "Its limit is a whole number of runs from 1 to 750."],
+      [{ runsLimit: 3.5 }, "Its limit is a whole number of runs from 1 to 750."],
+      [{ schedule: { repeat: { kind: "daily", time: "25:00" }, timeZone: "Asia/Colombo", end: { kind: "never" } } }, "That schedule couldn't be read. Check its time and days, then save again."],
+    ] as const) {
+      expect(await saveAgentAction(agent(bad) as never)).toEqual({ status: "error", message: says });
+    }
+    expect(await saveAgentAction({ ...agent(), useMemory: "yes" } as never)).toMatchObject({ status: "error" });
+    expect(await saveAgentAction(agent({ agentId: AGENT }) as never)).toMatchObject({ status: "error", message: "That couldn't be read. Nothing was saved." });
+    expect(agentSaves()).toEqual([]);
+  });
+
+  it("refuses an hourly agent on a plan that runs once a day at most", async () => {
+    world.plan = "free";
+    const r = await saveAgentAction(agent({ schedule: { repeat: { kind: "hourly", minute: 0 }, timeZone: "Asia/Colombo", end: { kind: "never" } } }));
+    expect(r).toMatchObject({ status: "error", message: expect.stringContaining("once a day at most") });
+    expect(agentSaves()).toEqual([]);
+  });
+
+  it("saves nothing when the plan can't be read, in the demo, for a viewer, with changes off, or past the hourly ceiling", async () => {
+    world.plan = null;
+    expect(await saveAgentAction(agent())).toMatchObject({ status: "error", message: expect.stringContaining("couldn't be confirmed") });
+    Object.assign(world, { plan: "plus", mode: "demo" });
+    expect(await saveAgentAction(agent())).toMatchObject({ status: "error", message: expect.stringContaining("read-only") });
+    Object.assign(world, { mode: "live", role: "viewer" });
+    expect(await saveAgentAction(agent())).toMatchObject({ status: "error", message: expect.stringContaining("Viewers") });
+    Object.assign(world, { role: "owner", writes: false });
+    expect(await saveAgentAction(agent())).toMatchObject({ status: "error", message: "Changes are paused." });
+    Object.assign(world, { writes: true, rate: false });
+    expect(await saveAgentAction(agent())).toMatchObject({ status: "error", message: expect.stringContaining("a lot of changes") });
+    expect(agentSaves()).toEqual([]);
+  });
+
+  it("says the plan's own limits when the database counts too many agents or active tasks", async () => {
+    world.agent = { ok: false, code: "AGENT_LIMIT" };
+    expect(await saveAgentAction(agent())).toEqual({ status: "error", message: "Your plan keeps 5 agents. Remove one first, or choose a larger plan." });
+    world.agent = { ok: false, code: "QUOTA_EXCEEDED" };
+    expect(await saveAgentAction(agent())).toMatchObject({ status: "error", message: expect.stringContaining("10 scheduled tasks active at once, and an agent's work is one of them") });
+    world.agent = { ok: false, code: "VERSION_CONFLICT" };
+    expect(await saveAgentAction(agent())).toMatchObject({ status: "error", message: expect.stringContaining("changed somewhere else") });
+  });
+
+  it("changes an agent from the version on screen, counting the runs its task has made", async () => {
+    // Its task has made 3 runs: an end after 3 has no run left, so the change is refused before anything is saved.
+    world.tasks = [{ id: TASK, agentId: AGENT, runsFinished: 3 }];
+    const ending = { repeat: { kind: "daily", time: "08:00" }, timeZone: "Asia/Colombo", end: { kind: "after", runs: 3 } };
+    expect(await saveAgentAction(agent({ agentId: AGENT, baseVersion: 2, schedule: ending }))).toMatchObject({ status: "error", message: expect.stringContaining("no run left") });
+    expect(agentSaves()).toEqual([]);
+    expect(await saveAgentAction(agent({ agentId: AGENT, baseVersion: 2 }))).toMatchObject({ status: "done" });
+    expect(agentSaves()[0]!.input).toMatchObject({ agentId: AGENT, baseVersion: 2 });
+  });
+
+  it("refuses a change to an agent that isn't the person's, and says so differently when their tasks couldn't be read", async () => {
+    world.tasks = [{ id: TASK, agentId: null, runsFinished: 0 }];
+    expect(await saveAgentAction(agent({ agentId: AGENT, baseVersion: 1 }))).toEqual({ status: "error", message: "That agent isn't here any more. Reload the page." });
+    world.tasks = null;
+    expect(await saveAgentAction(agent({ agentId: AGENT, baseVersion: 1 }))).toEqual({ status: "error", message: "That couldn't be saved just now. Nothing was changed. Try again." });
+    expect(agentSaves()).toEqual([]);
+  });
+
+  it("removes an agent and clears its notes, for the person who may, and refuses an id that isn't one", async () => {
+    expect(await removeAgentAction({ status: "idle" }, form(AGENT))).toEqual({ status: "done", message: "Removed. Its past answers are still in Chat." });
+    expect(await clearAgentNotesAction({ status: "idle" }, form(AGENT))).toMatchObject({ status: "done", message: expect.stringContaining("starts a new chat, without notes") });
+    expect(calls.filter((c) => c.kind.startsWith("agent-")).map((c) => c.kind)).toEqual(["agent-archive", "agent-clear"]);
+    expect(await removeAgentAction({ status: "idle" }, form("nope"))).toMatchObject({ status: "error" });
+    expect(await clearAgentNotesAction({ status: "idle" }, form("nope"))).toMatchObject({ status: "error" });
+    world.agent = { ok: false, code: "NOT_FOUND" };
+    expect(await removeAgentAction({ status: "idle" }, form(AGENT))).toEqual({ status: "error", message: "That agent isn't here any more. Reload the page." });
+    world.role = "viewer";
+    calls.length = 0;
+    expect(await removeAgentAction({ status: "idle" }, form(AGENT))).toMatchObject({ status: "error", message: expect.stringContaining("Viewers") });
+    expect(await clearAgentNotesAction({ status: "idle" }, form(AGENT))).toMatchObject({ status: "error" });
+    expect(calls.filter((c) => c.kind.startsWith("agent-"))).toEqual([]);
+  });
+
+  it("won't let an agent's work be changed or removed as if it were a plain task", async () => {
+    world.task = { id: TASK, agentId: AGENT, runsFinished: 0 };
+    expect(await saveScheduledTaskAction(fresh({ taskId: TASK, baseVersion: 1 }) as never)).toEqual({ status: "error", message: "This is an agent's work. Change it on the Agents tab." });
+    const f = new FormData();
+    f.set("taskId", TASK);
+    expect(await removeScheduledTaskAction({ status: "idle" }, f)).toEqual({ status: "error", message: "This is an agent's work. Remove the agent on the Agents tab." });
+    expect(saved()).toEqual([]);
+    expect(calls.filter((c) => c.kind === "archive")).toEqual([]);
   });
 });

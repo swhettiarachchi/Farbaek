@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { AgentContext } from "@/core/automation/agents";
 import type { HomeTask } from "@/core/automation/home";
 import { scheduleSchema, type Schedule } from "@/core/automation/schedule";
 import { DEFAULT_OPTIONS, taskOptionsSchema, type TaskOptions } from "@/core/automation/tasks";
@@ -129,7 +130,33 @@ export interface ScheduledStore {
   linkConversation(taskId: string, conversationId: string): Promise<void>;
   /** The task's place among its owner's active tasks in the workspace, oldest first, from 1; null when it couldn't be read. */
   position(orgId: string, ownerId: string, taskId: string): Promise<number | null>;
+  /** The agent whose work this task is (stage 275), null for a task that is no agent's, "error" when it couldn't be read. */
+  agent(taskId: string): Promise<AgentContext | null | "error">;
+  /** Keeps what a finished run of an agent did, for its next run. */
+  runNote(runId: string, note: string): Promise<void>;
 }
+
+const agentContextSchema = z.object({
+  agent_id: z.uuid(),
+  name: z.string(),
+  goal: z.string(),
+  runs_limit: z.number().int(),
+  use_memory: z.boolean(),
+  archived: z.boolean(),
+  runs_in_30_days: z.number().int(),
+  told_limit: z.boolean(),
+  new_chat: z.boolean(),
+  notes: z.array(z.object({ at: z.string(), note: z.string() })),
+});
+
+/**
+ * A database that doesn't have v108 yet (stage 275) has no agents, and its tasks are read and run as they always were. Told by the
+ * one answer that means exactly that, and nothing wider: any other fault must not make an agent's task run as a plain one.
+ *   - a function the API doesn't know: PGRST202;
+ *   - a column that isn't there in a read: 42703 from the database (PGRST204 from the API's own cache).
+ */
+export const functionNotThereYet = (error: { code?: string }) => error.code === "PGRST202";
+export const columnNotThereYet = (error: { code?: string }) => error.code === "42703" || error.code === "PGRST204";
 
 export function createScheduledStore(admin: SupabaseClient): ScheduledStore {
   return {
@@ -173,6 +200,20 @@ export function createScheduledStore(admin: SupabaseClient): ScheduledStore {
     async linkConversation(taskId, conversationId) {
       await admin.rpc("app_scheduled_task_conversation", { p_task: taskId, p_conversation: conversationId });
     },
+    async agent(taskId) {
+      const { data, error } = await admin.rpc("app_personal_agent_run_context", { p_task: taskId });
+      if (error) return functionNotThereYet(error) ? null : "error";
+      if (data === null || data === undefined) return null;
+      const row = agentContextSchema.safeParse(data);
+      if (!row.success) return "error";
+      const r = row.data;
+      return { agentId: r.agent_id, name: r.name, goal: r.goal, runsLimit: r.runs_limit, useMemory: r.use_memory, archived: r.archived, runsIn30Days: r.runs_in_30_days, toldLimit: r.told_limit, newChat: r.new_chat, notes: r.notes };
+    },
+    async runNote(runId, note) {
+      // Said when it couldn't be kept, so the runner can log a line of memory that was lost.
+      const { data, error } = await admin.rpc("app_scheduled_run_note", { p_run: runId, p_note: note });
+      if (error || data !== true) throw new Error("NOTE_NOT_KEPT");
+    },
     async position(orgId, ownerId, taskId) {
       // Named by workspace and owner: this client isn't held to a person's own rows by row-level security.
       const { data, error } = await admin.from("scheduled_tasks").select("id").eq("org_id", orgId).eq("owner_id", ownerId).eq("state", "active").is("archived_at", null).order("created_at", { ascending: true }).order("id", { ascending: true }).limit(200);
@@ -201,6 +242,8 @@ export interface ScheduledTask {
   runsFinished: number;
   version: number;
   createdAt: string;
+  /** The agent whose work this task is (stage 275), or null. An agent's task is shown and changed with its agent. */
+  agentId: string | null;
 }
 
 export interface TaskRun {
@@ -213,6 +256,10 @@ export interface TaskRun {
   detail: string | null;
   conversationId: string | null;
   finishedAt: string | null;
+  /** When this try of it started: what "notes cleared at" is compared with, as the database compares it. */
+  startedAt: string;
+  /** What a finished run of an agent did and what it will do next, in the answer's own words. */
+  note: string | null;
 }
 
 const taskRow = z.object({
@@ -230,17 +277,17 @@ const taskRow = z.object({
   runs_finished: z.number().int(),
   version: z.number().int(),
   created_at: z.string(),
+  personal_agent_id: z.uuid().nullable().optional(),
 });
+
+const TASK_COLUMNS = "id, title, instruction, schedule, options, state, state_reason, conversation_id, next_run_at, last_run_at, last_status, runs_finished, version, created_at";
 
 /** The person's tasks in this workspace, newest first; null when they couldn't be read (never shown as "none"). */
 export async function listTasks(client: SupabaseClient, orgId: string): Promise<ScheduledTask[] | null> {
-  const { data, error } = await client
-    .from("scheduled_tasks")
-    .select("id, title, instruction, schedule, options, state, state_reason, conversation_id, next_run_at, last_run_at, last_status, runs_finished, version, created_at")
-    .eq("org_id", orgId)
-    .is("archived_at", null)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const read = (columns: string) => client.from("scheduled_tasks").select(columns).eq("org_id", orgId).is("archived_at", null).order("created_at", { ascending: false }).limit(200);
+  let { data, error } = await read(`${TASK_COLUMNS}, personal_agent_id`);
+  // A database that doesn't have v108 yet has no such column, and no agents: its tasks are read as they always were.
+  if (error && columnNotThereYet(error)) ({ data, error } = await read(TASK_COLUMNS));
   if (error) return null;
   const rows = z.array(taskRow).safeParse(data ?? []);
   if (!rows.success) return null;
@@ -262,6 +309,7 @@ export async function listTasks(client: SupabaseClient, orgId: string): Promise<
       runsFinished: r.runs_finished,
       version: r.version,
       createdAt: r.created_at,
+      agentId: r.personal_agent_id ?? null,
     };
   });
 }
@@ -271,19 +319,16 @@ export async function listTasks(client: SupabaseClient, orgId: string): Promise<
  * time. Null when they couldn't be read.
  */
 export async function listHomeTasks(client: SupabaseClient, orgId: string): Promise<HomeTask[] | null> {
-  const { data, error } = await client
-    .from("scheduled_tasks")
-    .select("id, title, schedule, state, state_reason, conversation_id, next_run_at, last_run_at")
-    .eq("org_id", orgId)
-    .is("archived_at", null)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const columns = "id, title, schedule, state, state_reason, conversation_id, next_run_at, last_run_at";
+  const read = (cols: string) => client.from("scheduled_tasks").select(cols).eq("org_id", orgId).is("archived_at", null).order("created_at", { ascending: false }).limit(200);
+  let { data, error } = await read(`${columns}, personal_agent_id`);
+  if (error && columnNotThereYet(error)) ({ data, error } = await read(columns));
   if (error) return null;
-  const rows = z.array(taskRow.pick({ id: true, title: true, schedule: true, state: true, state_reason: true, conversation_id: true, next_run_at: true, last_run_at: true })).safeParse(data ?? []);
+  const rows = z.array(taskRow.pick({ id: true, title: true, schedule: true, state: true, state_reason: true, conversation_id: true, next_run_at: true, last_run_at: true, personal_agent_id: true })).safeParse(data ?? []);
   if (!rows.success) return null;
   return rows.data.map((r) => {
     const schedule = scheduleSchema.safeParse(r.schedule);
-    return { id: r.id, title: r.title, state: r.state, stateReason: r.state_reason, schedule: schedule.success ? schedule.data : null, nextRunAt: r.next_run_at, lastRunAt: r.last_run_at, conversationId: r.conversation_id };
+    return { id: r.id, title: r.title, state: r.state, stateReason: r.state_reason, schedule: schedule.success ? schedule.data : null, nextRunAt: r.next_run_at, lastRunAt: r.last_run_at, conversationId: r.conversation_id, agent: Boolean(r.personal_agent_id) };
   });
 }
 
@@ -296,18 +341,24 @@ const runRow = z.object({
   detail: z.string().nullable(),
   conversation_id: z.uuid().nullable(),
   finished_at: z.string().nullable(),
+  started_at: z.string(),
+  note: z.string().nullable().optional(),
 });
+
+const RUN_COLUMNS = "id, task_id, due_at, status, manual, detail, conversation_id, finished_at, started_at";
 
 /**
  * The latest runs of the person's tasks in this workspace, newest first. A task whose runs are older than these shows its last run
  * from its own row (`lastRunAt`, `lastStatus`). Null when they couldn't be read: never shown as "no runs".
  */
 export async function listRuns(client: SupabaseClient, orgId: string, limit = 400): Promise<TaskRun[] | null> {
-  const { data, error } = await client.from("scheduled_task_runs").select("id, task_id, due_at, status, manual, detail, conversation_id, finished_at").eq("org_id", orgId).order("due_at", { ascending: false }).limit(limit);
+  const read = (columns: string) => client.from("scheduled_task_runs").select(columns).eq("org_id", orgId).order("due_at", { ascending: false }).limit(limit);
+  let { data, error } = await read(`${RUN_COLUMNS}, note`);
+  if (error && columnNotThereYet(error)) ({ data, error } = await read(RUN_COLUMNS));
   if (error) return null;
   const rows = z.array(runRow).safeParse(data ?? []);
   if (!rows.success) return null;
-  return rows.data.map((r) => ({ id: r.id, taskId: r.task_id, dueAt: r.due_at, status: r.status, manual: r.manual, detail: r.detail, conversationId: r.conversation_id, finishedAt: r.finished_at }));
+  return rows.data.map((r) => ({ id: r.id, taskId: r.task_id, dueAt: r.due_at, status: r.status, manual: r.manual, detail: r.detail, conversationId: r.conversation_id, finishedAt: r.finished_at, startedAt: r.started_at, note: r.note ?? null }));
 }
 
 /** One of the person's own tasks, for an action that changes it. */

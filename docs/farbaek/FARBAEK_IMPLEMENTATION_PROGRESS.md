@@ -24,6 +24,7 @@ The running record of the program the owner set on 2026-11-22. Read this first i
 | Stage 272: usage given back when a call is cut off by a restart, for every kind of call (ADR 0279) | Merged as #329. Migration v107 applied on 2026-11-25, read-back `check|t` | The hourly job's first result in the server's log |
 | Stage 273: Chat offers to schedule a request said with a time, under its answer; every scheduled run tells the model it is one (ADR 0280) | Built and tested, PR open | The owner merges. No migration |
 | Stage 274: Home shows scheduled work in one card and leads with a task Farbaek paused (ADR 0281) | Built and tested, PR open, stacked on stage 273's | The owner merges stage 273's first. No migration |
+| Stage 275: agents that keep working toward a goal, on a second tab of the Scheduled page (ADR 0282) | Built and tested, PR open, stacked on stage 274's. **Migration v108 to apply before the merge** | The owner applies v108, then merges. No agent has run on production |
 | Skills inventory, master audit, the study of the reference products | Written | Nothing |
 | Research on providers and platforms | 2 of 7 notes complete, 5 partial | Finishing the 5, a few at a time |
 
@@ -52,7 +53,7 @@ The brief asks for everything. This is the order that makes each stage stand on 
 
 ## What only the owner can do
 
-- **Now:** merge stage 273's pull request, then stage 274's (neither has a migration); switch the every-minute timer on (`install.sh --enable-scheduled-timer`); then schedule one task a few minutes ahead and read its answer in Chat, the first real run.
+- **Now:** merge stage 273's pull request, then stage 274's (neither has a migration); apply v108 and merge stage 275's; switch the every-minute timer on (`install.sh --enable-scheduled-timer`); then schedule one task a few minutes ahead and read its answer in Chat, the first real run, and start one agent.
 - **For Grok (stage 214):** an xAI account and API key, and a monthly budget. The research found prices of $2 in and $6 out per million tokens for the flagship, and $5 per thousand posts fetched by `x_search`. It could not confirm that the API is offered in Sri Lanka; signing up is the test.
 - **For new prices (stage 218):** a yes before live plans change.
 - **For the desktop fix in stage 209:** publishing the next desktop release.
