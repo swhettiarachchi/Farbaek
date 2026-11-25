@@ -33,7 +33,7 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { fileSizeLabel } from "@/core/chat/files";
 import type { ChatFile, ChatMessage, HandOff } from "@/core/chat/protocol";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -229,9 +229,12 @@ export function AnswerMessage({
   readOnly = false,
   fileBase = "/app/chat/api/file",
   handOffs,
+  after,
   actions,
 }: {
   message: ChatMessage;
+  /** Drawn under the answer's chips, for the newest answer only: the offer to schedule what was asked (stage 273). */
+  after?: ReactNode;
   /** The places this answer's request could go next (handoff.ts). Missing: none are offered. */
   handOffs?: readonly HandOff[];
   /** The thinking summary while the model thinks; null when it isn't thinking. */
@@ -345,6 +348,8 @@ export function AnswerMessage({
           ))}
         </div>
       ) : null}
+
+      {last && !streaming && message.kind === "text" && message.status === "complete" && message.content ? after : null}
 
       {!streaming ? (
         <div className={`mt-2 flex flex-wrap items-center gap-0.5 ${last ? "" : "sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100"} transition-opacity duration-150 pointer-coarse:opacity-100`}>

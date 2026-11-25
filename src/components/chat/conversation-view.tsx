@@ -14,6 +14,7 @@ import { flushSync } from "react-dom";
 import { CHAT_LIMITS, HOME_QUESTION_KEY, titleFrom, type HandOff, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
 import { speakable } from "@/core/chat/markdown";
 import { handOffPlan, suggestHandOffs } from "@/core/chat/handoff";
+import { ScheduleOffer } from "@/components/chat/schedule-offer";
 import { HeroVisual } from "@/components/three/hero-visual";
 import { useSpeaker } from "./use-speaker";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
@@ -328,7 +329,8 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
 
   const tail = messages[messages.length - 1];
   // The places worth offering under the newest answer (stage 206): read from what the person last asked.
-  const lastAsked = messages.findLast((m) => m.role === "user")?.content ?? "";
+  const lastQuestion = messages.findLast((m) => m.role === "user");
+  const lastAsked = lastQuestion?.content ?? "";
   const offered = useMemo(() => suggestHandOffs(lastAsked), [lastAsked]);
 
   const send = (input: SendInput): boolean => {
@@ -575,6 +577,9 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                     readOnly={chat.demo}
                     speaking={speaking === m.id}
                     handOffs={i === messages.length - 1 ? offered : undefined}
+                    // What was asked, when it was asked for at a time: offered as a schedule, under the newest answer (ADR 0280).
+                    // Not for a question with files: a scheduled run reads no files, so it couldn't do the same again.
+                    after={i === messages.length - 1 && !busy && lastQuestion && lastAsked && lastQuestion.files.length === 0 ? <ScheduleOffer key={m.id} question={lastAsked} askedAt={lastQuestion.createdAt} conversationId={convId} /> : undefined}
                     actions={{
                       onChoose: (text) => void send({ text, files: [], mode: "text", aspect: "1:1", model: prefs.model, effort: prefs.effort }),
                       onCheckWeb: () => regenerate(m, true),

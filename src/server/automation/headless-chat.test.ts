@@ -40,9 +40,13 @@ const message = (id: string, role: "user" | "assistant", over: Partial<ChatMessa
   ...over,
 });
 
+/** What the model was last asked, as the turn sent it. */
+const asked: { messages: { role: string; parts: { type: string; text?: string }[] }[] }[] = [];
+
 const model: ChatModel = {
   provider: "anthropic",
-  async stream(_request: unknown, handlers: { onThinking(s: string): void; onText(d: string): void }): Promise<ChatOutcome> {
+  async stream(request: unknown, handlers: { onThinking(s: string): void; onText(d: string): void }): Promise<ChatOutcome> {
+    asked.push(request as (typeof asked)[number]);
     handlers.onText("Today's news, ");
     handlers.onText("in short.");
     return { ok: true, stop: "end", usage: { model: "claude-sonnet-5-5", inputTokens: 100, outputTokens: 20 } };
@@ -165,6 +169,23 @@ describe("a scheduled run's Chat turn", () => {
       { conversationId: null, parentId: null },
     ]);
     expect(s.named).toEqual([{ conversationId: NEW, title: "Morning news" }]);
+  });
+
+  it("tells the model the turn is a scheduled run, beside the person's words and never as them", async () => {
+    const note = "This message is a task the person scheduled in Farbaek, and it is due now.";
+    const s = setup({ conversation: null });
+    asked.length = 0;
+    await runHeadlessTurn(s.env, { ...turn(null), note }, new AbortController().signal);
+    const said = asked.at(-1)!.messages.findLast((m) => m.role === "user")!;
+    // The note travels as context for the model; the person's own text is still their instruction, word for word.
+    expect(said.parts.filter((p) => p.type === "context").map((p) => p.text)).toContain(note);
+    expect(said.parts.find((p) => p.type === "text")?.text).toBe("Research the latest news and summarise it.");
+    // What is saved as the question in the chat is the instruction alone.
+    expect(s.calls.find((c) => c.name === "beginTurn")!.input.content).toBe("Research the latest news and summarise it.");
+    // Without a note, nothing is added beside the message.
+    asked.length = 0;
+    await go(setup({ conversation: null }), null);
+    expect(asked.at(-1)!.messages.findLast((m) => m.role === "user")!.parts.some((p) => p.type === "context" && p.text === note)).toBe(false);
   });
 
   it("answers as the Chat page would when usage has run out or the person can't use AI here, and makes nothing", async () => {

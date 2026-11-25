@@ -15,6 +15,8 @@ const { world, calls } = vi.hoisted(() => ({
     save: null as unknown,
     state: null as unknown,
     now: null as unknown,
+    // The person's own tasks, as the page reads them; null when they can't be read.
+    tasks: [] as Record<string, unknown>[] | null,
   },
   calls: [] as { kind: string; input: Record<string, unknown> }[],
 }));
@@ -43,6 +45,7 @@ vi.mock("@/server/workspace/ai-usage", () => ({
   resolvePlan: async () => (world.plan ? { ok: true, value: { plan: { planId: world.plan } } } : { ok: false, code: "INTERNAL", message: "no" }),
 }));
 vi.mock("@/server/automation/store", () => ({
+  listTasks: async () => world.tasks,
   readTask: async () => world.task,
   saveTask: async (_admin: unknown, _w: unknown, input: Record<string, unknown>) => {
     calls.push({ kind: "save", input });
@@ -62,16 +65,17 @@ vi.mock("@/server/automation/store", () => ({
   },
 }));
 
-import { removeScheduledTaskAction, runScheduledTaskNowAction, saveScheduledTaskAction, setScheduledTaskStateAction } from "./actions";
+import { removeScheduledTaskAction, runScheduledTaskNowAction, saveScheduledTaskAction, scheduleFromChatAction, scheduleOfferStateAction, setScheduledTaskStateAction } from "./actions";
 
 const TASK = "22222222-2222-4222-8222-222222222222";
+const CHAT = "33333333-3333-4333-8333-333333333333";
 const daily = { repeat: { kind: "daily", time: "08:00" }, timeZone: "Asia/Colombo", end: { kind: "never" } };
 const options = { web: true, effort: "balanced", notify: true };
 const fresh = (more: Record<string, unknown> = {}) => ({ taskId: null, baseVersion: null, title: "", instruction: "Give me the morning news with sources.", schedule: daily, options, ...more });
 const saved = () => calls.filter((c) => c.kind === "save");
 
 beforeEach(() => {
-  Object.assign(world, { mode: "live", role: "owner", writes: true, plan: "plus", rate: true, task: null, save: null, state: null, now: null });
+  Object.assign(world, { mode: "live", role: "owner", writes: true, plan: "plus", rate: true, task: null, save: null, state: null, now: null, tasks: [] });
   calls.length = 0;
 });
 
@@ -220,5 +224,77 @@ describe("pause, resume, run now and remove", () => {
     form.set("taskId", TASK);
     expect((await removeScheduledTaskAction({ status: "idle" }, form)).status).toBe("done");
     expect(calls.find((c) => c.kind === "archive")!.input).toEqual({ taskId: TASK });
+  });
+});
+
+describe("scheduling from Chat (stage 273)", () => {
+  const ASKED = "Send me the AI news every morning at 8";
+
+  it("offers when nothing like it is scheduled, and says so when the same instruction already is", async () => {
+    expect(await scheduleOfferStateAction(ASKED, CHAT)).toEqual({ status: "offer" });
+    world.tasks = [{ id: TASK, instruction: "send me the  AI news every morning at 8 ", schedule: daily, state: "active", conversationId: null }];
+    expect(await scheduleOfferStateAction(ASKED, CHAT)).toEqual({ status: "scheduled", sentence: "Every day at 8:00 AM, Colombo time.", paused: false });
+    world.tasks = [{ id: TASK, instruction: ASKED, schedule: daily, state: "paused", conversationId: null }];
+    expect(await scheduleOfferStateAction(ASKED, null)).toMatchObject({ status: "scheduled", paused: true });
+    // One that has ended is offered again: it no longer runs.
+    world.tasks = [{ id: TASK, instruction: ASKED, schedule: daily, state: "ended", conversationId: null }];
+    expect(await scheduleOfferStateAction(ASKED, CHAT)).toEqual({ status: "offer" });
+  });
+
+  it("never offers in a scheduled task's own chat, whether the task still runs or has ended", async () => {
+    // A task's chat ends on its instruction, run after run. A reminder that has been delivered must not offer itself for another day.
+    for (const state of ["active", "paused", "ended"]) {
+      world.tasks = [{ id: TASK, instruction: "remind me tomorrow at 5pm to call the bank", schedule: daily, state, conversationId: CHAT }];
+      expect(await scheduleOfferStateAction("remind me tomorrow at 5pm to call the bank", CHAT), state).toEqual({ status: "off" });
+      // Whatever the chat's last question now says.
+      expect(await scheduleOfferStateAction("send me the weather every morning", CHAT), state).toEqual({ status: "off" });
+    }
+    // Another chat is unaffected, and an id that isn't one is no chat.
+    world.tasks = [{ id: TASK, instruction: "something else", schedule: daily, state: "active", conversationId: CHAT }];
+    expect(await scheduleOfferStateAction(ASKED, "55555555-5555-4555-8555-555555555555")).toEqual({ status: "offer" });
+    expect(await scheduleOfferStateAction(ASKED, "not-an-id")).toEqual({ status: "offer" });
+  });
+
+  it("offers nothing to someone who can't schedule here, or when their tasks can't be read", async () => {
+    world.role = "viewer";
+    expect(await scheduleOfferStateAction(ASKED, CHAT)).toEqual({ status: "off" });
+    Object.assign(world, { role: "owner", writes: false });
+    expect(await scheduleOfferStateAction(ASKED, CHAT)).toEqual({ status: "off" });
+    Object.assign(world, { writes: true, tasks: null });
+    expect(await scheduleOfferStateAction(ASKED, CHAT)).toEqual({ status: "off" });
+    expect(await scheduleOfferStateAction("x".repeat(9_000), CHAT)).toEqual({ status: "off" });
+    // The demo workspace shows the offer; pressing it says why nothing is saved.
+    Object.assign(world, { tasks: [], mode: "demo" });
+    expect(await scheduleOfferStateAction(ASKED, CHAT)).toEqual({ status: "offer" });
+    expect(await scheduleFromChatAction({ instruction: ASKED, schedule: daily })).toMatchObject({ status: "error", message: expect.stringContaining("read-only") });
+  });
+
+  it("schedules what was asked with the usual choices and the server's own next time, and says where its answers will be", async () => {
+    const r = await scheduleFromChatAction({ instruction: ASKED, schedule: daily });
+    expect(r).toEqual({ status: "done", message: "Scheduled. Every day at 8:00 AM, Colombo time. Its answers will be in Chat, under its own name." });
+    const input = saved()[0]!.input;
+    expect(input).toMatchObject({ taskId: null, baseVersion: null, title: ASKED, instruction: ASKED, options: { web: true, effort: "balanced", notify: true }, maxActive: 10 });
+    expect((input.nextRunAt as Date).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("makes one task when the press is repeated: the same instruction already scheduled is said, not saved again", async () => {
+    world.tasks = [{ id: TASK, instruction: ASKED, schedule: daily, state: "active", conversationId: null }];
+    const again = await scheduleFromChatAction({ instruction: ` ${ASKED}  `, schedule: daily });
+    expect(again).toEqual({ status: "done", message: "This is already scheduled. Every day at 8:00 AM, Colombo time." });
+    expect(saved()).toHaveLength(0);
+  });
+
+  it("refuses what the Scheduled page's own save refuses", async () => {
+    world.plan = "free";
+    const hourly = await scheduleFromChatAction({ instruction: "check the site every hour", schedule: { ...daily, repeat: { kind: "hourly", minute: 0 } } });
+    expect(hourly.status === "error" && hourly.message).toMatch(/once a day/);
+    world.plan = "plus";
+    world.save = { ok: false, code: "QUOTA_EXCEEDED", message: "QUOTA_EXCEEDED" };
+    const full = await scheduleFromChatAction({ instruction: ASKED, schedule: daily });
+    expect(full.status === "error" && full.message).toMatch(/keeps 10 scheduled tasks active/);
+    world.save = null;
+    expect(await scheduleFromChatAction({ instruction: ASKED, schedule: { repeat: { kind: "sometimes" } } })).toMatchObject({ status: "error" });
+    expect(await scheduleFromChatAction({ instruction: "   ", schedule: daily })).toMatchObject({ status: "error" });
+    expect(await scheduleFromChatAction({ instruction: "x".repeat(9_000), schedule: daily })).toMatchObject({ status: "error" });
   });
 });

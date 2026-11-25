@@ -55,6 +55,8 @@ describe("a scheduled run", () => {
     const s = setup(DONE);
     expect(await runClaimed(s.deps, run())).toBe("done");
     expect(s.turn).toHaveBeenCalledWith(expect.objectContaining({ userId: "44444444-4444-4444-8444-444444444444", text: "Research the latest news and summarise it.", web: true, effort: "balanced", title: "Morning news" }), expect.anything(), "22222222-2222-4222-8222-222222222222");
+    // The turn is told it is a scheduled run that is due now, so "remind me…" is answered as the reminder, not as a new request.
+    expect((s.turn.mock.calls[0] as unknown as [{ note?: string }])[0].note).toMatch(/scheduled in Farbaek, and it is due now/);
     expect(s.finished).toEqual([
       { runId: run().runId, attempt: 1, status: "done", detail: null, conversationId: DONE.conversationId, messageId: "66666666-6666-4666-8666-666666666666", nextRunAt: new Date("2026-11-26T03:30:00Z"), retryAt: null, pauseReason: null, failuresInRow: 0 },
     ]);

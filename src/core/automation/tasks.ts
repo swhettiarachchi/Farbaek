@@ -155,6 +155,14 @@ export function settle(outcome: RunOutcome, task: { schedule: Schedule; attempt:
   return { status, detail, retryAt: null, nextRunAt, pauseReason, failuresInRow: failures };
 }
 
+/**
+ * What a scheduled run's turn is told, beside the person's instruction and for the model only. The instruction is the person's words
+ * as they wrote them, schedule and all ("remind me tomorrow at 5pm to call the bank", "send me the news every morning"): without
+ * this, the model reads them as a new request, and answers that it will remind them, or that it can't.
+ */
+export const RUN_NOTE =
+  "This message is a task the person scheduled in Farbaek, and it is due now. Farbaek runs it by itself at the times they set, so the scheduling is already done: don't offer to schedule or remind, don't say you will do it later, and don't say you can't set reminders. Do what it asks now and give the result itself. If it asks to be reminded of something, this is the reminder: say it plainly, in a sentence or two.";
+
 /** Whether a due time is too old to run: the server was down past it. */
 export function tooLate(dueAt: Date, now: Date): boolean {
   return now.getTime() - dueAt.getTime() > MAX_LATE_MINUTES * 60_000;
