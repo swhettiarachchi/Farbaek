@@ -37,6 +37,11 @@ import { LiveRefresh } from "@/components/app/live-refresh";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { aiMeter, loadUsageSummary } from "@/server/workspace/usage-summary";
 import { PAGE_STACK } from "@/components/ui/surfaces";
+import { ScheduledHomeCard } from "@/components/scheduled/home-card";
+import { scheduledOnHome, type HomeRun, type HomeTask } from "@/core/automation/home";
+import { demoScheduled } from "@/server/automation/demo";
+import { listHomeTasks, listRuns as listScheduledRuns } from "@/server/automation/store";
+import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
 export const metadata: Metadata = { title: "Home" };
 
@@ -61,17 +66,38 @@ async function loadInbox(orgId: string): Promise<{ runs: RunView[]; proposals: M
   }
 }
 
+/** How many of the person's latest runs Home reads: enough to find the last one that ended and any under way. */
+const HOME_RUNS = 30;
+
+/**
+ * The person's own scheduled tasks and their latest runs, read as them (stage 274). When the tasks can't be read Home shows none:
+ * the Scheduled page is where that is said. Runs that can't be read leave the card without its last run. The demo shows its
+ * labelled samples.
+ */
+async function loadScheduled(mode: string, orgId: string): Promise<{ tasks: HomeTask[]; runs: HomeRun[] | null }> {
+  if (mode === "demo") return demoScheduled(new Date());
+  if (mode !== "live") return { tasks: [], runs: [] };
+  try {
+    const client = await createSupabaseServerClient();
+    const tasks = client ? ((await listHomeTasks(client, orgId)) ?? []) : [];
+    return { tasks, runs: client && tasks.length > 0 ? await listScheduledRuns(client, orgId, HOME_RUNS) : [] };
+  } catch {
+    return { tasks: [], runs: [] };
+  }
+}
+
 export default async function MissionControl() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const [usage, recentEvidence, inbox, stepRecords, jar] = await Promise.all([
+  const [usage, recentEvidence, inbox, stepRecords, jar, scheduledWork] = await Promise.all([
     loadUsageSummary(ctx, ws),
     ctx.reader.listRecentProofPacks(ws.id, 5),
     ctx.mode === "live" ? loadInbox(ws.id) : Promise.resolve(null),
     // Without these records the steps still read tasks; they never claim more than they can see.
     ctx.reader.getFirstStepRecords(ws.id).catch(() => ({ latestProofPack: null, verifiedTaskId: null, liveSite: null })),
     cookies(),
+    loadScheduled(ctx.mode, ws.id),
   ]);
   const { tasks, projects } = usage;
   const ai = usage.wallet ? aiMeter(usage.wallet) : null;
@@ -94,7 +120,10 @@ export default async function MissionControl() {
   const sorted = await waitingChanges(ctx.reader, { orgId: ws.id, tasks, archivedProjects: archived, role: ctx.role, permissions: ctx.permissions, tour }, new Date());
   // Only the person who started a run, or an owner or admin, can answer it.
   const questions = lanes.needs_you.filter((r) => !archived.has(r.projectId) && (tour || manager || r.startedBy === ctx.user.id));
-  const needs = tour || ctx.writes.enabled ? needsYou({ ...sorted, questions }) : null;
+  const scheduled = scheduledOnHome(scheduledWork.tasks, scheduledWork.runs, new Date());
+  // A task Farbaek paused is this person's turn only if they can resume it: someone who can't sees it in the card, not as a step.
+  const canSchedule = tour || (ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role));
+  const needs = tour || ctx.writes.enabled ? needsYou({ ...sorted, questions, scheduledStopped: canSchedule ? scheduled?.stopped : [] }) : null;
   const limits = ws.plan.limits;
   // Only while the workspace is still on its trial: a paid plan bought during it doesn't move to Free.
   const trialDays = ws.plan.source === "trial" && ws.trial?.phase.phase === "active" ? ws.trial.phase.daysRemaining : null;
@@ -246,6 +275,7 @@ export default async function MissionControl() {
         </Card>
 
         <div className="grid content-start gap-6">
+          {scheduled ? <ScheduledHomeCard home={scheduled} /> : null}
           <Card>
             <div className="flex items-center justify-between gap-3">
               <CardTitle icon={GaugeIcon}>AI usage</CardTitle>

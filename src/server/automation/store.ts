@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { HomeTask } from "@/core/automation/home";
 import { scheduleSchema, type Schedule } from "@/core/automation/schedule";
 import { DEFAULT_OPTIONS, taskOptionsSchema, type TaskOptions } from "@/core/automation/tasks";
 
@@ -262,6 +263,27 @@ export async function listTasks(client: SupabaseClient, orgId: string): Promise<
       version: r.version,
       createdAt: r.created_at,
     };
+  });
+}
+
+/**
+ * The little Home reads of the person's tasks (stage 274): no instruction or options, since Home shows a name, a schedule and a
+ * time. Null when they couldn't be read.
+ */
+export async function listHomeTasks(client: SupabaseClient, orgId: string): Promise<HomeTask[] | null> {
+  const { data, error } = await client
+    .from("scheduled_tasks")
+    .select("id, title, schedule, state, state_reason, conversation_id, next_run_at, last_run_at")
+    .eq("org_id", orgId)
+    .is("archived_at", null)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) return null;
+  const rows = z.array(taskRow.pick({ id: true, title: true, schedule: true, state: true, state_reason: true, conversation_id: true, next_run_at: true, last_run_at: true })).safeParse(data ?? []);
+  if (!rows.success) return null;
+  return rows.data.map((r) => {
+    const schedule = scheduleSchema.safeParse(r.schedule);
+    return { id: r.id, title: r.title, state: r.state, stateReason: r.state_reason, schedule: schedule.success ? schedule.data : null, nextRunAt: r.next_run_at, lastRunAt: r.last_run_at, conversationId: r.conversation_id };
   });
 }
 

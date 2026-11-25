@@ -73,7 +73,7 @@ Research complete. Nothing built: no agent with a lasting goal, schedule, budget
 
 ### A7 Agent command center (Antigravity): Not started
 
-Approvals, the runs list and a workspace-wide "Pause agents now" exist on separate pages. No one place shows every agent, its stage, tools, cost, waiting approvals and results.
+Approvals, the runs list and a workspace-wide "Pause agents now" exist on separate pages. No one place shows every agent, its stage, tools, cost, waiting approvals and results. Home now shows a person's scheduled work in one card and leads with a task Farbaek paused (ADR 0281): a first piece, for scheduled tasks only.
 
 ### A8 Claude ecosystem: Partly
 

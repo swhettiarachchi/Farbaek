@@ -115,12 +115,21 @@ export function outcomeOfRefusal(status: number, message: string): RunOutcome {
 }
 
 /**
+ * How a task's reason starts when Farbaek, not the person, paused it. Every such reason is built from this, since Home and the
+ * Scheduled page tell the two kinds of pause apart by it (ADR 0281).
+ */
+export const BY_FARBAEK = "Paused by Farbaek: ";
+
+/** Why Farbaek pauses a task whose stored schedule no longer reads. */
+export const UNREADABLE_SCHEDULE = `${BY_FARBAEK}its schedule couldn't be read. Open it and save its schedule again.`;
+
+/**
  * Why a task can't run on the plan its owner has now (a trial that ended, a smaller plan chosen), or null. `position` is its place
  * among their active tasks in the workspace, oldest first, from 1: the ones made first keep running.
  */
 export function planProblem(schedule: Schedule, limit: ScheduledLimit, position: number): string | null {
-  if (!limit.hourly && shortestGapMinutes(schedule.repeat) < 1440) return "Paused by Farbaek: your plan runs a task once a day at most. Change its schedule, or choose a larger plan, then resume it.";
-  if (position > limit.active) return `Paused by Farbaek: your plan keeps ${limit.active} scheduled ${limit.active === 1 ? "task" : "tasks"} active at once, and this is one more. Pause or remove another, or choose a larger plan, then resume it.`;
+  if (!limit.hourly && shortestGapMinutes(schedule.repeat) < 1440) return `${BY_FARBAEK}your plan runs a task once a day at most. Change its schedule, or choose a larger plan, then resume it.`;
+  if (position > limit.active) return `${BY_FARBAEK}your plan keeps ${limit.active} scheduled ${limit.active === 1 ? "task" : "tasks"} active at once, and this is one more. Pause or remove another, or choose a larger plan, then resume it.`;
   return null;
 }
 
@@ -151,7 +160,7 @@ export function settle(outcome: RunOutcome, task: { schedule: Schedule; attempt:
   const nextRunAt = nextRun(task.schedule, now, task.manual ? task.runsFinished : task.runsFinished + 1);
   const blameless = outcome.kind === "skipped" && outcome.blameless === true;
   const failures = status === "done" ? 0 : blameless ? task.failuresInRow : task.failuresInRow + 1;
-  const pauseReason = nextRunAt !== null && !blameless && failures >= PAUSE_AFTER_FAILURES ? `Paused by Farbaek: its last ${failures} runs didn't finish. The latest: ${detail ?? "no reason was recorded."}`.slice(0, 300) : null;
+  const pauseReason = nextRunAt !== null && !blameless && failures >= PAUSE_AFTER_FAILURES ? `${BY_FARBAEK}its last ${failures} runs didn't finish. The latest: ${detail ?? "no reason was recorded."}`.slice(0, 300) : null;
   return { status, detail, retryAt: null, nextRunAt, pauseReason, failuresInRow: failures };
 }
 

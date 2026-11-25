@@ -11,23 +11,10 @@ import type { ScheduledTask, TaskRun } from "@/server/automation/store";
 import { buttonClasses } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { LocalTime } from "@/components/ui/local-time";
-import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { BY_FARBAEK } from "@/core/automation/home";
+import { RUN_STATUS, stateBadge } from "./status";
 import { TaskForm } from "./task-form";
-
-const RUN_STATUS: Record<TaskRun["status"], { status: Status; label: string }> = {
-  running: { status: "working", label: "Running" },
-  retrying: { status: "pending", label: "Trying again soon" },
-  done: { status: "done", label: "Ran" },
-  failed: { status: "failed", label: "Didn't finish" },
-  skipped: { status: "off", label: "Skipped" },
-};
-
-function stateBadge(task: ScheduledTask, running: boolean): { status: Status; label: string } {
-  if (task.state === "paused") return { status: "paused", label: "Paused" };
-  if (task.state === "ended") return { status: "off", label: "Ended" };
-  if (running) return { status: "working", label: "Running now" };
-  return { status: "pending", label: "Scheduled" };
-}
 
 const ANSWER_LINK = "tap inline-flex items-center gap-1 font-medium text-accent underline-offset-2 hover:underline";
 
@@ -48,12 +35,12 @@ function TaskCard({ task, runs, limit, disabledReason, serverNow }: { task: Sche
     });
   // Running now: its newest run is under way, and the task is one that runs. An older row can't say so.
   const running = task.state === "active" && runs[0]?.status === "running";
-  const badge = stateBadge(task, running);
+  const badge = stateBadge(task.state, running);
   const off = disabledReason ?? (pending ? "Working on it." : null);
   const nowReason = off ?? (task.state === "paused" ? "Resume it first." : task.state === "ended" ? "Its schedule has ended: change its schedule first." : running ? "It's running now." : null);
   // The answers are in the task's own conversation; a run whose conversation has since been replaced or deleted has no link.
   const answer = (conversationId: string | null) => (conversationId && conversationId === task.conversationId ? `/app/chat/${conversationId}` : null);
-  const byFarbaek = task.stateReason?.startsWith("Paused by Farbaek") ?? false;
+  const byFarbaek = task.stateReason?.startsWith(BY_FARBAEK) ?? false;
 
   return (
     <li className="rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">

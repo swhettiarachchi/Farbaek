@@ -84,6 +84,24 @@ describe("what Home leads with", () => {
     expect(needsYou({ ...none, expired: ONE, mine: ONE })?.title).toBe("A change is waiting for your yes or no");
   });
 
+  it("says a scheduled task Farbaek paused, with why, after approvals and before what only ran out of time", () => {
+    const stopped = [{ id: "s1", title: "Morning news", reason: "Its last 5 runs didn't finish." }];
+    expect(needsYou({ ...none, scheduledStopped: stopped })).toEqual({
+      tone: "action",
+      title: "A scheduled task was paused",
+      body: `"Morning news". Its last 5 runs didn't finish.`,
+      action: { label: "See it", href: "/app/scheduled" },
+    });
+    expect(needsYou({ ...none, scheduledStopped: [...stopped, { id: "s2", title: "Weekly check", reason: "Your plan keeps 1 task active." }] })).toMatchObject({
+      title: "2 scheduled tasks were paused",
+      action: { label: "See them", href: "/app/scheduled" },
+    });
+    expect(needsYou({ ...none, scheduledStopped: stopped, mine: ONE })?.title).toBe("A change is waiting for your yes or no");
+    expect(needsYou({ ...none, scheduledStopped: stopped, questions: ASKING })?.title).toBe("The agent is waiting for you");
+    expect(needsYou({ ...none, scheduledStopped: stopped, expired: ONE })?.title).toBe("A scheduled task was paused");
+    expect(needsYou({ ...none, scheduledStopped: [] })).toBeNull();
+  });
+
   it("isn't the turn of someone who can only look, and offers them nothing to press", () => {
     expect(needsYou({ ...none, others: 1 })).toMatchObject({ tone: "idle", title: "A change is waiting for someone else's yes or no", action: null });
     expect(needsYou({ ...none, others: 2 })).toMatchObject({ title: "2 changes are waiting for someone else's yes or no", action: null });

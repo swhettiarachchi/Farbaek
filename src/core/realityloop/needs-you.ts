@@ -64,6 +64,8 @@ export function approvalsOrder<T extends { createdAt: string; expiresAt: string 
 export interface NeedsYouFacts extends WaitingChanges {
   /** Runs stopped on a question this person is allowed to answer. */
   questions: readonly { id: string; taskTitle: string }[];
+  /** The person's scheduled tasks that Farbaek paused itself in the last few days, each with why (stage 274). Missing: none. */
+  scheduledStopped?: readonly { id: string; title: string; reason: string }[];
 }
 
 export interface NeedsYou {
@@ -76,7 +78,7 @@ export interface NeedsYou {
 
 const isOrAre = (n: number) => (n === 1 ? "A change is" : `${n} changes are`);
 
-export function needsYou({ questions, mine, expired, others }: NeedsYouFacts): NeedsYou | null {
+export function needsYou({ questions, mine, expired, others, scheduledStopped = [] }: NeedsYouFacts): NeedsYou | null {
   // A question comes first: the agent has stopped until someone answers it.
   if (questions.length > 0) {
     const also = mine.length > 0 ? ` ${isOrAre(mine.length)} waiting for your yes or no too.` : "";
@@ -110,6 +112,24 @@ export function needsYou({ questions, mine, expired, others }: NeedsYouFacts): N
       title: `${mine.length} changes are waiting for your yes or no`,
       body: "Nothing goes into your project until you approve it.",
       action: { label: "See them", href: "/app/approvals" },
+    };
+  }
+
+  // A scheduled task Farbaek paused has stopped running until the person looks: after their approvals, before what only expired.
+  if (scheduledStopped.length === 1) {
+    return {
+      tone: "action",
+      title: "A scheduled task was paused",
+      body: `"${scheduledStopped[0]!.title}". ${scheduledStopped[0]!.reason}`,
+      action: { label: "See it", href: "/app/scheduled" },
+    };
+  }
+  if (scheduledStopped.length > 1) {
+    return {
+      tone: "action",
+      title: `${scheduledStopped.length} scheduled tasks were paused`,
+      body: "Farbaek paused them, and each says why and what to do. They won't run while they're paused.",
+      action: { label: "See them", href: "/app/scheduled" },
     };
   }
 
