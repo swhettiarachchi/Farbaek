@@ -1,7 +1,7 @@
 # Stage 272: usage given back when a call is cut off
 
 - **Date:** 2026-11-25
-- **Branch:** `fix/stage-272-stale-usage`, on stage 271's (`feat/stage-271-scheduled`, PR #328). Merge #328 first.
+- **Branch:** `fix/stage-272-stale-usage`, on stage 271's. PR #329. Stage 271's PR #328 was merged while this was being finished, so this one carries only its own commit.
 - **Decision:** ADR 0279
 - **Migration:** v107, `20270117090000_stale_usage.sql`. To be applied and read back before the merge, after v106. **New dependency:** none.
 - **Skills used:** `ecc-security-review`'s checklist for the SQL function (who may call it, what it may touch), and the production-readiness lens (`audit-suite`) for what a restart leaves behind. No screen changed beyond one phrase on a task's page, so no design skill was needed.
@@ -36,9 +36,9 @@ The owner asked for this fix after stage 271's review found it: a call whose ser
 
 ## For the owner
 
-1. Merge #328 first (it carries v106).
-2. Apply v107 and read it back. The line is in this stage's pull request. Not during the nightly backup: it would give up after five seconds and change nothing, and can simply be run again.
-3. Merge. The next hourly run closes every reservation a restart ever left open; most are from periods already over.
+1. **Apply v106 first.** #328 was merged and went live on 2026-11-25 (build `bc473b7cb6bb`) without it: the live Scheduled page, read signed in, says "Your scheduled tasks couldn't be read just now", which is what it says when its tables aren't there. Nothing else is affected, and nothing can be saved there until v106 is on. The line is in #328.
+2. Apply v107 and read it back. The line is in #329. Not during the nightly backup: it would give up after five seconds and change nothing, and can simply be run again.
+3. Merge #329. The next hourly run closes every reservation a restart ever left open; most are from periods already over.
 
 ## Next
 

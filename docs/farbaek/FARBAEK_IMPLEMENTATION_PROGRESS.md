@@ -20,7 +20,8 @@ The running record of the program the owner set on 2026-11-22. Read this first i
 | Stage 213, part 2: staff see which prices to read again, on the office's Models page | Merged as #284. Not seen in a browser: the console needs a staff sign-in | Nothing |
 | Stage 213, what is left: both routers reading the registry; dating the seven prices that have no day | Not started | Nothing |
 | Stage 218, part 1: the suggested prices worked out in code, with a page to decide from (ADR 0231) | Merged as #281 | The owner decides the prices, monthly or yearly for the smallest plan, the hours and seats, and what each plan includes |
-| Stage 271 (the order's 215 and 216, first part): scheduled tasks. A person writes what Farbaek should do and when; the server runs it as a Chat turn as them, once for each due time, with retries, a pause after five that didn't finish, a history of runs and a notice (ADR 0278) | Built and tested, PR open | The owner applies migration v106 and reads it back, merges, then switches the every-minute timer on. A real run on production is the first live check |
+| Stage 271 (the order's 215 and 216, first part): scheduled tasks. A person writes what Farbaek should do and when; the server runs it as a Chat turn as them, once for each due time, with retries, a pause after five that didn't finish, a history of runs and a notice (ADR 0278) | Merged as #328 and live on 2026-11-25. **Its migration v106 was not on production when the live page was read that day** (the page said its tasks couldn't be read) | The owner applies v106 and reads it back, then switches the every-minute timer on. A real run on production is the first live check |
+| Stage 272: usage given back when a call is cut off by a restart, for every kind of call (ADR 0279) | Built and tested, PR #329 open | The owner applies v106, then v107, reads each back, and merges |
 | Skills inventory, master audit, the study of the reference products | Written | Nothing |
 | Research on providers and platforms | 2 of 7 notes complete, 5 partial | Finishing the 5, a few at a time |
 
@@ -49,7 +50,7 @@ The brief asks for everything. This is the order that makes each stage stand on 
 
 ## What only the owner can do
 
-- **Now:** apply migration v106 (scheduled tasks) and read it back, merge its pull request, then switch the every-minute timer on. The lines are in the PR and in `docs/stages/stage-271.md`.
+- **Now:** apply migration v106 (scheduled tasks: #328 is merged and live without it), then v107 (#329), reading each back; merge #329; switch the every-minute timer on. The lines are in the two pull requests and in `docs/stages/stage-271.md` and `stage-272.md`.
 - **For Grok (stage 214):** an xAI account and API key, and a monthly budget. The research found prices of $2 in and $6 out per million tokens for the flagship, and $5 per thousand posts fetched by `x_search`. It could not confirm that the API is offered in Sri Lanka; signing up is the test.
 - **For new prices (stage 218):** a yes before live plans change.
 - **For the desktop fix in stage 209:** publishing the next desktop release.
