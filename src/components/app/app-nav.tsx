@@ -26,6 +26,7 @@ import {
   PlugsConnectedIcon,
   ScalesIcon,
   SirenIcon,
+  SlidersHorizontalIcon,
   FolderSimpleIcon,
   TerminalWindowIcon,
   ToolboxIcon,
@@ -36,6 +37,8 @@ import Link from "next/link";
 import { PAGE_NAV } from "@/components/app/page-transition";
 import { usePathname } from "next/navigation";
 import { useId, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useLevel } from "@/components/experience/apply";
+import { atLevel, hiddenLine, type Level } from "@/core/experience/level";
 
 export interface NavItem {
   href: string;
@@ -48,6 +51,8 @@ export interface NavItem {
   /** The product's other names for it, so search finds them. */
   also?: readonly string[];
   exact?: boolean;
+  /** The level whose menus first list it (stage 285, ADR 0293). Without one, every level does. It is never a lock. */
+  from?: Level;
 }
 
 /** What most people need, always in view: Farbaek AI's spaces (ADR 0214, ADR 0216) and the work in them. */
@@ -62,21 +67,25 @@ const CORE: NavItem[] = [
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckCircleIcon, about: "Changes waiting for your yes or no." },
 ];
 
-/** Useful, not needed every day: one labelled group, opened when wanted. Survey Studio leads it: a specialist's space (ADR 0216). */
+/**
+ * Useful, not needed every day: one labelled group, opened when wanted. Survey Studio leads it: a specialist's space (ADR 0216).
+ * A person's level (stage 285, ADR 0293) picks how many of these the menus list: the everyday ones at Standard, the tools for
+ * building from Advanced, and the rules and records at Professional. Search reaches all of them at every level.
+ */
 const TOOLS: NavItem[] = [
   { href: "/app/work", label: "All work", short: "All work", icon: ListChecksIcon, about: "Everything Farbaek is doing for you, and one pause.", also: ["Command center", "In progress", "Running", "What Farbaek is doing"] },
   { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListBulletsIcon, about: "Every piece of work, and where it stands." },
   { href: "/app/survey", label: "Survey Studio", short: "Survey", icon: CompassToolIcon, about: "Land survey plans from field data, drawn to scale as PDF and DXF.", also: ["Survey", "Land survey", "Cadastral", "Survey plan", "DXF"] },
-  { href: "/app/sandbox", label: "Test space", short: "Test space", icon: TerminalWindowIcon, about: "Run an app and try it, safely apart from everything else.", also: ["Sandbox", "Terminal"] },
-  { href: "/app/skills", label: "Skills", short: "Skills", icon: BookOpenTextIcon, about: "Teach the agent how to design and build, from a library or your own.", also: ["SKILL.md", "Claude Skills", "Design skills"] },
+  { href: "/app/sandbox", label: "Test space", short: "Test space", icon: TerminalWindowIcon, about: "Run an app and try it, safely apart from everything else.", also: ["Sandbox", "Terminal"], from: "advanced" },
+  { href: "/app/skills", label: "Skills", short: "Skills", icon: BookOpenTextIcon, about: "Teach the agent how to design and build, from a library or your own.", also: ["SKILL.md", "Claude Skills", "Design skills"], from: "advanced" },
   { href: "/app/agents", label: "Desktop app", short: "Desktop app", icon: DesktopIcon, about: "Let the agent work on your own computer.", also: ["Agents", "Farbaek Agent"] },
-  { href: "/app/mesh", label: "Move projects", short: "Move", icon: PackageIcon, about: "Send a project to another computer or workspace as one file.", also: ["Mesh", "Capsule"] },
-  { href: "/app/workflows", label: "Workflows", short: "Workflows", icon: FlowArrowIcon, about: "A bigger goal, done step by step." },
-  { href: "/app/policies", label: "Rules", short: "Rules", icon: ScalesIcon, about: "What needs a person's approval before it changes.", also: ["Policies"] },
-  { href: "/app/incidents", label: "Problems and pause", short: "Problems", icon: SirenIcon, about: "What went wrong, and a button that stops every agent.", also: ["Incidents", "Emergency"] },
-  { href: "/app/activity", label: "History", short: "History", icon: ClockCounterClockwiseIcon, about: "Everything that has happened in this workspace.", also: ["Activity", "Audit log"] },
+  { href: "/app/mesh", label: "Move projects", short: "Move", icon: PackageIcon, about: "Send a project to another computer or workspace as one file.", also: ["Mesh", "Capsule"], from: "advanced" },
+  { href: "/app/workflows", label: "Workflows", short: "Workflows", icon: FlowArrowIcon, about: "A bigger goal, done step by step.", from: "advanced" },
+  { href: "/app/policies", label: "Rules", short: "Rules", icon: ScalesIcon, about: "What needs a person's approval before it changes.", also: ["Policies"], from: "professional" },
+  { href: "/app/incidents", label: "Problems and pause", short: "Problems", icon: SirenIcon, about: "What went wrong, and a button that stops every agent.", also: ["Incidents", "Emergency"], from: "professional" },
+  { href: "/app/activity", label: "History", short: "History", icon: ClockCounterClockwiseIcon, about: "Everything that has happened in this workspace.", also: ["Activity", "Audit log"], from: "advanced" },
   { href: "/app/integrations", label: "Connections", short: "Connections", icon: PlugsConnectedIcon, about: "GitHub, hosting and the other services you've linked.", also: ["Integrations"] },
-  { href: "/app/trust", label: "Who can do what", short: "Access", icon: GraphIcon, about: "See who and what can change each project.", also: ["Trust graph", "Permissions"] },
+  { href: "/app/trust", label: "Who can do what", short: "Access", icon: GraphIcon, about: "See who and what can change each project.", also: ["Trust graph", "Permissions"], from: "professional" },
 ];
 
 /** Yours and the workspace's, at the end of the list. */
@@ -106,6 +115,17 @@ const PHONE_TAB_FOR: readonly { tab: string; page: RegExp }[] = [{ tab: "/app/bu
 
 function isActive(pathname: string, item: NavItem): boolean {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+/** Where a person chooses their level: the row that says more tools exist leads here. */
+export const LEVEL_SETTING = "/app/settings#experience";
+
+/**
+ * The tools a level lists (stage 285, ADR 0293), and the ones it leaves for a higher level. The tool a person is on is
+ * always listed, so nobody stands on a page their own menu doesn't show.
+ */
+export function toolsAt(level: Level, pathname: string): { rows: NavItem[]; hidden: NavItem[] } {
+  return atLevel(TOOLS, level, (item) => isActive(pathname, item));
 }
 
 const TOOLS_KEY = "farbaek.nav.tools";
@@ -148,8 +168,9 @@ function Badge({ count, tone = "approval", label = "waiting" }: { count: number;
   );
 }
 
-export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; helpUnread?: number }) {
+export function SidebarNav({ approvals, helpUnread = 0, level: saved }: { approvals: number; helpUnread?: number; level: Level }) {
   const pathname = usePathname();
+  const tools = toolsAt(useLevel(saved), pathname);
   const toolsId = useId();
   const link = (item: NavItem) => {
     const active = isActive(pathname, item);
@@ -198,7 +219,23 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
         </button>
         {/* It folds by its height; while it's closed nothing inside can be reached, by Tab or a screen reader. */}
         <div id={toolsId} inert={!open} className={`grid motion-safe:transition-[grid-template-rows] motion-safe:duration-200 ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-          <ul className={`grid min-h-0 gap-0.5 overflow-hidden ${open ? "pt-0.5" : "invisible"}`}>{TOOLS.map(link)}</ul>
+          <ul className={`grid min-h-0 gap-0.5 overflow-hidden ${open ? "pt-0.5" : "invisible"}`}>
+            {tools.rows.map(link)}
+            {/* What this level leaves out is one press away, and search reaches it too. */}
+            {tools.hidden.length > 0 ? (
+              <li>
+                <Link
+                  href={LEVEL_SETTING}
+                  transitionTypes={PAGE_NAV}
+                  className="flex h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface/70 hover:text-ink pointer-coarse:h-11"
+                >
+                  <SlidersHorizontalIcon size={20} weight="bold" className="shrink-0" aria-hidden />
+                  Show more tools
+                  <span className="sr-only">. {hiddenLine(tools.hidden)}</span>
+                </Link>
+              </li>
+            ) : null}
+          </ul>
         </div>
       </div>
       <ul className="grid gap-0.5">{ACCOUNT.map(link)}</ul>
@@ -209,10 +246,26 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
 const TABS: NavItem[] = [...TAB_ITEMS, { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon, about: "Every other tool, and your account." }];
 
 /** The phone's More page: every other page, each with one plain line saying what it's for. */
-export function MoreList({ helpUnread = 0, children }: { helpUnread?: number; children?: ReactNode }) {
+/**
+ * The More page's rows at a level (stage 285, ADR 0293): the same rows as ever, less the tools the level leaves out. Where
+ * it leaves any out, a row after the last tool and before the account pages says how many, and leads to the choice.
+ */
+export function moreRowsAt(level: Level): NavItem[] {
+  const tools = atLevel(TOOLS, level);
+  const left = new Set(tools.hidden.map((t) => t.href));
+  const rows: NavItem[] = MORE_PAGES.filter((p) => !left.has(p.href));
+  if (tools.hidden.length > 0) {
+    const more: NavItem = { href: LEVEL_SETTING, label: "Show more tools", short: "More tools", icon: SlidersHorizontalIcon, about: hiddenLine(tools.hidden) };
+    rows.splice(rows.length - ACCOUNT.length, 0, more);
+  }
+  return rows;
+}
+
+export function MoreList({ helpUnread = 0, level: saved, children }: { helpUnread?: number; level: Level; children?: ReactNode }) {
+  const rows = moreRowsAt(useLevel(saved));
   return (
     <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
-      {MORE_PAGES.map((item) => (
+      {rows.map((item) => (
         <li key={item.href}>
           <Link href={item.href} transitionTypes={PAGE_NAV} className="flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-canvas-2">
             <item.icon size={24} weight="bold" className="shrink-0 text-ink" aria-hidden />

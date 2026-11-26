@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ChatShell } from "@/components/chat/chat-shell";
 import { savedTheme } from "@/server/theme";
+import { savedLevel } from "@/server/experience";
 import { getPlan } from "@/core/billing/catalog";
 import { SAMPLE_CHATS } from "@/content/chat-samples";
 import { loadChatAvailability } from "@/server/chat/setup";
@@ -30,7 +31,7 @@ export default async function ChatLayout({ children }: Readonly<{ children: Reac
     ctx.reader.listProjects(ws.id).catch(() => []),
     loadChatAvailability(ctx, ws, client),
   ]);
-  const theme = await savedTheme();
+  const [theme, level] = await Promise.all([savedTheme(), savedLevel()]);
   const trialDays = ws.trial?.phase.phase === "active" ? ws.trial.phase.daysRemaining : null;
   const planLabel = `${getPlan(ws.plan.planId).name}${ws.plan.source === "trial" ? " trial" : " plan"}${trialDays !== null ? `, ${trialDays} ${trialDays === 1 ? "day" : "days"} left` : ""}`;
 
@@ -48,6 +49,7 @@ export default async function ChatLayout({ children }: Readonly<{ children: Reac
         period: availability.period,
       }}
       theme={theme}
+      level={level}
       demo={!live}
       user={{ email: ctx.user.email }}
       workspaceName={ws.name}

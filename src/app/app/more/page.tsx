@@ -10,6 +10,7 @@ import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
+import { savedLevel } from "@/server/experience";
 import { loadUsageMeters } from "@/server/workspace/usage-summary";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { unreadSupportCount } from "@/server/workspace/support";
@@ -23,7 +24,7 @@ export default async function MorePage() {
   if (!ctx?.current) notFound();
 
   const client = ctx.mode === "live" ? await createSupabaseServerClient() : null;
-  const [meters, helpUnread] = await Promise.all([loadUsageMeters(ctx, ctx.current), client ? unreadSupportCount(client) : Promise.resolve(0)]);
+  const [meters, helpUnread, level] = await Promise.all([loadUsageMeters(ctx, ctx.current), client ? unreadSupportCount(client) : Promise.resolve(0), savedLevel()]);
   const row = "flex min-h-12 items-center gap-3 px-4 py-2.5 text-body";
   return (
     <div className="grid gap-6">
@@ -37,7 +38,7 @@ export default async function MorePage() {
         <UsageMeterList meters={meters} />
       </section>
 
-      <MoreList helpUnread={helpUnread}>
+      <MoreList helpUnread={helpUnread} level={level}>
         {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
         {ctx.mode === "live" && isAdminEmail(ctx.user.email) ? (
           <li>

@@ -41,6 +41,7 @@ import { MemoryCookieSync } from "@/components/chat/memory-cookie-sync";
 import { ThemeMark } from "@/components/theme/theme-mark";
 import { browserBarColor } from "@/core/theme/theme";
 import { savedTheme } from "@/server/theme";
+import { savedLevel } from "@/server/experience";
 
 /** The page-wide bands (demo, saving off, agents paused): one neutral style, the icon's colour says which kind (ADR 0183). */
 // The icon sits beside the first line, and the words wrap beside it, never under it.
@@ -128,12 +129,14 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
   const current = ctx.current;
   const live = ctx.mode === "live";
   const client = live ? await createSupabaseServerClient().catch(() => null) : null;
-  const [tasks, projects, liveRuns, announcements, helpUnread] = await Promise.all([
+  const [tasks, projects, liveRuns, announcements, helpUnread, level] = await Promise.all([
     ctx.reader.listTasks(current.id),
     ctx.reader.listProjects(current.id).catch(() => []),
     client ? liveRunStatuses(client, current.id).catch(() => []) : Promise.resolve([]),
     client ? liveAnnouncements(client) : Promise.resolve([]),
     client ? unreadSupportCount(client) : Promise.resolve(0),
+    // How much the menus list (stage 285, ADR 0293): the person's own choice, and never a lock.
+    savedLevel(),
   ]);
   const presence = agentPresence(liveRuns);
   const admin = live && isAdminEmail(ctx.user.email);
@@ -161,7 +164,7 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
         <PaletteTrigger />
         <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
         {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} /> : null}
-        <SidebarNav approvals={approvals} helpUnread={helpUnread} />
+        <SidebarNav approvals={approvals} helpUnread={helpUnread} level={level} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
           {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
           {admin ? (

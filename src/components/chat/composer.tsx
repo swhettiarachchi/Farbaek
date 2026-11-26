@@ -9,6 +9,7 @@
 import {
   ArrowUpIcon,
   CaretDownIcon,
+  CaretRightIcon,
   CheckCircleIcon,
   FilePdfIcon,
   FileTextIcon,
@@ -23,6 +24,7 @@ import {
 import { Fragment, useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { fileSizeLabel } from "@/core/chat/files";
 import type { ChatModelOption } from "@/core/chat/models";
+import { modelToAsk } from "@/core/chat/model-to-ask";
 import { ASPECTS, CHAT_LIMITS, EFFORT_ABOUT, EFFORT_LABELS, EFFORTS, type Aspect, type ChatFile } from "@/core/chat/protocol";
 import { useSpeech } from "@/components/survey/assistant/use-speech";
 import { Menu, useMenuClose } from "./primitives";
@@ -88,12 +90,17 @@ async function shrink(file: File): Promise<Blob> {
   }
 }
 
-function ModelPicker({ models, compact }: { models: ChatModelOption[]; compact: boolean }) {
+/**
+ * Who answers, and how. At Standard (stage 285, ADR 0293) Farbaek AI picks the model, so the list of models isn't shown and
+ * the first option, Auto, is the one in use; `onChooseModel` opens the settings where a person asks for the list.
+ */
+function ModelPicker({ models, compact, pickModel, onChooseModel }: { models: ChatModelOption[]; compact: boolean; pickModel: boolean; onChooseModel: () => void }) {
   const prefs = useChatPrefs();
-  const current = models.find((m) => m.id === prefs.model && m.unavailable === null) ?? models[0]!;
+  const current = (pickModel ? models.find((m) => m.id === prefs.model && m.unavailable === null) : undefined) ?? models[0]!;
+  const label = pickModel ? "Model and answer style" : "Answer style";
   return (
     <Menu
-      label="Model and answer style"
+      label={label}
       trigger={({ ref, open, toggle, id }) => (
         <button
           ref={ref}
@@ -103,25 +110,61 @@ function ModelPicker({ models, compact }: { models: ChatModelOption[]; compact: 
           aria-controls={open ? id : undefined}
           onClick={toggle}
           className="tap inline-flex min-h-10 max-w-[11rem] items-center gap-1 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-raised hover:text-ink pointer-coarse:min-h-11"
-          title="Model and answer style"
+          title={label}
         >
-          <span className="truncate font-medium text-ink">{current.name}</span>
-          {compact ? null : <span className="hidden truncate text-ink-3 sm:inline">{EFFORT_LABELS[prefs.effort]}</span>}
+          {/* With no model to choose, the button names the answer style it changes. */}
+          <span className="truncate font-medium text-ink">{pickModel ? current.name : EFFORT_LABELS[prefs.effort]}</span>
+          {compact || !pickModel ? null : <span className="hidden truncate text-ink-3 sm:inline">{EFFORT_LABELS[prefs.effort]}</span>}
           <CaretDownIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
         </button>
       )}
     >
-      <ModelList models={models} current={current} effort={prefs.effort} />
+      <ModelList models={models} current={current} effort={prefs.effort} pickModel={pickModel} onChooseModel={onChooseModel} />
     </Menu>
   );
 }
 
-function ModelList({ models, current, effort }: { models: ChatModelOption[]; current: ChatModelOption; effort: (typeof EFFORTS)[number] }) {
+function ModelList({
+  models,
+  current,
+  effort,
+  pickModel,
+  onChooseModel,
+}: {
+  models: ChatModelOption[];
+  current: ChatModelOption;
+  effort: (typeof EFFORTS)[number];
+  pickModel: boolean;
+  onChooseModel: () => void;
+}) {
   const close = useMenuClose();
   return (
     <div className="grid gap-1">
       <p className="px-3 pb-1 pt-1.5 text-xs font-medium text-ink-3">Who answers</p>
-      {models.map((m, i) => (
+      {pickModel ? null : (
+        <>
+          <div className="px-3 pb-1">
+            <p className="text-sm font-medium text-ink">Farbaek AI picks</p>
+            <p className="text-xs leading-snug text-ink-3">{current.unavailable ?? current.about}</p>
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              close();
+              onChooseModel();
+            }}
+            className="flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left outline-none hover:bg-surface-raised focus-visible:bg-surface-raised"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-ink">Choose a model yourself</span>
+              <span className="block text-xs leading-snug text-ink-3">The list is shown at Advanced. Change it in settings.</span>
+            </span>
+            <CaretRightIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
+          </button>
+        </>
+      )}
+      {(pickModel ? models : []).map((m, i) => (
         <Fragment key={m.id}>
         {i === 1 ? <p className="mt-1 border-t border-line px-3 pb-1 pt-2.5 text-xs font-medium text-ink-3">Or choose a model yourself</p> : null}
         <button
@@ -195,6 +238,8 @@ export function Composer({
   imagePercent,
   usagePercent,
   models,
+  pickModel,
+  onChooseModel,
   busy,
   onSend,
   onStop,
@@ -206,6 +251,9 @@ export function Composer({
   imagePercent: number | null;
   usagePercent: number | null;
   models: ChatModelOption[];
+  /** Whether this person's level lists the models (stage 285). When it doesn't, every message asks for Auto. */
+  pickModel: boolean;
+  onChooseModel: () => void;
   busy: boolean;
   onSend: (input: SendInput) => boolean;
   onStop: () => void;
@@ -320,7 +368,7 @@ export function Composer({
   const send = () => {
     if (!canSend) return;
     if (speech.listening) speech.stop();
-    const accepted = onSend({ text: text.trim(), files: ready, mode, aspect, model: prefs.model, effort: prefs.effort });
+    const accepted = onSend({ text: text.trim(), files: ready, mode, aspect, model: modelToAsk(prefs.model, pickModel), effort: prefs.effort });
     if (accepted) {
       setText("");
       files.forEach((f) => freePreview(f.preview));
@@ -524,7 +572,7 @@ export function Composer({
               </button>
             ) : null}
             <div className="ml-auto flex items-center gap-1">
-              {mode === "text" ? <ModelPicker models={models} compact={false} /> : null}
+              {mode === "text" ? <ModelPicker models={models} compact={false} pickModel={pickModel} onChooseModel={onChooseModel} /> : null}
               {busy ? (
                 <button type="button" onClick={onStop} aria-label="Stop the answer" title="Stop (Esc)" className="tap inline-flex size-10 pointer-coarse:size-11 items-center justify-center rounded-full bg-primary text-on-primary transition-transform duration-150 hover:bg-primary-hover active:scale-95">
                   <StopIcon size={16} weight="fill" aria-hidden />
