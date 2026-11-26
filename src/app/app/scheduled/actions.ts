@@ -4,7 +4,8 @@
  * Scheduled tasks' actions (stage 271, ADR 0278): save, pause, resume, run now and remove; and agents' own (stage 275, ADR 0282):
  * save, remove and clear notes. Each checks the person and their plan's limits here, then goes through a service-only function that
  * checks the person again. When a task runs next is worked out here, on the server, from the schedule saved: the browser never says
- * when. An agent is paused, resumed and started by hand through its task, with the task's own actions.
+ * when. An agent is paused, resumed and started by hand through its task, with the task's own actions. A task's or an agent's link
+ * (stage 277, ADR 0284) is made and stopped here too.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
@@ -12,10 +13,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { AGENT_LIMITS, agentInputSchema } from "@/core/automation/agents";
 import { sameInstruction } from "@/core/automation/offer";
+import { linkWaitSeconds } from "@/core/automation/links";
 import { describeSchedule, nextRun } from "@/core/automation/schedule";
 import { DEFAULT_OPTIONS, SCHEDULED_LIMITS, scheduleProblem, taskInputSchema, titleFor, type ScheduledLimit } from "@/core/automation/tasks";
 import { archiveAgent, clearAgentNotes, saveAgent } from "@/server/automation/agents";
-import { archiveTask, listTasks, readTask, runTaskNow, saveTask, setTaskState, type StoreResult } from "@/server/automation/store";
+import { createLink, revokeLink } from "@/server/automation/links";
+import { archiveTask, listTasks, readTask, runTaskNow, saveTask, setTaskState, type Person, type StoreResult } from "@/server/automation/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { resolvePlan } from "@/server/workspace/ai-usage";
@@ -349,4 +352,57 @@ export async function clearAgentNotesAction(_previous: { status: string }, form:
   if (!r.ok) return refusedAgent(r, g.w) as { status: "error"; message: string };
   revalidatePath("/app/scheduled", "layout");
   return { status: "done", message: "Cleared. Its next run starts a new chat, without notes. Its past answers are still in Chat." };
+}
+
+// ---- A link that starts a task or an agent from another app (stage 277, ADR 0284) ------------------------------------------------
+
+export type LinkMade = { status: "error"; message: string } | { status: "done"; linkId: string; secret: string; waitSeconds: number };
+
+/**
+ * Who may turn a link off: the signed-in person, for a task of their own (the database checks whose it is). Nothing else is asked.
+ * Stopping a way in is never held back by what holds back using the AI: a workspace that is paused or read-only, a plan that
+ * couldn't be read just now, or a role that has since become a viewer's. Those are the moments a person most needs it to work.
+ */
+async function stopper(): Promise<{ ok: true; admin: SupabaseClient; who: Person } | { ok: false; message: string }> {
+  const ctx = await loadAppContext();
+  if (!ctx) redirect("/sign-in");
+  if (ctx.mode === "demo") return { ok: false, message: "The demo workspace is read-only, so nothing here is saved." };
+  if (!ctx.current) return { ok: false, message: "Create a workspace first." };
+  const admin = createSupabaseAdminClient();
+  if (!admin) return { ok: false, message: "Scheduled tasks aren't set up on this server." };
+  return { ok: true, admin, who: { orgId: ctx.current.id, userId: ctx.user.id } };
+}
+
+/**
+ * Makes the link of one of the person's own tasks (an agent's work is a task), stopping the one it had. The secret is in this
+ * answer and nowhere else: only its hash is kept, so it can never be shown again.
+ */
+export async function createTaskLinkAction(taskId: string): Promise<LinkMade> {
+  if (!uuid.safeParse(taskId).success) return { status: "error", message: "That task doesn't exist." };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  if (!(await withinRate(g.w, "link", 10))) return { status: "error", message: "That's a lot of links in an hour. Wait a little, then try again." };
+  // How often the link may start a run is the plan's, read on the server now and kept on the link.
+  const waitSeconds = linkWaitSeconds(g.w.limit);
+  const made = await createLink(g.w.admin, g.w, taskId, waitSeconds);
+  if (!made.ok) {
+    return {
+      status: "error",
+      message: made.code === "NOT_FOUND" ? "That isn't here any more. Reload the page." : made.code === "FORBIDDEN" ? "Viewers can read the workspace but can't use its AI." : "The link couldn't be made just now. Nothing was changed. Try again.",
+    };
+  }
+  revalidatePath("/app/scheduled", "layout");
+  return { status: "done", linkId: made.value.id, secret: made.value.secret, waitSeconds };
+}
+
+/** Stops a task's link (for ConfirmAction): a call with its secret is refused from now on. */
+export async function revokeTaskLinkAction(_previous: { status: string }, form: FormData): Promise<Pressed> {
+  const taskId = String(form.get("taskId") ?? "");
+  if (!uuid.safeParse(taskId).success) return { status: "error", message: "That task doesn't exist." };
+  const g = await stopper();
+  if (!g.ok) return { status: "error", message: g.message };
+  const r = await revokeLink(g.admin, g.who, taskId);
+  if (!r.ok) return { status: "error", message: r.code === "NOT_FOUND" ? "That isn't here any more. Reload the page." : "The link couldn't be turned off just now. Try again." };
+  revalidatePath("/app/scheduled", "layout");
+  return { status: "done", message: r.value ? "The link is off. A call with its secret is refused from now on." : "It had no link." };
 }

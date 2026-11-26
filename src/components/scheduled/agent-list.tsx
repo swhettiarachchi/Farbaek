@@ -9,11 +9,14 @@ import { BY_FARBAEK, stoppedReason } from "@/core/automation/home";
 import { describeSchedule } from "@/core/automation/schedule";
 import type { ScheduledLimit } from "@/core/automation/tasks";
 import type { Agent } from "@/server/automation/agents";
+import type { PageLinks } from "@/server/automation/links";
 import type { TaskRun } from "@/server/automation/store";
 import { buttonClasses } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { linkWaitSeconds } from "@/core/automation/links";
+import { RunLink } from "./run-link";
 import { RUN_STATUS, STOPPED_BADGE, stateBadge } from "./status";
 import { TaskForm } from "./task-form";
 
@@ -35,7 +38,7 @@ export interface AgentView {
  * last runs did, and its controls: work now, pause or resume, change, clear its notes, remove. Every control works or says why it's
  * off.
  */
-function AgentCard({ view, limit, disabledReason, serverNow }: { view: AgentView; limit: ScheduledLimit; disabledReason: string | null; serverNow: number }) {
+function AgentCard({ view, limit, links, disabledReason, stopReason, serverNow }: { view: AgentView; limit: ScheduledLimit; links: PageLinks; disabledReason: string | null; stopReason: string | null; serverNow: number }) {
   const { agent, runsIn30Days, notesGiven } = view;
   const runs = view.runs ?? [];
   const task = agent.task;
@@ -120,7 +123,7 @@ function AgentCard({ view, limit, disabledReason, serverNow }: { view: AgentView
                   <StatusBadge status={RUN_STATUS[r.status].status} label={RUN_STATUS[r.status].label} />
                   <span className="text-ink-2">
                     <LocalTime iso={r.dueAt} />
-                    {r.manual ? ", started by you" : ""}
+                    {r.fromLink ? ", started from its link" : r.manual ? ", started by you" : ""}
                   </span>
                   {href ? (
                     <Link href={href} className={ANSWER_LINK}>
@@ -206,6 +209,19 @@ function AgentCard({ view, limit, disabledReason, serverNow }: { view: AgentView
           {result.message}
         </p>
       ) : null}
+      {links === "off" ? null : (
+        <div className="mt-4">
+          <RunLink
+            taskId={task.id}
+            what="agent"
+            link={links ? (links[task.id] ?? null) : null}
+            unread={links === null}
+            waitSeconds={linkWaitSeconds(limit)}
+            disabledReason={disabledReason ?? (task.state === "ended" ? "Its schedule has ended: change its schedule first." : null)}
+            stopReason={stopReason}
+          />
+        </div>
+      )}
       {editing ? (
         <div className="mt-4 border-t border-line pt-4">
           <TaskForm
@@ -223,11 +239,11 @@ function AgentCard({ view, limit, disabledReason, serverNow }: { view: AgentView
   );
 }
 
-export function AgentList({ agents, limit, disabledReason, serverNow }: { agents: AgentView[]; limit: ScheduledLimit; disabledReason: string | null; serverNow: number }) {
+export function AgentList({ agents, limit, links, disabledReason, stopReason, serverNow }: { agents: AgentView[]; limit: ScheduledLimit; links: PageLinks; disabledReason: string | null; stopReason: string | null; serverNow: number }) {
   return (
     <ul className="grid gap-4">
       {agents.map((v) => (
-        <AgentCard key={v.agent.id} view={v} limit={limit} disabledReason={disabledReason} serverNow={serverNow} />
+        <AgentCard key={v.agent.id} view={v} limit={limit} links={links} disabledReason={disabledReason} stopReason={stopReason} serverNow={serverNow} />
       ))}
     </ul>
   );

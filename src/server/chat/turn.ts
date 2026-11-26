@@ -236,17 +236,26 @@ const asContext = (m: ChatMessage): ContextMessage => ({ id: m.id, role: m.role,
 
 /**
  * The longest note Farbaek's own server may put beside a message. An agent's run carries its notes from earlier runs there
- * (`AGENT_RUN_NOTE_MAX`, ADR 0282): cut shorter, the agent would be told it has notes and be given none of them. It is counted in
- * the turn's reservation like the rest of what the model reads.
+ * (`AGENT_RUN_NOTE_MAX`, ADR 0282), and a run started from a link is told there how the caller's text is marked (ADR 0284): cut
+ * shorter, a run would be told it has notes and be given none of them. It is counted in the turn's reservation like the rest of
+ * what the model reads.
  */
 export const SERVER_NOTE_MAX = 6_000;
+/**
+ * The most text from outside Farbaek that the server may put beside a message: what another app sent through a task's link
+ * (`LINK_PAYLOAD_MAX` and its two marking lines). It travels as a part of its own, after the note and never joined to it, so
+ * nothing in it sits in the same block as the server's own words.
+ */
+export const SERVER_DATA_MAX = 2_200;
 
 /** Checks the turn, reserves usage and writes the question and an empty answer. Nothing is written when it fails. */
-export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId: string; request: TurnRequest; note?: string }): Promise<TurnFailure | PreparedTurn> {
+export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId: string; request: TurnRequest; note?: string; data?: string }): Promise<TurnFailure | PreparedTurn> {
   const { orgId, userId, request } = input;
   // A note from Farbaek's own server beside the person's message, for the model only: a scheduled run says it is one (ADR 0280).
   // Never from a browser: the turn's route doesn't pass it.
   const serverNote = input.note?.trim() ? input.note.trim().slice(0, SERVER_NOTE_MAX) : null;
+  // Text from outside that the server vouches for only as data (a call to a task's link): its own part, after the note.
+  const serverData = input.data?.trim() ? input.data.trim().slice(0, SERVER_DATA_MAX) : null;
   const actor = userId;
 
   // 1. What the turn builds on.
@@ -434,7 +443,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // The AI names a chat with its first answer that finishes: a first answer that failed leaves it to the next.
   const needsTitle = !conversationId || (!conversationTitled && !base.some((m) => m.role === "assistant" && m.status === "complete"));
   // Enough for whichever candidate answers: the one standing by may cost more per word.
-  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + webTokens + summaryTokens + memoryTokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + approxTokens(serverNote ?? "") + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
+  const units = Math.max(...routed.candidates.map((c) => reserveUnits(c.model, context.tokens + webTokens + summaryTokens + memoryTokens + approxTokens(CHAT_SYSTEM_PROMPT) + approxTokens(guidance ?? "") + approxTokens(serverNote ?? "") + approxTokens(serverData ?? "") + (needsTitle ? 1_400 : 200), maxOutput + (needsTitle ? 600 : 0))));
 
   const reserved = await reserveUsage(meter, { orgId, userId, taskId: null, operation: "chat", units, manual: MANUAL, billing: plan.value });
   if (!reserved.ok) return refused(reserved.code === "QUOTA_EXCEEDED" || reserved.code === "TRIAL_CAP_REACHED" ? 402 : reserved.code === "PLATFORM_DAILY_LIMIT" ? 429 : 503, reserved.message);
@@ -636,6 +645,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       // A request to act on the computer that was searched anyway (the person asked for a search) still carries its note.
       if (action && searching && webContext) webContext = `${computerNote(action)}\n${webContext}`;
       if (serverNote) withContext(modelInput, serverNote);
+      if (serverData) withContext(modelInput, serverData);
       if (rememberedNote) withContext(modelInput, rememberedNote);
       if (memoryContext) withContext(modelInput, memoryContext);
       if (webContext) withContext(modelInput, webContext);
@@ -648,6 +658,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       if (!outcome.ok && !outcome.aborted && outcome.failure === "INCOMPLETE" && !added && thinkingAt === null && older.length > 0) {
         const lean = headed(await toModelInput(deps.reads, { kept: keptMessages, withFiles: new Set(newest && withFiles.has(newest) ? [newest] : []) }));
         if (serverNote) withContext(lean, serverNote);
+        if (serverData) withContext(lean, serverData);
         if (rememberedNote) withContext(lean, rememberedNote);
         if (memoryContext) withContext(lean, memoryContext);
         if (webContext) withContext(lean, webContext);

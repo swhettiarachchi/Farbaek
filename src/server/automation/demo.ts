@@ -41,7 +41,7 @@ export function demoScheduled(now: Date): { tasks: ScheduledTask[]; runs: TaskRu
   };
   const run = (n: number, t: ScheduledTask, back: number, status: TaskRun["status"], detail: string | null): TaskRun => {
     const at = before(t, back);
-    return { id: `00000000-0000-4000-8000-0000000001${String(n).padStart(2, "0")}`, taskId: t.id, dueAt: at, status, manual: false, detail, conversationId: null, finishedAt: at, startedAt: at, note: null };
+    return { id: `00000000-0000-4000-8000-0000000001${String(n).padStart(2, "0")}`, taskId: t.id, dueAt: at, status, manual: false, detail, conversationId: null, finishedAt: at, startedAt: at, note: null, fromLink: false };
   };
   const runs = [
     run(1, tasks[0]!, 0, "done", "Sample run: a real one links to its answer in Chat."),
@@ -86,7 +86,7 @@ export function demoAgents(now: Date): { agent: Agent; runs: TaskRun[] | null; r
   };
   // Its sample runs sit on its own times: the three Mondays before now.
   const monday = (back: number): string => nextRun(schedule, new Date(now.getTime() - (back + 1) * 7 * 24 * hour), 0)?.toISOString() ?? new Date(now.getTime() - back * 7 * 24 * hour).toISOString();
-  const run = (n: number, back: number, note: string): TaskRun => ({ id: `00000000-0000-4000-8000-000000000a1${n}`, taskId: task.id, dueAt: monday(back), status: "done", manual: false, detail: null, conversationId: null, finishedAt: monday(back), startedAt: monday(back), note });
+  const run = (n: number, back: number, note: string): TaskRun => ({ id: `00000000-0000-4000-8000-000000000a1${n}`, taskId: task.id, dueAt: monday(back), status: "done", manual: false, detail: null, conversationId: null, finishedAt: monday(back), startedAt: monday(back), note, fromLink: false });
   const runs = [
     run(1, 0, "Sample run. One of the three raised its mid plan by a few dollars and added a yearly discount; the other two are unchanged. Next: read each company's changelog for features shipped this month."),
     run(2, 1, "Sample run. Compared the three pricing pages against last week's notes: no changes. One announced a new integration on its blog. Next: check the pricing pages again and look for the integration's price."),

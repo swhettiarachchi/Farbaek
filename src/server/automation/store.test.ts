@@ -107,6 +107,21 @@ describe("keeping a run's note", () => {
   });
 });
 
+describe("what a run was sent through its link", () => {
+  const ask = (answer: Answer) => createScheduledStore(client({ rpc: () => answer }).api).runPayload("11111111-1111-4111-8111-111111111111");
+
+  it("is the text, or nothing; nothing on a database without links yet; and not known on any other fault", async () => {
+    expect(await ask({ data: "order 1042 was paid" })).toBe("order 1042 was paid");
+    expect(await ask({ data: null })).toBeNull();
+    expect(await ask({ data: "" })).toBeNull();
+    expect(await ask({ error: { code: "PGRST202" } })).toBeNull();
+    await expect(ask({ error: { code: "57014" } })).rejects.toThrow("PAYLOAD_UNREADABLE");
+    await expect(ask({ error: { code: "42703" } })).rejects.toThrow("PAYLOAD_UNREADABLE");
+    // A caller may send any text at all, the word "error" too: it is what was sent, never a fault.
+    expect(await ask({ data: "error" })).toBe("error");
+  });
+});
+
 describe("reading a person's tasks and runs", () => {
   it("reads the agent each task belongs to, and each run's note", async () => {
     const tasks = client({ select: () => ({ data: [taskRow({ personal_agent_id: AGENT }), taskRow({ id: "44444444-4444-4444-8444-444444444444", personal_agent_id: null })] }) });
@@ -128,6 +143,26 @@ describe("reading a person's tasks and runs", () => {
     expect(await listRuns(runs.api, ORG)).toEqual([expect.objectContaining({ taskId: TASK, note: null })]);
     const home = client({ select: missing("personal_agent_id") });
     expect(await listHomeTasks(home.api, ORG)).toEqual([expect.objectContaining({ id: TASK, agent: false })]);
+  });
+
+  it("reads which runs a link started, and reads the rest as before from a database without v109", async () => {
+    const all = client({ select: () => ({ data: [runRow({ note: null, from_link: true, manual: true }), runRow({ id: "55555555-5555-4555-8555-555555555555", note: "Did a thing.", from_link: false })] }) });
+    expect((await listRuns(all.api, ORG))!.map((r) => [r.fromLink, r.manual, r.note])).toEqual([
+      [true, true, null],
+      [false, false, "Did a thing."],
+    ]);
+    expect(all.reads).toHaveLength(1);
+    // v108 without v109: the link's column is missing and nothing else is; an agent's notes are still read.
+    const before = client({ select: (_t, columns) => (columns.includes("from_link") ? { error: { code: "42703", message: "column scheduled_task_runs.from_link does not exist" } } : { data: [runRow({ note: "Did a thing." })] }) });
+    expect(await listRuns(before.api, ORG)).toEqual([expect.objectContaining({ taskId: TASK, note: "Did a thing.", fromLink: false })]);
+    expect(before.reads.map((r) => [r.columns.includes("from_link"), r.columns.includes("note")])).toEqual([
+      [true, true],
+      [false, true],
+    ]);
+    // Before v108 as well: three reads, each asking for less.
+    const oldest = client({ select: (_t, columns) => (columns.includes("note") ? { error: { code: "42703" } } : { data: [runRow()] }) });
+    expect(await listRuns(oldest.api, ORG)).toEqual([expect.objectContaining({ note: null, fromLink: false })]);
+    expect(oldest.reads).toHaveLength(3);
   });
 
   it("says they couldn't be read on any other fault, and doesn't ask a second time", async () => {

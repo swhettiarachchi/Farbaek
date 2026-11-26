@@ -19,6 +19,8 @@ const { world, calls } = vi.hoisted(() => ({
     tasks: [] as Record<string, unknown>[] | null,
     // What the database answers for an agent's save, removal or clearing; null: it goes through.
     agent: null as unknown,
+    // What it answers for making or stopping a link; null: it goes through.
+    link: null as unknown,
   },
   calls: [] as { kind: string; input: Record<string, unknown> }[],
 }));
@@ -82,7 +84,30 @@ vi.mock("@/server/automation/agents", () => ({
   },
 }));
 
-import { clearAgentNotesAction, removeAgentAction, removeScheduledTaskAction, runScheduledTaskNowAction, saveAgentAction, saveScheduledTaskAction, scheduleFromChatAction, scheduleOfferStateAction, setScheduledTaskStateAction } from "./actions";
+vi.mock("@/server/automation/links", () => ({
+  createLink: async (_admin: unknown, _w: unknown, taskId: string, waitSeconds: number) => {
+    calls.push({ kind: "link-create", input: { taskId, waitSeconds } });
+    return world.link ?? { ok: true, value: { id: "55555555-5555-4555-8555-555555555555", secret: `fbl_${"S".repeat(43)}` } };
+  },
+  revokeLink: async (_admin: unknown, who: Record<string, unknown>, taskId: string) => {
+    calls.push({ kind: "link-revoke", input: { taskId, who } });
+    return world.link ?? { ok: true, value: true };
+  },
+}));
+
+import {
+  clearAgentNotesAction,
+  createTaskLinkAction,
+  removeAgentAction,
+  removeScheduledTaskAction,
+  revokeTaskLinkAction,
+  runScheduledTaskNowAction,
+  saveAgentAction,
+  saveScheduledTaskAction,
+  scheduleFromChatAction,
+  scheduleOfferStateAction,
+  setScheduledTaskStateAction,
+} from "./actions";
 
 const TASK = "22222222-2222-4222-8222-222222222222";
 const CHAT = "33333333-3333-4333-8333-333333333333";
@@ -92,7 +117,7 @@ const fresh = (more: Record<string, unknown> = {}) => ({ taskId: null, baseVersi
 const saved = () => calls.filter((c) => c.kind === "save");
 
 beforeEach(() => {
-  Object.assign(world, { mode: "live", role: "owner", writes: true, plan: "plus", rate: true, task: null, save: null, state: null, now: null, tasks: [], agent: null });
+  Object.assign(world, { mode: "live", role: "owner", writes: true, plan: "plus", rate: true, task: null, save: null, state: null, now: null, tasks: [], agent: null, link: null });
   calls.length = 0;
 });
 
@@ -431,5 +456,73 @@ describe("agents (stage 275)", () => {
     expect(await removeScheduledTaskAction({ status: "idle" }, f)).toEqual({ status: "error", message: "This is an agent's work. Remove the agent on the Agents tab." });
     expect(saved()).toEqual([]);
     expect(calls.filter((c) => c.kind === "archive")).toEqual([]);
+  });
+});
+
+describe("a link that starts a task from another app (stage 277)", () => {
+  const form = (id: string) => {
+    const f = new FormData();
+    f.set("taskId", id);
+    return f;
+  };
+  const linkCalls = () => calls.filter((c) => c.kind.startsWith("link-"));
+
+  it("makes the link and gives its secret back once, to the person who may", async () => {
+    // A plan that runs tasks every hour: its link may start a run every 15 minutes, and the link is made with that.
+    expect(await createTaskLinkAction(TASK)).toEqual({ status: "done", linkId: "55555555-5555-4555-8555-555555555555", secret: `fbl_${"S".repeat(43)}`, waitSeconds: 900 });
+    expect(linkCalls()).toEqual([{ kind: "link-create", input: { taskId: TASK, waitSeconds: 900 } }]);
+  });
+
+  it("makes a link that starts a run once a day at most on a plan that runs a task once a day", async () => {
+    world.plan = "free";
+    expect(await createTaskLinkAction(TASK)).toMatchObject({ status: "done", waitSeconds: 86_400 });
+    expect(linkCalls()).toEqual([{ kind: "link-create", input: { taskId: TASK, waitSeconds: 86_400 } }]);
+  });
+
+  it("makes nothing for a viewer, in the demo, with changes off, when the plan can't be read, past the hourly ceiling, or for an id that isn't one", async () => {
+    expect(await createTaskLinkAction("nope")).toMatchObject({ status: "error" });
+    world.role = "viewer";
+    expect(await createTaskLinkAction(TASK)).toMatchObject({ status: "error", message: expect.stringContaining("Viewers") });
+    Object.assign(world, { role: "owner", mode: "demo" });
+    expect(await createTaskLinkAction(TASK)).toMatchObject({ status: "error", message: expect.stringContaining("read-only") });
+    Object.assign(world, { mode: "live", writes: false });
+    expect(await createTaskLinkAction(TASK)).toMatchObject({ status: "error", message: "Changes are paused." });
+    Object.assign(world, { writes: true, plan: null });
+    expect(await createTaskLinkAction(TASK)).toMatchObject({ status: "error", message: expect.stringContaining("couldn't be confirmed") });
+    Object.assign(world, { plan: "plus", rate: false });
+    expect(await createTaskLinkAction(TASK)).toMatchObject({ status: "error", message: expect.stringContaining("a lot of links") });
+    expect(linkCalls()).toEqual([]);
+  });
+
+  it("says why when the database refuses, and never a secret that wasn't kept", async () => {
+    world.link = { ok: false, code: "NOT_FOUND" };
+    expect(await createTaskLinkAction(TASK)).toEqual({ status: "error", message: "That isn't here any more. Reload the page." });
+    world.link = { ok: false, code: "UNAVAILABLE" };
+    const failed = await createTaskLinkAction(TASK);
+    expect(failed).toEqual({ status: "error", message: "The link couldn't be made just now. Nothing was changed. Try again." });
+    expect(JSON.stringify(failed)).not.toContain("fbl_");
+  });
+
+  it("turns a link off for anyone signed in, whatever holds back using the AI: a viewer's role, changes off, a plan that can't be read", async () => {
+    for (const held of [{ role: "viewer" }, { writes: false }, { plan: null }, { rate: false }]) {
+      Object.assign(world, { role: "owner", writes: true, plan: "plus", rate: true, ...held });
+      calls.length = 0;
+      expect(await revokeTaskLinkAction({ status: "idle" }, form(TASK)), JSON.stringify(held)).toEqual({ status: "done", message: "The link is off. A call with its secret is refused from now on." });
+      // As the person and in their workspace: whose task it is, the database checks.
+      expect(linkCalls()).toEqual([{ kind: "link-revoke", input: { taskId: TASK, who: { orgId: "org-1", userId: "user-1" } } }]);
+    }
+  });
+
+  it("turns a link off, says when there was none, and does nothing in the demo or for an id that isn't one", async () => {
+    expect(await revokeTaskLinkAction({ status: "idle" }, form(TASK))).toEqual({ status: "done", message: "The link is off. A call with its secret is refused from now on." });
+    world.link = { ok: true, value: false };
+    expect(await revokeTaskLinkAction({ status: "idle" }, form(TASK))).toEqual({ status: "done", message: "It had no link." });
+    world.link = { ok: false, code: "NOT_FOUND" };
+    expect(await revokeTaskLinkAction({ status: "idle" }, form(TASK))).toMatchObject({ status: "error", message: "That isn't here any more. Reload the page." });
+    expect(await revokeTaskLinkAction({ status: "idle" }, form("nope"))).toMatchObject({ status: "error" });
+    Object.assign(world, { link: null, mode: "demo" });
+    calls.length = 0;
+    expect(await revokeTaskLinkAction({ status: "idle" }, form(TASK))).toMatchObject({ status: "error", message: expect.stringContaining("read-only") });
+    expect(linkCalls()).toEqual([]);
   });
 });

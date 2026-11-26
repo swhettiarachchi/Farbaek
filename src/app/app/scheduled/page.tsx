@@ -7,6 +7,7 @@ import { ScheduledTabs } from "@/components/scheduled/tabs";
 import { TaskList } from "@/components/scheduled/task-list";
 import { SCHEDULED_LIMITS, type ScheduledLimit } from "@/core/automation/tasks";
 import { demoScheduled } from "@/server/automation/demo";
+import { pageLinks } from "@/server/automation/links";
 import { listRuns, listTasks } from "@/server/automation/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -34,6 +35,8 @@ export default async function ScheduledPage() {
   const tasks = all ? all.filter((t) => !t.agentId) : null;
   const agentsWork = all ? all.filter((t) => t.agentId && t.state === "active").length : 0;
   const runs = sample ? sample.runs : user && tasks && tasks.length > 0 ? await listRuns(user, ctx.current.id) : [];
+  // Each task's link, the way another app starts it (stage 277); read only when there are tasks to show it on.
+  const links = tasks && tasks.length > 0 ? await pageLinks(user, ctx.current.id, ctx.mode === "demo") : "off";
   // The server's clock at render: the forms start from it, so the page and the browser first draw the same thing.
   const serverNow = new Date().getTime();
   // The plan's limits, read on the server. Unreadable: the smallest plan's are shown, and saving is refused until it can be read.
@@ -50,6 +53,8 @@ export default async function ScheduledPage() {
           : !user || !admin
             ? "Scheduled tasks aren't set up on this server."
             : null;
+  // Turning a link off is held back only where nothing can be saved at all: never by a pause, a plan or a viewer's role.
+  const stopReason = ctx.mode === "demo" || !user || !admin ? disabledReason : null;
   // What the plan's limit counts: every active task, an agent's work among them.
   const active = (all ?? []).filter((t) => t.state === "active").length;
 
@@ -70,7 +75,7 @@ export default async function ScheduledPage() {
           <p className="text-sm text-ink-2">
             {active} of {limit.active} active on your plan{agentsWork > 0 ? `, counting ${agentsWork === 1 ? "one agent's work" : `the work of ${agentsWork} agents`}` : ""}. {limit.hourly ? "A task can run as often as every hour." : "A task runs once a day at most."} Each run uses your plan&apos;s AI usage, as a message in Chat does.
           </p>
-          <TaskList tasks={tasks} runs={runs ?? []} limit={limit} disabledReason={disabledReason} serverNow={serverNow} />
+          <TaskList tasks={tasks} runs={runs ?? []} limit={limit} links={links} disabledReason={disabledReason} stopReason={stopReason} serverNow={serverNow} />
         </section>
       ) : null}
 
