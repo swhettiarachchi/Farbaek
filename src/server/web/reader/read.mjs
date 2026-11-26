@@ -3,6 +3,7 @@
 // for a day; nothing is written to disk.
 import { fetchPage, fetchPicture, PUBLIC_NET, refuseUrl } from "./fetch.mjs";
 import { extractPage } from "./extract.mjs";
+import { parseFeed } from "./feed.mjs";
 import { robotsFromResponse, robotsPermit } from "./robots.mjs";
 
 function cache(limit) {
@@ -25,7 +26,7 @@ function cache(limit) {
   };
 }
 
-export function createReader({ net = PUBLIC_NET, now = Date.now, maxConcurrent = 6, perHost = 2, pageTtlMs = 600_000, robotsTtlMs = 86_400_000, fetcher = fetchPage, pictureFetcher = fetchPicture, pictureTtlMs = 1_800_000, pictureRoomBytes = 24_000_000, maxPictures = 3 } = {}) {
+export function createReader({ net = PUBLIC_NET, now = Date.now, maxConcurrent = 6, perHost = 2, pageTtlMs = 600_000, robotsTtlMs = 86_400_000, fetcher = fetchPage, pictureFetcher = fetchPicture, pictureTtlMs = 1_800_000, pictureRoomBytes = 24_000_000, maxPictures = 3, maxFeeds = 6 } = {}) {
   const pages = cache(300);
   // Pictures asked for lately, so six people opening one answer fetch each picture once. Bounded by bytes, oldest out first.
   const pictures = new Map();
@@ -138,6 +139,67 @@ export function createReader({ net = PUBLIC_NET, now = Date.now, maxConcurrent =
     }
   }
 
+  // Feeds read lately (stage 280): a newsroom's feed is the same for everyone, so it is fetched once in ten minutes.
+  const feeds = cache(120);
+  const pendingFeeds = new Map();
+  // A roundup asks for six feeds at once. In the pages' six places they would leave none for anyone else's research while they
+  // were read, so feeds have six places of their own. A feed is the same for everyone and kept ten minutes, so few are ever fetched.
+  let feedsActive = 0;
+  const feedsWaiting = [];
+  async function acquireFeed() {
+    while (feedsActive >= maxFeeds) await new Promise((resolve) => feedsWaiting.push(resolve));
+    feedsActive++;
+  }
+  function releaseFeed() {
+    feedsActive--;
+    feedsWaiting.shift()?.();
+  }
+
+  /**
+   * Reads a newsroom's feed (stage 280): { ok: true, items: [{ title, url, published, summary, image }] } or { ok: false,
+   * reason }. Fetched under the same rules as a page (public addresses, robots.txt, a size and a time limit), in a small pool of
+   * its own, and read as text: no feed can make the reader fetch anything else.
+   */
+  async function feed(url, { timeoutMs = 3_000, ttlMs = 600_000 } = {}) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return { ok: false, reason: "not a web address" };
+    }
+    const refused = refuseUrl(parsed.toString(), net);
+    if (refused) return { ok: false, reason: refused };
+    const key = parsed.toString();
+    const known = feeds.get(key, now());
+    if (known) return known;
+    if (pendingFeeds.has(key)) return pendingFeeds.get(key);
+    const pending = (async () => {
+      await acquireFeed();
+      try {
+        const rules = await robotsFor(parsed.origin);
+        if (!robotsPermit(rules, key)) return { ok: false, reason: "the site's robots.txt doesn't allow it" };
+        // Whatever the site calls it: some send a feed as text/html. What it is, is read from how it begins.
+        const got = await fetcher(key, { timeoutMs, maxBytes: 2_500_000, types: null, net });
+        if (!got.ok) return { ok: false, reason: got.reason };
+        const items = parseFeed(got.text, got.url, now());
+        return items.length > 0 ? { ok: true, items } : { ok: false, reason: "not a feed, or an empty one" };
+      } catch {
+        return { ok: false, reason: "couldn't read the feed" };
+      } finally {
+        releaseFeed();
+      }
+    })();
+    pendingFeeds.set(key, pending);
+    try {
+      const value = await pending;
+      // One that failed is asked again in two minutes, not ten.
+      feeds.set(key, value, now() + (value.ok ? ttlMs : 120_000));
+      return value;
+    } finally {
+      pendingFeeds.delete(key);
+    }
+  }
+
   /**
    * Fetches one picture (stage 278): { ok: true, contentType, bytes } or { ok: false, reason }. The site's robots.txt is asked
    * as for a page, the same limits on how much is fetched at once hold, and a picture asked for by several people at the same
@@ -180,5 +242,5 @@ export function createReader({ net = PUBLIC_NET, now = Date.now, maxConcurrent =
     }
   }
 
-  return { read, picture, stats: () => ({ active, waiting: waiting.length, pictures: pictures.size, pictureBytes, picturesActive, picturesWaiting: picturesWaiting.length }) };
+  return { read, picture, feed, stats: () => ({ active, waiting: waiting.length, pictures: pictures.size, pictureBytes, picturesActive, picturesWaiting: picturesWaiting.length, feedsActive, feedsWaiting: feedsWaiting.length }) };
 }

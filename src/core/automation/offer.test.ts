@@ -3,12 +3,48 @@
  * that merely has a time in it. The measured lists are in `offer.eval.test.ts`; these are the rules one by one.
  */
 import { describe, expect, it } from "vitest";
-import { OFFER_MAX_CHARS, ownWords, sameInstruction, scheduleOffer } from "./offer";
+import { HABIT_TIME, OFFER_MAX_CHARS, habitOffer, ownWords, sameInstruction, scheduleOffer } from "./offer";
 
 // Wednesday 25 November 2026, 10:00 in Sri Lanka.
 const NOW = new Date("2026-11-25T04:30:00Z");
 const offer = (text: string) => scheduleOffer(text, NOW, "Asia/Colombo");
 const repeat = (text: string) => offer(text)?.schedule.repeat ?? null;
+
+describe("offering a roundup every morning (stage 280)", () => {
+  it("is the same request every day at eight where the person is, said as Farbaek's own suggestion", () => {
+    const o = habitOffer("mata ada tech updates kiyanna", "Asia/Colombo", NOW);
+    expect(o).toEqual({ schedule: { repeat: { kind: "daily", time: HABIT_TIME }, timeZone: "Asia/Colombo", end: { kind: "never" } }, sentence: "Every day at 8:00 AM, Colombo time.", timeAssumed: true, hourAssumed: false, habit: true });
+    expect(habitOffer("Tech news today", "Europe/London", NOW)?.schedule.timeZone).toBe("Europe/London");
+  });
+
+  it("is made only for the person's own short request, never for something long or pasted", () => {
+    expect(habitOffer("x".repeat(OFFER_MAX_CHARS + 1), "Asia/Colombo", NOW)).toBeNull();
+    expect(habitOffer("news\nfrom\nfour\nlines", "Asia/Colombo", NOW)).toBeNull();
+    expect(habitOffer("```\nnews\n```", "Asia/Colombo", NOW)).toBeNull();
+    expect(habitOffer("", "Asia/Colombo", NOW)).toBeNull();
+  });
+
+  it("is made only for a message that asks for a roundup by itself: it is what will be asked again each morning", () => {
+    // Answered as a roundup from the conversation before it; on its own it asks for nothing.
+    expect(habitOffer("And what about Apple?", "Asia/Colombo", NOW)).toBeNull();
+    expect(habitOffer("More on the second story please", "Asia/Colombo", NOW)).toBeNull();
+    expect(habitOffer("Latest AI news", "Asia/Colombo", NOW)).not.toBeNull();
+  });
+
+  it("is not made for news of a day the person named: that is asked for once", () => {
+    for (const dated of ["Tech news from 12 November", "Tech news on Nov 12", "Tech news yesterday", "AI news last week", "Top tech news of 2025", "Tech news on Monday", "Tech news for 12/11"]) expect(habitOffer(dated, "Asia/Colombo", NOW), dated).toBeNull();
+    // "Today", "this week" and a count are not a named day.
+    for (const open of ["Tech news today", "Top 10 tech news this week", "Latest AI news"]) expect(habitOffer(open, "Asia/Colombo", NOW), open).not.toBeNull();
+  });
+
+  it("never stands in for a schedule the person named: theirs is read first, and is not marked as a suggestion", () => {
+    const named = scheduleOffer("Send me the AI news every evening at 6", NOW, "Asia/Colombo");
+    expect(named).toMatchObject({ schedule: { repeat: { kind: "daily", time: "18:00" } } });
+    expect(named && "habit" in named).toBe(false);
+    // A plain request for news names no schedule, so only the suggestion is left for it.
+    expect(scheduleOffer("Tech news today", NOW, "Asia/Colombo")).toBeNull();
+  });
+});
 
 describe("offering to schedule a request", () => {
   it("offers a repeat for a request said with one, and says it in a sentence", () => {

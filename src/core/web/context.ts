@@ -31,14 +31,19 @@ export function sourceOf(doc: WebDoc): WebSource {
 export const ROUNDUP_SHAPE = [
   "A note from Farbaek on writing this answer. If the person is asking for news or updates on a subject in general, write a roundup, in their language, like this. If they asked one specific question, answer that directly and leave this list aside.",
   "- First a level-1 heading (#) that names the subject and the date the roundup covers. No emoji.",
-  "- Then one or two sentences on what stands out.",
-  "- Then six to eight stories when the results hold that many, the most important first. Never invent one to reach a number.",
+  "- Then two or three sentences on what stands out today and the thread that runs through it.",
+  "- Then seven or eight stories when the results hold that many, the most important first. Never invent one to reach a number.",
   "- Each story is a level-3 heading (###) that names it in a few words and ends with the number of the source it comes from, like: ### A new chip for phones [3]",
-  "- Under it, two or three sentences: what happened, when (give the day), and why it matters to the reader, using only what that source says. No bullets inside a story, and no source number in the sentences when the heading already has it.",
+  "- Under the heading, three things, using only what that source says:",
+  "  1. One or two sentences: what happened and when (give the day).",
+  "  2. A short list of two to four specifics: the names, numbers, dates and what changed. One line each.",
+  "  3. One line that starts with a bold label meaning \"Why it matters:\" in the person's language, saying what it means for the reader.",
+  "- No source number in a story's lines when its heading already has it.",
   "- Take the stories from several different sources. Don't take them all from one page that lists the day's news, and don't use the same source for more than two.",
   "- When there are more than five stories, put them under two or three level-2 headings (##) by theme.",
   "- A result with no date, or older than the roundup covers, is not today's news: leave it out, or say when it is from.",
-  "- End with one or two sentences under a level-2 heading on what to watch next. No offer of more help.",
+  "- After the stories, a level-2 heading for your own reading of the day: three or four sentences that connect the stories, say what they point to and what to watch next. Mark it as your reading, not a report.",
+  "- End with a choices block (three backticks, then the word choices) of three or four follow-ups the person could send next, in their language: one of today's themes on its own, more depth on one story, and the same roundup for a neighbouring field.",
 ].join("\n");
 
 /**
@@ -92,6 +97,10 @@ export function choosePassages(text: string, queries: string[], maxChars: number
 
 const day = (iso: string | null) => (iso ? iso.slice(0, 10) : null);
 
+/** The most of a source that wasn't opened: a search's snippet; in a roundup, a feed's whole summary of its story. */
+const SNIPPET_CHARS = 400;
+const ROUNDUP_SNIPPET_CHARS = 600;
+
 function header(when: Date): string {
   const date = when.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
   return `${when.toISOString().slice(0, 16).replace("T", " ")} UTC (${date})`;
@@ -108,7 +117,8 @@ export function buildWebBlock(input: { docs: WebDoc[]; queries: string[]; topic?
   const close = `</web_results tag="${tag}">`;
   const readCount = docs.filter((d) => d.read).length;
   const snippetCount = docs.length - readCount;
-  const perRead = readCount > 0 ? Math.floor((budgetChars - snippetCount * 400) / readCount) : 0;
+  const snippetChars = input.roundup ? ROUNDUP_SNIPPET_CHARS : SNIPPET_CHARS;
+  const perRead = readCount > 0 ? Math.floor((budgetChars - snippetCount * snippetChars) / readCount) : 0;
   const lines = [
     ...(input.roundup ? [ROUNDUP_SHAPE, ""] : []),
     open,
@@ -121,7 +131,7 @@ export function buildWebBlock(input: { docs: WebDoc[]; queries: string[]; topic?
   for (const d of docs) {
     const dates = [d.published ? `published ${day(d.published)}` : null, d.updated && day(d.updated) !== day(d.published) ? `updated ${day(d.updated)}` : null].filter(Boolean).join(", ");
     const body = stripInvisible(d.text).split(open).join("").split(close).join("");
-    const passages = d.read ? choosePassages(body, wanted, Math.max(400, perRead)) : body.slice(0, 400);
+    const passages = d.read ? choosePassages(body, wanted, Math.max(400, perRead)) : body.slice(0, snippetChars);
     lines.push(`[${d.n}] ${oneLine(d.title)} | ${oneLine(d.site, 120)}${dates ? ` | ${dates}` : " | date not given"} | ${d.read ? "page read" : "search snippet only"}`);
     lines.push(d.url);
     lines.push(passages || "(no readable text)");

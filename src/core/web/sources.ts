@@ -21,6 +21,8 @@ export interface SearchResult {
   fetchedAt?: number;
   /** The small picture the search gave with the result, if any (stage 278): an https address, never loaded by the browser. */
   image?: string | null;
+  /** It came from a newsroom's own feed (stage 280, feeds.ts): a dated story, whatever words its title happens to use. */
+  fromFeed?: boolean;
 }
 
 export interface WebSource {
@@ -111,11 +113,23 @@ export function canonicalUrl(raw: string): string | null {
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") return null;
   if (url.username || url.password) return null;
+  // A host with no dot in its name is no site on the web. The first live roundup (2026-11-26) was given "https://go/v1/…",
+  // a search engine's own redirect: nobody can open it, and it showed as a source called "go".
+  if (!url.hostname.includes(".")) return null;
   url.hash = "";
   for (const key of [...url.searchParams.keys()]) if (TRACKING.test(key)) url.searchParams.delete(key);
   url.hostname = url.hostname.toLowerCase();
   const out = url.toString();
   return new TextEncoder().encode(out).length <= 600 ? out : null;
+}
+
+/** The first letter of a site's own name, for the place where its picture would be: "M" for news.mit.edu, "B" for bbc.co.uk. */
+export function siteInitial(site: string): string {
+  const parts = site.toLowerCase().replace(/^(?:www|m|amp)\./, "").split(".").filter(Boolean);
+  // The name is the label before the ending: the last but one, or the one before a two-part ending like "co.uk".
+  const twoPart = parts.length >= 3 && parts[parts.length - 2]!.length <= 3 && parts[parts.length - 1]!.length <= 2;
+  const name = parts[Math.max(0, parts.length - (twoPart ? 3 : 2))] ?? "";
+  return (name[0] ?? "").toUpperCase();
 }
 
 /** A site's short name from its address: "www.bbc.co.uk" → "bbc.co.uk". */

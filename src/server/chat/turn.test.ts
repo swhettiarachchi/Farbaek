@@ -639,6 +639,42 @@ describe("whether the web is checked at all (stage 206)", () => {
     expect(unsure.calls.filter((c) => c.name === "reserve")).toHaveLength(2);
   });
 
+  it("a request for news in general is answered by a stronger model with room for eight stories, however few its words", async () => {
+    const news = fakeModel(["# Tech news"], () => ({ ok: true, stop: "end", usage: { model: "claude-sonnet-5-5", inputTokens: 10, outputTokens: 5 } }));
+    const { deps, calls } = fakeDeps({ model: news, plan: "pro" });
+    withResearch(deps);
+    await run(deps, send({ text: "Tech news today", effort: "quick" }));
+    // By its words alone it is a simple everyday question for the fastest model. As a roundup it is read as analysis that is hard.
+    expect(calls.find((c) => c.name === "beginTurn")!.input.model).toBe("claude-sonnet-5-5");
+    expect((news.requests[0] as { maxOutputTokens: number }).maxOutputTokens).toBe(9_000);
+    // On Free it keeps the plan's own model, so a roundup can be asked for every day inside the allowance, and has the same room.
+    const freeNews = fakeModel(["# Tech news"], () => ({ ok: true, stop: "end", usage: { model: "claude-haiku-5-5", inputTokens: 10, outputTokens: 5 } }));
+    const free = fakeDeps({ model: freeNews });
+    withResearch(free.deps);
+    await run(free.deps, send({ text: "Tech news today", effort: "quick" }));
+    expect(free.calls.find((c) => c.name === "beginTurn")!.input.model).toBe("claude-haiku-5-5");
+    expect((freeNews.requests[0] as { maxOutputTokens: number }).maxOutputTokens).toBe(9_000);
+    // The words alone don't make one: the person's own text to work on isn't going to the web, so it is an ordinary request.
+    const own = fakeModel(["Good news: the updates are ready."], () => ({ ok: true, stop: "end", usage: { model: "claude-haiku-5-5", inputTokens: 10, outputTokens: 5 } }));
+    const text = fakeDeps({ model: own, plan: "pro" });
+    const looked = withResearch(text.deps);
+    await run(text.deps, send({ text: "Proofread this: Good news, the latest updates are ready.", effort: "quick" }));
+    expect(looked).toHaveLength(0);
+    expect(text.calls.find((c) => c.name === "beginTurn")!.input.model).toBe("claude-haiku-5-5");
+    expect((own.requests[0] as { maxOutputTokens: number }).maxOutputTokens).toBe(4_096);
+    // A question with one answer is routed as it always was.
+    const plain = fakeModel(["Sunny."], () => ({ ok: true, stop: "end", usage: { model: "claude-haiku-5-5", inputTokens: 10, outputTokens: 5 } }));
+    const one = fakeDeps({ model: plain });
+    withResearch(one.deps);
+    await run(one.deps, send({ text: "What is the weather in Colombo today?", effort: "quick" }));
+    expect(one.calls.find((c) => c.name === "beginTurn")!.input.model).toBe("claude-haiku-5-5");
+    expect((plain.requests[0] as { maxOutputTokens: number }).maxOutputTokens).toBe(4_096);
+    // With the web switched off there is nothing to round up: it is a plain question again.
+    const off = fakeDeps({ model: fakeModel(["I can't check."], () => ({ ok: true, stop: "end", usage: { model: "claude-haiku-5-5", inputTokens: 10, outputTokens: 5 } })) });
+    await run(off.deps, send({ text: "Tech news today", effort: "quick", web: false }));
+    expect(off.calls.find((c) => c.name === "beginTurn")!.input.model).toBe("claude-haiku-5-5");
+  });
+
   it("a request for news in general goes to the planner however short and plain it is, so it is searched in parts", async () => {
     const { deps } = fakeDeps();
     withPlanner(deps);

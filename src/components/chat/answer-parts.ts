@@ -21,4 +21,10 @@ export interface AnswerParts {
 
 export const AnswerPartsContext = createContext<AnswerParts>({ sources: null });
 
+/**
+ * The sources a story names under itself (stage 280). Inside that story's sentences a citation of only those sources draws
+ * nothing: the story says where it is from once, on its last line, not after every sentence too.
+ */
+export const StorySourcesContext = createContext<readonly number[] | null>(null);
+
 export const useAnswerParts = (): AnswerParts => useContext(AnswerPartsContext);

@@ -5,12 +5,13 @@
 import { describe, expect, it } from "vitest";
 import { buildWebBlock, ROUNDUP_SHAPE, sourceOf, type WebDoc } from "./context";
 import { NOT_ROUNDUPS, ROUNDUPS } from "./eval/roundup.golden";
+import { FEED_TOPICS, FEEDS, MAX_FEEDS, feedTopics, feedsFor } from "./feeds";
 import { soundsLikeRoundup } from "./intent";
 import { isNewsroom, NEWSROOM_NAMES, NEWSROOM_WEIGHT } from "./newsrooms";
 import { localPlan, parsePlan, PLANNER_PROMPT } from "./plan";
-import { rankResults } from "./rank";
+import { frontPageWeight, rankResults, stale } from "./rank";
 import { checkCitations, readCitations } from "./citations";
-import { fitSearchMeta, searchMetaSchema, withoutPictures, type SearchMeta, type SearchResult, type WebSource } from "./sources";
+import { canonicalUrl, fitSearchMeta, searchMetaSchema, siteInitial, withoutPictures, type SearchMeta, type SearchResult, type WebSource } from "./sources";
 
 const NOW = Date.parse("2026-11-26T03:00:00Z");
 const SIG = "A".repeat(27);
@@ -67,6 +68,67 @@ describe("the newsrooms a roundup leans to", () => {
   });
 });
 
+describe("the newsrooms' feeds a roundup reads", () => {
+  it("are fixed https addresses, each once, each under a topic there is", () => {
+    expect(new Set(FEEDS.map((f) => f.url)).size).toBe(FEEDS.length);
+    for (const f of FEEDS) {
+      expect(f.url, f.url).toMatch(/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}\//);
+      expect(f.topics.length).toBeGreaterThan(0);
+      for (const t of f.topics) expect(FEED_TOPICS).toContain(t);
+    }
+    // Every topic has somewhere to read from.
+    for (const t of FEED_TOPICS) expect(FEEDS.some((f) => f.topics.includes(t)), t).toBe(true);
+  });
+
+  it("are chosen by what the plan is about, read from its English subject and searches", () => {
+    expect(feedTopics({ topic: "technology news AI software cybersecurity", queries: ["AI news", "tech company news", "cybersecurity news"] })).toEqual(expect.arrayContaining(["ai", "security", "tech"]));
+    expect(feedTopics({ topic: "cricket", queries: ["cricket news"] })).toEqual(["cricket"]);
+    expect(feedTopics({ topic: "sri lanka news", queries: ["Sri Lanka news today"] })).toContain("srilanka");
+    expect(feedTopics({ topic: "smartphone launches", queries: ["new phones news"] })).toContain("mobile");
+    // Nothing in the list: no feed is read, and the searches answer alone.
+    expect(feedTopics({ topic: "knitting patterns", queries: ["knitting news"] })).toEqual([]);
+    expect(feedsFor({ topic: "knitting patterns", queries: ["knitting news"] })).toEqual([]);
+    // A word inside another word names nothing: "retail" is not "ai", "capital" is not "ai".
+    expect(feedTopics({ topic: "retail capital", queries: ["retail news"] })).not.toContain("ai");
+  });
+
+  it("are chosen by words that name a subject, never by words every request for news uses", () => {
+    // "Headlines", "breaking", "global" and "companies" name no subject.
+    expect(feedTopics({ topic: "technology", queries: ["tech headlines today", "breaking tech news", "tech companies news"] })).toEqual(["tech"]);
+    expect(feedTopics({ topic: "technology news worldwide", queries: ["global tech news"] })).toEqual(["tech"]);
+    // "Security" alone is not about break-ins, and the Olympic Games are not video games.
+    expect(feedTopics({ topic: "social security changes", queries: ["social security news"] })).toEqual([]);
+    expect(feedTopics({ topic: "olympic games", queries: ["olympics news"] })).toEqual(["sport"]);
+    expect(feedTopics({ topic: "security flaws", queries: ["security patches this week"] })).toEqual(["security"]);
+    expect(feedTopics({ topic: "video games", queries: ["gaming news"] })).toEqual(["gaming"]);
+    // The world's news is for a roundup of the world, and gives way to a subject named beside it.
+    expect(feedTopics({ topic: "world news", queries: ["world news today"] })).toEqual(["world"]);
+    expect(feedTopics({ topic: "technology", queries: ["tech news around the world"] })).toEqual(["tech"]);
+  });
+
+  it("are a few, from different newsrooms, some from each topic the plan names", () => {
+    const chosen = feedsFor({ topic: "technology news AI software cybersecurity", queries: ["AI news", "tech company news", "cybersecurity news"] });
+    expect(chosen).toHaveLength(MAX_FEEDS);
+    const hosts = chosen.map((f) => new URL(f.url).hostname);
+    expect(new Set(hosts).size).toBe(MAX_FEEDS);
+    for (const t of ["ai", "security", "tech"] as const) expect(chosen.some((f) => f.topics.includes(t)), t).toBe(true);
+    // One subject: its own feeds, in the order they are listed.
+    expect(feedsFor({ topic: "technology", queries: ["tech news"] }).map((f) => new URL(f.url).hostname)).toEqual(["feeds.arstechnica.com", "www.theverge.com", "techcrunch.com", "feeds.bbci.co.uk", "www.wired.com", "www.engadget.com"]);
+    expect(feedsFor({ topic: "cricket", queries: ["cricket news"] }).map((f) => new URL(f.url).hostname)).toEqual(["www.espncricinfo.com", "feeds.bbci.co.uk"]);
+  });
+});
+
+describe("an address that is no page on the web", () => {
+  it("is refused when its host has no dot in its name: a search engine's own redirect, as the first live roundup was given", () => {
+    for (const bad of ["https://go/v1/Ad5pZ-OXcWe3awfBgAFqVr6zvIN2DIE7b7TXOcmhiVun9rK", "http://localhost/x", "https://intranet/a"]) expect(canonicalUrl(bad), bad).toBeNull();
+    expect(canonicalUrl("https://www.Reuters.com/technology/?utm_source=x#top")).toBe("https://www.reuters.com/technology/");
+  });
+
+  it("gives a site the first letter of its own name for the place where its picture would be", () => {
+    expect([siteInitial("news.mit.edu"), siteInitial("bbc.co.uk"), siteInitial("www.techstartups.com"), siteInitial("abcnews.go.com"), siteInitial("adaderana.lk"), siteInitial("")]).toEqual(["M", "B", "T", "G", "A", ""]);
+  });
+});
+
 describe("ranking a roundup's results", () => {
   const r = (url: string, extra: Partial<SearchResult> = {}): SearchResult => ({ url, title: "Tech news: a new chip is announced", snippet: "A new chip was announced today.", published: "2026-11-25T10:00:00Z", kind: "news", ...extra });
   const plan = { queries: ["tech news"], topic: "technology news", freshness: "day" as const, news: true };
@@ -91,6 +153,59 @@ describe("ranking a roundup's results", () => {
     expect(ranked).toContain("another.example");
     expect(NEWSROOM_WEIGHT).toBeGreaterThan(1);
     expect(NEWSROOM_WEIGHT).toBeLessThanOrEqual(1.3);
+  });
+
+  it("never drops a newsroom's story for not saying the question's words, and puts it ahead of a front page that says them all", () => {
+    // What the search gives for "tech news": front pages whose titles are the question itself.
+    const hubs = [
+      r("https://www.reuters.com/technology/", { title: "Tech News | Today's Latest Technology News | Reuters", snippet: "Tech news and technology news today.", published: null, kind: "web" }),
+      r("https://techcrunch.com/", { title: "TechCrunch | Startup and Technology News", snippet: "Technology news, tech news.", published: null, kind: "web" }),
+      r("https://www.wsj.com/tech/ai", { title: "Artificial Intelligence - Latest AI Tech News", snippet: "Tech news about AI.", published: null, kind: "web" }),
+    ];
+    // What a feed gives: a story, in words of its own.
+    const stories = [
+      r("https://arstechnica.com/gadgets/2026/11/a-foldable-with-no-crease/", { title: "A foldable with no crease goes on sale", snippet: "The company began selling it on Wednesday for $1,299.", fromFeed: true }),
+      r("https://www.theverge.com/2026/11/25/24300000/regulator-approves-orbital-computing", { title: "Regulator approves orbital computing plan", snippet: "The plan was approved on 25 November.", fromFeed: true }),
+    ];
+    const ranked = rankResults({ lists: [hubs, stories], plan: { ...plan, roundup: true }, now: NOW });
+    const hosts = ranked.results.map((x) => new URL(x.url).hostname);
+    expect(hosts.slice(0, 2).sort()).toEqual(["arstechnica.com", "www.theverge.com"]);
+    expect(ranked.results.filter((x) => x.fromFeed)).toHaveLength(2);
+    // A feed's story is a story whatever its address looks like, and stays the feed's when a search found it first.
+    const short = r("https://www.securityweek.com/zero-day/", { title: "Browser maker patches a flaw under attack", snippet: "The patch was released on Wednesday.", fromFeed: true });
+    const found = r("https://www.securityweek.com/zero-day/", { title: "Browser maker patches a flaw under attack - SecurityWeek", snippet: "Tech news.", kind: "web" });
+    const merged = rankResults({ lists: [[found], [short], hubs], plan: { ...plan, roundup: true }, now: NOW });
+    expect(merged.results[0]).toMatchObject({ url: "https://www.securityweek.com/zero-day/", fromFeed: true });
+    // The same lists for a question with one answer: nothing is weighed by where it came from or how its address reads.
+    const plain = rankResults({ lists: [hubs, stories.map((x) => ({ ...x, fromFeed: false }))], plan, now: NOW });
+    expect(new URL(plain.results[0]!.url).hostname).not.toBe("arstechnica.com");
+  });
+
+  it("knows a front page from a story by its address", () => {
+    for (const front of ["https://techcrunch.com/", "https://www.reuters.com/technology/", "https://www.wsj.com/tech/ai", "https://www.nature.com/subjects/artificial-intelligence", "https://www.bbc.com/news/science-and-environment", "https://www.reuters.com/business/mergers-and-acquisitions/"])
+      expect(frontPageWeight(front), front).toBeLessThan(1);
+    // A story may have a short address: a few words, or a name with a number in it under a section.
+    for (const short of ["https://www.securityweek.com/chrome-zero-day/", "https://www.anthropic.com/news/claude-opus-5", "https://blog.example.org/posts/gpt-6"]) expect(frontPageWeight(short), short).toBe(1);
+    for (const story of [
+      "https://arstechnica.com/gadgets/2026/11/a-foldable-with-no-crease/",
+      "https://www.bbc.com/news/articles/c4g7x0y1z2wo",
+      "https://techcrunch.com/2026/11/25/a-startup-raises/",
+      "https://www.theregister.com/2026/11/25/chip_plant_opens/",
+      "https://www.adaderana.lk/news.php?nid=104512",
+      "https://news.example.org/a-long-name-of-a-story",
+      "https://www.bleepingcomputer.com/news/security/patch-released-for-router-flaw/",
+    ])
+      expect(frontPageWeight(story), story).toBe(1);
+    expect(frontPageWeight("not an address")).toBe(1);
+  });
+
+  it("counts a story dated well outside what the roundup covers for little: a page from 2017 is not today's news", () => {
+    expect(stale("2017-11-19T00:00:00Z", "day", NOW)).toBe(true);
+    expect(stale("2026-11-25T00:00:00Z", "day", NOW)).toBe(false);
+    expect(stale(null, "day", NOW)).toBe(false);
+    expect(stale("2017-11-19T00:00:00Z", "any", NOW)).toBe(false);
+    const lists = [[r("https://techstartups.com/2017/11/19/an-old-roundup-of-funding/", { title: "Tech news: startup funding roundup", published: "2017-11-19T00:00:00Z" }), r("https://www.theverge.com/2026/11/25/1/a-new-chip-is-announced", { title: "A new chip is announced", fromFeed: true })]];
+    expect(new URL(rankResults({ lists, plan: { ...plan, roundup: true }, now: NOW }).results[0]!.url).hostname).toBe("www.theverge.com");
   });
 
   it("keeps the picture a search gave with a result, whichever search found the page first", () => {
@@ -219,6 +334,11 @@ describe("what the model is told about writing a roundup", () => {
     expect(ROUNDUP_SHAPE).toContain("several different sources");
     expect(ROUNDUP_SHAPE).toContain("Never invent one to reach a number");
     expect(ROUNDUP_SHAPE).toContain("If they asked one specific question, answer that directly");
+    // Depth is asked for in so many words: the specifics, why it matters, a reading of the day, and what to ask next.
+    expect(ROUNDUP_SHAPE).toContain("A short list of two to four specifics");
+    expect(ROUNDUP_SHAPE).toContain('a bold label meaning "Why it matters:" in the person\'s language');
+    expect(ROUNDUP_SHAPE).toContain("your own reading of the day");
+    expect(ROUNDUP_SHAPE).toContain("End with a choices block");
     // No emoji is asked for, and none is in the words.
     expect(/\p{Extended_Pictographic}/u.test(ROUNDUP_SHAPE)).toBe(false);
   });

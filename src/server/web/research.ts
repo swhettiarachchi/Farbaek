@@ -17,13 +17,14 @@
 import { randomBytes } from "node:crypto";
 import { readLanguage } from "@/core/chat/language";
 import { buildWebBlock, oneLine, sourceOf, webFailureNote, webNothingRelevantNote, webNotNeededNote, type WebDoc } from "@/core/web/context";
-import type { NeedReading } from "@/core/web/intent";
+import { soundsLikeRoundup, type NeedReading } from "@/core/web/intent";
 import type { Depth, Freshness, SearchPlan } from "@/core/web/plan";
 import { rankResults, type Ranked } from "@/core/web/rank";
 import { canonicalUrl, fitSearchMeta, siteOf, type SearchMeta, type SearchResult } from "@/core/web/sources";
 import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import type { ChatModel } from "@/server/ai/chat-model";
 import { log } from "@/server/observability/log";
+import { feedsFor } from "@/core/web/feeds";
 import { signedPicture } from "./picture";
 import { addUsage, planGap, planSearch } from "./planner";
 import type { ReaderClient } from "./reader-client";
@@ -49,7 +50,7 @@ export type ResearchStage =
 
 export interface ResearchDeps {
   search: SearchProvider | null;
-  reader: Pick<ReaderClient, "read"> | null;
+  reader: (Pick<ReaderClient, "read"> & Partial<Pick<ReaderClient, "feed">>) | null;
   breaker: Breaker;
   now: () => number;
   tag?: () => string;
@@ -117,11 +118,43 @@ async function searchAll(provider: SearchProvider, queries: readonly string[], p
 
 const total = (lists: SearchResult[][]) => lists.reduce((n, l) => n + l.length, 0);
 
+const RESTING = "the search service isn't answering right now";
+
+/** How far back a feed's stories are taken for a roundup, in days, by how fresh the question is. */
+const FEED_DAYS: Record<Freshness, number> = { day: 3, week: 8, month: 31, year: 31, any: 14 };
+/** The most stories taken from one feed: its newest. */
+const FEED_STORIES = 8;
+
+/**
+ * The newest stories from the feeds that fit a roundup's subject (stage 280, ADR 0288), one list a feed, as results to rank
+ * beside the searches'. A feed that doesn't answer in time gives nothing; none of this can fail the research.
+ */
+async function readFeeds(reader: NonNullable<ResearchDeps["reader"]>, plan: SearchPlan, now: number, signal: AbortSignal): Promise<SearchResult[][]> {
+  if (!reader.feed) return [];
+  const chosen = feedsFor(plan);
+  if (chosen.length === 0) return [];
+  const oldest = now - FEED_DAYS[plan.freshness] * 86_400_000;
+  // A feed that hangs costs the roundup its own stories and two and a half seconds, never the searches' whole time.
+  const read = await Promise.all(chosen.map((f) => reader.feed!(f.url, { timeoutMs: 2_500, signal }).catch(() => null)));
+  return read
+    .map((items) =>
+      (items ?? [])
+        // A feed's story without a date can't be placed in the days the roundup covers.
+        .filter((i) => i.published !== null && Date.parse(i.published) >= oldest)
+        .slice(0, FEED_STORIES)
+        .map((i): SearchResult => ({ url: i.url, title: i.title, snippet: i.summary, published: i.published, kind: "news", fromFeed: true, ...(i.image ? { image: i.image } : {}) })),
+    )
+    .filter((list) => list.length > 0);
+}
+
 export async function research(deps: ResearchDeps, input: ResearchInput): Promise<ResearchResult> {
   const started = deps.now();
   const at = new Date(started);
   if (!deps.search || !deps.reader) return failed("live web search isn't set up on this server", at, [], null);
-  if (deps.breaker.open()) return failed("the search service isn't answering right now", at, [], null);
+  // While the search service rests, a roundup can still be written from the newsrooms' feeds, which need no search. Anything
+  // else is told at once that the web couldn't be checked.
+  const resting = deps.breaker.open();
+  if (resting && !soundsLikeRoundup(input.question)) return failed(RESTING, at, [], null);
   const provider = deps.search;
   const reader = deps.reader;
 
@@ -149,9 +182,22 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
   // Round one: search.
   input.onStage?.({ stage: "searching", queries: plan.queries, round: 1 });
   const searchTime = () => AbortSignal.any([input.signal, AbortSignal.timeout(Math.max(1_000, Math.min(depth === "deep" ? 5_000 : 3_500, left() - 2_000)))]);
-  let { lists, failures } = await searchAll(provider, plan.queries, plan, plan.freshness, plan.freshness, searchTime());
+  // A roundup also reads the newsrooms' own feeds, at the same time as it searches: dated stories with a summary and a picture.
+  const wantsFeeds = plan.roundup === true && depth !== "deep";
+  const feeding = wantsFeeds ? readFeeds(reader, plan, started, searchTime()) : Promise.resolve([] as SearchResult[][]);
+  let { lists, failures } = resting ? { lists: [] as SearchResult[][], failures: [new SearchError("unavailable", RESTING)] } : await searchAll(provider, plan.queries, plan, plan.freshness, plan.freshness, searchTime());
+  const fromFeeds = await feeding;
   // The person pressed Stop: not the search service's fault, so the breaker isn't told.
   if (input.signal.aborted) return stopped();
+  // Every search failed and the feeds answered: the roundup is written from the feeds, and the search service is still told it
+  // failed, so the next question isn't made to wait for it.
+  const searchesFound = total(lists);
+  const searchDown = failures.length > 0 && searchesFound === 0;
+  lists = [...lists, ...fromFeeds];
+  if (searchDown && total(lists) > 0 && !resting) {
+    deps.breaker.fail();
+    log("warn", "web.search_failed", { kinds: failures.map((f) => f.kind).join(","), queries: plan.queries.length, feeds: fromFeeds.length });
+  }
   // A dated search that found next to nothing is run once more without its date limit, when there's time.
   if (total(lists) < 3 && failures.length === 0 && plan.freshness !== "any" && left() > 4_500) {
     const wider = await searchAll(provider, plan.queries, { freshness: "any", news: false }, "any", plan.freshness, searchTime());
@@ -161,6 +207,7 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
   }
   if (total(lists) === 0) {
     if (failures.length > 0) {
+      if (resting) return failed(RESTING, at, plan.queries, plannerUsage);
       deps.breaker.fail();
       log("warn", "web.search_failed", { kinds: failures.map((f) => f.kind).join(","), queries: plan.queries.length });
       return failed(failures[0]!.message, at, plan.queries, plannerUsage);
@@ -173,7 +220,7 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
       docs: [],
     };
   }
-  deps.breaker.ok();
+  if (!searchDown) deps.breaker.ok();
 
   const roundup = plan.roundup === true && depth !== "deep";
   const first = rankResults({ lists, plan, now: started, max: roundup ? ROUNDUP.sources : SOURCES_KEPT[depth], perSite: 2 });
@@ -253,9 +300,10 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
   const earliest = Math.min(started, ...lists.flat().map((r) => r.fetchedAt ?? started));
   const checkedAt = new Date(earliest);
   const tag = deps.tag?.() ?? randomBytes(6).toString("hex");
-  const budgetChars = depth === "deep" ? (input.deepBudgetChars ?? input.budgetChars) : input.budgetChars;
+  // A roundup is written from ten sources, so it is given the room a deep task has (it is reserved whenever the planner runs).
+  const budgetChars = depth === "deep" || roundup ? (input.deepBudgetChars ?? input.budgetChars) : input.budgetChars;
   const context = buildWebBlock({ docs, queries, topic: plan.topic, retrievedAt: checkedAt, budgetChars, tag, rounds, roundup });
-  log("info", "web.research", { ms: deps.now() - started, depth, rounds, queries: queries.length, results: total(lists), dropped: first.dropped, read: docs.filter((d) => d.read).length, planner: planned.via });
+  log("info", "web.research", { ms: deps.now() - started, depth, rounds, queries: queries.length, results: total(lists), dropped: first.dropped, read: docs.filter((d) => d.read).length, planner: planned.via, ...(wantsFeeds ? { feeds: fromFeeds.length, feedStories: total(fromFeeds) } : {}) });
   return {
     context,
     meta: fitSearchMeta({

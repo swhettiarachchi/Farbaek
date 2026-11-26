@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { scheduleFromChatAction, scheduleOfferStateAction, type ScheduleOfferState } from "@/app/app/scheduled/actions";
-import { SCHEDULE_PROMPT_KEY, scheduleOffer } from "@/core/automation/offer";
+import { SCHEDULE_PROMPT_KEY, habitOffer, scheduleOffer } from "@/core/automation/offer";
 import { clock, isTimeZone } from "@/core/automation/schedule";
 import { buttonClasses } from "@/components/ui/button";
 
@@ -23,8 +23,11 @@ const SEE_ALL = "tap inline-flex items-center gap-1 font-medium text-accent unde
  * button that saves it. The schedule is read from the person's own typed words by tested code, from the moment they sent them;
  * nothing is scheduled until they press, and the server checks it all again. What they already have scheduled is said, not offered
  * twice.
+ *
+ * Under a roundup asked for with no schedule (stage 280, ADR 0287), the offer is Farbaek's own: the same request every morning.
+ * `roundup` says the answer was one, which is Farbaek's finding from its research, never the model's word.
  */
-export function ScheduleOffer({ question, askedAt, conversationId }: { question: string; askedAt: string; conversationId: string | null }) {
+export function ScheduleOffer({ question, askedAt, conversationId, roundup = false }: { question: string; askedAt: string; conversationId: string | null; roundup?: boolean }) {
   const router = useRouter();
   const panel = useId();
   // The person's zone and clock are the browser's: nothing is drawn until the page is there.
@@ -39,8 +42,9 @@ export function ScheduleOffer({ question, askedAt, conversationId }: { question:
     if (!inBrowser) return null;
     const sent = new Date(askedAt);
     // "Tomorrow" is the day after the message was sent, whenever the chat is opened again; a time already past isn't offered.
-    return scheduleOffer(question, Number.isNaN(sent.getTime()) ? seen : sent, zone, seen);
-  }, [inBrowser, question, askedAt, seen, zone]);
+    // A schedule the person named comes first; a roundup with none is offered every morning.
+    return scheduleOffer(question, Number.isNaN(sent.getTime()) ? seen : sent, zone, seen) ?? (roundup ? habitOffer(question, zone, seen) : null);
+  }, [inBrowser, question, askedAt, seen, zone, roundup]);
   const [state, setState] = useState<ScheduleOfferState | null>(null);
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<{ status: "idle" } | { status: "error" | "done"; message: string }>({ status: "idle" });
@@ -94,7 +98,9 @@ export function ScheduleOffer({ question, askedAt, conversationId }: { question:
   }
 
   const repeat = offer.schedule.repeat;
-  const note = offer.timeAssumed ? " A usual time, since you gave none." : offer.hourAssumed && repeat.kind !== "hourly" ? ` Taking the hour as ${clock(repeat.time)}.` : "";
+  const note = offer.habit ? " Change it to pick another time or other days." : offer.timeAssumed ? " A usual time, since you gave none." : offer.hourAssumed && repeat.kind !== "hourly" ? ` Taking the hour as ${clock(repeat.time)}.` : "";
+  // What the chip and its card are called: the person's own schedule, or Farbaek's suggestion for a roundup.
+  const name = offer.habit ? "Get this every morning" : "Do this on a schedule";
   const schedule = () =>
     startTransition(async () => {
       try {
@@ -128,12 +134,14 @@ export function ScheduleOffer({ question, askedAt, conversationId }: { question:
       >
         <CalendarCheckIcon size={14} weight="fill" className="text-ink-3" aria-hidden />
         {/* One short word on a phone, the whole phrase from a tablet up, as the answer's other chips do. */}
-        <span className="sm:hidden">Schedule</span>
-        <span className="max-sm:hidden">Do this on a schedule</span>
+        <span className="sm:hidden">{offer.habit ? "Every morning" : "Schedule"}</span>
+        <span className="max-sm:hidden">{name}</span>
       </button>
       {open ? (
-        <section ref={card} id={panel} aria-label="Do this on a schedule" className="mt-2 scroll-mb-4 rounded-md border border-line bg-surface p-3 shadow-e1 motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both] sm:p-4">
+        <section ref={card} id={panel} aria-label={name} className="mt-2 scroll-mb-4 rounded-md border border-line bg-surface p-3 shadow-e1 motion-safe:animate-[chat-rise_240ms_cubic-bezier(0.16,1,0.3,1)_both] sm:p-4">
           <p className="text-sm font-medium text-ink">{offer.sentence}</p>
+          {/* What will be asked each time: the person's own message, as they wrote it. */}
+          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">“{question.trim()}”</p>
           <p className="mt-1 text-sm leading-relaxed text-ink-2">
             {note ? `${note.trim()} ` : ""}Farbaek does this by itself then and tells you when it has run. Each run uses your plan&apos;s AI usage, as a message does.
           </p>

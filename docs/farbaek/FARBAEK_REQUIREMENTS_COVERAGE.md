@@ -231,7 +231,7 @@ No Grok models, no X search, no X account connector. Needs an xAI account and ke
 
 ### B10 Research and knowledge: Partly
 
-Done: live web research only when a question needs it, two rounds for a deep task, numbered sources checked against the pages, a self-hosted search engine and a locked-down page reader, and a roundup of news researched from several newsrooms (stage 278). Missing: X research, saved research, scheduled monitoring, credibility scores, project knowledge.
+Done: live web research only when a question needs it, two rounds for a deep task, numbered sources checked against the pages, a self-hosted search engine and a locked-down page reader, and a roundup of news read from the newsrooms' own feeds and written in depth (stages 278 and 280). Missing: X research, saved research, scheduled monitoring, credibility scores, project knowledge.
 
 ### B19 Testing: Partly
 

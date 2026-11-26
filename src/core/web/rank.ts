@@ -79,6 +79,14 @@ export function freshnessWeight(published: string | null, freshness: Freshness, 
   return 0.6;
 }
 
+/** True when a result's own date is well outside what the question covers: yesterday's roundup has no use for a story from 2022. */
+export function stale(published: string | null, freshness: Freshness, now: number): boolean {
+  const window = WINDOW_DAYS[freshness];
+  if (window === null || !published) return false;
+  const t = Date.parse(published);
+  return Number.isFinite(t) && (now - t) / 86_400_000 > window * 4;
+}
+
 /** Sites that list people and contact details, or only republish others: they answer nothing. Matched on the site's name. */
 const LOW_VALUE = /(?:^|\.)(?:zoominfo|rocketreach|signalhire|contactout|lusha|apollo|spokeo|peekyou|whitepages|truepeoplesearch|pipl|radaris|beenverified|pinterest|scribd|slideshare|issuu|coursehero|chegg|brainly)\.[a-z.]+$/i;
 
@@ -102,6 +110,28 @@ export function sourceWeight(url: string, wanted: readonly string[], local: stri
   const name = siteName(site);
   const own = name.length >= 4 && wanted.includes(name) ? 1.3 : 1;
   return local && site.endsWith(`.${local}`) ? own * 1.2 : own;
+}
+
+/**
+ * A weight for a page that is a newsroom's front page or a section of it, in a roundup (stage 280): "reuters.com/technology/",
+ * "techcrunch.com/". Such a page carries the question's own words in its title ("Tech News | Latest Technology News") and so
+ * ranks first, and no story can be written from it. A story's address is longer: several parts, a date, or a long name.
+ */
+export function frontPageWeight(url: string): number {
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return 1;
+  }
+  const parts = path.split("/").filter(Boolean);
+  const last = parts[parts.length - 1] ?? "";
+  const hyphens = (last.match(/-/g) ?? []).length;
+  // A name of several words ("chrome-zero-day"), or a short one with a number in it under a section ("news/claude-opus-5").
+  // "science-and-environment" is a section's name, not a story's.
+  const named = hyphens >= 3 || (hyphens === 2 && !/^[a-z]+-and-[a-z]+$/i.test(last));
+  const storyLike = parts.length >= 3 || /\d{4}/.test(path) || named || (parts.length >= 2 && hyphens >= 1 && /\d/.test(last)) || /\.(?:html?|php|aspx?)$/i.test(last) || /\d{5,}/.test(last);
+  return storyLike ? 1 : parts.length <= 1 ? 0.35 : 0.55;
 }
 
 /** A title without its site ("Story - The Site") and punctuation, for telling the same story on two sites. */
@@ -151,6 +181,8 @@ export function rankResults({ lists, plan, now, max = 8, perSite = 2 }: RankInpu
         if (r.snippet.length > seen.snippet.length) seen.snippet = r.snippet.slice(0, 600);
         if (r.kind === "news") seen.kind = "news";
         if (!seen.image && r.image) seen.image = r.image;
+        // Found by a search and given by a feed: it is the feed's story either way.
+        if (r.fromFeed) seen.fromFeed = true;
         return;
       }
       // What a search engine returns is cut before anything reads it: a title is a line, a snippet a sentence or two.
@@ -160,9 +192,14 @@ export function rankResults({ lists, plan, now, max = 8, perSite = 2 }: RankInpu
   const all = [...merged.values()];
   for (const r of all) {
     r.relevance = Math.min(1, coverage(r.title, wanted) * 2 * 0.6 + coverage(`${r.title} ${r.snippet} ${siteOf(r.url)}`, wanted) * 0.7);
+    // A story from a newsroom's feed is about the subject by where it came from: a headline rarely repeats the words "tech news".
+    if (r.fromFeed) r.relevance = Math.max(r.relevance, 0.6);
     const newsy = plan.news && r.kind === "news" && (plan.freshness === "day" || plan.freshness === "week") ? 1.15 : 1;
     const newsroom = plan.roundup && isNewsroom(siteOf(r.url)) ? NEWSROOM_WEIGHT : 1;
-    r.score = r.fused * (0.35 + r.relevance) * freshnessWeight(r.published, plan.freshness, now) * sourceWeight(r.url, wanted, local) * newsy * newsroom;
+    // In a roundup a front page counts for little, and a story dated outside what the roundup covers counts for less still.
+    // A feed's item is a story by where it came from, however short its address.
+    const story = plan.roundup ? (r.fromFeed ? 1 : frontPageWeight(r.url)) * (stale(r.published, plan.freshness, now) ? 0.3 : 1) : 1;
+    r.score = r.fused * (0.35 + r.relevance) * freshnessWeight(r.published, plan.freshness, now) * sourceWeight(r.url, wanted, local) * newsy * newsroom * story;
   }
   const relevant = all.filter((r) => r.relevance > 0);
   const weak = wanted.length > 0 && relevant.length === 0;

@@ -84,6 +84,8 @@ export interface PreparedTurn {
 
 const MANUAL = "Earlier answers in your chats stay readable.";
 const MAX_OUTPUT = { quick: 4_096, balanced: 16_000, thorough: 32_000 } as const;
+/** A roundup is eight stories with their specifics and a reading of the day: more than a quick answer's room, in any script. */
+const ROUNDUP_OUTPUT = 9_000;
 /** What the model reads at most, estimated: older messages drop off first. */
 const CONTEXT_TOKENS = 120_000;
 /** Messages read from the branch for context. */
@@ -356,8 +358,9 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const setup: RouteSetup = { plan: plan.value.plan, claude: deps.claude !== null, openai: deps.openai !== null && deps.openaiConnected, overrides: deps.overrides, claudeOwnKey: deps.claudeOwnKey ?? false };
   const asked = newQuestion ?? existingQuestion;
   const askedFiles = newQuestion?.files ?? existingQuestion?.files ?? [];
-  const read = readQuestion({
-    text: questionText ?? existingQuestion?.content ?? continuing?.content ?? "",
+  const questionWords = questionText ?? existingQuestion?.content ?? continuing?.content ?? "";
+  const plainRead = readQuestion({
+    text: questionWords,
     images: askedFiles.filter((f) => f.kind === "image").length,
     documents: asked ? askedFiles.filter((f) => f.kind !== "image").length : 0,
   });
@@ -397,6 +400,15 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const actsOnly = read0 !== null && ((action !== null && (read0.need === "none" || read0.need === "unsure")) || (remember !== null && remember.whole && !read0.explicit));
   const need: NeedReading | null = !read0 ? null : forced ? { need: read0.need === "deep" ? "deep" : "search", explicit: true, why: "asked to check the web" } : actsOnly ? { need: "none", explicit: false, why: action ? "a request to act on the computer" : "a request to remember something" } : read0;
   const notNeeded = need?.need === "none";
+  // A roundup of news (stage 280, ADR 0288) is seven or eight stories read from several newsrooms, each with its specifics, and a
+  // reading of the day. Its words are few and plain ("tech news today"), so by its words alone it would get a quick answer's
+  // room. It is one only when the message is going to the web: "Proofread this: good news, the updates are ready" has the words
+  // and is the person's own text to work on, and with the web off there is nothing to round up.
+  const roundupAsked = need !== null && !notNeeded && request.action !== "continue" && plainRead.kind !== "code" && soundsLikeRoundup(asking);
+  // On a paid plan it is read as analysis that is hard, and goes one step up the ladder. On Free it keeps the plan's own model:
+  // a stronger one would spend a fifth of the month's allowance on one answer, and a roundup is what people ask for daily.
+  const stepsUp = roundupAsked && plan.value.plan.planId !== "free";
+  const read: typeof plainRead = stepsUp ? { ...plainRead, kind: "analysis", difficulty: "hard" } : plainRead;
   // The conversation the search planner may read: the turns before this question.
   const earlierTurns = base.filter((m) => m.kind === "text" && m.content).map((m) => ({ role: m.role, text: m.content }));
   if (questionText === null && earlierTurns.at(-1)?.role === "user") earlierTurns.pop();
@@ -440,7 +452,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const dropped = base.length >= CONTEXT_MESSAGES || context.kept.length < contextMessages.length;
   const summaryHead = summaryText && dropped ? summaryContext(summaryText) : null;
   const summaryTokens = summaryHead ? summaryRoom : 0;
-  const maxOutput = MAX_OUTPUT[request.effort];
+  const maxOutput = Math.max(MAX_OUTPUT[request.effort], roundupAsked ? ROUNDUP_OUTPUT : 0);
   // The AI names a chat with its first answer that finishes: a first answer that failed leaves it to the next.
   const needsTitle = !conversationId || (!conversationTitled && !base.some((m) => m.role === "assistant" && m.status === "complete"));
   // Enough for whichever candidate answers: the one standing by may cost more per word.

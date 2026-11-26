@@ -123,6 +123,13 @@ describe("the stories in an answer", () => {
     expect(shape(read("Lead.\n\n### A launch"))).toEqual(["block:p", "block:h"]);
   });
 
+  it("keep the last story a story when the answer's choices to tap follow it", () => {
+    const fence = "```";
+    expect(shape(read(["### A launch [1]", "", "Text.", "", `${fence}choices`, "More on the launch", "AI news only", fence].join("\n")))).toEqual(["story:A launch:1:1", "block:code"]);
+    // Any other code straight after it is still a section the heading leads into, not a story.
+    expect(shape(read(["### Install it [1]", "", "Run this.", "", `${fence}sh`, "npm install", fence].join("\n")))).toEqual(["block:h", "block:p", "block:code"]);
+  });
+
   it("carry every block's source, so nothing of the answer is lost or doubled", () => {
     const blocks = parseMarkdown(ROUNDUP, { citations: true });
     const back = groupStories(blocks).flatMap((p) => (p.kind === "story" ? p.story.src.split("\n") : [p.block.src]));

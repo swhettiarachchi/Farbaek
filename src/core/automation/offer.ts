@@ -9,6 +9,7 @@
  * something: to be reminded or sent something, to check or research something, or a sentence that starts with its schedule. A
  * one-time run is offered only for a reminder. The lists in `eval/offer-cases.ts` measure it; a change may not lower their floors.
  */
+import { soundsLikeRoundup } from "@/core/web/intent";
 import { describeSchedule, nextRun, type Schedule } from "./schedule";
 import { scheduleFromWords, type FromWords } from "./words";
 
@@ -20,7 +21,12 @@ export interface ScheduleOffer {
   timeAssumed: boolean;
   /** An hour was given with no morning or evening and read as the morning's: the offer says so. */
   hourAssumed: boolean;
+  /** The message named no schedule at all: the offer is Farbaek's own suggestion for a roundup (stage 280), and is worded as one. */
+  habit?: boolean;
 }
+
+/** When a roundup is offered every day with no time asked for: eight in the morning, where the person is. */
+export const HABIT_TIME = "08:00";
 
 /** A request to schedule is a sentence or two. Anything longer is mostly something pasted. */
 export const OFFER_MAX_CHARS = 400;
@@ -120,6 +126,29 @@ export function scheduleOffer(message: string, askedAt: Date, timeZone: string, 
   // A time already past can't be scheduled.
   if (nextRun(read.schedule, now) === null) return null;
   return { schedule: read.schedule, sentence: describeSchedule(read.schedule), timeAssumed: read.timeAssumed, hourAssumed: read.hourAssumed };
+}
+
+const NAMES_A_DAY =
+  /(?<![a-z0-9])(?:yesterday|last (?:night|week|month|year)|(?:19|20)[0-9]{2}|[0-9]{1,2}[/.-][0-9]{1,2}|[0-9]{1,2}(?:st|nd|rd|th)|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?) [0-9]{1,2}|[0-9]{1,2} (?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)|(?:on|last) (?:mon|tues|wednes|thurs|fri|satur|sun)day)(?![a-z0-9])/i;
+
+/**
+ * The offer under a roundup that was asked for with no schedule (stage 280, ADR 0287): the same request, every morning. "Tech
+ * news today" is something people come back for, so Farbaek offers to bring it. Whether the answer was a roundup is Farbaek's
+ * own finding from its research (ADR 0285), given here by the caller; this only reads that the message is the person's own short
+ * request, and makes the schedule. Like every offer, nothing is scheduled until the person presses.
+ */
+export function habitOffer(message: string, timeZone: string, now: Date): ScheduleOffer | null {
+  // The same bounds as any offer: a long or pasted message isn't a request to repeat.
+  const own = ownWords(message);
+  if (!own) return null;
+  // The message is what will be asked again each morning, so it must ask for a roundup by itself. "And Apple?" under a roundup
+  // was answered as one from the conversation; on its own it asks for nothing.
+  if (!soundsLikeRoundup(own)) return null;
+  // News of a day the person named ("on 12 November", "yesterday", "last week") is asked for once, not every morning.
+  if (NAMES_A_DAY.test(own)) return null;
+  const schedule: Schedule = { repeat: { kind: "daily", time: HABIT_TIME }, timeZone, end: { kind: "never" } };
+  if (nextRun(schedule, now) === null) return null;
+  return { schedule, sentence: describeSchedule(schedule), timeAssumed: true, hourAssumed: false, habit: true };
 }
 
 /** Two instructions that are the same task: compared without regard to spacing or capitals. */
