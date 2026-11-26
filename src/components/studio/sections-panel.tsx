@@ -19,8 +19,8 @@ import {
   TextAaIcon,
   TrashIcon,
   XIcon,
-} from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+} from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import { useRef, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { SNIPPETS, type SnippetId } from "@/core/studio/snippets";

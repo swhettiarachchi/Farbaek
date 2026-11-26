@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowClockwiseIcon, ArrowLeftIcon, ArrowsOutIcon, CaretUpDownIcon, DesktopIcon, DeviceMobileIcon, DeviceTabletIcon, XIcon } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, ArrowLeftIcon, ArrowsOutIcon, CaretUpDownIcon, DesktopIcon, DeviceMobileIcon, DeviceTabletIcon, XIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { PREVIEW_NAV_MESSAGE, buildStaticSrcdoc, resolveSitePath, sitePages } from "@/core/workspace/static-preview";
 import { defaultDevice, frameGeometry, type PreviewDevice } from "@/core/workspace/preview-geometry";

@@ -5,7 +5,7 @@
  * They can add something here, forget any one of them, forget everything, and switch memory off. Nothing is ever worked out
  * about a person and added on its own: the list only holds what they said to remember.
  */
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { WarningCircleIcon } from "@/components/icons";
 import { useEffect, useState, useTransition } from "react";
 import { forgetAllMemoriesAction, forgetMemoryAction, listMemoriesAction, rememberAction } from "@/app/app/chat/actions";
 import { buttonClasses } from "@/components/ui/button";

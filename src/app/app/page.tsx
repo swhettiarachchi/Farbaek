@@ -1,5 +1,5 @@
 import { waitingChanges } from "@/server/workspace/waiting-changes";
-import { ArrowRightIcon, GaugeIcon, HammerIcon, ListBulletsIcon, SealCheckIcon, FolderSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, GaugeIcon, BlocksIcon, ListBulletsIcon, SealCheckIcon, FolderSimpleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -169,7 +169,7 @@ export default async function MissionControl() {
 
       <section aria-labelledby="inbox-heading" className="grid gap-4">
         <div className="flex items-center justify-between gap-3">
-          <CardTitle id="inbox-heading" icon={HammerIcon}>
+          <CardTitle id="inbox-heading" icon={BlocksIcon}>
             What the agent is doing
           </CardTitle>
           {/* Everything Farbaek is doing, builds and scheduled work alike, is on one page (stage 276). */}

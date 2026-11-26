@@ -6,7 +6,7 @@
  * bar: Decline sits beside Accept, the same size, and Cookie choices in the
  * footer brings it back. Inside Farbaek for Android it never shows or loads.
  */
-import { CookieIcon } from "@phosphor-icons/react";
+import { CookieIcon } from "@/components/icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Script from "next/script";

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, LockSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, LockSimpleIcon, WarningCircleIcon } from "@/components/icons";
 import { useState, useTransition } from "react";
 import { approveAgentToolsAction } from "@/app/app/agents/tool-actions";
 import { parseMcpToolName } from "@/agent-runtime/mcp/names";

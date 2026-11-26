@@ -4,7 +4,7 @@
  * The images the AI made (stage 199): a grid that keeps each picture's shape, newest first. A picture opens full size, downloads,
  * or goes back to the chat it was made in.
  */
-import { ChatCircleIcon, DownloadSimpleIcon, ImageSquareIcon, ListIcon } from "@phosphor-icons/react";
+import { ChatCircleIcon, DownloadSimpleIcon, ImageSquareIcon, ListIcon } from "@/components/icons";
 import Link from "next/link";
 import { useState } from "react";
 import type { GalleryImage } from "@/server/chat/store";

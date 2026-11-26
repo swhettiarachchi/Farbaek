@@ -1,4 +1,4 @@
-import { BrowserIcon, ChatCenteredTextIcon, GlobeIcon, HammerIcon, LayoutIcon, ListChecksIcon, PenNibIcon } from "@phosphor-icons/react/ssr";
+import { BrowserIcon, ChatCenteredTextIcon, GlobeIcon, BlocksIcon, LayoutIcon, ListChecksIcon, PenNibIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { CardTitle } from "@/components/app/primitives";
 import { CoreMark } from "@/components/build/core-mark";
@@ -29,7 +29,7 @@ export function FirstRunTour() {
   return (
     <>
       <section aria-labelledby="first-run-how" className="home-later mt-16">
-        <CardTitle id="first-run-how" icon={HammerIcon}>
+        <CardTitle id="first-run-how" icon={BlocksIcon}>
           How a build goes
         </CardTitle>
         <div className={`mt-5 ${BEZEL}`}>

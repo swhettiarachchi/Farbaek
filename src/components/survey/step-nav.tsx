@@ -15,7 +15,7 @@ import {
   PolygonIcon,
   RulerIcon,
   type Icon,
-} from "@phosphor-icons/react";
+} from "@/components/icons";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 

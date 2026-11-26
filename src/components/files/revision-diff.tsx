@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, WarningCircleIcon } from "@/components/icons";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";

@@ -1,4 +1,4 @@
-import { CircleDashedIcon, ScrollIcon, SealCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CircleDashedIcon, ScrollIcon, SealCheckIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";

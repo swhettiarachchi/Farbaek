@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpIcon, CircleNotchIcon, InfoIcon, PaletteIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, CircleNotchIcon, InfoIcon, PaletteIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { startFromPromptAction, type PromptStartState } from "@/app/app/new/actions";

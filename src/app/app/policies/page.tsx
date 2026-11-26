@@ -1,4 +1,4 @@
-import { ProhibitIcon, ScalesIcon, ShieldCheckIcon, ShieldWarningIcon, UserCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ProhibitIcon, ScalesIcon, ShieldCheckIcon, ShieldWarningIcon, UserCheckIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

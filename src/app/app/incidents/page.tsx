@@ -1,4 +1,4 @@
-import { CaretRightIcon, MegaphoneIcon, PauseCircleIcon, SirenIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, MegaphoneIcon, PauseCircleIcon, SirenIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

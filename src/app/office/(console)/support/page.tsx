@@ -1,4 +1,4 @@
-import { CaretRightIcon, FlagIcon, LifebuoyIcon, UserCircleIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, FlagIcon, LifebuoyIcon, UserCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Chip } from "@/components/admin/table";

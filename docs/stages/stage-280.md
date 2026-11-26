@@ -47,9 +47,14 @@ Their rule for the product, the same day: maximum intelligence and automation be
 - `tsc --noEmit` with a 4 GB heap, and `pnpm lint`: clean.
 - **The reader, run on this PC against the real feeds** (2026-11-26, before the review's changes to how a feed is cut; not a test in the suite): eight of the forty were read through `POST /feed` in 0.7 to 1.4 seconds each, every item dated, 10 to 25 stories each; four of the eight carry a picture with every story. One real picture came back through `POST /picture` as a JPEG of 10 KB in 1.5 seconds.
 - **All forty feed addresses** were fetched once with Farbaek's own user agent and answered with items. Four others tried did not (one refused, one empty, two were pages) and were left out.
+- **Live, 2026-11-26 at about 13:33 (+05:30), after #337 was merged** (production build 13a6652280dc, the merge's own): the owner's message "mata ada tech updates kiyanna", sent on their account on the Free plan, was answered in Sinhala in under a minute with:
+  - a dated title and a lead, then nine stories under three themes (security, AI and business, science and energy);
+  - each story with what happened and when, two to four specifics as a list, a bold "why it matters" line, its date and its source;
+  - six pictures; a story whose page gave none showed its site's letter;
+  - the assistant's own reading of the day, four choices to tap, nine sources, and the "Every morning" chip.
+  The captures were sent to the owner.
 - **Not verified:**
-  - **The whole answer with a live model.** Whether the fast model on Free writes eight stories with their specifics in Sinhala, and how long it takes, can only be seen on production. To be asked there after the merge and put beside the owner's ChatGPT screenshots.
-  - **The every-morning chip on a screen,** and a task saved by pressing it: it shows only under a real roundup for someone signed in.
+  - **A task saved by pressing the every-morning chip.** The chip was seen under the live answer and not pressed.
   - **The real feeds after the review's rewrite of how a feed is cut.** The suite's stand-in feeds pass; the forty real ones are read again on production.
   - **Which story pages the reader may open.** Several newsrooms refuse programs; those stories are written from the feed's summary, which for some feeds is one sentence.
   - What the production server's reader is refused by. It answers from another address than this PC, and a newsroom may treat it differently.

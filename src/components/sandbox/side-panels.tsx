@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowsClockwiseIcon, ReceiptIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, ReceiptIcon, WarningCircleIcon } from "@/components/icons";
 import { useState } from "react";
 import { JsonView } from "@/components/code/json-view";
 import { buttonClasses } from "@/components/ui/button";

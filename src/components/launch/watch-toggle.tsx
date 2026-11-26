@@ -1,6 +1,6 @@
 "use client";
 
-import { EyeIcon, EyeSlashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { EyeIcon, EyeSlashIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { setOutcomeWatchAction, type WatchState } from "@/app/app/projects/[projectId]/launch/watch-actions";
 import { buttonClasses } from "@/components/ui/button";

@@ -1,6 +1,6 @@
 "use client";
 
-import { InfoIcon, LockSimpleIcon, MoonIcon, SunIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { InfoIcon, LockSimpleIcon, MoonIcon, SunIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";

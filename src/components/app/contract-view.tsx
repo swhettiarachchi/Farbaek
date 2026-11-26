@@ -1,4 +1,4 @@
-import { CheckCircleIcon, QuestionIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, QuestionIcon, ShieldCheckIcon, WarningCircleIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LocalTime } from "@/components/ui/local-time";
 import { contractHash } from "@/core/realityloop/contract";

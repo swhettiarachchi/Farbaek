@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ListPlusIcon, PlusIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ListPlusIcon, PlusIcon, TrashIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { FEATURE_LAYERS, legIndex, lotName, pruneProvenance, type Adjoining, type DrawingFeature, type Lot, type Provenance, type Road, type SurveyDocument } from "@/core/survey/document";

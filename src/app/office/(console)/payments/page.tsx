@@ -1,4 +1,4 @@
-import { BellIcon, ClockCounterClockwiseIcon, CreditCardIcon, PlugsConnectedIcon, TagIcon } from "@phosphor-icons/react/ssr";
+import { BellIcon, ClockCounterClockwiseIcon, CreditCardIcon, PlugsConnectedIcon, TagIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";

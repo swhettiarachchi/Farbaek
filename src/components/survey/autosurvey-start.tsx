@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, CameraIcon, FileTextIcon, ImageIcon, InfoIcon, PencilSimpleIcon, UploadSimpleIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, CameraIcon, FileTextIcon, ImageIcon, InfoIcon, PencilSimpleIcon, UploadSimpleIcon, WarningCircleIcon, XIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";

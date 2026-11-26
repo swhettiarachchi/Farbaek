@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useState } from "react";
 import { CRS_REGISTRY, LOCAL_CRS } from "@/core/survey/crs";
 import { approveSurveyAction, createSurveyProjectAction, setSurveyorProfileAction, updateSurveyProjectAction, type SurveyFormState } from "@/app/app/survey/actions";

@@ -1,4 +1,4 @@
-import { ArrowUpRightIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site/site-header";

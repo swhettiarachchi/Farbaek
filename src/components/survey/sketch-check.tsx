@@ -1,6 +1,6 @@
 "use client";
 
-import { MagnifyingGlassIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { checkSketchAgainAction, type SketchCheckState } from "@/app/app/survey/ai-actions";

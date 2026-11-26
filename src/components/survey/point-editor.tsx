@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PlusIcon, TrashIcon, WarningCircleIcon } from "@/components/icons";
 import { useId, useState } from "react";
 import type { SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";

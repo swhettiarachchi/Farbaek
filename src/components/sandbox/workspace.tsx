@@ -1,6 +1,6 @@
 "use client";
 
-import { InfoIcon, PauseIcon, PlayIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { InfoIcon, PauseIcon, PlayIcon, StopIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";

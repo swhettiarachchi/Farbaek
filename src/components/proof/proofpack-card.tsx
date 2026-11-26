@@ -1,4 +1,4 @@
-import { DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon } from "@/components/icons";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { SealReveal } from "@/components/proof/seal-reveal";
 import { LocalTime } from "@/components/ui/local-time";

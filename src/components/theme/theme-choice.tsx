@@ -1,6 +1,6 @@
 "use client";
 
-import { DesktopIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
+import { DesktopIcon, MoonIcon, SunIcon } from "@/components/icons";
 import type { Theme } from "@/core/theme/theme";
 import { applyTheme, useTheme } from "./apply";
 

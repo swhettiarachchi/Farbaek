@@ -1,5 +1,5 @@
-import { BookOpenTextIcon, FileArrowUpIcon, GitDiffIcon, ListChecksIcon, TreeStructureIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { BookOpenTextIcon, FileArrowUpIcon, GitDiffIcon, ListChecksIcon, TreeStructureIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";

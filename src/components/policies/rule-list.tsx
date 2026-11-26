@@ -1,4 +1,4 @@
-import { ProhibitIcon, ShieldWarningIcon, UserCheckIcon } from "@phosphor-icons/react/ssr";
+import { ProhibitIcon, ShieldWarningIcon, UserCheckIcon } from "@/components/icons";
 import { EFFECTS, explainRule, type RuleEffect, type WorkspaceRule } from "@/core/trust/workspace-rules";
 
 const ICON: Record<RuleEffect, { icon: typeof ProhibitIcon; className: string }> = {

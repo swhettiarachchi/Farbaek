@@ -1,4 +1,4 @@
-import { PulseIcon } from "@phosphor-icons/react/ssr";
+import { PulseIcon } from "@/components/icons";
 import { CardTitle } from "@/components/app/primitives";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";

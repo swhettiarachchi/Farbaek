@@ -1,4 +1,4 @@
-import { DeviceMobileIcon } from "@phosphor-icons/react/ssr";
+import { DeviceMobileIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { sessionsLine } from "@/components/pricing/pricing-plans";
 import type { Plan } from "@/core/billing/catalog";

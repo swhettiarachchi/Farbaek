@@ -7,7 +7,7 @@
  * experimental: the spec keeps it off by default until people show it helps.
  * The 2D lanes stay the full, accessible view.
  */
-import { CubeIcon, EyeSlashIcon } from "@phosphor-icons/react";
+import { CubeIcon, EyeSlashIcon } from "@/components/icons";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";

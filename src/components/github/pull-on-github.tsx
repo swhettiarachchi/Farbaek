@@ -1,4 +1,4 @@
-import { WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { WarningCircleIcon } from "@/components/icons";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import type { CheckResult, PullState } from "@/core/github/pull-request";

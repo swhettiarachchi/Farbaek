@@ -11,7 +11,7 @@
  * Two voice modes: push to talk (hold the microphone, or Space on the sheet, and let go to send; or tap to start and tap to send) and
  * live talk (one tap, then talk: each pause ends an instruction, and "apply", "undo" or "stop listening" answer by voice).
  */
-import { ArrowCounterClockwiseIcon, ClockCounterClockwiseIcon, MicrophoneIcon, MicrophoneSlashIcon, PaperPlaneRightIcon, SlidersHorizontalIcon, StopIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, ClockCounterClockwiseIcon, MicrophoneIcon, MicrophoneSlashIcon, PaperPlaneRightIcon, SlidersHorizontalIcon, StopIcon } from "@/components/icons";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { answer as engineAnswer } from "@/core/survey/assistant/answer";
 import type { Applied, Patch } from "@/core/survey/assistant/apply";

@@ -18,7 +18,7 @@ import {
   MagnifyingGlassPlusIcon,
   SelectionPlusIcon,
   WarningCircleIcon,
-} from "@phosphor-icons/react";
+} from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { unknownCodes } from "@/core/survey/codehints";

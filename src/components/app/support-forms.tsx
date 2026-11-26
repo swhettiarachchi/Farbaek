@@ -1,6 +1,6 @@
 "use client";
 
-import { PaperPlaneTiltIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PaperPlaneTiltIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useId } from "react";
 import { openSupportAction, replySupportAction, type HelpFormState } from "@/app/app/help/actions";
 import { buttonClasses } from "@/components/ui/button";

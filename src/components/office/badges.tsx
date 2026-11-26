@@ -1,4 +1,4 @@
-import { ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ShieldCheckIcon } from "@/components/icons";
 import { ROLE_LABELS, type StaffRole } from "@/core/office/permissions";
 import { deploymentInfo } from "@/server/deployment";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchiveIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArchiveIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useState } from "react";
 import { archiveProjectAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";

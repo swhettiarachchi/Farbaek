@@ -1,4 +1,4 @@
-import { CalendarCheckIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
+import { CalendarCheckIcon, ListChecksIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";

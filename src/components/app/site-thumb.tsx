@@ -7,7 +7,7 @@
  * scripts and fetches nothing (the document carries the preview CSP). Apps
  * that need a server get a drawn cover instead, and empty projects say so.
  */
-import { BracketsCurlyIcon, FileDashedIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { BracketsCurlyIcon, FileDashedIcon, WarningCircleIcon } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 
 type Thumb = { kind: "static"; srcdoc: string } | { kind: "app" } | { kind: "empty" } | { kind: "loading" } | { kind: "error" };

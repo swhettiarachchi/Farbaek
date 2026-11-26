@@ -1,4 +1,4 @@
-import { ArrowUpRightIcon, CheckCircleIcon, CloudArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon, CheckCircleIcon, CloudArrowUpIcon, WarningCircleIcon } from "@/components/icons";
 import { CardTitle, Notice } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";

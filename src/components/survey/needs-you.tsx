@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CaretDownIcon, CheckCircleIcon, InfoIcon, ListChecksIcon, QuestionIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CaretDownIcon, CheckCircleIcon, InfoIcon, ListChecksIcon, QuestionIcon } from "@/components/icons";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { provenanceLive, type SurveyDocument } from "@/core/survey/document";

@@ -1,4 +1,4 @@
-import { CaretUpDownIcon, CheckIcon, PlusIcon } from "@phosphor-icons/react/ssr";
+import { CaretUpDownIcon, CheckIcon, PlusIcon } from "@/components/icons";
 import Link from "next/link";
 import { switchWorkspace } from "@/app/app/actions";
 import { getPlan } from "@/core/billing/catalog";

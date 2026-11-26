@@ -1,4 +1,4 @@
-import { CoinsIcon } from "@phosphor-icons/react/ssr";
+import { CoinsIcon } from "@/components/icons";
 import Link from "next/link";
 import { setTopupCapAction, startTopupAction } from "@/app/app/billing/actions";
 import { Card, CardTitle, Notice } from "@/components/app/primitives";

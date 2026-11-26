@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, PencilSimpleIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckIcon, PencilSimpleIcon, TrashIcon, WarningCircleIcon } from "@/components/icons";
 import { cornerBetween, type SquareCorner } from "@/core/survey/construct";
 import { remapRuns, runIds, runOf } from "@/core/survey/lotcurves";
 import { useState } from "react";

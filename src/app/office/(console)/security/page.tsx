@@ -1,4 +1,4 @@
-import { DeviceMobileIcon, KeyIcon, SignInIcon } from "@phosphor-icons/react/ssr";
+import { DeviceMobileIcon, KeyIcon, SignInIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";

@@ -1,4 +1,4 @@
-import { KeyIcon } from "@phosphor-icons/react/ssr";
+import { KeyIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { CardTitle } from "@/components/app/primitives";
 import { redirect } from "next/navigation";

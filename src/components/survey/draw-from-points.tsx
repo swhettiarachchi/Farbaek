@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, PolygonIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, PolygonIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { drawPlanFromPointsAction, type SurveyFormState } from "@/app/app/survey/actions";

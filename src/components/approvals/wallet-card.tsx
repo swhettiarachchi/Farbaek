@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, ArrowRightIcon, DesktopIcon, FilesIcon, ListChecksIcon, ShieldWarningIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, ArrowRightIcon, DesktopIcon, FilesIcon, ListChecksIcon, ShieldWarningIcon } from "@/components/icons";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { buttonClasses } from "@/components/ui/button";

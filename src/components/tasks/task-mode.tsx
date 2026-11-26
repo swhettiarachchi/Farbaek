@@ -1,12 +1,12 @@
 "use client";
 
-import { BookOpenTextIcon, HammerIcon, MagnifyingGlassIcon, UsersIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { BookOpenTextIcon, BlocksIcon, MagnifyingGlassIcon, UsersIcon, WarningCircleIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import { useState, useTransition } from "react";
 import { setTaskModeAction } from "@/app/app/actions";
 import { MODE_INFO, TASK_MODES, type TaskMode } from "@/core/realityloop/modes";
 
-const ICONS: Record<TaskMode, Icon> = { learn: BookOpenTextIcon, pair: UsersIcon, build: HammerIcon, audit: MagnifyingGlassIcon };
+const ICONS: Record<TaskMode, Icon> = { learn: BookOpenTextIcon, pair: UsersIcon, build: BlocksIcon, audit: MagnifyingGlassIcon };
 
 /**
  * A task's operating mode (ADR 0131): an explicit setting, shown with its

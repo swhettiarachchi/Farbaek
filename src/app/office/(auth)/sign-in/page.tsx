@@ -1,4 +1,4 @@
-import { InfoIcon, SignInIcon } from "@phosphor-icons/react/ssr";
+import { InfoIcon, SignInIcon } from "@/components/icons";
 import { CardTitle } from "@/components/app/primitives";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";

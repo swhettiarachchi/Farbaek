@@ -10,7 +10,7 @@
  * Until the server sells through Google Play, or when this copy of the app
  * can't reach Google Play's billing, it shows the calm list ADR 0150 has.
  */
-import { CheckCircleIcon, GooglePlayLogoIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, GooglePlayLogoIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";

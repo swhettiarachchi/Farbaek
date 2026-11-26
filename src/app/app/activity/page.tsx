@@ -10,8 +10,8 @@ import {
   ShieldCheckIcon,
   FolderSimpleIcon,
   UsersThreeIcon,
-} from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+} from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

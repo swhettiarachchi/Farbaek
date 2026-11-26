@@ -1,4 +1,4 @@
-import { BuildingsIcon } from "@phosphor-icons/react/ssr";
+import { BuildingsIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { EmptyState, PageHeader } from "@/components/app/primitives";

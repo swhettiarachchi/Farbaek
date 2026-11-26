@@ -8,7 +8,7 @@
  * numbers were found on it. A search that didn't work, or was switched off, is said plainly with the status badge for it;
  * nothing pretends the web was checked, and an answer that needed no search shows nothing here.
  */
-import { ArrowUpRightIcon, CaretDownIcon, GlobeIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CaretDownIcon, GlobeIcon } from "@/components/icons";
 import { useId, useState } from "react";
 import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
 import type { SearchMeta, WebSource } from "@/core/web/sources";

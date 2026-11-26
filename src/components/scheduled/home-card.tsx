@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ArrowUpRightIcon, CalendarCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, ArrowUpRightIcon, CalendarCheckIcon } from "@/components/icons";
 import Link from "next/link";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { RelativeTime } from "@/components/ui/local-time";

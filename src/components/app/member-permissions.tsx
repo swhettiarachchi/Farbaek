@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, LockSimpleIcon, LockSimpleOpenIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, LockSimpleIcon, LockSimpleOpenIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useState } from "react";
 import { setMemberPermissionsAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";

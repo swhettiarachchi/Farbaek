@@ -1,6 +1,6 @@
 "use client";
 
-import { BellIcon, BellRingingIcon, BellSlashIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { BellIcon, BellRingingIcon, BellSlashIcon, CheckCircleIcon, WarningCircleIcon } from "@/components/icons";
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { removePushAction, savePushAction, testPushAction, type PushState } from "@/app/app/push-actions";
 import { CardTitle } from "@/components/app/primitives";

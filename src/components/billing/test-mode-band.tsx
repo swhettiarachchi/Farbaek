@@ -1,4 +1,4 @@
-import { WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 
 /**

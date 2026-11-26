@@ -1,4 +1,4 @@
-import { CaretDownIcon, EnvelopeSimpleIcon, IdentificationBadgeIcon, ShieldCheckIcon, UserPlusIcon } from "@phosphor-icons/react/ssr";
+import { CaretDownIcon, EnvelopeSimpleIcon, IdentificationBadgeIcon, ShieldCheckIcon, UserPlusIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { Chip } from "@/components/admin/table";
 import { CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";

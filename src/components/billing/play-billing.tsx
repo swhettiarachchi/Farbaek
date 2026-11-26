@@ -11,7 +11,7 @@
  * isn't selling through it, the app keeps ADR 0150's calm plan list. Nothing
  * here ever names another way to pay.
  */
-import { GooglePlayLogoIcon } from "@phosphor-icons/react";
+import { GooglePlayLogoIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { claimGooglePlayPurchaseAction, type PlayActionResult } from "@/app/app/billing/actions";

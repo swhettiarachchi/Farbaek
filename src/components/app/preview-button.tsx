@@ -1,6 +1,6 @@
 "use client";
 
-import { BrowserIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { BrowserIcon, WarningCircleIcon } from "@/components/icons";
 import { useState, useTransition } from "react";
 import { openProjectPreviewAction } from "@/app/app/projects/preview-actions";
 import { buttonClasses } from "@/components/ui/button";

@@ -1,4 +1,4 @@
-import { AppleLogoIcon, ArrowUpRightIcon, CaretRightIcon, DesktopIcon, DownloadSimpleIcon, LinuxLogoIcon, SealCheckIcon, ShieldWarningIcon, WindowsLogoIcon } from "@phosphor-icons/react/ssr";
+import { AppleLogoIcon, ArrowUpRightIcon, CaretRightIcon, DesktopIcon, DownloadSimpleIcon, LinuxLogoIcon, SealCheckIcon, ShieldWarningIcon, WindowsLogoIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { CardTitle } from "@/components/app/primitives";
 import { AGENT_DOWNLOAD, AGENT_LINUX, AGENT_MAC, AGENT_STORE_URL, agentDownloadUrl } from "@/config/agent-download";

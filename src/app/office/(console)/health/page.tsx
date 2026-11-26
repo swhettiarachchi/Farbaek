@@ -1,4 +1,4 @@
-import { ArrowClockwiseIcon, CaretRightIcon, CheckCircleIcon, HardDrivesIcon, PlugsConnectedIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowClockwiseIcon, CaretRightIcon, CheckCircleIcon, HardDrivesIcon, PlugsConnectedIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";

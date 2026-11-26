@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CpuIcon, ListChecksIcon, PulseIcon, TagIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CpuIcon, ListChecksIcon, PulseIcon, TagIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";

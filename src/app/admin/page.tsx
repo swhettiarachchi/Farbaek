@@ -1,4 +1,4 @@
-import { PlugsConnectedIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
+import { PlugsConnectedIcon, SquaresFourIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { Card, CardTitle, PageHeader, StatTile } from "@/components/app/primitives";
 import { StatusGlyph } from "@/components/ui/status-badge";

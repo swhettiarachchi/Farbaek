@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CopyIcon, LinkBreakIcon, LinkIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CopyIcon, LinkBreakIcon, LinkIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { createTaskLinkAction, revokeTaskLinkAction, type LinkMade } from "@/app/app/scheduled/actions";

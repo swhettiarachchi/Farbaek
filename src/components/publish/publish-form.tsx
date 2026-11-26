@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, GlobeIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, GlobeIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useState } from "react";
 import { publishAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { PublishedMoment } from "@/components/publish/published-moment";

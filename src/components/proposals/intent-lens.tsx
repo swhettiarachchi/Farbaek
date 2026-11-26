@@ -1,6 +1,6 @@
 "use client";
 
-import { TreeStructureIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { TreeStructureIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { suggestLensMappingAction } from "@/app/app/actions";

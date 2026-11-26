@@ -1,4 +1,4 @@
-import { BookOpenTextIcon, BracketsCurlyIcon, BuildingsIcon, CircleHalfIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { BookOpenTextIcon, BracketsCurlyIcon, BuildingsIcon, CircleHalfIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AutonomySettings } from "@/components/app/autonomy-settings";

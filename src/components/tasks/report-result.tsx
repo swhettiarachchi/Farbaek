@@ -1,4 +1,4 @@
-import { FlagIcon } from "@phosphor-icons/react/ssr";
+import { FlagIcon } from "@/components/icons";
 import Link from "next/link";
 import { reportHref } from "@/core/support/support";
 

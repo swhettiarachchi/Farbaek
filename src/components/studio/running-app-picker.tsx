@@ -1,6 +1,6 @@
 "use client";
 
-import { CursorClickIcon, PlayIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CursorClickIcon, PlayIcon, WarningCircleIcon } from "@/components/icons";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { openPickPreviewAction } from "@/app/app/projects/preview-actions";
 import { buttonClasses } from "@/components/ui/button";

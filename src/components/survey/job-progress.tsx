@@ -1,4 +1,4 @@
-import { ArrowsClockwiseIcon } from "@phosphor-icons/react/ssr";
+import { ArrowsClockwiseIcon } from "@/components/icons";
 import { finishable, jobState, stoppedBeforeDrawing, tookText, type JobRow, type JobStage } from "@/core/survey/autosurvey/job";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";

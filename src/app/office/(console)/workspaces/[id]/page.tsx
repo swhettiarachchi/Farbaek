@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowUpRightIcon, ClockIcon, GaugeIcon, HammerIcon, PlusCircleIcon, ProhibitIcon, SquaresFourIcon, UsersThreeIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowUpRightIcon, ClockIcon, GaugeIcon, BlocksIcon, PlusCircleIcon, ProhibitIcon, SquaresFourIcon, UsersThreeIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -119,7 +119,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
           </Card>
 
           <Card>
-            <CardTitle icon={HammerIcon}>Recent agent runs</CardTitle>
+            <CardTitle icon={BlocksIcon}>Recent agent runs</CardTitle>
             {ws.runs.length === 0 ? (
               <p className="mt-2 text-sm text-ink-2">No runs yet.</p>
             ) : (

@@ -6,7 +6,7 @@
  * and a download; tables scroll sideways inside their own frame; maths is the browser's own MathML. A roundup's stories
  * (stage 278, ADR 0285) are drawn with their page's picture, title, day and source.
  */
-import { CheckIcon, CheckSquareIcon, CopyIcon, DownloadSimpleIcon, SquareIcon } from "@phosphor-icons/react";
+import { CheckIcon, CheckSquareIcon, CopyIcon, DownloadSimpleIcon, SquareIcon } from "@/components/icons";
 import { createElement, memo, useContext, useDeferredValue, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { StorySourcesContext, useAnswerParts } from "./answer-parts";
 import { useCopy } from "./primitives";

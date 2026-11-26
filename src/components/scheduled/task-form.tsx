@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { saveAgentAction, saveScheduledTaskAction, type ScheduledState } from "@/app/app/scheduled/actions";

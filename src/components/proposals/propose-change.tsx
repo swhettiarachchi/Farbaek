@@ -1,6 +1,6 @@
 "use client";
 
-import { GitDiffIcon, MagnifyingGlassIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { GitDiffIcon, MagnifyingGlassIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";

@@ -21,7 +21,7 @@ import {
   VideoCameraIcon,
   FlagIcon,
   GlobeIcon,
-  HammerIcon,
+  BlocksIcon,
   ImageSquareIcon,
   PencilSimpleIcon,
   PlayIcon,
@@ -31,7 +31,7 @@ import {
   ThumbsDownIcon,
   ThumbsUpIcon,
   WarningCircleIcon,
-} from "@phosphor-icons/react";
+} from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { fileSizeLabel } from "@/core/chat/files";
@@ -212,10 +212,10 @@ export interface AnswerActions {
  * presses its button there. Shown only for a request that is about that kind of thing (stage 206, handoff.ts): an answer about
  * the news doesn't offer to build a website. The desktop entry opens the page for Farbaek's desktop app, and carries nothing.
  */
-const HANDOFFS: { to: HandOff; label: string; short: string; hint: string; icon: typeof HammerIcon; tone: string }[] = [
+const HANDOFFS: { to: HandOff; label: string; short: string; hint: string; icon: typeof BlocksIcon; tone: string }[] = [
   { to: "images", label: "Make a picture", short: "Picture", hint: "Opens Images with your request in its box", icon: ImageSquareIcon, tone: "text-spark-rose" },
   { to: "video", label: "Make a video", short: "Video", hint: "Opens Video with your request in its box", icon: VideoCameraIcon, tone: "text-spark-aqua" },
-  { to: "build", label: "Build a website", short: "Website", hint: "Opens Build with your request in its box", icon: HammerIcon, tone: "text-spark-leaf" },
+  { to: "build", label: "Build a website", short: "Website", hint: "Opens Build with your request in its box", icon: BlocksIcon, tone: "text-spark-leaf" },
   { to: "desktop", label: "See the desktop app", short: "Desktop app", hint: "Opens the page for Farbaek's desktop app, which works on your own computer", icon: DesktopIcon, tone: "text-ink-3" },
 ];
 

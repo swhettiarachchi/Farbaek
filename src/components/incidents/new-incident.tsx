@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PlusIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { openIncidentAction } from "@/app/app/incidents/actions";

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, FileArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, FileArrowUpIcon, WarningCircleIcon } from "@/components/icons";
 import { useMemo, useState, useTransition } from "react";
 import { isBoundaryMark, isRoadEdgeCode, outlineFrom, roadEdges } from "@/core/survey/autodraft";
 import { codeBase, codeOf, dsrCodes, dsrCodesIn, entryFor, type CodeEntry } from "@/core/survey/codes";

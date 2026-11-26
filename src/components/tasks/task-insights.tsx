@@ -1,4 +1,4 @@
-import { ArrowCounterClockwiseIcon, CoinsIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, CoinsIcon } from "@/components/icons";
 import { CardTitle } from "@/components/app/primitives";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { modelName } from "@/core/billing/rate-card";

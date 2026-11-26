@@ -1,6 +1,6 @@
 "use client";
 
-import { PencilSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { finishCutOffRunAction, type SurveyFormState } from "@/app/app/survey/actions";

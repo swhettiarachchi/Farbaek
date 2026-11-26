@@ -1,5 +1,5 @@
-import { ArrowCircleRightIcon, ArrowDownIcon, ArrowRightIcon, CheckCircleIcon, CircleNotchIcon, InfoIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowCircleRightIcon, ArrowDownIcon, ArrowRightIcon, CheckCircleIcon, CircleNotchIcon, InfoIcon, WarningCircleIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";

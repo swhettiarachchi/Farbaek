@@ -1,5 +1,5 @@
 import { approvalsOrder } from "@/core/realityloop/needs-you";
-import { ArrowRightIcon, CheckCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

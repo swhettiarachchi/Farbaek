@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CheckIcon, ListNumbersIcon, LockSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckIcon, ListNumbersIcon, LockSimpleIcon } from "@/components/icons";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { FirstStep, FirstSteps } from "@/core/workspace/first-steps";

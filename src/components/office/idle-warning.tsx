@@ -1,6 +1,6 @@
 "use client";
 
-import { ClockCountdownIcon } from "@phosphor-icons/react";
+import { ClockCountdownIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { buttonClasses } from "@/components/ui/button";

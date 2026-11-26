@@ -4,13 +4,13 @@ import {
   ClipboardTextIcon,
   FileZipIcon,
   GlobeIcon,
-  HammerIcon,
+  BlocksIcon,
   ImageIcon,
   ListChecksIcon,
   PaletteIcon,
   SealCheckIcon,
-} from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+} from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { CAPABILITIES, CAPABILITY_STATUS_LABEL, type CapabilityStatus } from "@/content/showcase";
 import { imageGeneration } from "@/server/ai/image-config";
@@ -21,7 +21,7 @@ const ICONS: Record<string, Icon> = {
   plan: ClipboardTextIcon,
   design: PaletteIcon,
   skills: BookOpenTextIcon,
-  agent: HammerIcon,
+  agent: BlocksIcon,
   preview: BrowserIcon,
   checks: ListChecksIcon,
   proof: SealCheckIcon,

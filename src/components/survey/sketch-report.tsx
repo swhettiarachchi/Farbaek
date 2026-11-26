@@ -1,4 +1,4 @@
-import { EyeSlashIcon, HashIcon, LineSegmentsIcon, PencilSimpleIcon, QuestionIcon, RulerIcon, TextTIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { EyeSlashIcon, HashIcon, LineSegmentsIcon, PencilSimpleIcon, QuestionIcon, RulerIcon, TextTIcon, WarningCircleIcon } from "@/components/icons";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { Disclosure } from "@/components/ui/disclosure";
 import { LocalTime } from "@/components/ui/local-time";

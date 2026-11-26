@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowClockwiseIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CheckCircleIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useId, useState } from "react";
 import { renewAgentLeaseAction, setAgentLeaseAction, type AgentLeaseState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";

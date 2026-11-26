@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, ScribbleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, ScribbleIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { readSketchesAction, type SketchReadState } from "@/app/app/survey/ai-actions";

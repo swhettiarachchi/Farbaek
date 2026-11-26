@@ -1,12 +1,15 @@
-import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, ChatCircleTextIcon, ImageSquareIcon, VideoCameraIcon } from "@/components/icons";
 import Link from "next/link";
 import { space } from "@/components/site/spaces";
 
-/** The doors on Home beside the build box (ADR 0216): Farbaek AI's Chat and its two studios, each with what it's for. */
+/**
+ * The doors on Home beside the build box (ADR 0216): Farbaek AI's Chat and its two studios, each with what it's for. Each door
+ * carries the icon its row has in the app's navigation (ADR 0289), drawn in the app's own hand; the public site keeps its own.
+ */
 const DOORS = [
-  { space: "chat", about: "Ask, write and code with Farbaek AI." },
-  { space: "images", about: "Make and edit pictures with studio finish." },
-  { space: "video", about: "Make short films with sound." },
+  { space: "chat", icon: ChatCircleTextIcon, about: "Ask, write and code with Farbaek AI." },
+  { space: "images", icon: ImageSquareIcon, about: "Make and edit pictures with studio finish." },
+  { space: "video", icon: VideoCameraIcon, about: "Make short films with sound." },
 ] as const;
 
 export function SpaceDoors() {
@@ -15,7 +18,7 @@ export function SpaceDoors() {
       <ul className="grid gap-3 sm:grid-cols-3">
         {DOORS.map((door) => {
           const s = space(door.space);
-          const DoorIcon = s.icon;
+          const DoorIcon = door.icon;
           return (
             <li key={door.space}>
               <Link

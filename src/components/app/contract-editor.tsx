@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CheckIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CheckIcon, PenNibIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { approveContractAction, draftContractWithAiAction, saveContractAction, type AiDraftState, type FormState } from "@/app/app/actions";
 import { EffortPicker } from "@/components/app/effort-picker";

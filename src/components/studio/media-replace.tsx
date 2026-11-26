@@ -7,7 +7,7 @@
  * proposes the edit: the visual editor checks it, applies it to the draft and
  * shows it in review. An upload is saved to the project's files at once.
  */
-import { CubeIcon, ImagesIcon, LinkSimpleIcon, SwapIcon, UploadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CubeIcon, ImagesIcon, LinkSimpleIcon, SwapIcon, UploadSimpleIcon, WarningCircleIcon } from "@/components/icons";
 import { useId, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";

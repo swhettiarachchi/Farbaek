@@ -1,4 +1,4 @@
-import { FileCodeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { FileCodeIcon, WarningCircleIcon } from "@/components/icons";
 import { formatDuration, OUTCOME_WORDS, PROOF_WORDS, type GraphAnalytics, type ProofStatus } from "@/core/insights/project-graph";
 import type { ReactNode } from "react";
 

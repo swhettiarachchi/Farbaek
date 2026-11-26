@@ -1,5 +1,5 @@
-import { ArrowCounterClockwiseIcon, ArrowLeftIcon, GitDiffIcon, ListChecksIcon, PencilSimpleLineIcon, QuestionIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, ArrowLeftIcon, GitDiffIcon, ListChecksIcon, PencilSimpleLineIcon, QuestionIcon, ShieldCheckIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ReportResult } from "@/components/tasks/report-result";

@@ -1,6 +1,6 @@
 "use client";
 
-import { MinusCircleIcon, PlusIcon, UsersThreeIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { MinusCircleIcon, PlusIcon, UsersThreeIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useState } from "react";
 import { createWorkflowAction, type WorkflowState } from "@/app/app/workflows/actions";
 import { buttonClasses } from "@/components/ui/button";

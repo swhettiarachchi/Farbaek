@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, ClockUserIcon, XIcon } from "@phosphor-icons/react";
+import { CheckIcon, ClockUserIcon, XIcon } from "@/components/icons";
 import { MotionConfig, motion, type Variants } from "motion/react";
 
 export type ThreadStatus = "verified" | "approval" | "unverified" | "failed";

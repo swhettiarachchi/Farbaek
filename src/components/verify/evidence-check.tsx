@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, FileArrowUpIcon, FileMagnifyingGlassIcon, PackageIcon, SealCheckIcon, ShieldCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, FileArrowUpIcon, FileMagnifyingGlassIcon, PackageIcon, SealCheckIcon, ShieldCheckIcon, WarningCircleIcon, XCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useId, useState, type DragEvent } from "react";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";

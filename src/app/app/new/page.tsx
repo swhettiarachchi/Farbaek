@@ -1,4 +1,4 @@
-import { ArrowRightIcon, LayoutIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, LayoutIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

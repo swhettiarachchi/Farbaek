@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, GitPullRequestIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, GitPullRequestIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { openPullRequestAction, readPullFromGitHubAction, updatePullStatusAction, type PullRequestState } from "@/app/app/tasks/[taskId]/github-actions";
 import { buttonClasses } from "@/components/ui/button";

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, CheckCircleIcon, DesktopIcon, GlobeSimpleIcon, InfoIcon, LinkSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, DesktopIcon, GlobeSimpleIcon, InfoIcon, LinkSimpleIcon, WarningCircleIcon } from "@/components/icons";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";

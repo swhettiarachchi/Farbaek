@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PlusIcon, WarningCircleIcon } from "@/components/icons";
 import { useState } from "react";
 import { CONSTRUCTED_MAX, pointFromSpec, refreshCorners, type PointSpec } from "@/core/survey/construct";
 import type { SurveyDocument } from "@/core/survey/document";

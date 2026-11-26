@@ -1,4 +1,4 @@
-import { QrCodeIcon } from "@phosphor-icons/react/ssr";
+import { QrCodeIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { CardTitle } from "@/components/app/primitives";
 import { redirect } from "next/navigation";

@@ -4,7 +4,7 @@
  * Farbaek Chat's dialogs (stage 199): sharing a conversation by link, renaming, deleting (which can't be undone, so it asks), the
  * settings, and a picture at full size.
  */
-import { CheckIcon, CopyIcon, DownloadSimpleIcon, GlobeIcon, LinkBreakIcon, UsersIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckIcon, CopyIcon, DownloadSimpleIcon, GlobeIcon, LinkBreakIcon, UsersIcon, WarningCircleIcon } from "@/components/icons";
 import { useState, useTransition } from "react";
 import { LINK_LIFETIME_LABELS, LINK_LIFETIMES, type LinkLifetime } from "@/core/workspace/sharing";
 import { languageOptions, type AnswerScript } from "@/core/chat/language-names";

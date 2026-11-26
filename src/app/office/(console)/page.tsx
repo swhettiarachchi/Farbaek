@@ -1,4 +1,4 @@
-import { CheckCircleIcon, ClockIcon, CoinsIcon, HammerIcon, HandWavingIcon, PlugsConnectedIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, ClockIcon, CoinsIcon, BlocksIcon, HandWavingIcon, PlugsConnectedIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminTable, Cell } from "@/components/admin/table";
@@ -140,7 +140,7 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
         </Card>
 
         <Card>
-          <CardTitle icon={HammerIcon}>Agent runs, 7 days</CardTitle>
+          <CardTitle icon={BlocksIcon}>Agent runs, 7 days</CardTitle>
           <p className="mt-1 text-[2rem] font-medium leading-none tracking-[-0.03em] tabular">{number.format(m.runs7.total)}</p>
           <ul className="mt-4 grid gap-2 text-sm">
             <li className="flex items-center justify-between gap-3">

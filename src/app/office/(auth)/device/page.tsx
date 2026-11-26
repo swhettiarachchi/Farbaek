@@ -1,4 +1,4 @@
-import { DevicesIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { DevicesIcon, WarningCircleIcon } from "@/components/icons";
 import { CardTitle } from "@/components/app/primitives";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";

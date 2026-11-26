@@ -1,4 +1,4 @@
-import { ChatCircleTextIcon, VideoCameraIcon, FolderSimpleIcon, HammerIcon, HouseSimpleIcon, ImageSquareIcon } from "@phosphor-icons/react/ssr";
+import { ChatCircleTextIcon, VideoCameraIcon, FolderSimpleIcon, BlocksIcon, HouseSimpleIcon, ImageSquareIcon } from "@/components/icons";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -9,7 +9,7 @@ const SPACES = [
   { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon, tone: "text-accent" },
   { href: "/app/images", label: "Images", icon: ImageSquareIcon, tone: "text-spark-rose" },
   { href: "/app/video", label: "Video", icon: VideoCameraIcon, tone: "text-spark-aqua" },
-  { href: "/app/workbench", label: "Build", icon: HammerIcon, tone: "text-spark-leaf" },
+  { href: "/app/workbench", label: "Build", icon: BlocksIcon, tone: "text-spark-leaf" },
 ] as const;
 
 /**
@@ -31,7 +31,7 @@ export function WorkbenchStage({ heading, name, skip, projects = true, children 
             <BrandLogo height={28} />
           </Link>
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <HammerIcon size={16} weight="fill" className="shrink-0 text-spark-leaf" aria-hidden />
+            <BlocksIcon size={16} weight="fill" className="shrink-0 text-spark-leaf" aria-hidden />
             <h1 className={`sr-only ${FOCUSED_TITLE}`}>{heading}</h1>
             <p aria-hidden className="truncate text-sm font-medium text-ink sm:text-base">
               {name}

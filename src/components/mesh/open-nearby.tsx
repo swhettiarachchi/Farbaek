@@ -1,6 +1,6 @@
 "use client";
 
-import { WifiHighIcon } from "@phosphor-icons/react";
+import { WifiHighIcon } from "@/components/icons";
 import { useSyncExternalStore } from "react";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { useAndroidAppBuild } from "@/components/billing/web-purchase-only";

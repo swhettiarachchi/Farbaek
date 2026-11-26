@@ -10,7 +10,7 @@ import {
   FilePlusIcon,
   FlagCheckeredIcon,
   FolderOpenIcon,
-  HammerIcon,
+  BlocksIcon,
   InfoIcon,
   ListNumbersIcon,
   MagnifyingGlassIcon,
@@ -22,8 +22,8 @@ import {
   UserIcon,
   WarningCircleIcon,
   XIcon,
-} from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+} from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -384,7 +384,7 @@ export function RunLive({
       {live && canAnswer ? <MessageBar runId={run.id} /> : null}
       {!live && canAnswer ? (
         <section aria-labelledby="next-heading" className="grid gap-3">
-          <CardTitle id="next-heading" icon={HammerIcon}>
+          <CardTitle id="next-heading" icon={BlocksIcon}>
             Keep going
           </CardTitle>
           {changePending ? (
@@ -461,7 +461,7 @@ export function RunLive({
           <div className="grid gap-4">
             <section className="rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
               <div className="flex items-center justify-between gap-3">
-                <CardTitle icon={HammerIcon}>Run</CardTitle>
+                <CardTitle icon={BlocksIcon}>Run</CardTitle>
                 <RunStatusBadge status={run.status} />
               </div>
               <dl className="mt-4 grid gap-2 text-sm">

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, DeviceMobileIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, DeviceMobileIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { disconnectPhoneAction, type DisconnectState } from "@/app/app/phone-actions";
 import { CardTitle } from "@/components/app/primitives";

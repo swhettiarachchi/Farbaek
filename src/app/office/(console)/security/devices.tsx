@@ -1,4 +1,4 @@
-import { DesktopIcon, DeviceMobileIcon, DevicesIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { DesktopIcon, DeviceMobileIcon, DevicesIcon, WarningCircleIcon } from "@/components/icons";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { StepUpField } from "@/components/office/fields";

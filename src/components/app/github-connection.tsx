@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { removeGitHubTokenAction, setGitHubTokenAction, type GitHubTokenState } from "@/app/app/settings/github-actions";
 import { TOKEN_CREATION_URL } from "@/core/github/pull-request";

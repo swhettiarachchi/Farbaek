@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon } from "@/components/icons";
 import { useId } from "react";
 import { useFormStatus } from "react-dom";
 import { buttonClasses } from "@/components/ui/button";

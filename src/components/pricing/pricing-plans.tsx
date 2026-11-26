@@ -1,4 +1,4 @@
-import { CheckIcon } from "@phosphor-icons/react/ssr";
+import { CheckIcon } from "@/components/icons";
 import Link from "next/link";
 import { StatusGlyph } from "@/components/ui/status-badge";
 import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, chargeCents, formatUsd, getPlan, planSessionsGuide, priceWords, yearlyVersionOf, type FeatureKey, type Plan } from "@/core/billing/catalog";

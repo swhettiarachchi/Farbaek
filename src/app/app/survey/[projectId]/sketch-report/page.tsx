@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ScribbleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ScribbleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

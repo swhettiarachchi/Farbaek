@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { PlusIcon, TrashIcon } from "@/components/icons";
 import { useEffect, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { fieldBookText } from "@/core/survey/import/fieldbook";
 import { buttonClasses } from "@/components/ui/button";

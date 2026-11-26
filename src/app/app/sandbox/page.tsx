@@ -1,4 +1,4 @@
-import { CaretLeftIcon, CaretRightIcon, ClockCounterClockwiseIcon, GaugeIcon, MagnifyingGlassIcon, PlusIcon, TerminalWindowIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { CaretLeftIcon, CaretRightIcon, ClockCounterClockwiseIcon, GaugeIcon, MagnifyingGlassIcon, PlusIcon, TerminalWindowIcon, WarningIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

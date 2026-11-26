@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, CheckCircleIcon, CopyIcon, PlusIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, CopyIcon, PlusIcon, TrashIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useState } from "react";
 import { addDomainAction, checkDomainAction, removeDomainAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { buttonClasses } from "@/components/ui/button";

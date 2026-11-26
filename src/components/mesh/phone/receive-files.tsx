@@ -1,6 +1,6 @@
 "use client";
 
-import { DownloadSimpleIcon, GlobeSimpleIcon, ShareNetworkIcon, TrashIcon, TrayArrowDownIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, GlobeSimpleIcon, ShareNetworkIcon, TrashIcon, TrayArrowDownIcon, WarningCircleIcon } from "@/components/icons";
 import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";

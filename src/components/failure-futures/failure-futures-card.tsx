@@ -1,4 +1,4 @@
-import { SirenIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { SirenIcon, WarningIcon } from "@/components/icons";
 import { modelName } from "@/core/billing/model-names";
 import Link from "next/link";
 import { LiveRefresh } from "@/components/app/live-refresh";

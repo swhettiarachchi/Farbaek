@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PlusIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";

@@ -1,4 +1,4 @@
-import { DesktopIcon } from "@phosphor-icons/react/ssr";
+import { DesktopIcon } from "@/components/icons";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
 import { ButtonLink } from "@/components/ui/button";

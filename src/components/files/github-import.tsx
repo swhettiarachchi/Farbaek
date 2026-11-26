@@ -1,6 +1,6 @@
 "use client";
 
-import { GithubLogoIcon, LockSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { GithubLogoIcon, LockSimpleIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useId } from "react";
 import { importGitHubAction, type GitHubImportState } from "@/app/app/projects/github-actions";
 import { buttonClasses } from "@/components/ui/button";

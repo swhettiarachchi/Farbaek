@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightIcon, ArrowsClockwiseIcon, CheckCircleIcon, DeviceMobileIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, ArrowsClockwiseIcon, CheckCircleIcon, DeviceMobileIcon, TrashIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";

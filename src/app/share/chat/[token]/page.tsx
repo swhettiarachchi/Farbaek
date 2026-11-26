@@ -1,4 +1,4 @@
-import { LockSimpleIcon } from "@phosphor-icons/react/ssr";
+import { LockSimpleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnswerMessage, UserMessage } from "@/components/chat/message";

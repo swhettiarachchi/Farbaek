@@ -1,4 +1,4 @@
-import { LockKeyIcon, ShieldCheckIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
+import { LockKeyIcon, ShieldCheckIcon, WrenchIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/primitives";

@@ -1,6 +1,6 @@
 "use client";
 
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { acceptInvitationAction, type AcceptInviteState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";

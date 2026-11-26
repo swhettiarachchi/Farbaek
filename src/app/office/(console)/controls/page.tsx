@@ -1,4 +1,4 @@
-import { SlidersHorizontalIcon } from "@phosphor-icons/react/ssr";
+import { SlidersHorizontalIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { StatusBadge } from "@/components/ui/status-badge";

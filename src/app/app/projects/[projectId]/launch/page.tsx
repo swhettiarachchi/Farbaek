@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowUpRightIcon, ClockCounterClockwiseIcon, CloudArrowUpIcon, CoinsIcon, GlobeIcon, KeyIcon, PlugsConnectedIcon, SealCheckIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowUpRightIcon, ClockCounterClockwiseIcon, CloudArrowUpIcon, CoinsIcon, GlobeIcon, KeyIcon, PlugsConnectedIcon, SealCheckIcon, TerminalWindowIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

@@ -9,8 +9,8 @@
  *
  * Every control here does something real or says why it can't: the sample workspace reads everything and changes nothing.
  */
-import { BrowserIcon, CodeIcon, HammerIcon, InfoIcon, TerminalWindowIcon } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { BrowserIcon, CodeIcon, BlocksIcon, InfoIcon, TerminalWindowIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { ToastProvider } from "@/components/chat/primitives";
@@ -30,7 +30,7 @@ import { useLayout } from "./use-layout";
 type PaneId = "agent" | "preview" | "code" | "output";
 
 const PANES: { id: PaneId; label: string; icon: Icon }[] = [
-  { id: "agent", label: "Agent", icon: HammerIcon },
+  { id: "agent", label: "Agent", icon: BlocksIcon },
   { id: "preview", label: "Preview", icon: BrowserIcon },
   { id: "code", label: "Code", icon: CodeIcon },
   { id: "output", label: "Output", icon: TerminalWindowIcon },

@@ -1,4 +1,4 @@
-import { CheckIcon, MinusIcon } from "@phosphor-icons/react/ssr";
+import { CheckIcon, MinusIcon } from "@/components/icons";
 import { StatusGlyph } from "@/components/ui/status-badge";
 
 /** One value in the plan comparison, as plain data so the phone picker (a client component) gets it too. */
