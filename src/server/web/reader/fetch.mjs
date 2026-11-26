@@ -10,6 +10,14 @@ import { guardLookup, isLocalName, isPublicIp, publicLookup } from "./address.mj
 
 export const USER_AGENT = "FarbaekBot/1.0 (+https://farbaek.com/bot)";
 const PAGE_TYPES = ["text/html", "application/xhtml+xml", "text/plain"];
+/** The kinds of picture passed on (stage 278, ADR 0285). Never SVG, which can carry script, and never GIF, which is usually moving. */
+export const PICTURE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+/**
+ * What a site may call a picture for it to be read at all: any image, or bytes with no name ("image/jpg" and
+ * "application/octet-stream" are common for real pictures). The name only spares reading what is plainly a page; the kind
+ * passed on is decided by the bytes.
+ */
+const PICTURE_NAMES = ["image/", "application/octet-stream", "binary/octet-stream"];
 
 /** Production network rules. Tests pass their own resolver, allowed addresses and ports, to reach a local stand-in site. */
 export const PUBLIC_NET = Object.freeze({ lookup: publicLookup, isAllowed: isPublicIp, ports: ["", "80", "443"], allowLocalNames: false });
@@ -61,7 +69,7 @@ function decompressor(encoding) {
 }
 
 /** One request, no redirects followed. Resolves to the response's facts and its decoded body, or a reason it failed. */
-function requestOnce(url, { deadline, maxBytes, types, signal, net }) {
+function requestOnce(url, { deadline, maxBytes, types, signal, net, bytes: wantBytes = false }) {
   return new Promise((resolve) => {
     let settled = false;
     let timer;
@@ -80,7 +88,7 @@ function requestOnce(url, { deadline, maxBytes, types, signal, net }) {
       lookup: net.lookup,
       headers: {
         "user-agent": USER_AGENT,
-        accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.1",
+        accept: wantBytes ? "image/avif,image/webp,image/jpeg,image/png,image/gif;q=0.9" : "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.1",
         "accept-encoding": "gzip, deflate, br",
         "accept-language": "en;q=0.8, *;q=0.5",
       },
@@ -143,6 +151,8 @@ function requestOnce(url, { deadline, maxBytes, types, signal, net }) {
       body.on("error", () => done({ ok: false, reason: "couldn't read the page" }));
       body.on("end", () => {
         const bytes = Buffer.concat(chunks);
+        // A picture is passed on as it came: never decoded, never read as text.
+        if (wantBytes) return done({ ok: true, status, contentType, bytes });
         const text = decode(bytes, charsetOf(contentType, bytes.subarray(0, 2048)));
         done({ ok: true, status, contentType, robotsTag: String(res.headers["x-robots-tag"] ?? ""), tdm: String(res.headers["tdm-reservation"] ?? ""), text });
       });
@@ -155,18 +165,50 @@ function requestOnce(url, { deadline, maxBytes, types, signal, net }) {
  * Fetches a page, following up to `maxRedirects` redirects, each checked like the first. One deadline covers the whole thing.
  * Resolves to { ok: true, url, status, contentType, robotsTag, tdm, text } or { ok: false, reason }.
  */
-export async function fetchPage(rawUrl, { timeoutMs = 4_000, maxBytes = 1_500_000, maxRedirects = 3, types = PAGE_TYPES, signal, net = PUBLIC_NET } = {}) {
+export async function fetchPage(rawUrl, { timeoutMs = 4_000, maxBytes = 1_500_000, maxRedirects = 3, types = PAGE_TYPES, signal, net = PUBLIC_NET, bytes = false, httpsOnly = false } = {}) {
   const deadline = Date.now() + timeoutMs;
   let current = rawUrl;
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const refused = refuseUrl(current, net);
     if (refused) return { ok: false, reason: refused };
     const url = new URL(current);
-    const result = await requestOnce(url, { deadline, maxBytes, types, signal, net });
+    // A picture is asked for over https, and a redirect may not take it anywhere else.
+    if (httpsOnly && url.protocol !== "https:") return { ok: false, reason: "not https" };
+    const result = await requestOnce(url, { deadline, maxBytes, types, signal, net, bytes });
     if (!result.ok) return result;
     if (result.redirect === undefined) return { ...result, url: url.toString() };
     if (!result.redirect) return { ok: false, reason: "redirect without a destination" };
     current = new URL(result.redirect, url).toString();
   }
   return { ok: false, reason: "too many redirects" };
+}
+
+/**
+ * Fetches one picture (stage 278, ADR 0285) under the same rules as a page: public addresses only, checked on every redirect
+ * and on the connected socket, https on every hop, one deadline, a size cap, and only the kinds of picture in
+ * `PICTURE_TYPES`, decided by how its first bytes begin. Resolves to { ok: true, contentType, bytes } or { ok: false, reason }.
+ */
+export async function fetchPicture(rawUrl, { timeoutMs = 5_000, maxBytes = 1_000_000, signal, net = PUBLIC_NET } = {}) {
+  // Test network rules reach a local stand-in over http; production rules never do.
+  const result = await fetchPage(rawUrl, { timeoutMs, maxBytes, maxRedirects: 3, types: PICTURE_NAMES, signal, net, bytes: true, httpsOnly: !net.allowLocalNames });
+  if (!result.ok) return { ok: false, reason: result.reason === "not a web page" ? "not a picture" : result.reason };
+  const kind = pictureKind(result.bytes);
+  // What the bytes are decides, not what the site called them: a page named image/png is still a page.
+  if (!kind) return { ok: false, reason: "not a picture" };
+  return { ok: true, contentType: kind, bytes: result.bytes };
+}
+
+/** The kind of picture a file is, from how it begins, or null when it is none of the kinds passed on. */
+export function pictureKind(bytes) {
+  if (!bytes || bytes.length < 12) return null;
+  // Any bytes, not only Node's own buffers.
+  const head = Buffer.from(bytes.buffer, bytes.byteOffset, Math.min(bytes.byteLength, 40));
+  const hex = head.subarray(0, 12).toString("hex");
+  const ascii = head.toString("latin1");
+  if (hex.startsWith("ffd8ff")) return "image/jpeg";
+  if (hex.startsWith("89504e470d0a1a0a")) return "image/png";
+  if (ascii.startsWith("RIFF") && ascii.slice(8, 12) === "WEBP") return "image/webp";
+  // AVIF names itself as the file's main brand or among the brands it is compatible with, all within the first box.
+  if (ascii.slice(4, 8) === "ftyp" && /avi[fs]/.test(ascii.slice(8, 40))) return "image/avif";
+  return null;
 }

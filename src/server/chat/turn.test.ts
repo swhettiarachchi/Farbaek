@@ -639,6 +639,14 @@ describe("whether the web is checked at all (stage 206)", () => {
     expect(unsure.calls.filter((c) => c.name === "reserve")).toHaveLength(2);
   });
 
+  it("a request for news in general goes to the planner however short and plain it is, so it is searched in parts", async () => {
+    const { deps } = fakeDeps();
+    withPlanner(deps);
+    const asked = withResearch(deps);
+    await run(deps, send({ text: "Tech news today" }));
+    expect(asked[0]).toMatchObject({ local: false, need: { need: "search" } });
+  });
+
   it("a Sinhala question in English letters goes to the planner with its need already read, and the answer gets the Sinhala style note", async () => {
     const { deps } = fakeDeps();
     withPlanner(deps);
@@ -769,7 +777,7 @@ describe("memory and long conversations (stage 207)", () => {
     const plain = fakeDeps();
     await run(plain.deps, send({ text: "Suggest a dinner" }));
     const withMemory = fakeDeps();
-    withMemory.deps.reads.memories = async () => Array.from({ length: 12 }, (_, i) => `Something about me that is worth a full line of text, number ${i}`);
+    withMemory.deps.reads.memories = async () => Array.from({ length: 12 }, (_, i) => `Something about me that is worth a full line of text, and then some more of it so the room it takes is plain to see whatever the reservation is rounded to, number ${i}`);
     await run(withMemory.deps, send({ text: "Suggest a dinner" }));
     expect(withMemory.calls.find((c) => c.name === "reserve")!.input.units).toBeGreaterThan(plain.calls.find((c) => c.name === "reserve")!.input.units);
   });

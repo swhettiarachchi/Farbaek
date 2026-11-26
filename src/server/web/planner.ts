@@ -12,7 +12,7 @@
  */
 import type { NeedReading } from "@/core/web/intent";
 import { FRESHNESS, freshnessOf, GAP_PROMPT, localPlan, parseGap, parsePlan, PLANNER_PROMPT, type SearchPlan } from "@/core/web/plan";
-import { soundsLikeNews } from "@/core/web/intent";
+import { soundsLikeNews, soundsLikeRoundup } from "@/core/web/intent";
 import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import type { ChatModel } from "@/server/ai/chat-model";
 
@@ -72,6 +72,11 @@ export async function planSearch(input: PlannerInput): Promise<PlannerResult> {
     news: answer.plan.news || soundsLikeNews(input.question),
     depth: input.need.need === "deep" ? "deep" : answer.plan.depth,
   };
+  // A roundup (stage 278): the model read the whole conversation, so its word stands when it gave one; only when it said
+  // nothing do the message's own words decide. A deep task is a report, never a roundup.
+  const roundup = plan.depth !== "deep" && (answer.plan.roundup ?? soundsLikeRoundup(input.question));
+  if (roundup) plan.roundup = true;
+  else delete plan.roundup;
   return { plan, usage: reply.usage, via: "model" };
 }
 

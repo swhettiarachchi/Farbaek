@@ -13,6 +13,10 @@ export interface AnswerParts {
   sources: ReadonlyMap<number, WebSource> | null;
   /** Sends a choice as the person's next message. Absent when this answer can't be acted on (an older answer, a shared chat). */
   onChoose?: (text: string) => void;
+  /** The answer was asked for as a roundup (stage 278): its headings that end with a source's number are drawn as stories. */
+  stories?: boolean;
+  /** Stories may show their pages' pictures (stage 278): only for the signed-in person, whose route gives them. Off in a shared chat. */
+  pictures?: boolean;
 }
 
 export const AnswerPartsContext = createContext<AnswerParts>({ sources: null });

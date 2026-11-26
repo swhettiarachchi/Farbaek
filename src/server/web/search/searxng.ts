@@ -5,15 +5,19 @@
  * failure, not "nothing found". Server-only.
  */
 import { cleanDate } from "@/server/web/reader/dates.mjs";
+import { pictureUrl } from "@/core/web/pictures";
 import type { SearchResult } from "@/core/web/sources";
 import { SearchError, type SearchProvider, type SearchRequest } from "./provider";
 
 const RANGE: Record<SearchRequest["freshness"], string | null> = { day: "day", week: "month", month: "month", year: "year", any: null };
 
 interface SearxngAnswer {
-  results?: Array<{ url?: unknown; title?: unknown; content?: unknown; publishedDate?: unknown; pubdate?: unknown }>;
+  results?: Array<{ url?: unknown; title?: unknown; content?: unknown; publishedDate?: unknown; pubdate?: unknown; thumbnail?: unknown; img_src?: unknown }>;
   unresponsive_engines?: unknown[];
 }
+
+/** A result says it has a picture only when it has one. */
+const withPicture = (image: string | null): { image?: string } => (image ? { image } : {});
 
 export function createSearxng(baseUrl: string, fetcher: typeof fetch = fetch, now: () => number = Date.now): SearchProvider {
   return {
@@ -49,6 +53,8 @@ export function createSearxng(baseUrl: string, fetcher: typeof fetch = fetch, no
           snippet: typeof r.content === "string" ? r.content : "",
           published: cleanDate(r.publishedDate ?? r.pubdate ?? null, now()),
           kind: request.kind,
+          // The picture a news search gives with a result (stage 278): kept only as an https address, and never loaded here.
+          ...withPicture(pictureUrl(r.thumbnail, r.url as string) ?? pictureUrl(r.img_src, r.url as string)),
         }));
       if (results.length === 0 && (body.unresponsive_engines?.length ?? 0) > 0) throw new SearchError("blocked", "the search engines didn't answer this time");
       if (request.freshness !== "week") return results;

@@ -17,9 +17,29 @@ export interface WebDoc extends WebSource {
 
 /** A page as the source saved with an answer: its facts without its text. `updated` only when it differs from the published day. */
 export function sourceOf(doc: WebDoc): WebSource {
-  const { n, url, title, site, published, updated, read } = doc;
-  return { n, url, title, site, published, read, ...(updated && updated.slice(0, 10) !== published?.slice(0, 10) ? { updated } : {}) };
+  const { n, url, title, site, published, updated, read, image, imageSig } = doc;
+  return { n, url, title, site, published, read, ...(updated && updated.slice(0, 10) !== published?.slice(0, 10) ? { updated } : {}), ...(image && imageSig ? { image, imageSig } : {}) };
 }
+
+/**
+ * How a roundup is written (stage 278, ADR 0285), said just before the results it is made from. It stands outside the block
+ * of pages, as a note from Farbaek: inside that block nothing is an instruction, and a line of instructions there would teach
+ * the model otherwise. The words are fixed here: nothing from a page or the person is put into them. Each story is a heading
+ * that ends with its source's number, which is what the screen draws as a story with that page's picture
+ * (core/chat/stories.ts).
+ */
+export const ROUNDUP_SHAPE = [
+  "A note from Farbaek on writing this answer. If the person is asking for news or updates on a subject in general, write a roundup, in their language, like this. If they asked one specific question, answer that directly and leave this list aside.",
+  "- First a level-1 heading (#) that names the subject and the date the roundup covers. No emoji.",
+  "- Then one or two sentences on what stands out.",
+  "- Then six to eight stories when the results hold that many, the most important first. Never invent one to reach a number.",
+  "- Each story is a level-3 heading (###) that names it in a few words and ends with the number of the source it comes from, like: ### A new chip for phones [3]",
+  "- Under it, two or three sentences: what happened, when (give the day), and why it matters to the reader, using only what that source says. No bullets inside a story, and no source number in the sentences when the heading already has it.",
+  "- Take the stories from several different sources. Don't take them all from one page that lists the day's news, and don't use the same source for more than two.",
+  "- When there are more than five stories, put them under two or three level-2 headings (##) by theme.",
+  "- A result with no date, or older than the roundup covers, is not today's news: leave it out, or say when it is from.",
+  "- End with one or two sentences under a level-2 heading on what to watch next. No offer of more help.",
+].join("\n");
 
 /**
  * Characters that hide text or change its direction: zero-width spaces, soft hyphens, bidirectional controls, Unicode tag
@@ -81,7 +101,7 @@ function header(when: Date): string {
  * The block of live results, appended to the person's question. `budgetChars` is shared between the sources, more for pages
  * that were read than for snippets. `tag` must be random for each turn.
  */
-export function buildWebBlock(input: { docs: WebDoc[]; queries: string[]; topic?: string; retrievedAt: Date; budgetChars: number; tag: string; rounds?: number }): string {
+export function buildWebBlock(input: { docs: WebDoc[]; queries: string[]; topic?: string; retrievedAt: Date; budgetChars: number; tag: string; rounds?: number; roundup?: boolean }): string {
   const { docs, queries, retrievedAt, budgetChars, tag } = input;
   const wanted = input.topic ? [...queries, input.topic] : queries;
   const open = `<web_results tag="${tag}">`;
@@ -90,6 +110,7 @@ export function buildWebBlock(input: { docs: WebDoc[]; queries: string[]; topic?
   const snippetCount = docs.length - readCount;
   const perRead = readCount > 0 ? Math.floor((budgetChars - snippetCount * 400) / readCount) : 0;
   const lines = [
+    ...(input.roundup ? [ROUNDUP_SHAPE, ""] : []),
     open,
     `Live web results that Farbaek retrieved for this question at ${header(retrievedAt)}.`,
     `Searched for: ${queries.map((q) => `"${q}"`).join(", ")}${(input.rounds ?? 1) > 1 ? `, in ${input.rounds} rounds` : ""}.`,

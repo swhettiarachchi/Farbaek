@@ -3,16 +3,21 @@
 /**
  * An answer drawn from its Markdown (stage 199, ADR 0213): React elements only, never HTML from the model. Blocks are memoised by
  * their source, so while an answer streams only the block being written redraws. Code blocks carry their language, a copy button
- * and a download; tables scroll sideways inside their own frame; maths is the browser's own MathML.
+ * and a download; tables scroll sideways inside their own frame; maths is the browser's own MathML. A roundup's stories
+ * (stage 278, ADR 0285) are drawn with their page's picture, title, day and source.
  */
 import { CheckIcon, CheckSquareIcon, CopyIcon, DownloadSimpleIcon, SquareIcon } from "@phosphor-icons/react";
-import { createElement, memo, useDeferredValue, useMemo, type ReactNode } from "react";
+import { createElement, memo, useDeferredValue, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useAnswerParts } from "./answer-parts";
 import { useCopy } from "./primitives";
 import type { WebSource } from "@/core/web/sources";
 import { extensionFor, highlight, languageLabel, type TokenKind } from "@/core/chat/highlight";
 import { choiceLines, parseMarkdown, type Block, type Inline } from "@/core/chat/markdown";
+import { groupStories, type Story } from "@/core/chat/stories";
+import { pictureSrc, storyDay } from "@/core/web/pictures";
 import { texToMath, type MathNode } from "@/core/chat/tex";
+
+const noSubscribe = () => () => undefined;
 
 const TOKEN_CLASS: Record<TokenKind, string> = {
   plain: "",
@@ -285,6 +290,81 @@ function BlockView({ block }: { block: Block }): ReactNode {
   }
 }
 
+/** True when a title already holds a link of its own: it is then not wrapped in another. */
+const holdsLink = (nodes: Inline[]): boolean => nodes.some((n) => n.t === "link" || ((n.t === "strong" || n.t === "em" || n.t === "del") && holdsLink(n.c)));
+
+/**
+ * The picture beside a story. It comes from Farbaek's own route, never from the page's site, and it is decoration: the title
+ * says what the story is. Its place is kept from the first paint, with the first letter of the site's name in it, so nothing
+ * moves when the picture arrives, and a story whose picture can't be had lines up with the others.
+ */
+function StoryPicture({ src, site }: { src: string | null; site: string }) {
+  const [gone, setGone] = useState(false);
+  // Drawn only in the browser: a picture that failed before the page woke up would never say so, and would stay as a broken mark.
+  const awake = useSyncExternalStore(noSubscribe, () => true, () => false);
+  const letter = (site.replace(/^www\./, "")[0] ?? "").toUpperCase();
+  return (
+    <span aria-hidden className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-surface-raised text-xl font-medium text-ink-3 sm:size-28 sm:text-2xl">
+      {letter}
+      {src && awake && !gone ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a small picture from Farbaek's own route, fetched by its page reader
+        <img src={src} alt="" width={112} height={112} loading="lazy" decoding="async" onError={() => setGone(true)} className="absolute inset-0 size-full object-cover" />
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * One story of a roundup (stage 278, ADR 0285): the picture its page names for previews, its title as a link to the page, the
+ * sentences, then the day it was published and where. Drawn only from sources Farbaek retrieved; with none behind it, it is
+ * the heading and the paragraphs it was written as. `tiles`: some story of this answer has a picture, so every story keeps
+ * a place for one and they line up; in an answer with no pictures at all, none do.
+ */
+function StoryView({ story, tiles }: { story: Story; tiles: boolean }) {
+  const { sources, pictures } = useAnswerParts();
+  const cited = story.cites.map((n) => sources?.get(n)).filter((s): s is WebSource => s !== undefined);
+  const first = cited[0];
+  const src = pictures === false ? null : (cited.map((s) => pictureSrc(s)).find((s) => s !== null) ?? null);
+  const day = storyDay(first?.published);
+  const title = <InlineView nodes={story.title} />;
+  return (
+    <article className="story mt-4 flex items-start gap-3.5 first:mt-0 sm:gap-4 [.story+&]:mt-0 [.story+&]:border-t [.story+&]:border-line [.story+&]:pt-4 [&:has(+.story)]:pb-4">
+      {tiles && first ? <StoryPicture key={src ?? "none"} src={src} site={first.site} /> : null}
+      <div className="min-w-0 flex-1">
+        {createElement(
+          `h${story.level}`,
+          { className: "text-base font-semibold leading-snug tracking-[-0.01em] text-ink" },
+          first && !holdsLink(story.title) ? (
+            <a href={first.url} target="_blank" rel="noopener noreferrer nofollow ugc" className="no-underline decoration-ink/30 underline-offset-[3px] hover:underline">
+              {title}
+            </a>
+          ) : (
+            title
+          ),
+        )}
+        {story.body.length > 0 ? (
+          <div className="mt-1 leading-relaxed text-ink-2 [&>blockquote]:my-2 [&>ol]:my-1.5 [&>p]:my-1.5 [&>ul]:my-1.5">
+            {story.body.map((b, i) => (
+              <BlockView key={i} block={b.block} />
+            ))}
+          </div>
+        ) : null}
+        {first ? (
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
+            {day ? <span className="tabular">{day}</span> : null}
+            <Citation numbers={story.cites} />
+          </p>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+/** A story, redrawn only when its own source changes. */
+const MemoStory = memo(function MemoStory({ story, tiles }: { story: Story; src: string; tiles: boolean }) {
+  return <StoryView story={story} tiles={tiles} />;
+}, (a, b) => a.src === b.src && a.tiles === b.tiles);
+
 /** One top-level block, redrawn only when its own source changes. */
 const MemoBlock = memo(function MemoBlock({ block }: { block: Block; src: string; cites: boolean }) {
   return <BlockView block={block} />;
@@ -295,13 +375,18 @@ export function MarkdownView({ text, streaming = false }: { text: string; stream
   // While an answer streams, rendering can fall a frame or two behind under load instead of re-reading every frame.
   const shown = useDeferredValue(text);
   // "[2]" is a citation only in an answer that has numbered web sources; anywhere else it stays as written.
-  const cites = useAnswerParts().sources !== null;
+  const { sources, pictures, stories } = useAnswerParts();
+  const cites = sources !== null;
   const blocks = useMemo(() => parseMarkdown(shown, { citations: cites }), [shown, cites]);
+  // Stories are found only in an answer Farbaek asked for as a roundup: there, a heading that ends with a source's number is
+  // a story. Anywhere else such a heading heads a section, and stays one.
+  const pieces = useMemo(() => (cites && stories ? groupStories(blocks) : blocks.map((block) => ({ kind: "block" as const, block }))), [blocks, cites, stories]);
+  // Whether stories keep a place for a picture: decided from the answer's sources, which are all known before the first word
+  // is written, so a place never appears beside a story already drawn.
+  const tiles = useMemo(() => pictures !== false && sources !== null && [...sources.values()].some((s) => pictureSrc(s) !== null), [sources, pictures]);
   return (
     <div className="chat-prose text-body leading-[1.7] text-ink [overflow-wrap:break-word]">
-      {blocks.map((b, i) => (
-        <MemoBlock key={i} block={b.block} src={b.src} cites={cites} />
-      ))}
+      {pieces.map((p, i) => (p.kind === "story" ? <MemoStory key={i} story={p.story} src={p.story.src} tiles={tiles} /> : <MemoBlock key={i} block={p.block.block} src={p.block.src} cites={cites} />))}
       {streaming ? <span className="chat-caret" aria-hidden /> : null}
     </div>
   );

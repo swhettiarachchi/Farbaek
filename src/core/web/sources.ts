@@ -6,6 +6,7 @@
  * facts, counted in UTF-8 bytes, since Sinhala, Tamil and Japanese titles take three bytes a character.
  */
 import { z } from "zod";
+import { PICTURE_SIG_PATTERN, PICTURE_URL_BYTES } from "./pictures";
 import { DEPTHS, type Depth } from "./plan";
 
 export interface SearchResult {
@@ -18,6 +19,8 @@ export interface SearchResult {
   kind: "web" | "news";
   /** When the search that found it ran, when that wasn't just now (a search kept for a few minutes, search/cache.ts). */
   fetchedAt?: number;
+  /** The small picture the search gave with the result, if any (stage 278): an https address, never loaded by the browser. */
+  image?: string | null;
 }
 
 export interface WebSource {
@@ -35,6 +38,9 @@ export interface WebSource {
   cited?: boolean;
   /** Whether the names and numbers in the sentences that cite it are on the page. Set once the answer is written. */
   support?: Support;
+  /** The page's picture for previews of itself, and the server's signature of that address (stage 278, pictures.ts). Both or neither. */
+  image?: string;
+  imageSig?: string;
 }
 
 /** matched: found on the page. partly: some found. unmatched: none found. unchecked: nothing to compare, or only a snippet. */
@@ -56,6 +62,8 @@ export interface SearchMeta {
   depth?: Depth;
   /** Rounds of searching: 2 when a deep task looked again for what the first round missed. */
   rounds?: number;
+  /** The person asked for a roundup of news or updates, and the answer was asked for as stories (stage 278). */
+  roundup?: boolean;
   /** The answer's citations, counted once it is written: sources cited, and how many of them carry the cited names and numbers. */
   checks?: { cited: number; matched: number; unmatched: number; invalid: number };
 }
@@ -74,6 +82,9 @@ const source = z.object({
   updated: z.string().max(40).nullable().optional(),
   cited: z.boolean().optional(),
   support: z.enum(SUPPORTS).optional(),
+  // A picture that doesn't read as one is left out; it never costs the answer its sources.
+  image: z.string().max(PICTURE_URL_BYTES).refine((u) => /^https:\/\//i.test(u)).optional().catch(undefined),
+  imageSig: z.string().regex(PICTURE_SIG_PATTERN).optional().catch(undefined),
 });
 
 export const searchMetaSchema = z.object({
@@ -84,6 +95,7 @@ export const searchMetaSchema = z.object({
   sources: z.array(source).max(MAX_SAVED_SOURCES),
   depth: z.enum(DEPTHS).optional(),
   rounds: z.number().int().min(1).max(3).optional(),
+  roundup: z.boolean().optional(),
   checks: z.object({ cited: z.number().int().min(0).max(20), matched: z.number().int().min(0).max(20), unmatched: z.number().int().min(0).max(20), invalid: z.number().int().min(0).max(99) }).optional(),
 });
 
@@ -137,6 +149,22 @@ export function selectResults(results: SearchResult[], { max = 8, perSite = 2, n
   return out;
 }
 
+/** A source without its picture: the address and its signature go together. */
+function withoutPicture(s: WebSource): WebSource {
+  const rest = { ...s };
+  delete rest.image;
+  delete rest.imageSig;
+  return rest;
+}
+
+/**
+ * An answer's search facts without any picture (stage 278), for where pictures aren't shown: a shared chat, which anyone with
+ * its link can read, carries no picture address and no signature of one.
+ */
+export function withoutPictures(meta: SearchMeta): SearchMeta {
+  return { ...meta, sources: meta.sources.map(withoutPicture) };
+}
+
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 
 /** The search facts to save with an answer, trimmed to fit `maxBytes` of UTF-8: long titles shortened, then sources dropped from the end. */
@@ -151,6 +179,13 @@ export function fitSearchMeta(meta: SearchMeta, maxBytes = 5_500): SearchMeta {
       .map((s) => ({ ...s, title: s.title.slice(0, 120), site: s.site.slice(0, 60) })),
   };
   if (fitted.reason === undefined) delete fitted.reason;
+  // A picture is the first thing to go: of a source the answer doesn't cite, from the end, then of any source.
+  for (const onlyUncited of [true, false]) {
+    for (let i = fitted.sources.length - 1; i >= 0 && bytes(fitted) > maxBytes; i--) {
+      const s = fitted.sources[i]!;
+      if (s.image && (!onlyUncited || !s.cited)) fitted.sources = fitted.sources.map((x, at) => (at === i ? withoutPicture(x) : x));
+    }
+  }
   // Shorter titles in fixed steps (each step always ends), then fewer sources.
   for (const limit of [90, 60, 40]) {
     if (bytes(fitted) <= maxBytes) break;

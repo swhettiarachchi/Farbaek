@@ -26,7 +26,7 @@ import { offeredChoices } from "@/core/chat/markdown";
 import { cleanSummary, newestSummary, summaryContext, summaryDue, summaryInput, SUMMARY_PROMPT, type SavedSummary, type SummaryMessage } from "@/core/chat/summary";
 import { checkCitations } from "@/core/web/citations";
 import { oneLine, sourceOf, webFailureNote, webNotNeededNote, webOffNote, type WebDoc } from "@/core/web/context";
-import { readSearchNeed, type NeedReading } from "@/core/web/intent";
+import { readSearchNeed, soundsLikeRoundup, type NeedReading } from "@/core/web/intent";
 import { GAP_PROMPT, PLANNER_PROMPT, plansLocally, searchSkip } from "@/core/web/plan";
 import { fitSearchMeta, type SearchMeta } from "@/core/web/sources";
 import type { ResearchInput, ResearchResult } from "@/server/web/research";
@@ -95,8 +95,8 @@ const SAVE_EVERY_MS = 3_000;
 const WEB_TOKENS = { fast: 3_000, standard: 6_000, strong: 8_000, frontier: 8_000 } as const;
 /** A deep task reads more, on every tier (stage 206): up to twelve sources in two rounds. */
 const DEEP_WEB_TOKENS = 12_000;
-/** The web block's own lines (markers, header, numbered sources) beyond the page text. */
-const WEB_FRAME_TOKENS = 600;
+/** The web block's own lines beyond the page text: markers, header, up to ten numbered sources, and how a roundup is written (stage 278). */
+const WEB_FRAME_TOKENS = 1_000;
 /** The planner's instructions and the conversation it reads, at most; and its reply, with room for a short think. */
 const PLANNER_INPUT_TOKENS = 1_500;
 const PLANNER_OUTPUT_TOKENS = 800;
@@ -427,7 +427,8 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // The search planner runs unless the message plainly needs the web and is a short, self-contained English first question,
   // which is planned without a model. It may turn a question into a deep task, so the room for one is kept whenever it runs.
   const searching = !skip && !notNeeded && need !== null;
-  const plansHere = searching && need.need === "search" && plansLocally(asking, userTexts.length);
+  // A roundup (stage 278) is the planner's to write even when the message is short and plain: it is searched in three parts.
+  const plansHere = searching && need.need === "search" && plansLocally(asking, userTexts.length) && !soundsLikeRoundup(asking);
   const wantsPlanner = searching && !plansHere && Boolean(modelFor(choice).complete);
   // The web text this answer may read comes out of the conversation's room, and goes into the reservation.
   const webTokens = !searching ? 0 : (wantsPlanner ? Math.max(DEEP_WEB_TOKENS, WEB_TOKENS[choice.tier]) : WEB_TOKENS[choice.tier]) + WEB_FRAME_TOKENS;

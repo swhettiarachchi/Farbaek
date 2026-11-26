@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import type { ChatFile } from "@/core/chat/protocol";
-import { searchMetaSchema, type SearchMeta } from "@/core/web/sources";
+import { searchMetaSchema, withoutPictures, type SearchMeta } from "@/core/web/sources";
 import { invitationTokenHash, isInvitationToken } from "@/core/workspace/invitations";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -56,10 +56,11 @@ export async function openSharedChat(token: string): Promise<{ ok: true; chat: S
     chat: {
       title: live.data.title || "Shared chat",
       audience: live.data.audience,
-      // An answer's sources (v101): checked like any saved answer's, and left out when they don't read as sources.
+      // An answer's sources (v101): checked like any saved answer's, and left out when they don't read as sources. Without their
+      // pictures (stage 278): a shared chat shows none, so it carries no picture address and no signature of one.
       messages: live.data.messages.map((m) => {
         const search = m.role === "assistant" ? searchMetaSchema.safeParse(m.search) : null;
-        return { id: m.id, role: m.role, kind: m.kind, content: m.content, status: m.status, model: m.model, createdAt: m.created_at, files: m.files, ...(search?.success ? { search: search.data } : {}) };
+        return { id: m.id, role: m.role, kind: m.kind, content: m.content, status: m.status, model: m.model, createdAt: m.created_at, files: m.files, ...(search?.success ? { search: withoutPictures(search.data) } : {}) };
       }),
     },
   };
