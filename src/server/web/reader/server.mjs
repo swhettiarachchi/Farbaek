@@ -4,6 +4,7 @@
 //
 //   POST /read     {"url": "https://…", "timeoutMs": 4000, "hintedDate": "2026-11-17"}  → the page's text, or why not
 //   POST /picture  {"url": "https://…", "timeoutMs": 5000}                              → the picture's bytes, or 404 and why not
+//   POST /feed     {"url": "https://…", "timeoutMs": 3000}                              → a newsroom's feed as items, or why not
 //   GET  /healthz                                                                     → ok
 import http from "node:http";
 import { denyAddresses } from "./address.mjs";
@@ -22,8 +23,9 @@ function send(res, status, body) {
 
 const server = http.createServer((req, res) => {
   if (req.method === "GET" && req.url === "/healthz") return send(res, 200, { ok: true, ...reader.stats() });
-  if (req.method !== "POST" || (req.url !== "/read" && req.url !== "/picture")) return send(res, 404, { ok: false, reason: "not found" });
+  if (req.method !== "POST" || (req.url !== "/read" && req.url !== "/picture" && req.url !== "/feed")) return send(res, 404, { ok: false, reason: "not found" });
   const wantsPicture = req.url === "/picture";
+  const wantsFeed = req.url === "/feed";
   let size = 0;
   const chunks = [];
   req.on("data", (chunk) => {
@@ -51,6 +53,12 @@ const server = http.createServer((req, res) => {
     res.on("close", () => {
       if (!res.writableFinished) stop.abort();
     });
+    if (wantsFeed) {
+      // A newsroom's feed (stage 280, ADR 0288): its newest stories as plain facts.
+      const feed = await reader.feed(input.url, { timeoutMs: Math.min(timeoutMs, 5_000) });
+      if (!res.destroyed) send(res, 200, feed);
+      return;
+    }
     if (wantsPicture) {
       // A picture beside a story (stage 278, ADR 0285): its bytes with their kind, or 404 with the reason as JSON.
       const picture = await reader.picture(input.url, { timeoutMs, signal: stop.signal });

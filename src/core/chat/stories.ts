@@ -153,7 +153,9 @@ export function groupStories(blocks: SourceBlock[]): AnswerPiece[] {
     // is not that: the story keeps its first blocks, and the rest follows it as it was written, so a story never turns back
     // into a heading while it is still being written.
     const next = blocks[j]?.block;
-    if (next !== undefined && !TEXT.has(next.t) && next.t !== "h" && next.t !== "hr") {
+    // The answer's own choices to tap may come straight after its last story: they are not part of a section it heads.
+    const choices = next?.t === "code" && next.lang === "choices";
+    if (next !== undefined && !choices && !TEXT.has(next.t) && next.t !== "h" && next.t !== "hr") {
       keep();
       continue;
     }

@@ -23,7 +23,7 @@ const longText = "A real paragraph about technology news with enough words to co
 const result = (url: string, extra: Partial<SearchResult> = {}): SearchResult => ({ url, title: `Tech news at ${new URL(url).hostname}`, snippet: "Technology news of the day.", published: "2026-11-25T10:00:00Z", kind: "web", ...extra });
 const page = (url: string, extra: Record<string, unknown> = {}) => ({ ok: true as const, url, title: `Tech news: the page at ${new URL(url).hostname}`, site: "Some Site Name", text: longText, published: "2026-11-25T10:00:00Z", updated: null, lang: "en", optOut: false, ...extra });
 const provider = (fn: SearchProvider["search"]): SearchProvider => ({ name: "fake", search: fn });
-const readerOf = (fn: ReaderClient["read"]): ReaderClient => ({ read: fn, picture: async () => null });
+const readerOf = (fn: ReaderClient["read"]): ReaderClient => ({ read: fn, picture: async () => null, feed: async () => null });
 function deps(search: SearchProvider, reader: ReaderClient, over: Partial<ResearchDeps> = {}): ResearchDeps {
   return { search, reader, breaker: createBreaker({ now: () => NOW }), now: () => NOW, tag: () => "tag", pictureKey: KEY, ...over };
 }
@@ -71,6 +71,84 @@ describe("research for a roundup", () => {
     const deep = await planSearch({ question: "a full report on this year's AI news", earlier: [], need: { need: "deep", explicit: true, why: "test" }, local: false, model: model([ROUNDUP_PLAN]), modelId: "x", signal: new AbortController().signal, now: NOW });
     expect(deep.plan?.depth).toBe("deep");
     expect(deep.plan && "roundup" in deep.plan).toBe(false);
+  });
+});
+
+describe("a roundup read from the newsrooms' own feeds", () => {
+  const PLAN = '{"need":"search","topic":"technology news","queries":["AI news","tech company news","cybersecurity news"],"freshness":"day","news":true,"roundup":true}';
+  // What the search gives for these words: front pages, whose titles are the words themselves.
+  const hubs = provider(async (req) => [result(`https://www.reuters.com/technology/?q=${req.kind}`, { title: "Tech News | Today's Latest Technology News", snippet: "Tech news.", published: null }), result("https://techcrunch.com/", { title: "TechCrunch | Startup and Technology News", snippet: "Technology news.", published: null })]);
+  const story = (host: string, n: number, extra: Record<string, unknown> = {}) => ({ title: `Story ${n} from ${host}`, url: `https://${host}/2026/11/25/story-${n}/`, published: "2026-11-25T08:00:00.000Z", summary: `What happened in story ${n}, in three sentences of summary from the feed.`, image: `https://cdn.${host}/${n}.jpg`, ...extra });
+  function feedReader(o: { fail?: boolean; items?: (url: string) => ReturnType<typeof story>[] | null } = {}) {
+    const asked: string[] = [];
+    const reader: ReaderClient = {
+      read: async () => ({ ok: false, reason: "the site's robots.txt doesn't allow it" }),
+      picture: async () => null,
+      feed: async (url) => {
+        asked.push(url);
+        if (o.fail) throw new Error("down");
+        if (o.items) return o.items(url);
+        const host = new URL(url).hostname.replace(/^(?:feeds|www)\./, "");
+        return [story(host, 1), story(host, 2), story(host, 3)];
+      },
+    };
+    return { reader, asked };
+  }
+  const ask = (reader: ReaderClient, search: SearchProvider = hubs, question = "mata aluth tech updates denna ada", plan = PLAN) => research(deps(search, reader), { ...base, question, local: false, plannerModel: model([plan]), plannerModelId: "x", deepBudgetChars: 36_000 });
+
+  it("is written from dated stories with their summaries and pictures, not from the front pages the search found", async () => {
+    const f = feedReader();
+    const r = await ask(f.reader);
+    // A few feeds that fit the subject, each a fixed address from Farbaek's own list.
+    expect(f.asked.length).toBeGreaterThanOrEqual(3);
+    expect(f.asked.length).toBeLessThanOrEqual(6);
+    for (const url of f.asked) expect(url).toMatch(/^https:\/\//);
+    const stories = r.meta.sources.filter((s) => /\/2026\/11\/25\/story-/.test(s.url));
+    expect(stories.length).toBeGreaterThanOrEqual(7);
+    // No page could be opened, and each story still gives the model its summary to write from, and its day.
+    expect(r.context).toContain("What happened in story 1, in three sentences of summary from the feed.");
+    expect(r.context).toContain("published 2026-11-25");
+    // Each carries its picture, signed.
+    expect(stories.every((s) => s.image && s.imageSig && verifyPicture(s.image, s.imageSig, KEY))).toBe(true);
+    // At most two from one newsroom.
+    const perSite = new Map<string, number>();
+    for (const s of r.meta.sources) perSite.set(s.site, (perSite.get(s.site) ?? 0) + 1);
+    expect(Math.max(...perSite.values())).toBeLessThanOrEqual(2);
+  });
+
+  it("takes only stories from the days the roundup covers, and none without a date", async () => {
+    const f = feedReader({ items: (url) => [story("old.example", 1, { url: `https://old.example/2026/10/01/${encodeURIComponent(url).slice(-12)}/`, published: "2026-10-01T08:00:00.000Z" }), story("undated.example", 2, { url: `https://undated.example/2026/11/25/${encodeURIComponent(url).slice(-12)}/`, published: null })] });
+    const r = await ask(f.reader);
+    expect(r.meta.sources.some((s) => /old\.example|undated\.example/.test(s.site))).toBe(false);
+  });
+
+  it("is still answered from the searches when no feed answers, or when the reader has no feeds at all", async () => {
+    const down = await ask(feedReader({ fail: true }).reader);
+    expect(down.meta.status).toBe("done");
+    expect(down.meta.sources.length).toBeGreaterThan(0);
+    const none = await ask(readerOf(async (url) => page(url)));
+    expect(none.meta.status).toBe("done");
+    // A reader from before feeds existed (it has no such method) changes nothing.
+    const old = { read: async (url: string) => page(url) } as unknown as ReaderClient;
+    expect((await ask(old)).meta.status).toBe("done");
+  });
+
+  it("reads no feed for a question with one answer, a deep task, or a subject no feed is about", async () => {
+    const plain = feedReader();
+    await research(deps(hubs, plain.reader), { ...base, question: "What is new in Node.js?", local: true });
+    expect(plain.asked).toEqual([]);
+    const other = feedReader();
+    await ask(other.reader, hubs, "knitting news", '{"need":"search","topic":"knitting patterns","queries":["knitting news"],"freshness":"week","news":true,"roundup":true}');
+    expect(other.asked).toEqual([]);
+  });
+
+  it("gives a roundup the room a deep task has, so ten sources each keep enough to write from", async () => {
+    const long = "A sentence of the article that says something specific, with a number like 42. ".repeat(80);
+    const reader: ReaderClient = { ...feedReader().reader, read: async (url) => page(url, { text: long }) };
+    const roundup = await research(deps(hubs, reader), { ...base, question: "tech news today", local: false, plannerModel: model([PLAN]), plannerModelId: "x", budgetChars: 9_000, deepBudgetChars: 36_000 });
+    const plain = await research(deps(hubs, reader), { ...base, question: "What is new in Node.js?", local: true, budgetChars: 9_000, deepBudgetChars: 36_000 });
+    expect(roundup.context.length).toBeGreaterThan(20_000);
+    expect(plain.context.length).toBeLessThan(12_000);
   });
 });
 
@@ -160,6 +238,22 @@ describe("asking the page reader for a picture", () => {
     const c = client(() => new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { "content-type": "image/webp" } }));
     expect(await c.reader.picture("https://cdn.example.org/a.webp", options)).toEqual({ bytes: new Uint8Array([1, 2, 3]), contentType: "image/webp" });
     expect(c.asked).toEqual([{ url: "http://reader:8080/picture", body: JSON.stringify({ url: "https://cdn.example.org/a.webp", timeoutMs: 2_000 }) }]);
+  });
+
+  it("reads a feed's stories as plain facts, and drops anything in the answer that isn't one", async () => {
+    const body = { ok: true, items: [{ title: "A story", url: "https://news.example.org/a", published: "2026-11-25T08:00:00.000Z", summary: "Words.", image: "https://cdn.example.org/a.jpg" }, { title: 42, url: "https://news.example.org/b" }, { title: "No address", url: "javascript:alert(1)" }, null, "text", { title: "T".repeat(900), url: "https://news.example.org/c", summary: 7, image: 9 }] };
+    const c = client(() => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
+    const items = await c.reader.feed("https://news.example.org/feed/", options);
+    expect(items).toEqual([
+      { title: "A story", url: "https://news.example.org/a", published: "2026-11-25T08:00:00.000Z", summary: "Words.", image: "https://cdn.example.org/a.jpg" },
+      { title: "T".repeat(300), url: "https://news.example.org/c", published: null, summary: "", image: null },
+    ]);
+    expect(c.asked).toEqual([{ url: "http://reader:8080/feed", body: JSON.stringify({ url: "https://news.example.org/feed/", timeoutMs: 2_000 }) }]);
+    for (const answer of [{ ok: false, reason: "not a feed" }, { ok: true, items: [] }, { ok: true }, "nonsense", null]) {
+      expect(await client(() => new Response(JSON.stringify(answer), { status: 200 })).reader.feed("https://news.example.org/feed/", options)).toBeNull();
+    }
+    expect(await client(() => new Response("oops", { status: 500 })).reader.feed("https://news.example.org/feed/", options)).toBeNull();
+    expect(await client(() => Promise.reject(new Error("down"))).reader.feed("https://news.example.org/feed/", options)).toBeNull();
   });
 
   it("gives nothing when the reader refused, sent nothing, sent too much, or didn't answer", async () => {

@@ -12,7 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
 import { CHAT_LIMITS, HOME_QUESTION_KEY, titleFrom, type HandOff, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
-import { speakable } from "@/core/chat/markdown";
+import { offeredChoices, speakable } from "@/core/chat/markdown";
 import { handOffPlan, suggestHandOffs } from "@/core/chat/handoff";
 import { ScheduleOffer } from "@/components/chat/schedule-offer";
 import { HeroVisual } from "@/components/three/hero-visual";
@@ -331,6 +331,15 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
   // The places worth offering under the newest answer (stage 206): read from what the person last asked.
   const lastQuestion = messages.findLast((m) => m.role === "user");
   const lastAsked = lastQuestion?.content ?? "";
+  // A choice the person pressed under an answer is the model's words, not theirs: nothing is offered as a schedule for it
+  // (ADR 0280), however it reads.
+  const pressedChoice = useMemo(() => {
+    const at = lastQuestion ? messages.indexOf(lastQuestion) : -1;
+    const before = at > 0 ? messages.slice(0, at).findLast((m) => m.role === "assistant") : undefined;
+    if (!before || !lastAsked) return false;
+    const flat = (s: string) => s.replace(/\s+/g, " ").trim();
+    return offeredChoices(before.content).some((choice) => flat(choice) === flat(lastAsked));
+  }, [messages, lastQuestion, lastAsked]);
   const offered = useMemo(() => suggestHandOffs(lastAsked), [lastAsked]);
 
   const send = (input: SendInput): boolean => {
@@ -579,7 +588,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                     handOffs={i === messages.length - 1 ? offered : undefined}
                     // What was asked, when it was asked for at a time: offered as a schedule, under the newest answer (ADR 0280).
                     // Not for a question with files: a scheduled run reads no files, so it couldn't do the same again.
-                    after={i === messages.length - 1 && !busy && lastQuestion && lastAsked && lastQuestion.files.length === 0 ? <ScheduleOffer key={m.id} question={lastAsked} askedAt={lastQuestion.createdAt} conversationId={convId} /> : undefined}
+                    after={i === messages.length - 1 && !busy && lastQuestion && lastAsked && !pressedChoice && lastQuestion.files.length === 0 ? <ScheduleOffer key={m.id} question={lastAsked} askedAt={lastQuestion.createdAt} conversationId={convId} roundup={m.meta.search?.roundup === true} /> : undefined}
                     actions={{
                       onChoose: (text) => void send({ text, files: [], mode: "text", aspect: "1:1", model: prefs.model, effort: prefs.effort }),
                       onCheckWeb: () => regenerate(m, true),

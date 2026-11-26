@@ -7,10 +7,10 @@
  * (stage 278, ADR 0285) are drawn with their page's picture, title, day and source.
  */
 import { CheckIcon, CheckSquareIcon, CopyIcon, DownloadSimpleIcon, SquareIcon } from "@phosphor-icons/react";
-import { createElement, memo, useDeferredValue, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import { useAnswerParts } from "./answer-parts";
+import { createElement, memo, useContext, useDeferredValue, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { StorySourcesContext, useAnswerParts } from "./answer-parts";
 import { useCopy } from "./primitives";
-import type { WebSource } from "@/core/web/sources";
+import { siteInitial, type WebSource } from "@/core/web/sources";
 import { extensionFor, highlight, languageLabel, type TokenKind } from "@/core/chat/highlight";
 import { choiceLines, parseMarkdown, type Block, type Inline } from "@/core/chat/markdown";
 import { groupStories, type Story } from "@/core/chat/stories";
@@ -95,9 +95,12 @@ function InlineView({ nodes }: { nodes: Inline[] }) {
  * sentence rests on more sources (all of them are listed under Sources). Drawn only for sources Farbaek really retrieved: a
  * number with no source behind it draws nothing, and in an answer with no web sources "[1]" stays as written.
  */
-function Citation({ numbers }: { numbers: number[] }) {
+function Citation({ numbers, own = false }: { numbers: number[]; own?: boolean }) {
   const { sources } = useAnswerParts();
+  const named = useContext(StorySourcesContext);
   if (!sources) return <>{`[${numbers.join(", ")}]`}</>;
+  // Inside a story's sentences, the sources the story names under itself aren't named again (`own` is that line under it).
+  if (named && !own && numbers.every((n) => named.includes(n))) return null;
   const cited = [...new Set(numbers)].map((n) => sources.get(n)).filter((s): s is WebSource => s !== undefined);
   const first = cited[0];
   if (!first) return null;
@@ -302,7 +305,7 @@ function StoryPicture({ src, site }: { src: string | null; site: string }) {
   const [gone, setGone] = useState(false);
   // Drawn only in the browser: a picture that failed before the page woke up would never say so, and would stay as a broken mark.
   const awake = useSyncExternalStore(noSubscribe, () => true, () => false);
-  const letter = (site.replace(/^www\./, "")[0] ?? "").toUpperCase();
+  const letter = siteInitial(site);
   return (
     <span aria-hidden className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-surface-raised text-xl font-medium text-ink-3 sm:size-28 sm:text-2xl">
       {letter}
@@ -344,15 +347,17 @@ function StoryView({ story, tiles }: { story: Story; tiles: boolean }) {
         )}
         {story.body.length > 0 ? (
           <div className="mt-1 leading-relaxed text-ink-2 [&>blockquote]:my-2 [&>ol]:my-1.5 [&>p]:my-1.5 [&>ul]:my-1.5">
-            {story.body.map((b, i) => (
-              <BlockView key={i} block={b.block} />
-            ))}
+            <StorySourcesContext.Provider value={story.cites}>
+              {story.body.map((b, i) => (
+                <BlockView key={i} block={b.block} />
+              ))}
+            </StorySourcesContext.Provider>
           </div>
         ) : null}
         {first ? (
           <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
             {day ? <span className="tabular">{day}</span> : null}
-            <Citation numbers={story.cites} />
+            <Citation numbers={story.cites} own />
           </p>
         ) : null}
       </div>

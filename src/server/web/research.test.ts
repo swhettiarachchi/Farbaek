@@ -18,7 +18,7 @@ function deps(search: SearchProvider | null, reader: ReaderClient | null, over: 
   return { search, reader, breaker: createBreaker({ now: () => NOW }), now: () => NOW, tag: () => "tag", ...over };
 }
 const provider = (fn: SearchProvider["search"]): SearchProvider => ({ name: "fake", search: fn });
-const readerOf = (fn: ReaderClient["read"]): ReaderClient => ({ read: fn, picture: async () => null });
+const readerOf = (fn: ReaderClient["read"]): ReaderClient => ({ read: fn, picture: async () => null, feed: async () => null });
 const SEARCH: NeedReading = { need: "search", explicit: false, why: "test" };
 const input = { question: "What is new in Node.js?", earlier: [], need: SEARCH, local: true, plannerModel: null, plannerModelId: null, budgetChars: 9_000, signal: new AbortController().signal };
 
@@ -115,6 +115,59 @@ describe("research before an answer (stage 205)", () => {
     await research(deps(search, readerOf(async () => ({ ok: false, reason: "x" }))), { ...input, question: "What's the latest news on SpaceX today?" });
     // The general web and news side by side, then the general web once more without a date limit, since nothing came back.
     expect(kinds.sort()).toEqual(["news", "web", "web"]);
+  });
+});
+
+describe("a roundup read from the newsrooms' feeds (stage 280)", () => {
+  const roundup = { ...input, question: "Tech news today" };
+  const story = (n: number) => ({ title: `Chip maker ships processor number ${n}`, url: `https://arstechnica.com/gadgets/2026/11/chip-maker-ships-processor-${n}/`, published: "2026-11-17T06:00:00.000Z", summary: "It went on sale on Tuesday for $399 and is a fifth faster.", image: null });
+  const feeds = (asked: string[] = []): ReaderClient => ({
+    read: async () => ({ ok: false, reason: "refused" }),
+    picture: async () => null,
+    feed: async (url) => (asked.push(url), url.includes("arstechnica") ? [story(1), story(2), story(3)] : null),
+  });
+  const down = (calls = { n: 0 }) =>
+    provider(async () => {
+      calls.n++;
+      throw new SearchError("unavailable", "the search service didn't answer");
+    });
+
+  it("reads only the fixed feeds that fit the subject, beside the searches", async () => {
+    const asked: string[] = [];
+    const r = await research(deps(provider(async () => []), feeds(asked)), roundup);
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.length).toBeLessThanOrEqual(6);
+    for (const url of asked) expect(url, url).toMatch(/^https:\/\/[a-z0-9.-]+\//);
+    expect(r.meta).toMatchObject({ status: "done", roundup: true });
+    expect(r.meta.sources.map((s) => s.url)).toEqual(expect.arrayContaining([story(1).url, story(2).url]));
+    // A question with one answer reads no feed.
+    const none: string[] = [];
+    await research(deps(provider(async () => [result("https://a.example/1")]), feeds(none)), input);
+    expect(none).toEqual([]);
+  });
+
+  it("is written from the feeds when every search fails, and the search service is still told it failed", async () => {
+    const calls = { n: 0 };
+    const d = deps(down(calls), feeds());
+    for (let i = 0; i < 3; i++) {
+      const r = await research(d, roundup);
+      expect(r.meta.status).toBe("done");
+      expect(r.meta.sources.length).toBeGreaterThan(0);
+    }
+    // Three failures in a row: the service rests, so a question that needs it is told at once and waits for nothing.
+    const before = calls.n;
+    expect((await research(d, input)).meta).toMatchObject({ status: "failed", reason: "the search service isn't answering right now" });
+    // A roundup is still written from the feeds while it rests, without trying the searches.
+    const resting = await research(d, roundup);
+    expect(resting.meta.status).toBe("done");
+    expect(resting.meta.sources.length).toBeGreaterThan(0);
+    expect(calls.n).toBe(before);
+  });
+
+  it("with the searches down and no feed answering, it says the web couldn't be checked", async () => {
+    const silent: ReaderClient = { read: async () => ({ ok: false, reason: "refused" }), picture: async () => null, feed: async () => null };
+    const r = await research(deps(down(), silent), roundup);
+    expect(r.meta).toMatchObject({ status: "failed", reason: "the search service didn't answer" });
   });
 });
 
