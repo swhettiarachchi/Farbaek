@@ -38,8 +38,8 @@ The owner told me not to stop until the platform is built, and the briefs' order
 - `tsc --noEmit` with a 4 GB heap, and `pnpm lint`: clean.
 - **`pnpm build`:** passed, with the 4 GB heap its type check needs on this PC.
 - **In the demo workspace, in a real browser** (before the review's fixes): a new chat opened inside the Storefront project showed "Farbaek AI knows Storefront by its files and tasks" in its header, and Chat's settings showed the switch with its explanation, at phone width.
+- **Live, 2026-11-26 at about 19:45 (+05:30), after #339 was merged** (production build 98e42c61098e, the merge's own): a new chat started inside one of the owner's real projects showed "Farbaek AI knows ... by its files and tasks" in its header. Asked "What is left to do on this project?", it answered from the project's record: a review whose plan is approved and not finished, a section waiting for approval, two things verified, the rest cancelled, and the site not published. It did not search the web, and its details said it was told about the project by names, not contents. The capture was sent to the owner.
 - **Not verified:**
-  - **A real answer.** The demo can't send, so no model has been given a brief yet. To be asked on production after the merge: a chat filed under a real project, "what is left to do?".
   - **The header and settings after the review's fixes** (the demo now says "Filed under", the switch has its own section): type-checked and tested, not looked at again.
   - **The Scheduled page's line on production,** where the minute tick is on.
 
