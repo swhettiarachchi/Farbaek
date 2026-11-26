@@ -22,7 +22,7 @@ export function WhyCard({ graph, scanned }: { graph: WhyGraph; scanned: boolean 
   return (
     <section aria-labelledby="why-title" className="grid gap-4 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
       <h3 id="why-title" className="flex items-center gap-2 text-base font-medium">
-        <TreeStructureIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Why this file is like this
+        <TreeStructureIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Why this file is like this
       </h3>
       <p className="text-sm leading-relaxed text-ink-2">From what Farbaek records: the tasks whose changes wrote it, the docs that name it and the tests that reach it. Each line says where it comes from.</p>
       {graph.facts.length === 0 ? (

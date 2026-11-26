@@ -11,7 +11,7 @@ const STATE_WORDS: Record<FirstStep["state"], string> = { done: "done", next: "n
 function Station({ step, n }: { step: FirstStep; n: number }) {
   const ring =
     step.state === "done"
-      ? "border-verified/45 bg-[color-mix(in_oklab,var(--color-verified)_9%,var(--color-surface))] text-verified"
+      ? "border-line-strong/60 bg-surface-raised text-ink"
       : step.state === "next"
         ? "border-primary bg-primary text-on-primary shadow-e2"
         : step.state === "unavailable"
@@ -69,7 +69,7 @@ export function FirstStepsPanel({ data, composer }: { data: FirstSteps; composer
         <div className="relative mt-7">
           <div className="absolute left-[10%] right-[10%] top-[21.5px] h-px bg-line" aria-hidden />
           <div
-            className="absolute left-[10%] top-[21px] h-[2px] origin-left rounded-full bg-verified motion-safe:animate-[steps-fill_900ms_cubic-bezier(0.16,1,0.3,1)_120ms_both]"
+            className="absolute left-[10%] top-[21px] h-[2px] origin-left rounded-full bg-ink/70 motion-safe:animate-[steps-fill_900ms_cubic-bezier(0.16,1,0.3,1)_120ms_both]"
             style={{ width: `${proven * 20}%` }}
             aria-hidden
           />

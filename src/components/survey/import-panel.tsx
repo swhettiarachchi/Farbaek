@@ -277,7 +277,7 @@ export function ImportPanel({
       ) : null}
       <div className={shownEntry === "file" ? "grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "hidden"}>
         <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-canvas-2 p-4 sm:p-5 text-center text-sm text-ink-2 has-focus-visible:outline-2 has-focus-visible:outline-accent">
-          <FileArrowUpIcon size={24} aria-hidden className="text-ink-3" />
+          <FileArrowUpIcon size={24} weight="bold" aria-hidden className="text-ink-3" />
           <span>
             <span className="font-medium text-ink">Choose the file from your instrument</span>
             <br />
@@ -607,7 +607,7 @@ function CopyPath({ path }: { path: string }) {
 /** What to upload from each instrument family (stage 198): only formats Farbaek reads, and what won't work. */
 function WhatToUpload() {
   return (
-    <Disclosure summary="What to upload from your instrument" icon={<FileArrowUpIcon size={20} aria-hidden />}>
+    <Disclosure summary="What to upload from your instrument" icon={<FileArrowUpIcon size={20} weight="bold" aria-hidden />}>
       <ul className="grid list-disc gap-2 pl-5 text-sm text-ink-2">
         <li>
           <span className="font-medium text-ink">Sokkia:</span> the job&apos;s <code className="font-mono text-label">.sdr</code> file, from the instrument or from the job&apos;s folder in Sokkia Link. Not Sokkia Link&apos;s printout.

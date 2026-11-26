@@ -44,7 +44,7 @@ export function ImpactCard({ taskId, disabledReason }: { taskId: string; disable
     <section aria-labelledby="impact-title" className="grid gap-4 rounded-md border border-line bg-surface-raised/40 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 id="impact-title" className="flex items-center gap-2 text-base font-medium">
-          <GraphIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> What this change reaches
+          <GraphIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> What this change reaches
         </h3>
       </div>
       {state?.status === "done" && state.sample ? (

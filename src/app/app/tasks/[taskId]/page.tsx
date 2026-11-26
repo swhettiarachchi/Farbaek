@@ -446,7 +446,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
                 <h3 className="flex items-center gap-2 text-base font-medium">
-                  <HammerIcon size={20} className="shrink-0 text-accent" aria-hidden /> Let the agent build it
+                  <HammerIcon size={20} weight="bold" className="shrink-0 text-accent" aria-hidden /> Let the agent build it
                 </h3>
                 <p className="text-sm leading-relaxed text-ink-2">
                   The agent works through the plan on its own copy of your project, runs the checks, then shows you every change to review.
@@ -454,7 +454,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 <StartRun taskId={task.id} disabledReason={(liveRun ? "The agent is already working on this task." : null) ?? writeReason ?? modeBlocks ?? withheldFor(ctx.role, ctx.permissions, "run_agents")} />
               </div>
             ) : null}
-            <Disclosure summary={showProposal ? "More ways to check this change" : "More ways to do this"} icon={<ListChecksIcon size={20} />} hint={showProposal ? "A second opinion, what it reaches, how far it can be undone and more" : "On your own computer, or one change at a time"}>
+            <Disclosure summary={showProposal ? "More ways to check this change" : "More ways to do this"} icon={<ListChecksIcon size={20} weight="bold" />} hint={showProposal ? "A second opinion, what it reaches, how far it can be undone and more" : "On your own computer, or one change at a time"}>
             {showProposal ? (
               <SecondCheckCard
                 proposalId={proposal!.id}
@@ -633,7 +633,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
       {changeFirst && task.state !== "BLOCKED" ? changeSection : null}
 
       <div id="details" className="scroll-mt-24">
-        <Disclosure summary="Full details" icon={<NotebookIcon size={20} />} hint="How this task works, its proof, its history and more">
+        <Disclosure summary="Full details" icon={<NotebookIcon size={20} weight="bold" />} hint="How this task works, its proof, its history and more">
           <p className="text-sm text-ink-3">
             Created <LocalTime iso={task.createdAt} />.
           </p>

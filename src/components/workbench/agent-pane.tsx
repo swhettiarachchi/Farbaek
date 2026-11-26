@@ -210,7 +210,7 @@ function PlanBlock({ plan, open }: { plan: WorkbenchPlan; open: boolean }) {
   return (
     <details open={open} className="group rounded-md border border-line bg-surface shadow-e1">
       <summary className="flex min-h-11 cursor-pointer list-none items-start gap-2.5 px-4 py-3 [&::-webkit-details-marker]:hidden">
-        <ListChecksIcon size={20} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+        <ListChecksIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-medium text-ink-3">{plan.approved ? "The approved plan" : "The plan"}</span>
           <span className="block text-sm font-medium leading-snug text-ink">{plan.outcome}</span>
@@ -236,7 +236,7 @@ function PlanBlock({ plan, open }: { plan: WorkbenchPlan; open: boolean }) {
         {plan.kept.length ? (
           <div className="grid gap-1.5">
             <p className="flex items-center gap-1.5 font-medium text-ink">
-              <ShieldCheckIcon size={16} className="shrink-0 text-ink-3" aria-hidden /> What stays untouched
+              <ShieldCheckIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> What stays untouched
             </p>
             <ul className="grid gap-1 text-ink-2">
               {plan.kept.map((k) => (

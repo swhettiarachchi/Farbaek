@@ -138,7 +138,7 @@ export function FileEditor({
             </div>
           ) : (
             <h2 className="mt-2 flex items-center gap-2.5 text-body font-medium">
-              <FileCodeIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
+              <FileCodeIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
               <span className="min-w-0 break-all font-mono">{initialPath}</span>
             </h2>
           )}

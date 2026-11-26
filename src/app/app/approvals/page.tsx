@@ -1,5 +1,5 @@
 import { approvalsOrder } from "@/core/realityloop/needs-you";
-import { ArrowRightIcon, CheckSquareOffsetIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -70,7 +70,7 @@ export default async function ApprovalsPage() {
         description="Changes waiting for your yes or no. Open one to see exactly what changes, then approve it or discard it. Each one stays open for 72 hours."
       />
       {cards.length === 0 && unread.length === 0 ? (
-        <EmptyState icon={CheckSquareOffsetIcon} title="Nothing waiting for you" action={<ButtonLink href="/app/new" size="sm">Describe what you want to build</ButtonLink>}>
+        <EmptyState icon={CheckCircleIcon} title="Nothing waiting for you" action={<ButtonLink href="/app/new" size="sm">Describe what you want to build</ButtonLink>}>
           When the agent finishes a change, it waits here for you. Nothing goes into your project until you approve it.
         </EmptyState>
       ) : (

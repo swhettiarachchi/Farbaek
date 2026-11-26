@@ -25,13 +25,13 @@ export default function OfficeAuthLayout({ children }: Readonly<{ children: Reac
         </div>
         <ul className="hidden max-w-lg gap-4 sm:grid">
           <li className="flex gap-3 text-sm">
-            <LockKeyIcon size={20} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+            <LockKeyIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
             <span>
               <span className="font-medium text-ink">Two codes to come in.</span> <span className="text-ink-2">One from your email, one from your authenticator app.</span>
             </span>
           </li>
           <li className="flex gap-3 text-sm">
-            <TimerIcon size={20} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+            <TimerIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
             <span>
               <span className="font-medium text-ink">Short sessions.</span>{" "}
               <span className="text-ink-2">
@@ -40,7 +40,7 @@ export default function OfficeAuthLayout({ children }: Readonly<{ children: Reac
             </span>
           </li>
           <li className="flex gap-3 text-sm">
-            <ScrollIcon size={20} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+            <ScrollIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
             <span>
               <span className="font-medium text-ink">Everything is on the record.</span> <span className="text-ink-2">Each action goes into a log that shows if anyone edits it.</span>
             </span>

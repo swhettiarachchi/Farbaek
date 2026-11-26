@@ -353,7 +353,7 @@ function RuleCard({
           aria-label={`Remove rule ${index + 1}`}
           className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-raised hover:text-failed"
         >
-          <TrashIcon size={20} aria-hidden />
+          <TrashIcon size={20} weight="bold" aria-hidden />
         </button>
       </div>
 

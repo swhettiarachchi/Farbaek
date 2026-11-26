@@ -207,7 +207,7 @@ export function DeviceApp() {
         <Intro />
         <div className="mt-6 flex flex-col items-center rounded-md border border-line bg-surface px-4 py-8 text-center sm:mt-8 sm:px-6 sm:py-12">
           <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
-            <DeviceMobileIcon size={24} aria-hidden />
+            <DeviceMobileIcon size={24} weight="bold" aria-hidden />
           </span>
           <h2 className="mt-4 text-lg font-medium">Nothing kept here yet</h2>
           <p className="mt-2 max-w-[44ch] text-sm leading-relaxed text-ink-2">
@@ -328,7 +328,7 @@ export function DeviceApp() {
       {saves.length > 0 ? (
         <section aria-labelledby="waiting-heading" className="mt-8 rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
           <h2 id="waiting-heading" className="flex items-center gap-2.5 text-lg font-medium">
-            <CloudArrowUpIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Waiting to be sent
+            <CloudArrowUpIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Waiting to be sent
           </h2>
           <p className="mt-2 text-sm text-ink-2">
             <span className="tabular font-medium text-ink">{saves.length}</span> {saves.length === 1 ? "change is" : "changes are"} saved on this device. Farbaek gets{" "}

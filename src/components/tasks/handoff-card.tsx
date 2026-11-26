@@ -41,7 +41,7 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
     <section aria-labelledby="handoff-heading" className="grid gap-4 rounded-md border border-line bg-canvas-2/60 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id="handoff-heading" className="flex items-center gap-2 text-base font-medium">
-          <DesktopIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Continue on your computer
+          <DesktopIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Continue on your computer
         </h3>
         <span className="text-xs text-ink-3">Runs only when you start it there</span>
       </div>

@@ -187,7 +187,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
     return (
       <div className="flex flex-col items-center rounded-md border border-line bg-surface px-5 py-8 text-center">
         <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
-          <FolderOpenIcon size={24} aria-hidden />
+          <FolderOpenIcon size={24} weight="bold" aria-hidden />
         </span>
         <p className="mx-auto mt-3 max-w-[52ch] text-sm text-ink-2">{readReason}</p>
       </div>
@@ -225,7 +225,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
               className={inputClasses("min-w-0 flex-1 sm:text-sm")}
             />
             <button type="submit" className="inline-flex tap size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Create file">
-              <FilePlusIcon size={20} aria-hidden />
+              <FilePlusIcon size={20} weight="bold" aria-hidden />
             </button>
           </form>
         ) : null}

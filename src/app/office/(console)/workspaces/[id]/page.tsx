@@ -242,7 +242,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
             <section aria-labelledby="danger-title" className="grid gap-4 rounded-md border border-failed/25 p-4 sm:p-5">
               {/* A callout with its title: its icon in the failed colour (ADR 0183). */}
               <h2 id="danger-title" className="flex items-center gap-2.5 text-lg font-medium">
-                <ProhibitIcon size={20} className="shrink-0 text-failed" aria-hidden /> {ws.suspension ? "Restore this workspace" : "Suspend this workspace"}
+                <ProhibitIcon size={20} weight="bold" className="shrink-0 text-failed" aria-hidden /> {ws.suspension ? "Restore this workspace" : "Suspend this workspace"}
               </h2>
               {ws.suspension ? (
                 <OfficeActionForm action={restoreWorkspaceAction} submit={`Restore ${ws.name}`} tone="secondary" className="grid gap-3">

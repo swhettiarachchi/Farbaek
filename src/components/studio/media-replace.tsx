@@ -246,7 +246,7 @@ export function MediaReplace({
                     </>
                   ) : (
                     <span className="flex aspect-video w-full items-center justify-center rounded-sm bg-surface ring-1 ring-line">
-                      <ImagesIcon size={20} className="text-ink-3" aria-hidden />
+                      <ImagesIcon size={20} weight="bold" className="text-ink-3" aria-hidden />
                     </span>
                   )}
                   <span className="truncate font-mono text-xs text-ink-2" title={path}>

@@ -381,7 +381,7 @@ export function VisualEditor({
       <div className="grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-body font-medium">
-            <GitDiffIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
+            <GitDiffIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
           </p>
           <button type="button" onClick={() => setMode("design")} className={buttonClasses("ghost", "sm")}>
             Back to editing
@@ -445,7 +445,7 @@ export function VisualEditor({
                 }}
                 className={`inline-flex tap size-10 items-center justify-center rounded-full transition-colors duration-150 ${device === d.id ? "bg-surface-raised text-ink" : "text-ink-3 hover:text-ink"}`}
               >
-                <d.icon size={20} weight={device === d.id ? "fill" : "regular"} aria-hidden />
+                <d.icon size={20} weight={device === d.id ? "fill" : "bold"} aria-hidden />
               </button>
             ))}
           </div>
@@ -565,7 +565,7 @@ export function VisualEditor({
           />
         ) : (
           <div className="grid justify-items-start gap-2 rounded-sm border border-line bg-surface p-4 text-sm text-ink-2">
-            <CursorClickIcon size={24} className="text-ink-3" aria-hidden />
+            <CursorClickIcon size={24} weight="bold" className="text-ink-3" aria-hidden />
             Pick an element in the page, or choose one from the list below.
           </div>
         )}

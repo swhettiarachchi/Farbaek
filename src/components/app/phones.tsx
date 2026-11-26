@@ -48,7 +48,7 @@ export function Phones({ phones, disabledReason }: { phones: PhoneRow[]; disable
           {phones.map((p) => (
             <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
               <div className="flex min-w-0 items-center gap-3">
-                <DeviceMobileIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
+                <DeviceMobileIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{p.name}</p>
                   <p className="text-xs text-ink-3">

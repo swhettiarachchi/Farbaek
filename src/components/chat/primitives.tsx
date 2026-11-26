@@ -61,7 +61,7 @@ export function IconButton({
       } ${className}`}
       {...rest}
     >
-      <Glyph size={size} weight={size === 16 ? "bold" : "regular"} aria-hidden />
+      <Glyph size={size} weight="bold" aria-hidden />
     </button>
   );
 }

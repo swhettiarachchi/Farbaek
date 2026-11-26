@@ -178,7 +178,7 @@ export function ApprovalCard({ run, request, onAnswered }: { run: RunView; reque
     >
       <span className="mx-auto -mt-1 h-1 w-10 rounded-full bg-line lg:hidden" aria-hidden />
       <h2 id="approval-heading" className="flex items-center gap-2.5 text-base font-medium text-ink">
-        <TerminalWindowIcon size={20} className="shrink-0 text-approval" aria-hidden /> The agent wants to run a command
+        <TerminalWindowIcon size={20} weight="bold" className="shrink-0 text-approval" aria-hidden /> The agent wants to run a command
       </h2>
       <pre className="overflow-x-auto rounded-sm bg-media p-3 font-mono text-label text-media-ink">{str(p.display)}</pre>
       <dl className="grid gap-1 text-sm">
@@ -252,7 +252,7 @@ export function MessageBar({ runId }: { runId: string }) {
           className="inline-flex tap size-10 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Send to the agent"
         >
-          <PaperPlaneRightIcon size={20} aria-hidden />
+          <PaperPlaneRightIcon size={20} weight="bold" aria-hidden />
         </button>
       </div>
       {note ? (
@@ -512,7 +512,7 @@ export function RunLive({
                 {/* Laid out as CardTitle, so the finish flag can carry the moment's pop; any other ending shows its kind. */}
                 <h2 className="flex items-center gap-2.5 text-lg font-medium">
                   {run.status === "finished" ? (
-                    <FlagCheckeredIcon size={20} className={`shrink-0 text-ink-3 ${arrived ? "moment-pop" : ""}`} aria-hidden />
+                    <FlagCheckeredIcon size={20} weight="bold" className={`shrink-0 text-ink-3 ${arrived ? "moment-pop" : ""}`} aria-hidden />
                   ) : (
                     <StatusGlyph status={RUN_STATUS_KIND[run.status]} size={20} />
                   )}

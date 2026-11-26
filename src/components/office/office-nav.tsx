@@ -77,7 +77,7 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                   <BarIcon
                     href={item.href}
                     size={20}
-                    weight={active ? "fill" : "regular"}
+                    weight={active ? "fill" : "bold"}
                     className={active ? "text-accent" : ""}
                     aria-hidden
                   />
@@ -117,7 +117,7 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                   <NavIcon
                     href={item.href}
                     size={20}
-                    weight={active ? "fill" : "regular"}
+                    weight={active ? "fill" : "bold"}
                     className={active ? "text-accent" : ""}
                     aria-hidden
                   />
@@ -144,7 +144,7 @@ function BarIcon({
 }: {
   href: OfficeHref | "/more";
   size: number;
-  weight: "fill" | "regular";
+  weight: "fill" | "bold";
   className: string;
 } & { "aria-hidden": boolean }) {
   const I = ICONS[href];

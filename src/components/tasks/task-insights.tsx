@@ -30,7 +30,7 @@ export function ReversibilityCard({ overall, files }: { overall: Reversibility; 
     <section aria-labelledby="radar-title" className="grid gap-4 rounded-md border border-line bg-surface-raised/40 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 id="radar-title" className="flex items-center gap-2 text-base font-medium">
-          <ArrowCounterClockwiseIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> How far this can be undone
+          <ArrowCounterClockwiseIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> How far this can be undone
         </h3>
         <ClassChip value={overall} />
       </div>

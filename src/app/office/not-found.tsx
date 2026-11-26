@@ -8,7 +8,7 @@ export default function OfficeNotFound() {
     <main id="main" className="grid min-h-[70dvh] place-items-center px-4">
       <div className="grid max-w-md justify-items-center gap-3 text-center">
         <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
-          <CompassIcon size={24} aria-hidden />
+          <CompassIcon size={24} weight="bold" aria-hidden />
         </span>
         <h1 className={FOCUSED_TITLE}>There&apos;s nothing at this address</h1>
         <p className="text-body text-ink-2">The page may have moved, or you may not have access to it.</p>

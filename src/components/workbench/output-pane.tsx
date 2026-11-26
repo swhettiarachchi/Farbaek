@@ -131,7 +131,7 @@ export function OutputPane({
                 {changed.map((f) => (
                   <li key={f.path}>
                     <button type="button" onClick={() => onOpenFile(f.path)} className="flex min-h-10 w-full items-center gap-2 rounded-sm px-2 text-left text-sm text-ink-2 hover:bg-surface hover:text-ink pointer-coarse:min-h-11">
-                      <FileIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+                      <FileIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                       <span className="min-w-0 flex-1 break-all font-mono text-xs text-ink">{f.path}</span>
                       <span className="shrink-0 text-xs text-ink-3">
                         {f.change === "written" ? "Written" : "Edited"}

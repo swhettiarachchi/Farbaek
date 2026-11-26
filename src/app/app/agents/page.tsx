@@ -122,7 +122,7 @@ export default async function AgentsPage() {
               return (
                 <li key={a.id} className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-5">
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-2">
-                    <DesktopIcon size={20} aria-hidden />
+                    <DesktopIcon size={20} weight="bold" aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-body font-medium">{a.name}</span>
@@ -184,7 +184,7 @@ export default async function AgentsPage() {
           {modes.map((m) => (
             <li key={m.id} className={`rounded-md border p-5 ${m.available ? "border-line bg-surface shadow-e1" : "border-line bg-canvas"}`}>
               <div className="flex items-center gap-2">
-                {m.available ? <m.icon size={20} className="shrink-0 text-ink-3" aria-hidden /> : <LockSimpleIcon size={20} className="shrink-0 text-ink-3" aria-hidden />}
+                {m.available ? <m.icon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> : <LockSimpleIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden />}
                 <h3 className={`text-base font-medium ${m.available ? "" : "text-ink-2"}`}>{AGENT_MODE_LABELS[m.id].title}</h3>
               </div>
               <p className="mt-2 text-sm leading-relaxed text-ink-2">{AGENT_MODE_LABELS[m.id].detail}</p>

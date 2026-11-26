@@ -242,7 +242,7 @@ function BlockView({ block }: { block: Block }): ReactNode {
             item.checked ? (
               <CheckSquareIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-accent" aria-label="Done" role="img" />
             ) : (
-              <SquareIcon size={20} className="mt-0.5 shrink-0 text-ink-3" aria-label="Not done" role="img" />
+              <SquareIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-label="Not done" role="img" />
             )
           ) : null}
           <div className="min-w-0 flex-1 [&>p]:my-0">

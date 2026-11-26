@@ -148,7 +148,7 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
 function Notes({ notes, card }: { notes: SurveyException[]; card: (e: SurveyException) => ReactNode }) {
   if (notes.length === 0) return null;
   return (
-    <Disclosure summary={`${notes.length} ${notes.length === 1 ? "note" : "notes"} for information`} hint="They hold nothing back. The Check step lists every check." icon={<InfoIcon size={20} aria-hidden />}>
+    <Disclosure summary={`${notes.length} ${notes.length === 1 ? "note" : "notes"} for information`} hint="They hold nothing back. The Check step lists every check." icon={<InfoIcon size={20} weight="bold" aria-hidden />}>
       <ul className="grid gap-3">{notes.map(card)}</ul>
     </Disclosure>
   );
@@ -157,7 +157,7 @@ function Notes({ notes, card }: { notes: SurveyException[]; card: (e: SurveyExce
 function Confirmed({ items, projectId, baseVersion, readOnly }: { items: { key: string; label: string }[]; projectId: string; baseVersion: number; readOnly: string | null }) {
   if (items.length === 0) return null;
   return (
-    <Disclosure summary={`${items.length} ${items.length === 1 ? "item" : "items"} you confirmed or corrected`} hint="Put one back on the list if you want to check it again." icon={<CheckCircleIcon size={20} aria-hidden />}>
+    <Disclosure summary={`${items.length} ${items.length === 1 ? "item" : "items"} you confirmed or corrected`} hint="Put one back on the list if you want to check it again." icon={<CheckCircleIcon size={20} weight="bold" aria-hidden />}>
       <ul className="grid gap-3">
         {items.map((i) => (
           <li key={i.key} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-ink">

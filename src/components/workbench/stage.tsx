@@ -1,4 +1,4 @@
-import { ChatCircleTextIcon, FilmSlateIcon, FolderSimpleIcon, HammerIcon, HouseSimpleIcon, ImageSquareIcon } from "@phosphor-icons/react/ssr";
+import { ChatCircleTextIcon, VideoCameraIcon, FolderSimpleIcon, HammerIcon, HouseSimpleIcon, ImageSquareIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -8,7 +8,7 @@ import { FOCUSED_TITLE } from "@/components/ui/titles";
 const SPACES = [
   { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon, tone: "text-accent" },
   { href: "/app/images", label: "Images", icon: ImageSquareIcon, tone: "text-spark-rose" },
-  { href: "/app/video", label: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua" },
+  { href: "/app/video", label: "Video", icon: VideoCameraIcon, tone: "text-spark-aqua" },
   { href: "/app/workbench", label: "Build", icon: HammerIcon, tone: "text-spark-leaf" },
 ] as const;
 
@@ -57,7 +57,7 @@ export function WorkbenchStage({ heading, name, skip, projects = true, children 
             ))}
           </nav>
           <Link href="/app" aria-label="Back to Farbaek" title="Back to Farbaek" className="tap hidden size-10 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink lg:inline-flex">
-            <HouseSimpleIcon size={20} aria-hidden />
+            <HouseSimpleIcon size={20} weight="bold" aria-hidden />
           </Link>
         </header>
         {children}

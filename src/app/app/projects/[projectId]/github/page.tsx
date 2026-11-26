@@ -79,7 +79,7 @@ export default async function ProjectGitHubPage({ params }: { params: Promise<{ 
             {link ? (
               <>
                 <p className="flex min-w-0 items-center gap-2 text-base">
-                  <GithubLogoIcon size={20} className="shrink-0" aria-hidden />
+                  <GithubLogoIcon size={20} weight="bold" className="shrink-0" aria-hidden />
                   <a href={`https://github.com/${link.owner}/${link.repo}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 min-w-0 items-center gap-1 break-all font-mono text-accent hover:underline">
                     {linked}
                     <ArrowUpRightIcon size={14} weight="bold" className="shrink-0" aria-hidden />

@@ -53,7 +53,7 @@ export function DrawFromPoints({ projectId, readOnly }: { projectId: string; rea
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={draw} disabled={Boolean(readOnly) || pending} className={buttonClasses("primary", "md")}>
-          <PolygonIcon size={20} aria-hidden />
+          <PolygonIcon size={20} weight="bold" aria-hidden />
           {pending ? "Drawing…" : "Draw the plan from the points"}
         </button>
         {readOnly ? <span className="text-sm text-ink-3">{readOnly}</span> : null}

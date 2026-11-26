@@ -75,7 +75,7 @@ export default async function NewSurveyPage() {
         userId={disabledReason ? null : ctx.user.id}
         orgId={ctx.current.id}
       />
-      <Disclosure summary="Set up the project step by step" hint="Name it, confirm the coordinate system, then choose a file's columns yourself." icon={<SlidersHorizontalIcon size={20} aria-hidden />}>
+      <Disclosure summary="Set up the project step by step" hint="Name it, confirm the coordinate system, then choose a file's columns yourself." icon={<SlidersHorizontalIcon size={20} weight="bold" aria-hidden />}>
         <Card>
           <NewSurveyProjectForm disabledReason={disabledReason} />
         </Card>
