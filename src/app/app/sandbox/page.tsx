@@ -203,7 +203,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
           ) : (
             <div className="flex flex-col items-center rounded-md border border-line bg-surface px-5 py-8 text-center">
               <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
-                <MagnifyingGlassIcon size={24} aria-hidden />
+                <MagnifyingGlassIcon size={24} weight="bold" aria-hidden />
               </span>
               <p className="mt-3 text-sm text-ink-2">
                 No sessions match. <Link href="/app/sandbox" className="font-medium text-accent hover:underline">Clear the filters</Link>

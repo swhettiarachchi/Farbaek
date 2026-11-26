@@ -23,7 +23,7 @@ export function SpaceDoors() {
                 className="group flex h-full items-center gap-3 rounded-md border border-line bg-surface p-4 shadow-e1 transition-[transform,box-shadow] duration-200 hover:-translate-y-px hover:shadow-e2"
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-canvas-2 text-ink-2 ring-1 ring-line transition-colors duration-200 group-hover:text-accent">
-                  <DoorIcon size={20} aria-hidden />
+                  <DoorIcon size={20} weight="bold" aria-hidden />
                 </span>
                 <span className="grid min-w-0 flex-1 gap-0.5">
                   <span className="text-body font-medium text-ink">{s.name}</span>

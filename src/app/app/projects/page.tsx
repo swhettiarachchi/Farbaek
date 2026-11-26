@@ -1,4 +1,4 @@
-import { ArchiveIcon, ArrowRightIcon, FolderSimplePlusIcon, GithubLogoIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
+import { ArchiveIcon, ArrowRightIcon, FolderSimplePlusIcon, GithubLogoIcon, FolderSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -84,7 +84,7 @@ export default async function ProjectsPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         {projects.length === 0 ? (
           <EmptyState
-            icon={SquaresFourIcon}
+            icon={FolderSimpleIcon}
             title="No projects yet"
             action={
               <Link href="/app/new" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">
@@ -136,7 +136,7 @@ export default async function ProjectsPage() {
 
       {archived.length > 0 ? (
         // An archived project leaves the list but stays readable, so this is where it can be found again.
-        <Disclosure summary="Archived projects" icon={<ArchiveIcon size={20} />} hint="Read-only, and not counted toward your plan. Open one to see its files, tasks and proof.">
+        <Disclosure summary="Archived projects" icon={<ArchiveIcon size={20} weight="bold" />} hint="Read-only, and not counted toward your plan. Open one to see its files, tasks and proof.">
           <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
             {archived.map((p) => (
               <li key={p.id}>

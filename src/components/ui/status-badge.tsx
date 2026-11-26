@@ -26,11 +26,13 @@ interface Kind {
   icon: Icon;
   weight: "fill" | "bold";
   className: string;
+  /** The icon's own colour, when it differs from the words' (ADR 0286): the pill stays quiet and the mark carries the meaning. */
+  mark?: string;
 }
 
 export const STATUS_KINDS: Record<Status, Kind> = {
   /** Done and proven. */
-  verified: { label: "Verified", icon: CheckCircleIcon, weight: "fill", className: "text-verified border-verified/35 bg-verified/[0.05]" },
+  verified: { label: "Verified", icon: CheckCircleIcon, weight: "fill", className: "text-ink border-line-2", mark: "text-verified" },
   /** Finished, without a proof behind it. */
   done: { label: "Done", icon: CheckCircleIcon, weight: "fill", className: "text-ink-2 border-line-2" },
   /** A person has to decide or act: the brand's blue is "your turn". */
@@ -59,16 +61,16 @@ export const STATUS_KINDS: Record<Status, Kind> = {
 
 /** The kind's icon on its own, in its colour, for rows and step lists. */
 export function StatusGlyph({ status, size = 16, className = "" }: { status: Status; size?: 14 | 16 | 20 | 24; className?: string }) {
-  const { icon: KindIcon, weight, className: tone } = STATUS_KINDS[status];
-  const color = tone.split(" ").find((c) => c.startsWith("text-")) ?? "text-ink-3";
+  const { icon: KindIcon, weight, className: tone, mark } = STATUS_KINDS[status];
+  const color = mark ?? tone.split(" ").find((c) => c.startsWith("text-")) ?? "text-ink-3";
   return <KindIcon size={size} weight={weight} className={`shrink-0 ${color} ${status === "working" ? "motion-safe:animate-spin" : ""} ${className}`} aria-hidden />;
 }
 
 export function StatusBadge({ status, label }: { status: Status; label?: string }) {
-  const { icon: KindIcon, weight, className, label: fallback } = STATUS_KINDS[status];
+  const { icon: KindIcon, weight, className, label: fallback, mark } = STATUS_KINDS[status];
   return (
     <span className={`inline-flex h-6 w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${className}`}>
-      <KindIcon size={14} weight={weight} className={`shrink-0 ${status === "working" ? "motion-safe:animate-spin" : ""}`} aria-hidden />
+      <KindIcon size={14} weight={weight} className={`shrink-0 ${mark ?? ""} ${status === "working" ? "motion-safe:animate-spin" : ""}`} aria-hidden />
       {label ?? fallback}
     </span>
   );

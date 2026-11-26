@@ -119,7 +119,7 @@ export function FailureFuturesCard({
     <section aria-labelledby="failure-futures-heading" className="grid gap-4 rounded-md border border-line bg-canvas-2/60 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id="failure-futures-heading" className="flex items-center gap-2 text-base font-medium">
-          <WarningIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Failure futures
+          <WarningIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Failure futures
         </h3>
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>

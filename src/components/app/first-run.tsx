@@ -17,12 +17,12 @@ import { BEZEL } from "@/components/ui/surfaces";
 export function FirstRunTour() {
   const publishes = siteDomain() !== null;
   const steps: { title: string; body: string; node: ReactNode }[] = [
-    { title: "Describe it", body: "A sentence is enough: who it's for and what it should do.", node: <ChatCenteredTextIcon size={20} aria-hidden /> },
-    { title: "Approve the plan", body: "Farbaek drafts a plan you can read in a minute. Change anything, then approve it.", node: <PenNibIcon size={20} aria-hidden /> },
+    { title: "Describe it", body: "A sentence is enough: who it's for and what it should do.", node: <ChatCenteredTextIcon size={20} weight="bold" aria-hidden /> },
+    { title: "Approve the plan", body: "Farbaek drafts a plan you can read in a minute. Change anything, then approve it.", node: <PenNibIcon size={20} weight="bold" aria-hidden /> },
     { title: "Watch it build", body: "The agent builds in the cloud under your plan, and you can message it while it works.", node: <CoreMark state="working" /> },
     publishes
-      ? { title: "Preview and publish", body: "Try it in a live preview, then publish it to its own web address.", node: <GlobeIcon size={20} aria-hidden /> }
-      : { title: "Preview and download", body: "Try it in a live preview, then download the code whenever you like.", node: <BrowserIcon size={20} aria-hidden /> },
+      ? { title: "Preview and publish", body: "Try it in a live preview, then publish it to its own web address.", node: <GlobeIcon size={20} weight="bold" aria-hidden /> }
+      : { title: "Preview and download", body: "Try it in a live preview, then download the code whenever you like.", node: <BrowserIcon size={20} weight="bold" aria-hidden /> },
   ];
   const capabilities = capabilityRows();
 
@@ -80,7 +80,7 @@ export function FirstRunTour() {
             <li key={c.id} className="flex w-[80%] shrink-0 snap-start flex-col rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1 sm:w-auto">
               <div className="flex items-start justify-between gap-3">
                 <span className="flex size-10 items-center justify-center rounded-full bg-surface-raised text-ink-2 ring-1 ring-line">
-                  <c.icon size={20} aria-hidden />
+                  <c.icon size={20} weight="bold" aria-hidden />
                 </span>
                 <CapabilityStatusPill status={c.status} />
               </div>

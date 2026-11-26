@@ -1,4 +1,4 @@
-import { CheckSquareOffsetIcon, QuestionIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, QuestionIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LocalTime } from "@/components/ui/local-time";
 import { contractHash } from "@/core/realityloop/contract";
@@ -109,7 +109,7 @@ export async function ContractView({ record }: { record: ContractRecord }) {
           <ul className="grid gap-1.5">
             {c.acceptanceCriteria.map((a) => (
               <li key={a.id} className="flex gap-2">
-                <CheckSquareOffsetIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
+                <CheckCircleIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
                 <span>
                   {a.statement} <span className="text-label text-ink-3">({VERIFICATION_WORDS[a.verification] ?? a.verification})</span>
                 </span>

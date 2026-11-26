@@ -266,7 +266,7 @@ export function PlayPricingNotice({ children }: { children: ReactNode }) {
     <div className="grid gap-4 rounded-md border border-line bg-surface p-4 sm:p-5 shadow-e1">
       <div className="flex gap-4">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-2 ring-1 ring-line">
-          <GooglePlayLogoIcon size={20} aria-hidden />
+          <GooglePlayLogoIcon size={20} weight="bold" aria-hidden />
         </span>
         <div className="min-w-0">
           <p className="font-medium">Plans are billed through Google Play</p>

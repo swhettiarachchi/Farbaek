@@ -9,6 +9,7 @@ import {
   ArchiveIcon,
   ArrowLeftIcon,
   ArrowUUpLeftIcon,
+  CalendarCheckIcon,
   CreditCardIcon,
   DotsThreeIcon,
   FolderSimpleIcon,
@@ -16,7 +17,7 @@ import {
   HouseIcon,
   HouseSimpleIcon,
   ChatCircleTextIcon,
-  FilmSlateIcon,
+  VideoCameraIcon,
   HammerIcon,
   ImageSquareIcon,
   ImagesIcon,
@@ -40,12 +41,12 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
 import { inputClasses } from "@/components/ui/field";
 
-/** Farbaek AI's spaces, each in its colour (ADR 0217), one press from any chat. */
+/** Farbaek AI's spaces, one press from any chat. Their colours are for their own pages; in a list they are words and outlines (ADR 0286). */
 const SPACE_LINKS = [
-  { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon, tone: "text-accent" },
-  { href: "/app/images", label: "Images", icon: ImageSquareIcon, tone: "text-spark-rose" },
-  { href: "/app/video", label: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua" },
-  { href: "/app/workbench", label: "Build", icon: HammerIcon, tone: "text-spark-leaf" },
+  { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon },
+  { href: "/app/images", label: "Images", icon: ImageSquareIcon },
+  { href: "/app/video", label: "Video", icon: VideoCameraIcon },
+  { href: "/app/workbench", label: "Build", icon: HammerIcon },
 ] as const;
 
 const SPACE_ROW = "group/space flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 transition-[background-color,color,box-shadow] duration-150 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-11";
@@ -173,7 +174,7 @@ export function Sidebar({
         </Link>
         <IconButton label="Open the sidebar" icon={SidebarSimpleIcon} onClick={onFold} size={20} />
         <Link href="/app/chat" aria-label="New chat" title="New chat" className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink">
-          <NotePencilIcon size={20} aria-hidden />
+          <NotePencilIcon size={20} weight="bold" aria-hidden />
         </Link>
         <IconButton
           label="Search chats"
@@ -186,7 +187,7 @@ export function Sidebar({
         />
         {SPACE_LINKS.slice(1).map((s) => (
           <Link key={s.href} href={s.href} aria-label={s.label} title={s.label} className="tap inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-raised">
-            <s.icon size={20} weight="fill" className={s.tone} aria-hidden />
+            <s.icon size={20} weight="bold" className="text-ink-2" aria-hidden />
           </Link>
         ))}
         <div className="mt-auto">
@@ -209,7 +210,7 @@ export function Sidebar({
 
       <div className="grid gap-2 px-3">
         <Link href="/app/chat" onClick={onNavigate} className={buttonClasses("secondary", "sm", "w-full justify-start")}>
-          <NotePencilIcon size={16} weight="bold" aria-hidden /> New chat
+          <NotePencilIcon size={20} weight="bold" aria-hidden /> New chat
         </Link>
         <div className="relative">
           <MagnifyingGlassIcon size={16} weight="bold" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-3" aria-hidden />
@@ -242,13 +243,17 @@ export function Sidebar({
       <div className="mt-3 grid gap-0.5 px-3">
         {/* Home leads, as in the app's own sidebar (ADR 0230): the two lists start the same way. */}
         <Link href="/app" onClick={onNavigate} className={SPACE_ROW}>
-          <HouseSimpleIcon size={16} weight="fill" className="text-ink-3 transition-transform duration-150 group-hover/space:scale-110" aria-hidden /> Home
+          <HouseSimpleIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Home
         </Link>
         {SPACE_LINKS.map((s) => (
           <Link key={s.href} href={s.href} onClick={onNavigate} aria-current={s.href === "/app/chat" && pathname !== "/app/chat/images" ? "page" : undefined} className={SPACE_ROW}>
-            <s.icon size={16} weight="fill" className={`${s.tone} transition-transform duration-150 group-hover/space:scale-110`} aria-hidden /> {s.label}
+            <s.icon size={20} weight="bold" className="shrink-0" aria-hidden /> {s.label}
           </Link>
         ))}
+        {/* Work Farbaek does by itself, one press from where people ask for it (ADR 0286). */}
+        <Link href="/app/scheduled" onClick={onNavigate} className={SPACE_ROW}>
+          <CalendarCheckIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Scheduled
+        </Link>
       </div>
 
       <div className="mt-3 grid gap-0.5 px-3">
@@ -258,15 +263,15 @@ export function Sidebar({
           aria-current={pathname === "/app/chat/images" ? "page" : undefined}
           className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-11"
         >
-          <ImagesIcon size={16} weight="bold" aria-hidden /> Pictures from chats
+          <ImagesIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Pictures from chats
         </Link>
         {view === "archived" ? (
           <button type="button" onClick={() => setView("recent")} className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-left text-sm text-ink-2 hover:bg-surface hover:text-ink pointer-coarse:min-h-11">
-            <ArrowLeftIcon size={16} weight="bold" aria-hidden /> Back to your chats
+            <ArrowLeftIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Back to your chats
           </button>
         ) : (
           <button type="button" onClick={() => void openArchived()} className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-left text-sm text-ink-2 hover:bg-surface hover:text-ink pointer-coarse:min-h-11">
-            <ArchiveIcon size={16} weight="bold" aria-hidden /> Archived
+            <ArchiveIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Archived
           </button>
         )}
       </div>

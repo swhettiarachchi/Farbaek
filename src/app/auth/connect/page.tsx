@@ -44,7 +44,7 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
   if (!CHALLENGE_PATTERN.test(challenge) || !STATE_PATTERN.test(state) || !isPhonePlatform(platform)) {
     return (
       <Frame>
-        <LinkBreakIcon size={32} className="text-failed" aria-hidden />
+        <LinkBreakIcon size={32} weight="bold" className="text-failed" aria-hidden />
         <h1 className={`mt-4 ${FOCUSED_TITLE}`}>This page opens from the Farbaek app</h1>
         <p className="mt-2 text-body leading-relaxed text-ink-2">The link is missing what the app sends. Open Farbaek on your phone and tap Sign in again.</p>
       </Frame>
@@ -71,7 +71,7 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
 
   return (
     <Frame>
-      <DeviceMobileIcon size={32} className="text-ink-2" aria-hidden />
+      <DeviceMobileIcon size={32} weight="bold" className="text-ink-2" aria-hidden />
       <h1 className={`mt-4 ${FOCUSED_TITLE}`}>Connect {name} to Farbaek</h1>
       <p className="mt-2 text-body leading-relaxed text-ink-2">
         Signed in as <span className="font-medium text-ink">{email}</span>. The app signs in as you, with its own session.

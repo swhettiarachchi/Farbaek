@@ -133,7 +133,7 @@ export function CodePane({ ref, projectId, files, editOff }: { ref?: Ref<CodeHan
       <div className={`min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain sm:flex ${selected ? "flex" : "hidden"}`}>
         {!selected ? (
           <div className="m-auto grid max-w-sm justify-items-center gap-2 p-8 text-center">
-            <FileIcon size={32} className="text-ink-3" aria-hidden />
+            <FileIcon size={32} weight="bold" className="text-ink-3" aria-hidden />
             <p className="text-sm leading-relaxed text-ink-2">Choose a file to read it. You can edit it here, review the change, and save it as a new revision.</p>
           </div>
         ) : (
@@ -296,7 +296,7 @@ function Tree({ nodes, selected, onOpen, depth }: { nodes: TreeNode[]; selected:
               <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-sm px-2 text-sm text-ink-2 hover:bg-surface hover:text-ink pointer-coarse:min-h-11 [&::-webkit-details-marker]:hidden" style={{ paddingLeft: `${0.5 + depth * 0.75}rem` }}>
                 {/* The arrow follows its own folder, not an open one above it. */}
                 <CaretRightIcon size={14} weight="bold" className="shrink-0 text-ink-3 transition-transform duration-150 [details[open]>summary>&]:rotate-90" aria-hidden />
-                <FolderSimpleIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+                <FolderSimpleIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                 <span className="truncate">{n.name}</span>
               </summary>
               <Tree nodes={n.children} selected={selected} onOpen={onOpen} depth={depth + 1} />
@@ -311,7 +311,7 @@ function Tree({ nodes, selected, onOpen, depth }: { nodes: TreeNode[]; selected:
               style={{ paddingLeft: `${1.75 + depth * 0.75}rem` }}
               className="flex min-h-9 w-full items-center gap-1.5 rounded-sm pr-2 text-left text-sm text-ink-2 hover:bg-surface hover:text-ink aria-[current=true]:bg-surface aria-[current=true]:font-medium aria-[current=true]:text-ink aria-[current=true]:shadow-e1 pointer-coarse:min-h-11"
             >
-              <FileIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+              <FileIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
               <span className="truncate">{n.name}</span>
             </button>
           </li>

@@ -82,7 +82,7 @@ export function OfficeSearchTrigger() {
       </span>
       <span className="md:hidden">
         <button type="button" onClick={open} aria-label="Search" className="flex tap size-10 items-center justify-center rounded-full border border-line bg-surface text-ink-2 shadow-e1">
-          <MagnifyingGlassIcon size={20} aria-hidden />
+          <MagnifyingGlassIcon size={20} weight="bold" aria-hidden />
         </button>
       </span>
     </>
@@ -193,7 +193,7 @@ export function OfficeSearch() {
       className="m-0 mx-auto mt-[10dvh] w-[min(640px,calc(100vw-2rem))] max-w-none overflow-hidden rounded-lg border border-line bg-surface p-0 text-ink shadow-e3 backdrop:bg-ink/25 backdrop:backdrop-blur-sm open:motion-safe:animate-[usage-in_160ms_cubic-bezier(0.16,1,0.3,1)_both]"
     >
       <div className="flex items-center gap-3 border-b border-line px-4">
-        <MagnifyingGlassIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
+        <MagnifyingGlassIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
         <input
           ref={input}
           value={query}

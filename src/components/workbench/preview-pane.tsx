@@ -69,7 +69,7 @@ export function PreviewPane({ projectId, taskId, previewKey, demo }: { projectId
           </div>
         ) : shown?.kind === "unavailable" ? (
           <div className="m-auto grid max-w-md justify-items-center gap-3 py-10 text-center">
-            <BrowserIcon size={32} className="text-ink-3" aria-hidden />
+            <BrowserIcon size={32} weight="bold" className="text-ink-3" aria-hidden />
             <p className="text-title-4 font-medium tracking-[-0.02em] text-ink">Nothing to show here</p>
             <p className="text-sm leading-relaxed text-ink-2">{shown.reason}</p>
             <div className="flex flex-wrap items-center justify-center gap-2">

@@ -30,7 +30,7 @@ export function TaskStateBadge({ state }: { state: TaskState }) {
 export function CardTitle({ icon: TitleIcon, children, id, className = "" }: { icon: Icon; children: ReactNode; id?: string; className?: string }) {
   return (
     <h2 id={id} className={`flex items-center gap-2 text-title-4 font-medium sm:gap-2.5 sm:text-lg ${className}`}>
-      <TitleIcon size={20} className="size-4 shrink-0 text-ink-3 sm:size-5" aria-hidden />
+      <TitleIcon size={20} weight="bold" className="size-4 shrink-0 text-ink-3 sm:size-5" aria-hidden />
       <span className="min-w-0">{children}</span>
     </h2>
   );
@@ -48,7 +48,7 @@ export function EmptyState({ icon: EmptyIcon, title, children, action }: { icon:
   return (
     <div className="flex flex-col items-center rounded-md border border-line bg-surface px-4 py-8 text-center sm:px-6 sm:py-12">
       <span className="flex size-10 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line sm:size-12">
-        <EmptyIcon size={24} className="size-5 sm:size-6" aria-hidden />
+        <EmptyIcon size={24} weight="bold" className="size-5 sm:size-6" aria-hidden />
       </span>
       <h2 className="mt-3 text-title-4 font-medium sm:mt-4 sm:text-lg">{title}</h2>
       <p className="mt-1.5 max-w-[46ch] text-body leading-relaxed text-ink-2">{children}</p>

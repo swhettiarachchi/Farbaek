@@ -74,7 +74,7 @@ export function SiteThumb({ src, name, className = "" }: { src: string; name: st
         <div className="absolute inset-0 grid place-items-center bg-surface-raised">
           <span className="relative grid justify-items-center gap-1.5 text-center">
             <span className="flex size-11 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
-              <BracketsCurlyIcon size={24} />
+              <BracketsCurlyIcon size={24} weight="bold" />
             </span>
             <span className="text-xs text-ink-2">An app with a server</span>
             <span className="text-xs text-ink-3">It previews in a test space</span>
@@ -90,7 +90,7 @@ export function SiteThumb({ src, name, className = "" }: { src: string; name: st
               </span>
             ) : (
               <>
-                <FileDashedIcon size={24} className="text-ink-3" aria-hidden />
+                <FileDashedIcon size={24} weight="bold" className="text-ink-3" aria-hidden />
                 <span className="text-xs text-ink-3">No page to show yet</span>
               </>
             )}

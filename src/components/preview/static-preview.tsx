@@ -180,7 +180,7 @@ function DeviceSwitch({ device, onPick, compact = false }: { device: Device; onP
             onClick={() => onPick(d.id)}
             className={`inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm transition-colors duration-150 ${device === d.id ? "bg-surface-raised font-medium text-ink" : "text-ink-3 hover:text-ink"}`}
           >
-            <d.icon size={20} weight={device === d.id ? "fill" : "regular"} aria-hidden />
+            <d.icon size={20} weight={device === d.id ? "fill" : "bold"} aria-hidden />
             {compact ? null : <span className="max-sm:sr-only">{d.label}</span>}
           </button>
         </span>

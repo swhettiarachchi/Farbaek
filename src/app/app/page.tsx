@@ -1,5 +1,5 @@
 import { waitingChanges } from "@/server/workspace/waiting-changes";
-import { ArrowRightIcon, GaugeIcon, HammerIcon, ListBulletsIcon, SealCheckIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, GaugeIcon, HammerIcon, ListBulletsIcon, SealCheckIcon, FolderSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -149,7 +149,7 @@ export default async function MissionControl() {
       {recent.length > 0 ? (
         <section aria-labelledby="recent-heading" className="grid gap-4">
           <div className="flex items-center justify-between gap-3">
-            <CardTitle id="recent-heading" icon={SquaresFourIcon}>
+            <CardTitle id="recent-heading" icon={FolderSimpleIcon}>
               Recent work
             </CardTitle>
             <Link href="/app/projects" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">

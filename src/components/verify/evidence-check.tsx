@@ -147,7 +147,7 @@ export function EvidenceCheck() {
             onDrop={onDrop}
             className={`flex min-h-56 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed px-6 py-10 text-center transition-colors duration-150 has-focus-visible:outline-2 has-focus-visible:outline-accent ${dragging ? "border-accent bg-accent/[0.04]" : "border-line-strong/50 bg-surface hover:border-accent/60"} ${busy ? "pointer-events-none opacity-60" : ""}`}
           >
-            <FileArrowUpIcon size={32} className="text-accent" aria-hidden />
+            <FileArrowUpIcon size={32} weight="bold" className="text-accent" aria-hidden />
             <span className="text-body font-medium">{busy ? "Checking…" : "Drop a proof file or a Capsule"}</span>
             <span className="max-w-[34ch] text-sm text-ink-3">Or choose one. A ProofPack or receipt (.json), or a .capsule.zip.</span>
             <input type="file" accept=".json,application/json,.zip,application/zip" className="sr-only" onChange={(e) => void checkFile(e.target.files?.[0])} />

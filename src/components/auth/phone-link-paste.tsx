@@ -59,7 +59,7 @@ export function PhoneLinkPaste({ next, siteOrigin, authOrigin }: { next: string;
             className={inputClasses("min-w-0 flex-1")}
           />
           <button type="submit" className={buttonClasses("secondary", "md")}>
-            <ClipboardTextIcon size={16} aria-hidden />
+            <ClipboardTextIcon size={16} weight="bold" aria-hidden />
             Use link
           </button>
         </div>

@@ -141,7 +141,7 @@ export function SectionsPanel({
                   onPointerCancel={() => setDrag(null)}
                   className={`${iconButton} cursor-grab touch-none active:cursor-grabbing`}
                 >
-                  <DotsSixVerticalIcon size={20} aria-hidden />
+                  <DotsSixVerticalIcon size={20} weight="bold" aria-hidden />
                 </button>
                 <button type="button" onClick={() => onSelect(item.n)} aria-current={selected === item.n ? "true" : undefined} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left text-sm pointer-coarse:min-h-12">
                   <span className="line-clamp-2 min-w-0" title={item.label}>
@@ -204,7 +204,7 @@ export function SectionsPanel({
                     className="grid h-full w-full gap-1.5 rounded-sm border border-line bg-surface p-3 text-left transition-[border-color,transform] duration-150 hover:border-accent/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-line"
                   >
                     <span className="flex items-center gap-2 text-sm font-medium">
-                      <SnippetIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
+                      <SnippetIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                       {s.label}
                       {s.pro ? (
                         <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs font-normal text-ink-3">

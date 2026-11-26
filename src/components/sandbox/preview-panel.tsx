@@ -79,7 +79,7 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
     return (
       <div className="flex flex-col items-center rounded-md border border-line bg-surface px-5 py-8 text-center">
         <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
-          <BrowserIcon size={24} aria-hidden />
+          <BrowserIcon size={24} weight="bold" aria-hidden />
         </span>
         <p className="mx-auto mt-3 max-w-[52ch] text-sm text-ink-2">{reason ?? "Previews aren't available for this session."}</p>
       </div>

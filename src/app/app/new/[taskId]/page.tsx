@@ -131,7 +131,7 @@ export default async function PlanCardPage({ params }: Params) {
             // Questions need a person to settle them, so the box is in the "your turn" blue (ADR 0183).
             <div className={`grid gap-2 rounded-md border border-approval/30 bg-approval/[0.04] p-4 sm:p-5 ${rise}`} style={{ animationDelay: "400ms" }}>
               <p className="flex items-center gap-2 text-sm font-medium text-approval">
-                <QuestionIcon size={20} className="shrink-0" aria-hidden /> Questions to settle
+                <QuestionIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Questions to settle
               </p>
               <ul className="grid gap-1 text-sm text-ink">
                 {c.openQuestions.map((q) => (

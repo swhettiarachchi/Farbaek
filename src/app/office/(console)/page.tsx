@@ -43,7 +43,7 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
 
       {welcome ? (
         <p className="flex items-start gap-3 rounded-md border border-line bg-surface-raised/70 px-5 py-4 text-sm">
-          <HandWavingIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
+          <HandWavingIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
           <span>
             <span className="font-medium text-ink">You&apos;re in.</span>{" "}
             <span className="text-ink-2">

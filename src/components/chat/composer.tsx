@@ -389,7 +389,7 @@ export function Composer({
                     <img src={f.preview ?? `/app/chat/api/file/${f.file!.id}`} alt="" className="size-10 shrink-0 rounded-sm bg-surface-sunken object-cover" />
                   ) : (
                     <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-sm bg-surface-raised text-ink-2">
-                      {f.kind === "pdf" ? <FilePdfIcon size={20} aria-hidden /> : <FileTextIcon size={20} aria-hidden />}
+                      {f.kind === "pdf" ? <FilePdfIcon size={20} weight="bold" aria-hidden /> : <FileTextIcon size={20} weight="bold" aria-hidden />}
                     </span>
                   )}
                   <span className="min-w-0 flex-1">
@@ -475,7 +475,7 @@ export function Composer({
               title="Attach pictures, PDFs or text files"
               className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink disabled:opacity-45 pointer-coarse:size-11"
             >
-              <PaperclipIcon size={20} aria-hidden />
+              <PaperclipIcon size={20} weight="bold" aria-hidden />
             </button>
             <button
               type="button"
@@ -520,7 +520,7 @@ export function Composer({
                 className={`tap relative inline-flex size-10 items-center justify-center rounded-full disabled:opacity-45 pointer-coarse:size-11 ${speech.listening ? "bg-failed/10 text-failed" : "text-ink-2 hover:bg-surface-raised hover:text-ink"}`}
               >
                 {speech.listening ? <span className="absolute inset-0 rounded-full ring-2 ring-failed/40 motion-safe:animate-ping" aria-hidden /> : null}
-                <MicrophoneIcon size={20} aria-hidden />
+                <MicrophoneIcon size={20} weight="bold" aria-hidden />
               </button>
             ) : null}
             <div className="ml-auto flex items-center gap-1">

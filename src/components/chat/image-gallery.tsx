@@ -29,7 +29,7 @@ export function ImageGallery({ images, demo }: { images: GalleryImage[]; demo: b
           {images.length === 0 ? (
             <div className="mt-10 flex flex-col items-start gap-4 rounded-lg border border-dashed border-line-2 p-5 sm:p-8">
               <span className="inline-flex size-12 items-center justify-center rounded-full bg-surface-raised text-ink-2">
-                <ImageSquareIcon size={24} aria-hidden />
+                <ImageSquareIcon size={24} weight="bold" aria-hidden />
               </span>
               <div>
                 <p className="text-base font-medium text-ink">{demo ? "The demo workspace has no images" : "No images yet"}</p>

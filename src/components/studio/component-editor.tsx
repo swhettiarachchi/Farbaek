@@ -127,7 +127,7 @@ export function ComponentEditor({
       <div className="grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-body font-medium">
-            <GitDiffIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
+            <GitDiffIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
           </p>
           <button type="button" onClick={() => setMode("edit")} className={buttonClasses("ghost", "sm")}>
             Back to editing
@@ -156,7 +156,7 @@ export function ComponentEditor({
       {pick ? (
         <details className="group rounded-md border border-line bg-surface p-4" open={pick.sessions.length > 0}>
           <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-body font-medium">
-            <CursorClickIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Pick in the running app
+            <CursorClickIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Pick in the running app
           </summary>
           <div className="mt-3 grid gap-3">
             <RunningAppPicker projectId={projectId} sessions={pick.sessions} unavailable={pick.unavailable} onPicked={onPicked} />

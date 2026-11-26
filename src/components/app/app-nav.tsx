@@ -9,11 +9,11 @@ import {
   GraphIcon,
   ClockCounterClockwiseIcon,
   CompassToolIcon,
-  CheckSquareOffsetIcon,
+  CheckCircleIcon,
   CreditCardIcon,
   DesktopIcon,
   DotsThreeOutlineIcon,
-  FilmSlateIcon,
+  VideoCameraIcon,
   FlowArrowIcon,
   GearSixIcon,
   HammerIcon,
@@ -26,7 +26,7 @@ import {
   PlugsConnectedIcon,
   ScalesIcon,
   SirenIcon,
-  SquaresFourIcon,
+  FolderSimpleIcon,
   TerminalWindowIcon,
   ToolboxIcon,
   UsersThreeIcon,
@@ -39,8 +39,6 @@ import { useId, useState, useSyncExternalStore, type ReactNode } from "react";
 
 export interface NavItem {
   href: string;
-  /** A space's own colour for its icon (ADR 0217): Chat, Images, Video and Build. */
-  tone?: string;
   /** The plain name people see (ADR 0170). */
   label: string;
   short: string;
@@ -55,13 +53,13 @@ export interface NavItem {
 /** What most people need, always in view: Farbaek AI's spaces (ADR 0214, ADR 0216) and the work in them. */
 const CORE: NavItem[] = [
   { href: "/app", label: "Home", short: "Home", icon: HouseSimpleIcon, exact: true, about: "What's happening, and what needs you.", also: ["Mission Control"] },
-  { href: "/app/chat", label: "Chat", short: "Chat", icon: ChatCircleTextIcon, tone: "text-accent", about: "Ask, write, code and research with Farbaek AI.", also: ["AI chat", "Assistant", "Ask AI", "Farbaek AI"] },
-  { href: "/app/images", label: "Images", short: "Images", icon: ImageSquareIcon, tone: "text-spark-rose", about: "Make and edit pictures with studio finish.", also: ["Image studio", "Pictures", "Image generation", "Photos"] },
-  { href: "/app/video", label: "Video", short: "Video", icon: FilmSlateIcon, tone: "text-spark-aqua", about: "Make short videos with sound, from words or a picture.", also: ["Video studio", "Videos", "Video generation", "Film"] },
-  { href: "/app/build", label: "Build", short: "Build", icon: HammerIcon, tone: "text-spark-leaf", about: "Everything the agent is building or has built." },
-  { href: "/app/projects", label: "Projects", short: "Projects", icon: SquaresFourIcon, about: "Your sites and apps." },
+  { href: "/app/chat", label: "Chat", short: "Chat", icon: ChatCircleTextIcon, about: "Ask, write, code and research with Farbaek AI.", also: ["AI chat", "Assistant", "Ask AI", "Farbaek AI"] },
+  { href: "/app/images", label: "Images", short: "Images", icon: ImageSquareIcon, about: "Make and edit pictures with studio finish.", also: ["Image studio", "Pictures", "Image generation", "Photos"] },
+  { href: "/app/video", label: "Video", short: "Video", icon: VideoCameraIcon, about: "Make short videos with sound, from words or a picture.", also: ["Video studio", "Videos", "Video generation", "Film"] },
+  { href: "/app/build", label: "Build", short: "Build", icon: HammerIcon, about: "Everything the agent is building or has built." },
+  { href: "/app/projects", label: "Projects", short: "Projects", icon: FolderSimpleIcon, about: "Your sites and apps." },
   { href: "/app/scheduled", label: "Scheduled", short: "Scheduled", icon: CalendarCheckIcon, about: "Work Farbaek does by itself, at the times you set.", also: ["Scheduled tasks", "Automations", "Recurring", "Reminders", "Schedule", "Agents", "Personal agents"] },
-  { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckSquareOffsetIcon, about: "Changes waiting for your yes or no." },
+  { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckCircleIcon, about: "Changes waiting for your yes or no." },
 ];
 
 /** Useful, not needed every day: one labelled group, opened when wanted. Survey Studio leads it: a specialist's space (ADR 0216). */
@@ -165,7 +163,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
             active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
           }`}
         >
-          <item.icon size={20} weight={active || item.tone ? "fill" : "regular"} className={item.tone ?? (active ? "text-accent" : "")} aria-hidden />
+          <item.icon size={20} weight="bold" className="shrink-0" aria-hidden />
           {item.label}
           {item.href === "/app/approvals" ? <Badge count={approvals} /> : null}
           {item.href === "/app/help" ? <Badge count={helpUnread} tone="accent" label={helpUnread === 1 ? "new reply" : "new replies"} /> : null}
@@ -194,7 +192,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
           }}
           className="flex h-10 w-full items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 pointer-coarse:h-11 transition-colors duration-150 hover:bg-surface/70 hover:text-ink"
         >
-          <ToolboxIcon size={20} aria-hidden />
+          <ToolboxIcon size={20} weight="bold" aria-hidden />
           More tools
           <CaretDownIcon size={14} weight="bold" aria-hidden className={`ml-auto text-ink-3 motion-safe:transition-transform motion-safe:duration-200 ${open ? "rotate-180" : ""}`} />
         </button>
@@ -217,7 +215,7 @@ export function MoreList({ helpUnread = 0, children }: { helpUnread?: number; ch
       {MORE_PAGES.map((item) => (
         <li key={item.href}>
           <Link href={item.href} transitionTypes={PAGE_NAV} className="flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-canvas-2">
-            <item.icon size={20} className="shrink-0 text-ink-2" aria-hidden />
+            <item.icon size={20} weight="bold" className="shrink-0 text-ink-2" aria-hidden />
             <span className="grid min-w-0 gap-0.5">
               <span className="text-body">{item.label}</span>
               <span className="text-label leading-snug text-ink-3">{item.about}</span>
@@ -259,7 +257,7 @@ export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number;
                 aria-current={active ? "page" : undefined}
                 className={`relative flex h-[64px] flex-col items-center justify-center gap-1 text-[min(0.6875rem,14px)] leading-tight md:flex-row md:gap-2 md:text-[min(0.8125rem,15px)] ${active ? "font-medium text-accent" : "text-ink-2"}`}
               >
-                <item.icon size={24} weight={active ? "fill" : "regular"} aria-hidden className="md:size-5" />
+                <item.icon size={24} weight={active ? "fill" : "bold"} aria-hidden className="md:size-5" />
                 {item.short}
                 {item.href === "/app/approvals" && approvals > 0 ? (
                   <span className="absolute right-[calc(50%-20px)] top-[8px] flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-approval md:static px-[4px] text-[min(0.6875rem,12px)] font-semibold text-on-accent tabular">

@@ -42,7 +42,7 @@ export default async function MorePage() {
         {ctx.mode === "live" && isAdminEmail(ctx.user.email) ? (
           <li>
             <Link href="/admin" className={`${row} hover:bg-canvas-2`}>
-              <ShieldStarIcon size={20} className="text-ink-2" aria-hidden /> Admin console
+              <ShieldStarIcon size={20} weight="bold" className="text-ink-2" aria-hidden /> Admin console
               <CaretRightIcon size={16} weight="bold" className="ml-auto text-ink-3" aria-hidden />
             </Link>
           </li>
@@ -56,7 +56,7 @@ export default async function MorePage() {
         <ul className="mt-2 divide-y divide-line overflow-hidden rounded-md border border-line bg-surface">
           {ROADMAP.map((r) => (
             <li key={r.label} className={`${row} text-ink-3`}>
-              <LockSimpleIcon size={20} className="shrink-0" aria-hidden />
+              <LockSimpleIcon size={20} weight="bold" className="shrink-0" aria-hidden />
               <span className="min-w-0">{r.label}</span>
               <span className="sr-only">, not available yet</span>
               <span className="ml-auto">

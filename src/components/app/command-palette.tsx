@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowsLeftRightIcon, HammerIcon, LayoutIcon, MagnifyingGlassIcon, PlusIcon, ShieldCheckIcon, ShieldStarIcon, SquaresFourIcon } from "@phosphor-icons/react";
+import { ArrowsLeftRightIcon, HammerIcon, LayoutIcon, MagnifyingGlassIcon, PlusIcon, ShieldCheckIcon, ShieldStarIcon, FolderSimpleIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
@@ -61,7 +61,7 @@ export function PaletteIconButton() {
       onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
       className="tap inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-surface hover:text-ink"
     >
-      <MagnifyingGlassIcon size={20} aria-hidden />
+      <MagnifyingGlassIcon size={20} weight="bold" aria-hidden />
     </button>
   );
 }
@@ -131,7 +131,7 @@ export function CommandPalette({
     all.push({ id: "/app/templates", group: "Go to", label: "Templates", icon: LayoutIcon, keywords: ["gallery", "starter", "site"], action: { kind: "go", href: "/app/templates" } });
     all.push({ id: "/app/rescue", group: "Go to", label: "Check an app built elsewhere", icon: ShieldCheckIcon, keywords: ["import", "zip", "security", "rescue"], action: { kind: "go", href: "/app/rescue" } });
     if (admin) all.push({ id: "/admin", group: "Go to", label: "Admin console", icon: ShieldStarIcon, action: { kind: "go", href: "/admin" } });
-    for (const p of projects) all.push({ id: `p:${p.id}`, group: "Projects", label: p.name, hint: "Project", icon: SquaresFourIcon, action: { kind: "go", href: `/app/projects/${p.id}` } });
+    for (const p of projects) all.push({ id: `p:${p.id}`, group: "Projects", label: p.name, hint: "Project", icon: FolderSimpleIcon, action: { kind: "go", href: `/app/projects/${p.id}` } });
     for (const w of workspaces) {
       if (!w.current) all.push({ id: `w:${w.id}`, group: "Workspaces", label: `Switch to ${w.name}`, icon: ArrowsLeftRightIcon, keywords: ["workspace"], action: { kind: "switch", orgId: w.id } });
     }
@@ -174,7 +174,7 @@ export function CommandPalette({
       className="m-0 mx-auto mt-[12dvh] w-[min(640px,calc(100vw-2rem))] max-w-none overflow-hidden rounded-lg border border-line bg-surface p-0 text-ink shadow-e3 backdrop:bg-ink/25 backdrop:backdrop-blur-sm open:motion-safe:animate-[usage-in_160ms_cubic-bezier(0.16,1,0.3,1)_both]"
     >
       <div className="flex items-center gap-3 border-b border-line px-4">
-        <MagnifyingGlassIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
+        <MagnifyingGlassIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
         <input
           ref={input}
           value={query}

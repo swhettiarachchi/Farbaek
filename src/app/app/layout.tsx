@@ -165,7 +165,7 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
           {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
           {admin ? (
             <Link href="/admin" className="flex h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 hover:bg-surface/70 hover:text-ink">
-              <ShieldStarIcon size={20} aria-hidden /> Admin console
+              <ShieldStarIcon size={20} weight="bold" aria-hidden /> Admin console
             </Link>
           ) : null}
           <UsagePanel planLabel={`${getPlan(current.plan.planId).name}${current.plan.source === "trial" ? " trial" : " plan"}${trialDays !== null ? `, ${trialDays} ${trialDays === 1 ? "day" : "days"} left` : ""}`} />

@@ -398,7 +398,7 @@ export function AutoSurveyStart({
         className={`grid justify-items-center gap-4 rounded-lg border-[1.5px] border-dashed px-5 py-8 text-center transition-colors duration-150 sm:py-10 ${dragging ? "border-accent bg-accent/[0.04]" : "border-line-strong/60 bg-surface"}`}
       >
         <span aria-hidden className="flex size-12 items-center justify-center rounded-full bg-canvas-2 text-ink-2">
-          <UploadSimpleIcon size={24} />
+          <UploadSimpleIcon size={24} weight="bold" />
         </span>
         <div className="grid gap-1">
           <p className="text-title-4 font-medium tracking-[-0.01em]">Drop your survey files and field sketches here</p>
@@ -442,7 +442,7 @@ export function AutoSurveyStart({
           {shown.map((u) => (
             <li key={u.key} className="flex items-start gap-3 rounded-md border border-line bg-surface p-3 shadow-e1 sm:p-4">
               <span aria-hidden className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-canvas-2 text-ink-2">
-                {u.kind === "sketch" ? <ImageIcon size={20} /> : <FileTextIcon size={20} />}
+                {u.kind === "sketch" ? <ImageIcon size={20} weight="bold" /> : <FileTextIcon size={20} weight="bold" />}
               </span>
               <div className="grid min-w-0 flex-1 gap-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

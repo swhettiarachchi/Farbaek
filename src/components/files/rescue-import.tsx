@@ -63,7 +63,7 @@ export function RescueImport({ disabledReason }: { disabledReason: string | null
       <label
         className={`flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-line-strong/50 bg-surface px-6 py-8 text-center transition-colors duration-150 hover:border-accent/60 has-focus-visible:outline-2 has-focus-visible:outline-accent ${disabledReason ? "pointer-events-none opacity-60" : ""}`}
       >
-        <FileZipIcon size={32} className="text-accent" aria-hidden />
+        <FileZipIcon size={32} weight="bold" className="text-accent" aria-hidden />
         <span className="text-body font-medium">{reading ? "Unpacking in your browser…" : prepared ? "Choose a different zip" : "Choose a .zip of your app"}</span>
         <span className="text-sm text-ink-3">For example GitHub&apos;s &quot;Download ZIP&quot;, or an export from another builder.</span>
         <input type="file" accept=".zip,application/zip" className="sr-only" disabled={Boolean(disabledReason) || reading || pending} onChange={(e) => void onFile(e.target.files?.[0])} />

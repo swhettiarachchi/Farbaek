@@ -521,14 +521,14 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
               ]}
               trigger={({ ref, open, toggle, id }) => (
                 <button ref={ref} type="button" aria-label="Chat actions" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={toggle} className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink">
-                  <DotsThreeIcon size={20} aria-hidden />
+                  <DotsThreeIcon size={20} weight="bold" aria-hidden />
                 </button>
               )}
             />
           </>
         ) : null}
         <Link href="/app/chat" aria-label="New chat" title="New chat (Ctrl Shift O)" className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink lg:hidden">
-          <NotePencilIcon size={20} aria-hidden />
+          <NotePencilIcon size={20} weight="bold" aria-hidden />
         </Link>
       </header>
 
@@ -618,7 +618,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
 
       {dragging ? (
         <div className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-accent/60 bg-canvas/85 text-sm font-medium text-ink backdrop-blur-sm motion-safe:animate-[chat-fade_120ms_ease-out_both]">
-          <UploadSimpleIcon size={32} className="text-accent" aria-hidden />
+          <UploadSimpleIcon size={32} weight="bold" className="text-accent" aria-hidden />
           Drop files to attach them
           <span className="text-xs font-normal text-ink-3">Pictures, PDFs and text files, up to 5 MB each.</span>
         </div>

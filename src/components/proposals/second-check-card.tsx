@@ -69,7 +69,7 @@ export function SecondCheckCard({
     <section aria-labelledby="second-check-title" className="grid gap-4 rounded-md border border-line bg-surface-raised/40 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 id="second-check-title" className="flex items-center gap-2 text-base font-medium">
-          <EyesIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Second check
+          <EyesIcon size={20} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Second check
         </h3>
         {check ? <StatusBadge status={VERDICT_STATUS[check.verdict]} label={VERDICT_LABELS[check.verdict].title} /> : null}
       </div>

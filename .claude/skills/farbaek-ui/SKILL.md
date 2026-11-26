@@ -128,7 +128,7 @@ Every state has words and an icon; colour is never the only signal. States are `
 **One icon set (ADR 0183).**
 - Phosphor on the web and desktop, SF Symbols on the iPhone.
 - Filled icons report a state, outlined icons name a thing or an action.
-- Sizes are 14, 16, 20, 24 and 32: `bold` at 14 and 16, regular from 20. Never duotone, light or thin.
+- Sizes are 14, 16, 20, 24 and 32. An outlined icon is `bold` at every size (ADR 0286: one rounded style with a full stroke); never the thin default, `regular`, duotone, light or thin. `tests/design/icon-weight.test.ts` checks it outside the public site.
 - Section headings in the app use `CardTitle` (20px outlined icon in `ink-3`, then the words). The same concept gets the same icon on every page, and a page's concept takes its navigation icon.
 - Error lines carry a filled WarningCircle in `failed`, success lines a filled CheckCircle in `verified`. External links use ArrowUpRight.
 

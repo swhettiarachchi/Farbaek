@@ -116,7 +116,7 @@ export default async function BuildPage() {
       ) : null}
 
       {/* Someone new reads how it goes; once a workspace has run anything, the steps fold away. */}
-      {runs.length === 0 ? flow : <Disclosure summary="How a build works" icon={<ListNumbersIcon size={20} />}>
+      {runs.length === 0 ? flow : <Disclosure summary="How a build works" icon={<ListNumbersIcon size={20} weight="bold" />}>
           {flow}
         </Disclosure>}
 

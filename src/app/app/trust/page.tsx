@@ -1,4 +1,4 @@
-import { CursorClickIcon, DesktopIcon, FlowArrowIcon, GraphIcon, MagnifyingGlassIcon, PlugsConnectedIcon, ScalesIcon, SquaresFourIcon, UserIcon, UsersThreeIcon, WarningIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
+import { CursorClickIcon, DesktopIcon, FlowArrowIcon, GraphIcon, MagnifyingGlassIcon, PlugsConnectedIcon, ScalesIcon, FolderSimpleIcon, UserIcon, UsersThreeIcon, WarningIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -18,7 +18,7 @@ const KIND: Record<TrustNodeKind, { word: string; icon: Icon }> = {
   person: { word: "Person", icon: UserIcon },
   agent: { word: "Agent", icon: DesktopIcon },
   workflow: { word: "Workflow", icon: FlowArrowIcon },
-  project: { word: "Project", icon: SquaresFourIcon },
+  project: { word: "Project", icon: FolderSimpleIcon },
   integration: { word: "Connected service", icon: PlugsConnectedIcon },
   tool: { word: "Tool", icon: WrenchIcon },
   rule: { word: "Workspace rule", icon: ScalesIcon },

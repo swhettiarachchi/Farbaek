@@ -32,7 +32,7 @@ export default async function SharedChatPage({ params }: { params: Promise<{ tok
     return (
       <div className="mx-auto max-w-lg py-10">
         <span className="inline-flex size-12 items-center justify-center rounded-full bg-surface-raised text-ink-2">
-          <LockSimpleIcon size={24} aria-hidden />
+          <LockSimpleIcon size={24} weight="bold" aria-hidden />
         </span>
         <h1 className={`mt-5 ${FOCUSED_TITLE}`}>{c.title}</h1>
         <p className="mt-3 text-body leading-relaxed text-ink-2">{c.detail}</p>

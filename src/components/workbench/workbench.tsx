@@ -213,7 +213,7 @@ function Frame({ data }: { data: WorkbenchData }) {
               onClick={() => setPane(p.id)}
               className="flex min-h-14 flex-col items-center justify-center gap-1 text-xs text-ink-3 transition-colors duration-150 aria-pressed:font-medium aria-pressed:text-ink"
             >
-              <p.icon size={20} weight={pane === p.id ? "fill" : "regular"} className={pane === p.id ? "text-spark-leaf" : ""} aria-hidden />
+              <p.icon size={20} weight={pane === p.id ? "fill" : "bold"} className={pane === p.id ? "text-spark-leaf" : ""} aria-hidden />
               {p.label}
             </button>
           ))}

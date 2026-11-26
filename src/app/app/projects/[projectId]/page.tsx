@@ -320,7 +320,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           </div>
         </nav>
         {/* Describing a change above drafts the plan; this is for work someone will plan later, so it stays folded. */}
-        <Disclosure summary="Add a task without a plan" icon={<PlusIcon size={20} />} hint="For work you'll plan later. Describing a change above drafts the plan for you.">
+        <Disclosure summary="Add a task without a plan" icon={<PlusIcon size={20} weight="bold" />} hint="For work you'll plan later. Describing a change above drafts the plan for you.">
           <Card>
             <CreateTaskForm
               projectId={project.id}
@@ -347,7 +347,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       </div>
 
       {/* One shape whatever the skills' state, so adding one doesn't reset the section and lose its message. */}
-      <Disclosure summary="Skills" icon={<BookOpenTextIcon size={20} />} hint="Teach the agent how you like this project built" open={skills.some((s) => s.status !== "approved")}>
+      <Disclosure summary="Skills" icon={<BookOpenTextIcon size={20} weight="bold" />} hint="Teach the agent how you like this project built" open={skills.some((s) => s.status !== "approved")}>
         <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />
       </Disclosure>
     </div>

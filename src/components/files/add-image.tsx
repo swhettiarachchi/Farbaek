@@ -38,7 +38,7 @@ export function AddImage({ projectId, replacePath, disabledReason }: { projectId
         ) : (
           <span className="grid justify-items-center gap-2 text-sm text-ink-2">
             <span className="flex size-11 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
-              <ImageIcon size={24} aria-hidden />
+              <ImageIcon size={24} weight="bold" aria-hidden />
             </span>
             <span className="font-medium text-ink">{replacePath ? "Choose the new image" : "Choose an image"}</span>
             <span className="text-xs text-ink-3">PNG, JPEG, GIF, WebP, AVIF or icon, up to 2 MB</span>

@@ -11,7 +11,7 @@ import {
   ChatCircleTextIcon,
   CheckCircleIcon,
   DownloadSimpleIcon,
-  FilmSlateIcon,
+  VideoCameraIcon,
   HouseSimpleIcon,
   ImageSquareIcon,
   ListIcon,
@@ -101,7 +101,7 @@ const VIDEO_EXAMPLES: { text: string; style: VideoStyle; shape: VideoShape }[] =
 const SPACES: { href: string; label: string; icon: Icon; kind: Kind | "chat" }[] = [
   { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon, kind: "chat" },
   { href: "/app/images", label: "Images", icon: ImageSquareIcon, kind: "image" },
-  { href: "/app/video", label: "Video", icon: FilmSlateIcon, kind: "video" },
+  { href: "/app/video", label: "Video", icon: VideoCameraIcon, kind: "video" },
 ];
 
 export function Studio(props: StudioProps) {
@@ -487,7 +487,7 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
                       title={disabledReason ?? undefined}
                       className="tap inline-flex min-h-10 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-200 hover:bg-primary-hover active:scale-[0.98] disabled:opacity-55 pointer-coarse:min-h-11"
                     >
-                      {kind === "image" ? <PaintBrushIcon size={16} weight="bold" aria-hidden /> : <FilmSlateIcon size={16} weight="bold" aria-hidden />}
+                      {kind === "image" ? <PaintBrushIcon size={16} weight="bold" aria-hidden /> : <VideoCameraIcon size={16} weight="bold" aria-hidden />}
                       {kind === "image" ? "Make" : "Make video"}
                     </button>
                   )}
@@ -831,13 +831,13 @@ function Viewer({ kind, item, onClose, onRemove, onReuse, onReference }: { kind:
                 <Action icon={PencilSimpleIcon} label="Edit or work from it" onClick={() => onReference(item)} />
                 {item.kind !== "upload" ? <Action icon={PaintBrushIcon} label="Make it again" onClick={() => onReuse(item)} /> : null}
                 <Link href={`/app/video?still=${item.id}`} className="tap inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-4 text-sm font-medium text-ink hover:bg-surface-raised pointer-coarse:min-h-11">
-                  <FilmSlateIcon size={16} weight="bold" aria-hidden />
+                  <VideoCameraIcon size={16} weight="bold" aria-hidden />
                   Make a video from it
                   <ArrowUpRightIcon size={14} weight="bold" aria-hidden />
                 </Link>
               </>
             ) : (
-              <Action icon={FilmSlateIcon} label="Make it again" onClick={() => onReuse(item)} />
+              <Action icon={VideoCameraIcon} label="Make it again" onClick={() => onReuse(item)} />
             )}
             {confirm ? (
               <button

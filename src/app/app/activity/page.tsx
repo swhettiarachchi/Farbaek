@@ -8,7 +8,7 @@ import {
   InfoIcon,
   LifebuoyIcon,
   ShieldCheckIcon,
-  SquaresFourIcon,
+  FolderSimpleIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
@@ -28,7 +28,7 @@ const PAGE = 50;
 
 const ICONS: Record<ActivityCategory, Icon> = {
   people: UsersThreeIcon,
-  projects: SquaresFourIcon,
+  projects: FolderSimpleIcon,
   changes: GitDiffIcon,
   agents: DesktopIcon,
   sites: GlobeIcon,

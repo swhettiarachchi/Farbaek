@@ -18,7 +18,7 @@ import {
   DownloadSimpleIcon,
   FilePdfIcon,
   FileTextIcon,
-  FilmSlateIcon,
+  VideoCameraIcon,
   FlagIcon,
   GlobeIcon,
   HammerIcon,
@@ -87,7 +87,7 @@ function FileChip({ file, base }: { file: ChatFile; base: string }) {
   }
   return (
     <a href={`${fileUrl(file.id, base)}?download`} className="flex w-56 max-w-full items-center gap-2.5 rounded-md border border-line bg-surface p-2 hover:border-line-2">
-      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-sm bg-surface-raised text-ink-2">{file.kind === "pdf" ? <FilePdfIcon size={20} aria-hidden /> : <FileTextIcon size={20} aria-hidden />}</span>
+      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-sm bg-surface-raised text-ink-2">{file.kind === "pdf" ? <FilePdfIcon size={20} weight="bold" aria-hidden /> : <FileTextIcon size={20} weight="bold" aria-hidden />}</span>
       <span className="min-w-0">
         <span className="block truncate text-xs font-medium text-ink">{file.name}</span>
         <span className="block text-xs text-ink-3">
@@ -214,7 +214,7 @@ export interface AnswerActions {
  */
 const HANDOFFS: { to: HandOff; label: string; short: string; hint: string; icon: typeof HammerIcon; tone: string }[] = [
   { to: "images", label: "Make a picture", short: "Picture", hint: "Opens Images with your request in its box", icon: ImageSquareIcon, tone: "text-spark-rose" },
-  { to: "video", label: "Make a video", short: "Video", hint: "Opens Video with your request in its box", icon: FilmSlateIcon, tone: "text-spark-aqua" },
+  { to: "video", label: "Make a video", short: "Video", hint: "Opens Video with your request in its box", icon: VideoCameraIcon, tone: "text-spark-aqua" },
   { to: "build", label: "Build a website", short: "Website", hint: "Opens Build with your request in its box", icon: HammerIcon, tone: "text-spark-leaf" },
   { to: "desktop", label: "See the desktop app", short: "Desktop app", hint: "Opens the page for Farbaek's desktop app, which works on your own computer", icon: DesktopIcon, tone: "text-ink-3" },
 ];
