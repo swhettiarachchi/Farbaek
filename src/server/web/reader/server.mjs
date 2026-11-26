@@ -2,8 +2,9 @@
 // network that only reaches the internet (never the database's), with no privileges and little memory. The app asks it to
 // read pages; the app itself never fetches arbitrary addresses.
 //
-//   POST /read  {"url": "https://…", "timeoutMs": 4000, "hintedDate": "2026-11-17"}  → the page's text, or why not
-//   GET  /healthz                                                                  → ok
+//   POST /read     {"url": "https://…", "timeoutMs": 4000, "hintedDate": "2026-11-17"}  → the page's text, or why not
+//   POST /picture  {"url": "https://…", "timeoutMs": 5000}                              → the picture's bytes, or 404 and why not
+//   GET  /healthz                                                                     → ok
 import http from "node:http";
 import { denyAddresses } from "./address.mjs";
 import { createReader } from "./read.mjs";
@@ -21,7 +22,8 @@ function send(res, status, body) {
 
 const server = http.createServer((req, res) => {
   if (req.method === "GET" && req.url === "/healthz") return send(res, 200, { ok: true, ...reader.stats() });
-  if (req.method !== "POST" || req.url !== "/read") return send(res, 404, { ok: false, reason: "not found" });
+  if (req.method !== "POST" || (req.url !== "/read" && req.url !== "/picture")) return send(res, 404, { ok: false, reason: "not found" });
+  const wantsPicture = req.url === "/picture";
   let size = 0;
   const chunks = [];
   req.on("data", (chunk) => {
@@ -49,6 +51,14 @@ const server = http.createServer((req, res) => {
     res.on("close", () => {
       if (!res.writableFinished) stop.abort();
     });
+    if (wantsPicture) {
+      // A picture beside a story (stage 278, ADR 0285): its bytes with their kind, or 404 with the reason as JSON.
+      const picture = await reader.picture(input.url, { timeoutMs, signal: stop.signal });
+      if (res.destroyed) return;
+      if (!picture.ok) return send(res, 404, picture);
+      res.writeHead(200, { "content-type": picture.contentType, "content-length": picture.bytes.length, "cache-control": "no-store", "x-content-type-options": "nosniff" });
+      return res.end(picture.bytes);
+    }
     const result = await reader.read(input.url, { timeoutMs, hintedDate, signal: stop.signal });
     if (!res.destroyed) send(res, 200, result);
   });

@@ -145,7 +145,7 @@ Done: a language layer that reads Sinhala script, Singlish and other languages t
 
 ### A18, B4 Chat experience: Done except the three modes
 
-Done: history with search, sidebar, composer, streaming, stop, model choice with the reason shown, files, images, dictation, read aloud, web research with numbered citations checked against the pages, filing under projects, edit, branches, try again, copy, good and bad feedback, sharing, memory, Markdown, code and maths. **Missing: the Standard, Advanced and Professional modes** (A18 asks to preserve them).
+Done: history with search, sidebar, composer, streaming, stop, model choice with the reason shown, files, images, dictation, read aloud, web research with numbered citations checked against the pages, filing under projects, edit, branches, try again, copy, good and bad feedback, sharing, memory, Markdown, code and maths. News and updates are answered as a dated roundup of stories with their pages' pictures (stage 278, ADR 0285; to be checked with a live model after its merge). Still plain text: comparisons with pictures, places, numbers as charts. **Missing: the Standard, Advanced and Professional modes** (A18 asks to preserve them).
 
 ### A19, B11 Studios: Partly
 
@@ -231,7 +231,7 @@ No Grok models, no X search, no X account connector. Needs an xAI account and ke
 
 ### B10 Research and knowledge: Partly
 
-Done: live web research only when a question needs it, two rounds for a deep task, numbered sources checked against the pages, a self-hosted search engine and a locked-down page reader. Missing: X research, saved research, scheduled monitoring, credibility scores, project knowledge.
+Done: live web research only when a question needs it, two rounds for a deep task, numbered sources checked against the pages, a self-hosted search engine and a locked-down page reader, and a roundup of news researched from several newsrooms (stage 278). Missing: X research, saved research, scheduled monitoring, credibility scores, project knowledge.
 
 ### B19 Testing: Partly
 

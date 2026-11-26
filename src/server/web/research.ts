@@ -24,6 +24,7 @@ import { canonicalUrl, fitSearchMeta, siteOf, type SearchMeta, type SearchResult
 import type { ProviderUsage } from "@/server/ai/contract-drafter";
 import type { ChatModel } from "@/server/ai/chat-model";
 import { log } from "@/server/observability/log";
+import { signedPicture } from "./picture";
 import { addUsage, planGap, planSearch } from "./planner";
 import type { ReaderClient } from "./reader-client";
 import type { Breaker } from "./search/health";
@@ -34,6 +35,8 @@ export const RESEARCH_DEADLINE_MS: Record<Depth, number> = { quick: 9_000, stand
 const PAGES_TO_READ: Record<Depth, number> = { quick: 4, standard: 6, deep: 6 };
 /** Sources an answer is given, read or not. */
 const SOURCES_KEPT: Record<Depth, number> = { quick: 6, standard: 8, deep: 8 };
+/** A roundup of news is made of many stories from many places (stage 278): more sources, and more of them opened. */
+const ROUNDUP = { sources: 10, pages: 6 };
 /** A deep task's second round: more pages read, more sources kept. */
 const SECOND_ROUND = { pages: 4, sources: 4, leastMs: 11_000 };
 
@@ -46,10 +49,12 @@ export type ResearchStage =
 
 export interface ResearchDeps {
   search: SearchProvider | null;
-  reader: ReaderClient | null;
+  reader: Pick<ReaderClient, "read"> | null;
   breaker: Breaker;
   now: () => number;
   tag?: () => string;
+  /** The key a source's picture is signed with (server/web/picture.ts). Missing or null: sources carry no picture. */
+  pictureKey?: Buffer | null;
 }
 
 export interface ResearchInput {
@@ -97,10 +102,12 @@ interface Searched {
  * recent. On the general web "today" asks for recent pages rather than pages published today: the page with today's price or
  * score is often older than a day. News keeps the exact period.
  */
-async function searchAll(provider: SearchProvider, queries: readonly string[], plan: Pick<SearchPlan, "freshness" | "news">, freshness: Freshness, keep: Freshness, signal: AbortSignal): Promise<Searched> {
+async function searchAll(provider: SearchProvider, queries: readonly string[], plan: Pick<SearchPlan, "freshness" | "news" | "roundup">, freshness: Freshness, keep: Freshness, signal: AbortSignal): Promise<Searched> {
   const web: Freshness = freshness === "day" ? "week" : freshness;
   const jobs: { query: string; kind: "web" | "news"; freshness: Freshness }[] = queries.map((query) => ({ query, kind: "web", freshness: web }));
-  if ((plan.news || plan.freshness === "day") && queries[0]) jobs.push({ query: queries[0], kind: "news", freshness });
+  // A roundup looks in news for every part of it (stage 278); anything else about events, for its first search.
+  if (plan.roundup) for (const query of queries.slice(0, 3)) jobs.push({ query, kind: "news", freshness });
+  else if ((plan.news || plan.freshness === "day") && queries[0]) jobs.push({ query: queries[0], kind: "news", freshness });
   // `keep` is how fresh the question needs its results: a search for today is kept two minutes, whatever date limit it was sent with.
   const settled = await Promise.allSettled(jobs.map((job) => provider.search({ query: job.query, kind: job.kind, freshness: job.freshness, keep, language: queryLanguage(job.query), signal })));
   const failures: SearchError[] = [];
@@ -168,7 +175,8 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
   }
   deps.breaker.ok();
 
-  const first = rankResults({ lists, plan, now: started, max: SOURCES_KEPT[depth], perSite: 2 });
+  const roundup = plan.roundup === true && depth !== "deep";
+  const first = rankResults({ lists, plan, now: started, max: roundup ? ROUNDUP.sources : SOURCES_KEPT[depth], perSite: 2 });
   if (first.weak && plan.topic) {
     // Nothing that came back carries a single word of the plan: noise, said as such.
     log("info", "web.research", { ms: deps.now() - started, queries: plan.queries.length, results: total(lists), read: 0, planner: planned.via, weak: true });
@@ -190,12 +198,20 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
     return results.map((r, i) => {
       const page = i < read.length ? read[i]! : null;
       const wasRead = page?.ok === true && !page.optOut && page.text.length >= 200;
+      // The address after redirects, when it's a usable length; otherwise the one the search gave.
+      const url = (page?.ok && canonicalUrl(page.url)) || r.url;
+      // The page's own picture for previews, else the one the search gave. None at all for a page that asked not to be used,
+      // or for no picture preview: the search's thumbnail is a preview of that page too.
+      const refused = page?.ok === true && (page.optOut || page.noPicture === true);
+      const picture = refused ? null : (signedPicture(page?.ok ? page.image : null, deps.pictureKey ?? null, url) ?? signedPicture(r.image, deps.pictureKey ?? null, url));
       return {
         n: from + i,
-        // The address after redirects, when it's a usable length; otherwise the one the search gave.
-        url: (page?.ok && canonicalUrl(page.url)) || r.url,
+        url,
         title: oneLine((page?.ok && page.title) || r.title || siteOf(r.url)),
-        site: oneLine((page?.ok && page.site) || siteOf(r.url), 120),
+        // A site is named by its address, which it can't choose: what a page calls itself (stage 278) named one source "go",
+        // and would let any page call itself a newsroom.
+        site: siteOf(url),
+        ...(picture ?? {}),
         published: (page?.ok && page.published) || r.published,
         updated: page?.ok ? page.updated : null,
         read: wasRead,
@@ -205,7 +221,7 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
     });
   };
 
-  let docs = await readAll(first.results, PAGES_TO_READ[depth], 1, 1);
+  let docs = await readAll(first.results, roundup ? ROUNDUP.pages : PAGES_TO_READ[depth], 1, 1);
   if (input.signal.aborted) return stopped();
   const queries = [...plan.queries];
   let rounds = 1;
@@ -238,7 +254,7 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
   const checkedAt = new Date(earliest);
   const tag = deps.tag?.() ?? randomBytes(6).toString("hex");
   const budgetChars = depth === "deep" ? (input.deepBudgetChars ?? input.budgetChars) : input.budgetChars;
-  const context = buildWebBlock({ docs, queries, topic: plan.topic, retrievedAt: checkedAt, budgetChars, tag, rounds });
+  const context = buildWebBlock({ docs, queries, topic: plan.topic, retrievedAt: checkedAt, budgetChars, tag, rounds, roundup });
   log("info", "web.research", { ms: deps.now() - started, depth, rounds, queries: queries.length, results: total(lists), dropped: first.dropped, read: docs.filter((d) => d.read).length, planner: planned.via });
   return {
     context,
@@ -248,6 +264,7 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
       queries,
       sources: docs.map(sourceOf),
       depth,
+      ...(roundup ? { roundup: true } : {}),
       ...(rounds > 1 ? { rounds } : {}),
     }),
     plannerUsage,

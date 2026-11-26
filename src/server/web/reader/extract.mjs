@@ -65,6 +65,41 @@ export function optsOut(document, { robotsTag = "", tdm = "" } = {}) {
   return reservation === "1";
 }
 
+/**
+ * The picture a page names for previews of itself (stage 278, ADR 0285): its og:image, or the one it names for cards. An https
+ * address, made whole against the page's own, or null. A page that asks for no picture preview ("max-image-preview:none", the
+ * instruction search engines follow) gets none, whoever the instruction is addressed to among all crawlers or Farbaek's.
+ */
+export function pagePicture(document, url, { robotsTag = "" } = {}) {
+  return refusesPicture(document, { robotsTag }) ? null : namedPicture(document, url);
+}
+
+/** True when the page asks for no picture preview of itself. Research then shows none for it, not the search's either. */
+export function refusesPicture(document, { robotsTag = "" } = {}) {
+  const directives = [robotsTag, metaContent(document, ['meta[name="robots"]']) ?? "", metaContent(document, ['meta[name="farbaekbot"]']) ?? ""]
+    .join(",")
+    .toLowerCase()
+    .split(",")
+    .map((d) => d.trim())
+    .filter((d) => !/^[a-z0-9_-]+bot\s*:/.test(d) || d.startsWith("farbaekbot:"))
+    .map((d) => d.replace(/^farbaekbot\s*:\s*/, "").replace(/\s+/g, ""));
+  return directives.some((d) => d === "max-image-preview:none" || d === "noimageindex");
+}
+
+function namedPicture(document, url) {
+  const raw = metaContent(document, ['meta[property="og:image:secure_url"]', 'meta[property="og:image"]', 'meta[property="og:image:url"]', 'meta[name="twitter:image"]', 'meta[name="twitter:image:src"]']);
+  if (!raw || raw.length > 2_000 || /^data:/i.test(raw.trim())) return null;
+  try {
+    const picture = new URL(raw.trim(), url);
+    if (picture.protocol !== "https:" || picture.username || picture.password) return null;
+    picture.hash = "";
+    const out = picture.toString();
+    return Buffer.byteLength(out) <= 400 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
 function tidy(text) {
   return text
     .replace(/[\t\f\v ]+/g, " ")
@@ -88,19 +123,22 @@ function paragraphs(html) {
 }
 
 /**
- * Reads a page: { title, site, text, published, updated, lang, optOut }. When the page opts out, only its title and site are
- * kept. Text is capped at 30,000 characters.
+ * Reads a page: { title, site, text, published, updated, lang, optOut, image }. When the page opts out, only its title and
+ * site are kept, and no picture. Text is capped at 30,000 characters.
  */
 export function extractPage(html, url, { robotsTag = "", tdm = "", hintedDate = null, plain = false } = {}) {
   const host = new URL(url).hostname.replace(/^www\./, "");
-  if (plain) return { title: host, site: host, text: tidy(String(html)).slice(0, MAX_TEXT), published: cleanDate(hintedDate), updated: null, lang: null, optOut: false };
+  if (plain) return { title: host, site: host, text: tidy(String(html)).slice(0, MAX_TEXT), published: cleanDate(hintedDate), updated: null, lang: null, optOut: false, image: null, noPicture: false };
   const { document } = parseHTML(String(html));
   const optOut = optsOut(document, { robotsTag, tdm });
   const dates = pageDates(document, hintedDate);
   const titleTag = (document.querySelector("title")?.textContent ?? "").trim();
   const siteName = (metaContent(document, ['meta[property="og:site_name"]']) ?? "").trim();
   const lang = document.documentElement?.getAttribute("lang") ?? null;
-  if (optOut) return { title: titleTag || host, site: siteName || host, text: "", ...dates, lang, optOut: true };
+  if (optOut) return { title: titleTag || host, site: siteName || host, text: "", ...dates, lang, optOut: true, image: null, noPicture: true };
+  // Read before Readability, which rewrites the document as it works.
+  const noPicture = refusesPicture(document, { robotsTag });
+  const image = noPicture ? null : namedPicture(document, url);
   let article = null;
   try {
     article = new Readability(document, { maxElemsToParse: 20_000, charThreshold: 250, keepClasses: false }).parse();
@@ -116,5 +154,7 @@ export function extractPage(html, url, { robotsTag = "", tdm = "", hintedDate = 
     updated: dates.updated,
     lang,
     optOut: false,
+    image,
+    noPicture,
   };
 }

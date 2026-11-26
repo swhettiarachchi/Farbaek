@@ -207,6 +207,34 @@ export function soundsFresh(text: string, year: number): boolean {
   return any(head, FRESH) || any(head, FRESH_WORLD) || namesRecentYear(head, year);
 }
 
+/**
+ * A roundup (stage 278, ADR 0285): the person asks for news, updates or headlines on a subject, not for one fact. "Today's tech
+ * news" and "AI updates" are; "did the launch happen today" and "the price of gold" aren't. A roundup is searched as news
+ * in every part, ranked with newsrooms a little ahead, and written as a list of stories.
+ */
+const ROUNDUP = [
+  /\b(?:news|headlines|updates|news round-?up|round-?up of|(?:news|daily|weekly|morning) digest|digest of|briefing|what(?:'s| is| has)(?: been)? (?:happening|going on)|latest in|catch me up|bring me up to date)\b/i,
+  // Sinhala in English letters, and Sinhala.
+  words("puwath | puwat | prawurthi | pravurthi | updates | aluth dewal | aluth de | aluth tika | mokada wenne | mokada une"),
+  words("පුවත් | ප්‍රවෘත්ති | යාවත්කාලීන | අලුත් දේවල් | අලුත් තොරතුරු"),
+  ...NEWS_SPACED.map(words),
+  ...NEWS_UNSPACED.map(anywhere),
+];
+
+/**
+ * A question with one answer, by how it opens: "did…", "is…", "who…", "how…". Such a message can hold a roundup's words and
+ * mean something else ("Is Fox News owned by Disney?", "Did Apple release any security updates?"), so its words alone never
+ * make it a roundup; the planner model may still say it is one. "What…" is left out: "what are the headlines" is a roundup.
+ */
+const ONE_ANSWER = /^\s*(?:(?:hey|hi|hello|ok|okay|so|and|please)[,!\s]+)?(?:did|does|do|is|are|was|were|has|have|had|can|could|should|would|will|who|whom|whose|when|where|why|how|which)\b/i;
+
+/** True when the message's own words ask for a roundup of news or updates. */
+export function soundsLikeRoundup(text: string): boolean {
+  const head = text.normalize("NFC").slice(0, 600);
+  if (ONE_ANSWER.test(head)) return false;
+  return ROUNDUP.some((re) => re.test(head));
+}
+
 /** True when the message is about news or events, so the news search runs too. */
 export function soundsLikeNews(text: string): boolean {
   const head = text.normalize("NFC").slice(0, 600);

@@ -4,6 +4,7 @@
  * checked. Server-only.
  */
 import { webConfig } from "./config";
+import { pictureKey } from "./picture";
 import { createReaderClient } from "./reader-client";
 import { research, type ResearchInput, type ResearchResult } from "./research";
 import { withSearchCache } from "./search/cache";
@@ -21,5 +22,5 @@ export function webResearch(): ((input: ResearchInput) => Promise<ResearchResult
   searches ??= withSearchCache(createSearxng(config.searchUrl));
   const search = searches;
   const reader = createReaderClient(config.readerUrl);
-  return (input) => research({ search, reader, breaker, now: Date.now }, input);
+  return (input) => research({ search, reader, breaker, now: Date.now, pictureKey: pictureKey() }, input);
 }

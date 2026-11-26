@@ -35,6 +35,8 @@ const CLUSTER = /(?:\[\d{1,2}(?:\s{0,2},\s{0,2}\d{1,2}){0,8}\]\s{0,2})+/g;
 const LINK = /\[([^\]\n]{0,300})\]\((https?:\/\/[^)\s]{1,700})\)/g;
 const ENDER = /[.!?。！？।](?=\s|$)/gu;
 const ENDS = new Set([".", "!", "?", "。", "！", "？", "।", " ", "\t"]);
+/** A Markdown heading: where a roundup's story carries its citation (stage 278). */
+const HEADING_LINE = /^ {0,3}#{1,6}\s/;
 
 /** Code is never a claim, and a "[1]" inside it is an index, not a citation. */
 function withoutCode(text: string): string {
@@ -59,6 +61,9 @@ function sentenceAround(line: string, start: number, end: number): string {
   return line.slice(from, after < 0 ? line.length : end + after).trim();
 }
 
+/** A link to an address, tested once (no "g": it keeps no place between lines). */
+const LINK_ONCE = /\[[^\]\n]{0,300}\]\(https?:\/\/[^)\s]{1,700}\)/;
+
 const clean = (claim: string) => claim.replace(MARK, " ").replace(LINK, "$1").replace(/[*_#>|]+/g, " ").replace(/\s{2,}/g, " ").trim();
 
 /**
@@ -71,17 +76,33 @@ export function readCitations(answer: string, sources: readonly Pick<WebSource, 
   for (const s of sources) byUrl.set(canonicalUrl(s.url) ?? s.url, s.n);
   const citations: Citation[] = [];
   let invalid = 0;
-  for (const whole of withoutCode(answer.slice(0, LIMITS.answer)).split(/\n+/)) {
+  const lines = withoutCode(answer.slice(0, LIMITS.answer)).split(/\n+/);
+  for (let at = 0; at < lines.length; at++) {
     if (citations.length >= LIMITS.citations) break;
-    const line = whole.slice(0, LIMITS.line);
+    const line = lines[at]!.slice(0, LIMITS.line);
+    // A story of a roundup (stage 278) cites its source on its heading, and says the day and the figures in the sentences under
+    // it. Those sentences are part of what the heading's source is cited for, up to the next heading, unless a sentence cites a
+    // source of its own. Without this, only the headline would be compared with the page.
+    let under = "";
+    if (HEADING_LINE.test(line)) {
+      for (let j = at + 1; j < lines.length && under.length < LIMITS.line; j++) {
+        const next = lines[j]!.slice(0, LIMITS.line);
+        if (HEADING_LINE.test(next)) break;
+        MARK.lastIndex = 0;
+        if (!MARK.test(next) && !LINK_ONCE.test(next)) under += ` ${next}`;
+      }
+      MARK.lastIndex = 0;
+      under = clean(under.slice(0, LIMITS.line));
+    }
     let previousEnd = 0;
     let previousClaim = "";
     for (const cluster of line.matchAll(CLUSTER)) {
       const numbers: number[] = [];
       for (const mark of cluster[0].matchAll(MARK)) for (const part of mark[1]!.split(",")) numbers.push(Number(part.trim()));
       if (numbers.includes(0)) continue;
-      const claim = clean(lastSentence(line.slice(previousEnd, cluster.index))) || previousClaim;
-      previousClaim = claim;
+      const said = clean(lastSentence(line.slice(previousEnd, cluster.index))) || previousClaim;
+      const claim = under ? `${said} ${under}`.trim() : said;
+      previousClaim = said;
       previousEnd = cluster.index + cluster[0].length;
       for (const n of numbers) {
         if (!known.has(n)) invalid++;

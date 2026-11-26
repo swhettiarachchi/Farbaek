@@ -12,12 +12,14 @@
  *   undated one is left alone;
  * - the kind of source: the subject's own site (openai.com for a question about OpenAI) counts for more, and so, a little, does
  *   a site of the country the question is about (.lk for a Sri Lankan one); people-finder and contact-list sites, which answer
- *   nothing, count for less. No list of "trusted" names: a well-known site isn't right about
- *   everything;
+ *   nothing, count for less. No list of "trusted" names for a question with an answer: a well-known site isn't right about
+ *   everything. A roundup of news is the one exception (stage 278, newsrooms.ts): it has no subject of its own to rank by, so
+ *   a newsroom that reported a story counts a little more than a site that rewrote it;
  * - the same story on several sites (one title, syndicated) is kept once.
  *
  * At most two results from one site, as before (sources.ts).
  */
+import { isNewsroom, NEWSROOM_WEIGHT } from "./newsrooms";
 import type { Freshness, SearchPlan } from "./plan";
 import { canonicalUrl, selectResults, siteOf, type SearchResult } from "./sources";
 
@@ -118,7 +120,7 @@ export interface Ranked extends SearchResult {
 export interface RankInput {
   /** One list per search, in the order the engine gave. */
   lists: SearchResult[][];
-  plan: Pick<SearchPlan, "queries" | "topic" | "freshness" | "news">;
+  plan: Pick<SearchPlan, "queries" | "topic" | "freshness" | "news"> & { roundup?: boolean };
   now: number;
   max?: number;
   perSite?: number;
@@ -148,6 +150,7 @@ export function rankResults({ lists, plan, now, max = 8, perSite = 2 }: RankInpu
         if (!seen.published && r.published) seen.published = r.published;
         if (r.snippet.length > seen.snippet.length) seen.snippet = r.snippet.slice(0, 600);
         if (r.kind === "news") seen.kind = "news";
+        if (!seen.image && r.image) seen.image = r.image;
         return;
       }
       // What a search engine returns is cut before anything reads it: a title is a line, a snippet a sentence or two.
@@ -158,7 +161,8 @@ export function rankResults({ lists, plan, now, max = 8, perSite = 2 }: RankInpu
   for (const r of all) {
     r.relevance = Math.min(1, coverage(r.title, wanted) * 2 * 0.6 + coverage(`${r.title} ${r.snippet} ${siteOf(r.url)}`, wanted) * 0.7);
     const newsy = plan.news && r.kind === "news" && (plan.freshness === "day" || plan.freshness === "week") ? 1.15 : 1;
-    r.score = r.fused * (0.35 + r.relevance) * freshnessWeight(r.published, plan.freshness, now) * sourceWeight(r.url, wanted, local) * newsy;
+    const newsroom = plan.roundup && isNewsroom(siteOf(r.url)) ? NEWSROOM_WEIGHT : 1;
+    r.score = r.fused * (0.35 + r.relevance) * freshnessWeight(r.published, plan.freshness, now) * sourceWeight(r.url, wanted, local) * newsy * newsroom;
   }
   const relevant = all.filter((r) => r.relevance > 0);
   const weak = wanted.length > 0 && relevant.length === 0;

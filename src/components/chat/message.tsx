@@ -258,7 +258,7 @@ export function AnswerMessage({
   // What the answer's own parts need (stage 206): its sources by number, for citations in the text, and a way to send a choice.
   const found = message.meta.search;
   const choose = last && !busy && !readOnly && !streaming ? actions?.onChoose : undefined;
-  const parts = useMemo<AnswerParts>(() => ({ sources: found?.status === "done" && found.sources.length > 0 ? new Map(found.sources.map((s) => [s.n, s])) : null, onChoose: choose }), [found, choose]);
+  const parts = useMemo<AnswerParts>(() => ({ sources: found?.status === "done" && found.sources.length > 0 ? new Map(found.sources.map((s) => [s.n, s])) : null, onChoose: choose, stories: found?.roundup === true, pictures: !readOnly }), [found, choose, readOnly]);
   const offered = HANDOFFS.filter((h) => handOffs?.includes(h.to));
   // An answer written without checking the web can be asked again with it.
   const canCheckWeb = !readOnly && last && message.kind === "text" && message.status === "complete" && found?.status === "skipped" && Boolean(actions?.onCheckWeb);

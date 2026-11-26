@@ -18,7 +18,7 @@ function deps(search: SearchProvider | null, reader: ReaderClient | null, over: 
   return { search, reader, breaker: createBreaker({ now: () => NOW }), now: () => NOW, tag: () => "tag", ...over };
 }
 const provider = (fn: SearchProvider["search"]): SearchProvider => ({ name: "fake", search: fn });
-const readerOf = (fn: ReaderClient["read"]): ReaderClient => ({ read: fn });
+const readerOf = (fn: ReaderClient["read"]): ReaderClient => ({ read: fn, picture: async () => null });
 const SEARCH: NeedReading = { need: "search", explicit: false, why: "test" };
 const input = { question: "What is new in Node.js?", earlier: [], need: SEARCH, local: true, plannerModel: null, plannerModelId: null, budgetChars: 9_000, signal: new AbortController().signal };
 
