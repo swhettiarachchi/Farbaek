@@ -3,6 +3,7 @@ import { turnRequestSchema, type TurnEvent } from "@/core/chat/protocol";
 import { encodeEvent, encodeKeepAlive } from "@/core/chat/sse";
 import { imageGeneration } from "@/server/ai/image-config";
 import { openAiKey } from "@/server/ai/openai-second-checker";
+import { readProjectFacts } from "@/server/chat/project-facts";
 import { chatModels } from "@/server/chat/setup";
 import { createChatWrites, readConversation, readFiles, readMemories, readPath, readPendingFiles, readSummaries } from "@/server/chat/store";
 import { prepareTurn, type TurnDeps } from "@/server/chat/turn";
@@ -92,6 +93,19 @@ export async function POST(request: Request) {
       // A long conversation's saved summaries and what the person asked to be remembered (stage 207, ADR 0224): their own, read as them.
       summaries: (ids) => readSummaries(user, ids),
       memories: async () => ((await readMemories(user, orgId)) ?? []).map((m) => m.content),
+      // The project a chat is filed under (stage 282, ADR 0290): its names and states, read as the person. Never a file's contents.
+      project: (id) =>
+        readProjectFacts(
+          ctx.reader,
+          async (projectId) => {
+            const { data, error } = await user.from("sites").select("id").eq("org_id", orgId).eq("project_id", projectId).not("live_deployment_id", "is", null).is("blocked_at", null).limit(1);
+            // A read that failed is not "not published": it is unread.
+            if (error) throw new Error("the project's site couldn't be read");
+            return (data?.length ?? 0) > 0;
+          },
+          orgId,
+          id,
+        ),
     },
     claude: models.claude,
     openai: models.openai,

@@ -8,6 +8,7 @@ import { TaskList } from "@/components/scheduled/task-list";
 import { SCHEDULED_LIMITS, type ScheduledLimit } from "@/core/automation/tasks";
 import { demoScheduled } from "@/server/automation/demo";
 import { pageLinks } from "@/server/automation/links";
+import { startsWithinLine } from "@/server/automation/minute-tick";
 import { listRuns, listTasks } from "@/server/automation/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -81,7 +82,7 @@ export default async function ScheduledPage() {
 
       <Card>
         <CardTitle icon={CalendarCheckIcon}>{tasks && tasks.length > 0 ? "Schedule another" : "Schedule your first task"}</CardTitle>
-        <p className="mt-1 text-sm text-ink-2">A task starts within 15 minutes of its time. If Farbaek can&apos;t finish a run, the task says why, and it&apos;s paused after five runs in a row that didn&apos;t finish.</p>
+        <p className="mt-1 text-sm text-ink-2">{startsWithinLine()} If Farbaek can&apos;t finish a run, the task says why, and it&apos;s paused after five runs in a row that didn&apos;t finish.</p>
         <div className="mt-4">
           <NewTask limit={limit} disabledReason={disabledReason} serverNow={serverNow} />
         </div>

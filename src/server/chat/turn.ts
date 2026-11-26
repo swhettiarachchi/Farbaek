@@ -22,6 +22,7 @@ import { languageNote, planLanguage } from "@/core/chat/language-plan";
 import { modelAt } from "@/core/chat/ladder";
 import { computerNote, readAction } from "@/core/chat/intent";
 import { memoryNote, memoryOutcomeNote, MEMORY_OFF_NOTE, readRememberRequest, type MemoryOutcome } from "@/core/chat/memory";
+import { projectBrief, projectKnownLine, projectLabel, type ProjectFacts } from "@/core/chat/project-brief";
 import { offeredChoices } from "@/core/chat/markdown";
 import { cleanSummary, newestSummary, summaryContext, summaryDue, summaryInput, SUMMARY_PROMPT, type SavedSummary, type SummaryMessage } from "@/core/chat/summary";
 import { checkCitations } from "@/core/web/citations";
@@ -46,6 +47,8 @@ export interface ChatReads {
   summaries?(ids: string[]): Promise<Map<string, SavedSummary> | null>;
   /** What the person asked Farbaek to remember in this workspace, newest first (stage 207). Missing: nothing. */
   memories?(): Promise<string[]>;
+  /** The project a conversation is filed under, by name and state (stage 282). Missing or null: the chat is told nothing of it. */
+  project?(id: string): Promise<ProjectFacts | null>;
 }
 
 export interface TurnDeps {
@@ -86,6 +89,17 @@ const MANUAL = "Earlier answers in your chats stay readable.";
 const MAX_OUTPUT = { quick: 4_096, balanced: 16_000, thorough: 32_000 } as const;
 /** A roundup is eight stories with their specifics and a reading of the day: more than a quick answer's room, in any script. */
 const ROUNDUP_OUTPUT = 9_000;
+/** The most a turn waits to read its chat's project (stage 282): after that the answer starts without the brief. */
+const PROJECT_READ_MS = 2_500;
+
+/** The work's result, or null when it took longer than `ms`. The work is left to finish by itself. */
+function within<T>(ms: number, work: Promise<T>): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  return Promise.race([work, late]).finally(() => clearTimeout(timer));
+}
 /** What the model reads at most, estimated: older messages drop off first. */
 const CONTEXT_TOKENS = 120_000;
 /** Messages read from the branch for context. */
@@ -269,12 +283,14 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   let existingQuestion: ChatMessage | null = null;
   let continuing: ChatMessage | null = null;
   let conversationTitled = false;
+  let conversationProject: string | null = null;
 
   if (conversationId) {
     const conversation = await deps.reads.conversation(conversationId);
     if (!conversation) return refused(404, "That conversation doesn't exist or isn't yours.");
     // Named by the person; the question's first words are only a stand-in until the AI names it.
     conversationTitled = conversation.titled;
+    conversationProject = conversation.projectId;
   }
 
   if (request.action === "send") {
@@ -377,6 +393,15 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   const guidance = languageNote(languagePlan) ?? undefined;
   // It goes beside the person's message, like web results, with no more authority than their own words: never in the instructions.
   const rememberedNote = memoryNote(remembered);
+  // The project this chat is filed under (stage 282, ADR 0290): a short brief of it, by name and state, beside the message. A
+  // chat started inside a project has it from its first question. It is read as the person, never stops a turn, and they can
+  // switch it off in this browser.
+  const useProject = !("project" in request) || request.project !== false;
+  const briefOf = conversationProject ?? (request.action === "send" && !conversationId ? request.projectId : null);
+  const projectFacts = useProject && briefOf && deps.reads.project ? await within(PROJECT_READ_MS, deps.reads.project(briefOf)).catch(() => null) : null;
+  const projectNote = projectBrief(projectFacts);
+  // What an answer's details say it was told about. A continued answer still says what it was told when it began.
+  const toldProject = (projectFacts && projectNote ? projectLabel(projectFacts.name) : null) ?? continuing?.meta.project ?? null;
   // Something to remember in this message: only in a message the person typed, never when one is asked again, and never a
   // choice the model offered and the person tapped (those are the model's words).
   const requested = questionText !== null ? readRememberRequest(questionText) : null;
@@ -398,7 +423,11 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // A request to act never outranks words that ask for the web ("open my browser and check today's news" is still searched).
   // A message that only asks for something to be remembered has nothing to look up either.
   const actsOnly = read0 !== null && ((action !== null && (read0.need === "none" || read0.need === "unsure")) || (remember !== null && remember.whole && !read0.explicit));
-  const need: NeedReading | null = !read0 ? null : forced ? { need: read0.need === "deep" ? "deep" : "search", explicit: true, why: "asked to check the web" } : actsOnly ? { need: "none", explicit: false, why: action ? "a request to act on the computer" : "a request to remember something" } : read0;
+  const worded: NeedReading | null = !read0 ? null : forced ? { need: read0.need === "deep" ? "deep" : "search", explicit: true, why: "asked to check the web" } : actsOnly ? { need: "none", explicit: false, why: action ? "a request to act on the computer" : "a request to remember something" } : read0;
+  // A chat that has its project's record (stage 282): "current", "latest" and "right now" are most often about the project
+  // itself, which no search can answer. Unless the person asked for the web in so many words, the planner decides, and is told
+  // the record exists.
+  const need: NeedReading | null = worded && projectNote && worded.need === "search" && !worded.explicit ? { ...worded, need: "unsure", why: "it may be about the chat's own project" } : worded;
   const notNeeded = need?.need === "none";
   // A roundup of news (stage 280, ADR 0288) is seven or eight stories read from several newsrooms, each with its specifics, and a
   // reading of the day. Its words are few and plain ("tech news today"), so by its words alone it would get a quick answer's
@@ -440,11 +469,11 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
   // which is planned without a model. It may turn a question into a deep task, so the room for one is kept whenever it runs.
   const searching = !skip && !notNeeded && need !== null;
   // A roundup (stage 278) is the planner's to write even when the message is short and plain: it is searched in three parts.
-  const plansHere = searching && need.need === "search" && plansLocally(asking, userTexts.length) && !soundsLikeRoundup(asking);
+  const plansHere = searching && need.need === "search" && plansLocally(asking, userTexts.length) && !soundsLikeRoundup(asking) && !projectNote;
   const wantsPlanner = searching && !plansHere && Boolean(modelFor(choice).complete);
   // The web text this answer may read comes out of the conversation's room, and goes into the reservation.
   const webTokens = !searching ? 0 : (wantsPlanner ? Math.max(DEEP_WEB_TOKENS, WEB_TOKENS[choice.tier]) : WEB_TOKENS[choice.tier]) + WEB_FRAME_TOKENS;
-  const memoryTokens = rememberedNote ? approxTokens(rememberedNote) + 8 : 0;
+  const memoryTokens = (rememberedNote ? approxTokens(rememberedNote) + 8 : 0) + (projectNote ? approxTokens(projectNote) + 8 : 0);
   const summaryRoom = summaryText ? approxTokens(summaryContext(summaryText)) + 8 : 0;
   const context = fitContext(contextMessages, CONTEXT_TOKENS - webTokens - summaryRoom - memoryTokens);
   // The summary is read only when messages have dropped out of what the model reads: the branch is longer than a turn loads, or
@@ -523,7 +552,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
     rating: null,
     thinkingMs: null,
     // A continued answer keeps showing its sources while it carries on.
-    meta: { why: routed.reason, ...(continuing?.meta.search ? { search: continuing.meta.search } : {}) },
+    meta: { why: routed.reason, ...(continuing?.meta.search ? { search: continuing.meta.search } : {}), ...(toldProject ? { project: toldProject } : {}) },
     createdAt: continuing?.createdAt ?? new Date(deps.now()).toISOString(),
     siblings: continuing?.siblings ?? [answerId],
     files: [],
@@ -625,6 +654,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
               question: asking,
               earlier: earlierTurns,
               need,
+              known: projectFacts && projectNote ? projectKnownLine(projectFacts.name) : undefined,
               local: planner === null,
               plannerModel: planner ? modelFor(choice) : null,
               plannerModelId: planner?.model ?? null,
@@ -660,6 +690,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       if (serverNote) withContext(modelInput, serverNote);
       if (serverData) withContext(modelInput, serverData);
       if (rememberedNote) withContext(modelInput, rememberedNote);
+      if (projectNote) withContext(modelInput, projectNote);
       if (memoryContext) withContext(modelInput, memoryContext);
       if (webContext) withContext(modelInput, webContext);
 
@@ -673,6 +704,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
         if (serverNote) withContext(lean, serverNote);
         if (serverData) withContext(lean, serverData);
         if (rememberedNote) withContext(lean, rememberedNote);
+        if (projectNote) withContext(lean, projectNote);
         if (memoryContext) withContext(lean, memoryContext);
         if (webContext) withContext(lean, webContext);
         outcome = await ask(continuing ? [...lean, ...modelInput.slice(-1)] : lean);
@@ -707,7 +739,7 @@ export async function prepareTurn(deps: TurnDeps, input: { orgId: string; userId
       // The answer's own facts, written whole: a continued answer no longer says it reached its length limit.
       // The route's facts are kept with the answer: the next question reads its tier and provider, and ratings can later be read by kind.
       const route = { why: routed.reason, kind: routed.kind, difficulty: routed.difficulty, tier: answering.tier, provider: answering.provider, ...(fellBack ? { fallback: true } : {}) };
-      const finalSave = await save(status, error, { ...(stop ? { stop } : {}), route, ...(searchMeta ? { search: searchMeta } : {}), ...((memoryOutcome ?? continuing?.meta.memory) ? { memory: memoryOutcome ?? continuing?.meta.memory } : {}) });
+      const finalSave = await save(status, error, { ...(stop ? { stop } : {}), route, ...(searchMeta ? { search: searchMeta } : {}), ...((memoryOutcome ?? continuing?.meta.memory) ? { memory: memoryOutcome ?? continuing?.meta.memory } : {}), ...(toldProject ? { project: toldProject } : {}) });
       if (!finalSave.ok) log("error", "chat.save_failed", { status, reason: finalSave.error.slice(0, 120) });
       try {
         emit({ type: "done", status, error, thinkingMs, modelName: modelName(outcome.usage?.model ?? answering.model), stop });

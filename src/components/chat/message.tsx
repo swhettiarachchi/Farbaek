@@ -428,10 +428,11 @@ function AnswerDetails({ message }: { message: ChatMessage }) {
             {open ? "Hide details" : "Details"}
           </button>
           {open ? (
-            <span className="basis-full text-ink-2">
+            <span className="basis-full text-ink-2 [overflow-wrap:anywhere]">
               Answered by {message.modelName}
               {message.meta.why ? `, chosen for ${message.meta.why}` : ""}.
               {checkedAt(message)}
+              {message.meta.project ? ` Told about your project ${message.meta.project}: its files and tasks by name, not what is inside them.` : ""}
             </span>
           ) : null}
         </>
