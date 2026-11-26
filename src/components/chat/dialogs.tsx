@@ -14,6 +14,8 @@ import { shareChatAction, unshareChatAction } from "@/app/app/chat/actions";
 import type { ChatAvailabilityView } from "./chat-shell";
 import { MemorySettings } from "./memory-settings";
 import { ThemeChoice } from "@/components/theme/theme-choice";
+import { LevelChoice } from "@/components/experience/level-choice";
+import type { Level } from "@/core/experience/level";
 import type { Theme } from "@/core/theme/theme";
 import { setChatPrefs, useChatPrefs } from "./prefs";
 import { Dialog, useCopy } from "./primitives";
@@ -213,7 +215,7 @@ const SHORTCUTS: [string, string][] = [
   ["New line", "Shift Enter"],
 ];
 
-export function SettingsDialog({ open, onClose, theme, availability, planLabel }: { open: boolean; onClose: () => void; theme: Theme; availability: ChatAvailabilityView; planLabel: string }) {
+export function SettingsDialog({ open, onClose, theme, level, availability, planLabel }: { open: boolean; onClose: () => void; theme: Theme; level: Level; availability: ChatAvailabilityView; planLabel: string }) {
   const prefs = useChatPrefs();
   return (
     <Dialog open={open} onClose={onClose} title="Chat settings">
@@ -226,6 +228,16 @@ export function SettingsDialog({ open, onClose, theme, availability, planLabel }
             <ThemeChoice saved={theme} labelledBy="chat-set-look" />
           </div>
           <p className="mt-2 text-xs text-ink-3">For all of Farbaek on this device. Auto follows the device&rsquo;s own setting.</p>
+        </section>
+
+        <section aria-labelledby="chat-set-level">
+          <h3 id="chat-set-level" className={LABEL_CLASSES}>
+            How much Farbaek shows
+          </h3>
+          <div className="mt-2">
+            <LevelChoice saved={level} labelledBy="chat-set-level" stacked />
+          </div>
+          <p className="mt-2 text-xs text-ink-3">For all of Farbaek on this device: how many tools the menus list, and whether you pick the model here.</p>
         </section>
 
         <section aria-labelledby="chat-set-language">

@@ -26,6 +26,8 @@ import { AnswerMessage, fileUrl, UserMessage } from "./message";
 import type { LiveSearch } from "./web-sources";
 import { IconButton, Menu, useToast } from "./primitives";
 import { useChatPrefs, useReducedMotion } from "./prefs";
+import { choosesModel } from "@/core/experience/level";
+import { modelToAsk } from "@/core/chat/model-to-ask";
 import { readTurnStream } from "./stream";
 
 export interface ConversationInfo {
@@ -57,7 +59,10 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
   const router = useRouter();
   const reduced = useReducedMotion();
   const voice = useSpeaker();
-  const prefs = useChatPrefs();
+  const savedPrefs = useChatPrefs();
+  // At Standard, Farbaek AI picks who answers (stage 285, ADR 0293): a model chosen at another level is kept, and not used.
+  const pickModel = choosesModel(chat.level);
+  const prefs = useMemo(() => ({ ...savedPrefs, model: modelToAsk(savedPrefs.model, pickModel) }), [savedPrefs, pickModel]);
   const [convId, setConvId] = useState<string | null>(conversation?.id ?? null);
   const [title, setTitle] = useState(conversation?.title ?? "");
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
@@ -479,6 +484,8 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
       imagePercent={chat.availability.imagePercent}
       usagePercent={chat.availability.percent}
       models={chat.availability.models}
+      pickModel={pickModel}
+      onChooseModel={chat.openSettings}
       busy={busy}
       onSend={send}
       onStop={() => controller.current?.abort()}

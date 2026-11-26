@@ -1,4 +1,4 @@
-import { BookOpenTextIcon, BracketsCurlyIcon, BuildingsIcon, CircleHalfIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, LightbulbIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@/components/icons";
+import { BookOpenTextIcon, BracketsCurlyIcon, BuildingsIcon, CircleHalfIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, LightbulbIcon, SlidersHorizontalIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AutonomySettings } from "@/components/app/autonomy-settings";
@@ -44,6 +44,8 @@ import { Card, CardTitle, PageHeader } from "@/components/app/primitives";
 import { SuggestionSwitches } from "@/components/app/suggested-next";
 import { ThemeChoice } from "@/components/theme/theme-choice";
 import { savedTheme } from "@/server/theme";
+import { LevelChoice } from "@/components/experience/level-choice";
+import { savedLevel } from "@/server/experience";
 import { RelativeTime } from "@/components/ui/local-time";
 import { loadAppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
@@ -55,7 +57,7 @@ const ROLE_LABEL = { owner: "Owner", admin: "Admin", member: "Member", viewer: "
 
 export default async function SettingsPage() {
   const ctx = await loadAppContext();
-  const theme = await savedTheme();
+  const [theme, level] = await Promise.all([savedTheme(), savedLevel()]);
   if (!ctx?.current) notFound();
   const ws = ctx.current;
   const canManage = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
@@ -153,6 +155,21 @@ export default async function SettingsPage() {
           <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-2">Light or Dark, for every page of Farbaek on this device. Auto follows the device&rsquo;s own setting.</p>
           <div className="mt-4">
             <ThemeChoice saved={theme} labelledBy="appearance-title" />
+          </div>
+        </Card>
+      </section>
+
+      {/* How much of Farbaek is on screen (stage 285, ADR 0293): the menus' own choice, never a lock. */}
+      <section id="experience" aria-labelledby="experience-title" className="scroll-mt-24">
+        <Card>
+          <CardTitle id="experience-title" icon={SlidersHorizontalIcon}>
+            How much Farbaek shows
+          </CardTitle>
+          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-2">
+            Choose how much is on screen, on this device: how many tools the menus list, and whether you pick the model in Chat or Farbaek AI picks it for you. Search reaches every page at any level.
+          </p>
+          <div className="mt-4">
+            <LevelChoice saved={level} labelledBy="experience-title" />
           </div>
         </Card>
       </section>

@@ -1,5 +1,6 @@
 "use server";
 
+import { rememberedForWork } from "@/server/chat/remembered-for-work";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -220,7 +221,7 @@ export async function approveContractAction(_previous: FormState, form: FormData
 
 export type AiDraftState =
   | { status: "error"; message: string }
-  | { status: "done"; values: ContractFormValues; model: string; usage: { percent: number | null }; routeNote: string | null };
+  | { status: "done"; values: ContractFormValues; model: string; usage: { percent: number | null }; routeNote: string | null; remembered: number };
 
 /**
  * Drafts contract fields with AI for the person to review. Nothing is saved:
@@ -248,6 +249,7 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
 
   const provider = ai.provider;
   const effort = z.enum(EFFORTS).catch("balanced").parse(form.get("effort"));
+  const remembered = await rememberedForWork(w.orgId);
   const result = await draftContractWithAi(ai.deps, { family: provider, create: (s) => createContractDrafter(provider, s, ai.client) }, {
     orgId: w.orgId,
     userId: ctx.user.id,
@@ -259,12 +261,14 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
       paths: files.map((f) => f.path),
       notes,
       ...(passport ? { facts: passportBrief(passport, 30) } : {}),
+      // What this person asked Farbaek to remember (stage 284, ADR 0292): their own, and none when memory is off in this browser.
+      ...(remembered.length > 0 ? { remembered } : {}),
     },
     effort,
   });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
-  return { status: "done", values: result.value.form, model: result.value.model, usage: result.value.usage, routeNote: result.value.routeNote };
+  return { status: "done", values: result.value.form, model: result.value.model, usage: result.value.usage, routeNote: result.value.routeNote, remembered: result.value.remembered };
 }
 
 export type ImportState = { status: "error"; message: string } | { status: "done"; summary: ImportSummary };

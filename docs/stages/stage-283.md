@@ -37,6 +37,7 @@ The owner told me not to stop until the platform is built. In the briefs' order 
 - `tsc --noEmit` with a 4 GB heap, and `pnpm lint`: clean.
 - **`pnpm build`:** passed, with the 4 GB heap its type check needs on this PC.
 - **In the demo workspace, in a real browser,** with a sample suggestion put on Home for the look and then taken out again: the card closed and open at 1280px and 390px, in light and in dark; "Not now" taking it away; and the four switches in Settings at 390px. No console errors.
+- **Live, 2026-11-26 at about 20:05 (+05:30), after #340 was merged** (production build e2fcc4e052a3, the merge's own): Settings showed "Suggestions on Home" with its four switches, all on and usable. The owner's Home showed "Your turn" (two changes that ran out of time) and the first steps, so no suggestion was drawn, as designed: what needs the person comes first. A suggestion from real records has still not been seen.
 - **Not verified:**
   - **A suggestion from real records.** The demo's Home has a change waiting, so it shows that card, not a suggestion. To be looked at on production after the merge.
   - **The card after the last small changes** (the underline on "Stop suggesting", publishing gated on permission): type-checked and tested, not looked at again.

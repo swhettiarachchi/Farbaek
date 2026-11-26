@@ -23,7 +23,7 @@ The 55 sections of the two briefs cover 32 subjects; many sections of B repeat s
 | Not started | 1: Grok, X search and the X connector (B9), which waits on the owner's xAI key |
 | Waiting on the owner | an xAI key and budget, an X developer account, a paid video key, the price decision, and the DNS fault at Spaceship |
 
-Inside the "Partly" subjects, whole parts are also not started: the Audio Studio, the phone voice assistant, the three modes, the visual workflow builder, triggers other than time, the investor report, and most of Telepathy. (Schedules were on this list until stage 271.)
+Inside the "Partly" subjects, whole parts are also not started: the Audio Studio, the phone voice assistant, the visual workflow builder, triggers other than time, the investor report, and most of Telepathy. (Schedules were on this list until stage 271, and the three modes until stage 285.)
 
 The largest gaps, by the briefs' own priority: **automation and persistent agents** (A12, A13, B6, B7), the **voice assistant on phones** (A15, B8), **Grok and X** (B9), **Telepathy** (A16), and **redesigning the inside of every page** (A23, B4).
 
@@ -134,7 +134,7 @@ Present: identity, conversations, memory, metering and usage, approvals, audit, 
 | Intent understanding | Partly: Chat tells research questions, computer requests and the language written in |
 | Next-step recommendations | Partly: Home shows what waits for you, a new workspace's first steps, and, when nothing waits, one suggestion from the person's tasks and live sites (stage 283, ADR 0291). By fixed rules; nothing yet from Chat's history or inside the spaces |
 | Project awareness | Partly: a chat filed under a project is told its files and tasks by name, each task's state and whether its site is live (stage 282, ADR 0290). It does not read what is inside a file, and the studios are not told |
-| Personalised context across spaces | Not started |
+| Personalised context across spaces | Partly: what a person asked Farbaek to remember goes to the plans Build drafts for them, under the same switch (stage 284, ADR 0292). Not to the build agent itself, the studios or the phone apps |
 | Goal tracking, proactive suggestions, decision support | Not started |
 | Explanation of suggestions and user corrections | Partly: every suggestion on Home says why, from the record it came from, and can be put away for a week or switched off by kind (stage 283). Kept in the browser, so it doesn't follow the person across devices |
 | The named systems (IntentSense, MindMemory, FutureSense, ContextVision, DecisionMind, AgentSync, LifeFlow, IntentProof) | Not started |
@@ -143,9 +143,9 @@ Present: identity, conversations, memory, metering and usage, approvals, audit, 
 
 Done: a language layer that reads Sinhala script, Singlish and other languages typed in English letters, answers in the person's language, and has measured test cases (ADR 0221); web research reads Sinhala into search words. Live checks on 2026-11-17 worked for Singlish and five other languages. Missing: Sinhala voice, and a measured score for answer quality (the floors measure reading, not answers).
 
-### A18, B4 Chat experience: Done except the three modes
+### A18, B4 Chat experience: Done, with the three modes in a first version
 
-Done: history with search, sidebar, composer, streaming, stop, model choice with the reason shown, files, images, dictation, read aloud, web research with numbered citations checked against the pages, filing under projects, edit, branches, try again, copy, good and bad feedback, sharing, memory, Markdown, code and maths. News and updates are answered as a dated roundup of stories with their pages' pictures (stage 278, ADR 0285; to be checked with a live model after its merge). Still plain text: comparisons with pictures, places, numbers as charts. **Missing: the Standard, Advanced and Professional modes** (A18 asks to preserve them).
+Done: history with search, sidebar, composer, streaming, stop, model choice with the reason shown, files, images, dictation, read aloud, web research with numbered citations checked against the pages, filing under projects, edit, branches, try again, copy, good and bad feedback, sharing, memory, Markdown, code and maths. News and updates are answered as a dated roundup of stories with their pages' pictures (stage 278, ADR 0285; to be checked with a live model after its merge). Still plain text: comparisons with pictures, places, numbers as charts. **The Standard, Advanced and Professional modes** are built in a first version (stage 285, ADR 0293): a person's choice of how many tools the menus list and whether Chat lists its models, with Standard until they choose. It is never a lock: search and addresses reach everything. Not yet: Settings, Build's workspace, the studios and the apps reading the level, and the choice kept with the account instead of the browser.
 
 ### A19, B11 Studios: Partly
 
@@ -259,8 +259,8 @@ Everything not done, in the order that lets each part stand on the one before. I
 3. Automation: schedules are built (stage 271), Chat offers them (stage 273), and a link starts a task from another app (stage 277). Still to do: triggers from inside Farbaek and from connected apps, workflows from words, a visual builder, conditions.
 4. Persistent agents: part 1 is built (stage 275): name, goal, schedule, a limit in runs, notes of its own, the memory switch, progress, pause, resume, remove. Still to do: a budget in AI usage, tools, more than one piece of work, talking to an agent.
 5. One command center with one pause: a first version is built (stage 276, All work). Still to do: each thing's cost, acting from the row, an owner's view of everyone's work.
-6. **Telepathy part 1:** project awareness in Chat (built in stage 282, by names and states), suggested next steps with their reasons and corrections (built in stage 283, on Home), one memory across spaces, suggested next steps with "why this" and corrections.
-7. **The three modes:** Standard, Advanced, Professional.
+6. **Telepathy part 1:** project awareness in Chat (built in stage 282, by names and states), suggested next steps with their reasons and corrections (built in stage 283, on Home), memory reaching Build's plans (built in stage 284), one memory across spaces, suggested next steps with "why this" and corrections.
+7. **The three modes:** a first version is built (stage 285): the menus' tools and Chat's list of models follow the level. Still to do: Settings, Build's workspace, the studios and the apps reading it; the choice kept with the account.
 8. Build starting in one place; one sidebar across the spaces; **the professional-colours pass** (after the owner's answer).
 9. **Redesign the content of every page** in the app and on the public site; **the missing public pages** (features, docs, API docs, about, contact, help, changelog).
 10. The routers reading the registry; failover beyond Chat; **the benchmark engine** with cost per finished task; the registry's missing fields.

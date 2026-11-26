@@ -3,6 +3,7 @@
  * prefills the editor, and the person still saves and approves it through
  * the normal contract use cases. Usage follows ai-usage.ts.
  */
+import { memoryForBrief } from "@/core/chat/memory";
 import { draftToForm } from "@/core/realityloop/contract-draft";
 import { isStaticSite, SITE_CHECK_COMMAND } from "@/core/realityloop/site-check";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
@@ -26,6 +27,8 @@ export interface AiDraft {
   usage: { percent: number | null };
   /** Why Auto routing chose differently from what was asked, when it did. */
   routeNote: string | null;
+  /** How many things the person asked Farbaek to remember went with the brief (stage 284). */
+  remembered: number;
 }
 
 export async function draftContractWithAi(
@@ -64,5 +67,5 @@ export async function draftContractWithAi(
   const form = draftToForm(outcome.draft);
   // An existing static site's plan gets Farbaek's site check when the model listed none (ADR 0054), so the person sees it before approving.
   if (!form.checks.trim() && isStaticSite(input.brief.paths ?? [])) form.checks = SITE_CHECK_COMMAND;
-  return { ok: true, value: { form, model: outcome.usage.model, usage: { percent }, routeNote: choice.note } };
+  return { ok: true, value: { form, model: outcome.usage.model, usage: { percent }, routeNote: choice.note, remembered: memoryForBrief(input.brief.remembered ?? []).length } };
 }

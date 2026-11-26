@@ -11,6 +11,8 @@ import type { ChatModelOption } from "@/core/chat/models";
 import type { ConversationSummary } from "@/core/chat/protocol";
 import { ConfirmDialog, RenameDialog, SettingsDialog, ShareDialog } from "./dialogs";
 import type { Theme } from "@/core/theme/theme";
+import type { Level } from "@/core/experience/level";
+import { useLevel } from "@/components/experience/apply";
 import { setChatPrefs, useChatPrefs } from "./prefs";
 import { ToastProvider, useToast } from "./primitives";
 import { Sidebar } from "./sidebar";
@@ -33,6 +35,8 @@ export interface ChatShellProps {
   availability: ChatAvailabilityView;
   /** The look the server read (ADR 0227), for Chat's settings to show as chosen. */
   theme: Theme;
+  /** How much the person chose to see (stage 285, ADR 0293), as the server read it. */
+  level: Level;
   demo: boolean;
   user: { email: string };
   workspaceName: string;
@@ -46,6 +50,8 @@ interface ChatContextValue {
   conversations: ConversationSummary[];
   projects: { id: string; name: string }[];
   demo: boolean;
+  /** The person's level now (stage 285): Chat lists its models from Advanced up. */
+  level: Level;
   upsert(c: Partial<ConversationSummary> & { id: string }): void;
   remove(id: string): void;
   openDrawer(): void;
@@ -75,7 +81,8 @@ export function ChatShell(props: ChatShellProps) {
   );
 }
 
-function Shell({ conversations: initial, projects, availability, theme, demo, user, workspaceName, planLabel, signOut, children }: ChatShellProps) {
+function Shell({ conversations: initial, projects, availability, theme, level: savedLevel, demo, user, workspaceName, planLabel, signOut, children }: ChatShellProps) {
+  const level = useLevel(savedLevel);
   const router = useRouter();
   const toast = useToast();
   const prefs = useChatPrefs();
@@ -181,6 +188,7 @@ function Shell({ conversations: initial, projects, availability, theme, demo, us
       conversations,
       projects,
       demo,
+      level,
       upsert,
       remove,
       openDrawer: () => setDrawer(true),
@@ -194,7 +202,7 @@ function Shell({ conversations: initial, projects, availability, theme, demo, us
         active.current = id;
       },
     }),
-    [availability, conversations, projects, demo, upsert, remove, archive, pin],
+    [availability, conversations, projects, demo, level, upsert, remove, archive, pin],
   );
 
   const sidebar = (inDrawer: boolean) => (
@@ -257,6 +265,7 @@ function Shell({ conversations: initial, projects, availability, theme, demo, us
           open={dialog?.kind === "settings"}
           onClose={() => setDialog(null)}
           theme={theme}
+          level={savedLevel}
           availability={availability}
           planLabel={planLabel}
         />

@@ -6,6 +6,7 @@ import { decideRoute } from "@/server/http/hosts";
 import { APP_CSP_PATH, SIGN_IN_CSP_PATH, appCsp, appCspEnforced, appCspHeaders } from "@/server/http/app-headers";
 import { newNonce, officeCsp, officeResponseHeaders } from "@/server/http/office-headers";
 import { withoutStrayEnd } from "@/server/http/stray-end";
+import { choicesToKeep, opensPage } from "@/server/http/keep-choices";
 import { appHostFromEnv, officeConfig } from "@/server/office/config";
 import { siteDomain } from "@/server/publish/config";
 import { OFFICE_OPEN_PATH, officeDeviceKnown } from "@/server/office/device-gate";
@@ -112,7 +113,11 @@ async function appRequest(request: NextRequest) {
       ? appCsp(newNonce(), { dev: process.env.NODE_ENV === "development", https: siteUrl().startsWith("https://"), previewDomain: signingIn ? null : process.env.SANDBOX_PREVIEW_DOMAIN || null, signIn: signingIn })
       : null;
   if (csp) request.headers.set("content-security-policy", csp);
+  // The look and the level a person chose are cookies their browser's script wrote; Safari keeps those seven days. Sent back
+  // from here they last their year (stage 285, ADR 0293). Only a known choice is ever sent back.
+  const kept = opensPage(request.method, (name) => request.headers.get(name)) ? choicesToKeep((name) => request.cookies.get(name)?.value, siteUrl().startsWith("https://")) : [];
   const withCsp = (response: NextResponse) => {
+    for (const choice of kept) response.cookies.set(choice.name, choice.value, choice.options);
     if (csp) for (const [key, value] of Object.entries(appCspHeaders(csp, !signingIn && appCspEnforced(process.env.APP_CSP_ENFORCE)))) response.headers.set(key, value);
     return response;
   };

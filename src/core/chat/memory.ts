@@ -148,3 +148,38 @@ export function memoryOutcomeNote(outcome: MemoryOutcome): string {
   if (outcome === "full") return "A note from Farbaek: the person asked for something to be remembered, and it wasn't saved: 50 things are remembered already, which is the most. Tell them so plainly, and that they can remove some under Memory in Chat's settings. Still use what they said in this conversation.";
   return "A note from Farbaek: the person asked for something to be remembered, and saving it didn't work this time. Tell them so plainly and that they can try again, or add it under Memory in Chat's settings. Still use what they said in this conversation.";
 }
+
+/**
+ * Memory outside Chat (stage 284, ADR 0292). What a person asked Farbaek to remember also goes to the plan Build drafts for
+ * them, so they don't say their business's name or their colours again. The same switch governs it: it lives in the browser, so
+ * it travels to the server in a cookie that is present, and "off", only while memory is switched off there.
+ */
+export const MEMORY_COOKIE = "fb_memory";
+
+/** True unless the browser said memory is off. A missing cookie means on: that is what a person who never chose has. */
+export function memoryOnFromCookie(value: string | undefined): boolean {
+  return value !== "off";
+}
+
+/** The cookie as the browser writes it: "off" for a year when memory is switched off, cleared when it is on. */
+export function memoryCookie(on: boolean, secure: boolean): string {
+  return `${MEMORY_COOKIE}=${on ? "" : "off"}; Path=/; Max-Age=${on ? 0 : 31_536_000}; SameSite=Lax${secure ? "; Secure" : ""}`;
+}
+
+/** The most that goes with a plan's brief: a plan needs a few facts about the person, not their whole memory. */
+export const BRIEF_MEMORY = { items: 12, item: 200, chars: 1_200 } as const;
+
+/** What goes with a plan's brief: the newest first, each one plain line, within the limits. */
+export function memoryForBrief(remembered: readonly string[]): string[] {
+  const out: string[] = [];
+  let used = 0;
+  for (const item of remembered) {
+    if (out.length >= BRIEF_MEMORY.items) break;
+    const line = tidyMemory(item).slice(0, BRIEF_MEMORY.item).trim();
+    if (!line) continue;
+    if (used + line.length > BRIEF_MEMORY.chars) break;
+    out.push(line);
+    used += line.length;
+  }
+  return out;
+}
