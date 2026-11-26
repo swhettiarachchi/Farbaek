@@ -9,6 +9,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { NeedsYouCard } from "@/components/app/needs-you-card";
+import { SuggestedNext } from "@/components/app/suggested-next";
 import { ProjectCard } from "@/components/app/project-card";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { PromptComposer } from "@/components/build/prompt-composer";
@@ -19,6 +20,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { getPlan } from "@/core/billing/catalog";
 import { needsYou } from "@/core/realityloop/needs-you";
+import { suggestNext } from "@/core/telepathy/next-steps";
+import { withheldFor } from "@/core/workspace/permissions";
 import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
 import { firstSteps } from "@/core/workspace/first-steps";
 import { FirstStepsHidden, FirstStepsPanel } from "@/components/app/first-steps";
@@ -36,6 +39,7 @@ import { PAGE_STACK } from "@/components/ui/surfaces";
 import { ScheduledHomeCard } from "@/components/scheduled/home-card";
 import { scheduledOnHome } from "@/core/automation/home";
 import { loadScheduledWork } from "@/server/automation/work";
+import { loadLiveProjects } from "@/server/telepathy/live-projects";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
 export const metadata: Metadata = { title: "Home" };
@@ -46,7 +50,7 @@ export default async function MissionControl() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const [usage, recentEvidence, inbox, stepRecords, jar, scheduledWork] = await Promise.all([
+  const [usage, recentEvidence, inbox, stepRecords, jar, scheduledWork, liveRead] = await Promise.all([
     loadUsageSummary(ctx, ws),
     ctx.reader.listRecentProofPacks(ws.id, 5),
     ctx.mode === "live" ? loadInbox(ws.id) : Promise.resolve(null),
@@ -54,6 +58,8 @@ export default async function MissionControl() {
     ctx.reader.getFirstStepRecords(ws.id).catch(() => ({ latestProofPack: null, verifiedTaskId: null, liveSite: null })),
     cookies(),
     loadScheduledWork(ctx.mode, ws.id),
+    // Which projects have a live site, for what Home may suggest next (stage 283). The demo's one live site is in its step records.
+    ctx.mode === "live" ? loadLiveProjects(ws.id) : Promise.resolve(null),
   ]);
   const { tasks, projects } = usage;
   const ai = usage.wallet ? aiMeter(usage.wallet) : null;
@@ -94,6 +100,14 @@ export default async function MissionControl() {
   );
   const stepsHidden = hiddenWorkspaces(jar.get(FIRST_STEPS_COOKIE)?.value).includes(ws.id);
   const showSteps = !steps.complete && !stepsHidden;
+  // With nothing waiting for the person, and the first steps behind them, Home may suggest what to do next (stage 283, ADR 0291):
+  // worked out from their tasks and live sites by tested rules, for someone who can act on it. Publishing is only suggested to
+  // someone allowed to publish, where publishing is set up.
+  const liveProjects = ctx.mode === "demo" ? (stepRecords.liveSite ? [stepRecords.liveSite.projectId] : []) : liveRead;
+  const suggestions =
+    !needs && !showSteps && canSchedule && (tour || ctx.writes.enabled)
+      ? suggestNext({ now: new Date().getTime(), projects: projects.map((p) => ({ id: p.id, name: p.name, archived: Boolean(p.archivedAt) })), tasks, liveProjects, canPublish: siteDomain() !== null && withheldFor(ctx.role, ctx.permissions, "publish") === null })
+      : [];
   // Until something is described, the first step is the build box at the top of the page (its link goes there).
   const firstBuildNext = showSteps && steps.steps[0]!.state === "next";
   // Once there are projects, the box offers them too; with the plan full it starts on the latest (stage 176).
@@ -138,7 +152,7 @@ export default async function MissionControl() {
         )}
       </p>
 
-      {needs ? <NeedsYouCard step={needs} /> : null}
+      {needs ? <NeedsYouCard step={needs} /> : suggestions.length > 0 ? <SuggestedNext candidates={suggestions} /> : null}
 
       {showSteps ? <FirstStepsPanel data={steps} /> : null}
 

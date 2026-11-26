@@ -1,4 +1,4 @@
-import { BookOpenTextIcon, BracketsCurlyIcon, BuildingsIcon, CircleHalfIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@/components/icons";
+import { BookOpenTextIcon, BracketsCurlyIcon, BuildingsIcon, CircleHalfIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, LightbulbIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AutonomySettings } from "@/components/app/autonomy-settings";
@@ -41,6 +41,7 @@ import { CONTACT } from "@/config/contact";
 import { invitableRoles } from "@/core/workspace/invitations";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { Card, CardTitle, PageHeader } from "@/components/app/primitives";
+import { SuggestionSwitches } from "@/components/app/suggested-next";
 import { ThemeChoice } from "@/components/theme/theme-choice";
 import { savedTheme } from "@/server/theme";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -153,6 +154,19 @@ export default async function SettingsPage() {
           <div className="mt-4">
             <ThemeChoice saved={theme} labelledBy="appearance-title" />
           </div>
+        </Card>
+      </section>
+
+      {/* What Home may suggest next (stage 283, ADR 0291): each kind can be switched off, and back on, in this browser. */}
+      <section id="suggestions" aria-labelledby="suggestions-title" className="scroll-mt-24">
+        <Card>
+          <CardTitle id="suggestions-title" icon={LightbulbIcon}>
+            Suggestions on Home
+          </CardTitle>
+          <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-2">
+            When nothing is waiting for you, Home may suggest what to do next, worked out from your tasks and sites by fixed rules. No AI model is asked. Choose what it may suggest on this device.
+          </p>
+          <SuggestionSwitches />
         </Card>
       </section>
 
