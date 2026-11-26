@@ -107,7 +107,7 @@ Present: identity, conversations, memory, metering and usage, approvals, audit, 
 | A task from natural language | Partly: a scheduled task is an instruction in plain words, its schedule read from them (English, Sinhala, Sinhala in English letters), and Chat offers, under an answer, to schedule a request said with a time (ADR 0278, ADR 0280). A multi-step workflow written from words: not started |
 | Visual workflow builder | Not started |
 | Time triggers, schedules, recurring tasks | Partly: built, merged and live since 2026-11-25 (ADR 0278): once, hourly, daily, weekdays, chosen days, monthly, in the person's time zone; pause, resume, run now, change, remove; a history of runs; email and push. **No real run has been made on production yet**, and the every-minute timer waits for the owner |
-| Event triggers, webhooks in, app triggers | Not started |
+| Event triggers, webhooks in, app triggers | Partly: a webhook in is built (stage 277, ADR 0284): one secret link for a task or an agent, which queues a run and can hand it a little text as data. Triggers from inside Farbaek and from connected apps: not started |
 | Conditions, loops with limits | Not started |
 | Durable execution that survives a restart, retries, dead letters, checkpoints, idempotency | Partly: scheduled runs are claimed once under a lease in Postgres, retried twice, given ten minutes, and the task pauses itself after five that didn't finish (ADR 0278). Usage reserved by a call a restart cut off is given back each hour (ADR 0279). Agent builds and workflows still hold their run in the web server's memory for at most 40 minutes; no checkpoints inside a run |
 | Autonomy levels (Observe to Delegated) | Partly: the build agent has levels 0 to 4; automations have none |
@@ -256,7 +256,7 @@ Everything not done, in the order that lets each part stand on the one before. I
 
 1. Done on 2026-11-23: the DNS at Spaceship (the owner).
 2. Durable work: done for scheduled runs (stage 271) and for usage a restart left reserved (stage 272). Still to do: agent builds and workflows out of the server's memory, with checkpoints.
-3. Automation: schedules are built (stage 271) and Chat offers them (stage 273). Still to do: event triggers and webhooks in, workflows from words, a visual builder, conditions.
+3. Automation: schedules are built (stage 271), Chat offers them (stage 273), and a link starts a task from another app (stage 277). Still to do: triggers from inside Farbaek and from connected apps, workflows from words, a visual builder, conditions.
 4. Persistent agents: part 1 is built (stage 275): name, goal, schedule, a limit in runs, notes of its own, the memory switch, progress, pause, resume, remove. Still to do: a budget in AI usage, tools, more than one piece of work, talking to an agent.
 5. One command center with one pause: a first version is built (stage 276, All work). Still to do: each thing's cost, acting from the row, an owner's view of everyone's work.
 6. **Telepathy part 1:** project awareness in Chat, one memory across spaces, suggested next steps with "why this" and corrections.

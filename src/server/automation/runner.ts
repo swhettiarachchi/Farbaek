@@ -1,5 +1,7 @@
 import "server-only";
+import { randomBytes } from "node:crypto";
 import { agentRunNote, limitProblem, noteFromAnswer } from "@/core/automation/agents";
+import { linkDataLead, linkDataPart } from "@/core/automation/links";
 import { nextRun, scheduleSchema } from "@/core/automation/schedule";
 import { DEFAULT_OPTIONS, RUN_NOTE, UNREADABLE_SCHEDULE, WORKSPACE_PAUSED, outcomeOfRefusal, planProblem, settle, taskOptionsSchema, tooLate, type RunOutcome, type ScheduledLimit, type Settled } from "@/core/automation/tasks";
 import type { ScheduledNotice } from "@/server/email/notify";
@@ -27,6 +29,8 @@ export interface RunnerDeps {
   /** Tells the person a run ended, by the ways they've switched on. Missing: nobody is told. */
   notify?(n: ScheduledNotice): Promise<void>;
   now(): Date;
+  /** A mark for one run's outside text (`LINK_MARK_PATTERN`): random, so no caller can know it. The tests give a fixed one. */
+  mark?(): string;
   /** Waits between tries at recording an outcome; the tests don't. */
   sleep?(ms: number): Promise<void>;
   log?(event: string, fields: Record<string, unknown>): void;
@@ -39,6 +43,9 @@ export interface TickResult {
   skipped: number;
   failed: number;
 }
+
+/** A mark no caller can know: 12 random bytes, made when the run is. */
+const newMark = (): string => `data-${randomBytes(12).toString("hex")}`;
 
 /** What a turn that ran means for the run. An answer that was cut off or failed part-way may work if tried again. */
 function outcomeOf(result: HeadlessResult): RunOutcome {
@@ -110,6 +117,17 @@ export async function runClaimed(deps: RunnerDeps, run: ClaimedRun): Promise<key
   let messageId: string | null = null;
   // What the run leaves for the agent's next one (stage 275): kept once the run is recorded as done.
   let agentNote: string | null = null;
+  // What the caller of the task's link sent for this run (stage 277). Asked for every run that is still in time: the database
+  // knows which run a call queued (a try the schedule began can be one), and drops what was left for a run that never came.
+  let sent: string | null = null;
+  let unread = false;
+  if (!tooLate(run.dueAt, deps.now())) {
+    try {
+      sent = await deps.store.runPayload(run.runId);
+    } catch {
+      unread = true;
+    }
+  }
   // Whose work this is: an agent's task runs with the agent's notes, memory choice and limit; any other runs as it always did.
   const agent = tooLate(run.dueAt, deps.now()) ? null : await deps.store.agent(run.taskId).catch(() => "error" as const);
   ofAgent = agent !== null && agent !== "error";
@@ -126,12 +144,20 @@ export async function runClaimed(deps: RunnerDeps, run: ClaimedRun): Promise<key
     // Its own limit, set by the person: the run is passed over and the agent stays on, to work again when it has room.
     outcome = { kind: "skipped", detail: limitProblem(agent)!, blameless: true };
     quiet = agent.toldLimit;
+  } else if (unread) {
+    // Started from the task's link, perhaps, with something for the run to work on: made without it, the answer would be about
+    // nothing. Better tried again in a few minutes.
+    outcome = { kind: "retry", detail: "The run couldn't be prepared." };
   } else {
     const opts = options.success ? options.data : DEFAULT_OPTIONS;
+    // What the run is told beside its instruction: what kind of run it is and, when another app sent it something, how that
+    // text is marked. The text itself goes apart from the note, between two lines carrying a mark made for this run alone.
+    const mark = sent ? (deps.mark ?? newMark)() : null;
+    const told = [agent ? agentRunNote(agent) : RUN_NOTE, mark ? linkDataLead(mark) : null].filter(Boolean).join("\n\n");
     try {
       const result = await deps.turn(
         // An agent whose notes were cleared since its chat began starts a new chat: the old one holds the answers that were cleared.
-        { orgId: run.orgId, userId: run.ownerId, conversationId: agent?.newChat ? null : run.conversationId, title: run.title, text: run.instruction, web: opts.web, effort: opts.effort, note: agent ? agentRunNote(agent) : RUN_NOTE, ...(agent ? { memory: agent.useMemory } : {}) },
+        { orgId: run.orgId, userId: run.ownerId, conversationId: agent?.newChat ? null : run.conversationId, title: run.title, text: run.instruction, web: opts.web, effort: opts.effort, note: told, ...(agent ? { memory: agent.useMemory } : {}), ...(sent && mark ? { data: linkDataPart(sent, mark) } : {}) },
         AbortSignal.timeout(TURN_TIMEOUT_MS),
         run.taskId,
       );

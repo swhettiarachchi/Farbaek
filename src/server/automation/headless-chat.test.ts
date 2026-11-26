@@ -11,8 +11,9 @@ import type { ChatWrites } from "@/server/chat/store";
 import type { TurnDeps } from "@/server/chat/turn";
 import type { AiUsageDeps, UsageContext } from "@/server/workspace/ai-usage";
 import { AGENT_RUN_NOTE_MAX, agentRunNote } from "@/core/automation/agents";
+import { LINK_PAYLOAD_MAX, linkDataLead, linkDataPart } from "@/core/automation/links";
 import { WORKSPACE_PAUSED, WORKSPACE_PAUSED_MESSAGE, outcomeOfRefusal } from "@/core/automation/tasks";
-import { SERVER_NOTE_MAX } from "@/server/chat/turn";
+import { SERVER_DATA_MAX, SERVER_NOTE_MAX } from "@/server/chat/turn";
 import { runHeadlessTurn, workspaceRefusal, type HeadlessEnv, type HeadlessTurn } from "./headless-chat";
 
 vi.mock("server-only", () => ({}));
@@ -228,6 +229,37 @@ describe("a scheduled run's Chat turn", () => {
     const carried = said.parts.filter((p) => p.type === "context").map((p) => p.text ?? "");
     expect(carried).toContain(note);
     expect(carried.join("\n")).toContain("- 24 Nov: 7 x");
+  });
+
+  it("carries an agent's longest note and the most a link may send, each whole and each as a part of its own", async () => {
+    // An agent started from its link is told both: its notes with how the caller's text is marked, and, apart, that text (stage 277).
+    const MARK = "data-0123456789abcdef01234567";
+    const notes = Array.from({ length: 8 }, (_, i) => ({ at: "2026-11-24T08:00:00Z", note: `${i} ${"x".repeat(480)}` }));
+    const note = `${agentRunNote({ name: "N".repeat(40), notes })}\n\n${linkDataLead(MARK)}`;
+    const data = linkDataPart("y".repeat(LINK_PAYLOAD_MAX), MARK);
+    expect(AGENT_RUN_NOTE_MAX + 2 + linkDataLead(MARK).length).toBeLessThanOrEqual(SERVER_NOTE_MAX);
+    expect(data.length).toBeLessThanOrEqual(SERVER_DATA_MAX);
+    const s = setup({ conversation: null });
+    asked.length = 0;
+    await runHeadlessTurn(s.env, { ...turn(null), note, data }, new AbortController().signal);
+    const carried = asked.at(-1)!.messages.findLast((m) => m.role === "user")!.parts.filter((p) => p.type === "context").map((p) => p.text ?? "");
+    // Two parts, the note before the data, and nothing of the caller's in the server's own.
+    expect(carried).toContain(note);
+    expect(carried).toContain(data);
+    expect(carried.indexOf(note)).toBeLessThan(carried.indexOf(data));
+    expect(carried.find((c) => c === note)).not.toContain("yyyy");
+    // To its very end: nothing of what was sent is cut off, and its closing mark is there.
+    expect(carried.some((c) => c.endsWith(`${"y".repeat(40)}\n${MARK}`))).toBe(true);
+    // What is saved as the question in the chat is the instruction alone: the caller's text is never kept as the person's words.
+    expect(s.calls.find((c) => c.name === "beginTurn")!.input.content).toBe("Research the latest news and summarise it.");
+  });
+
+  it("gives a run no part for outside text when none was sent", async () => {
+    const s = setup({ conversation: null });
+    asked.length = 0;
+    await runHeadlessTurn(s.env, { ...turn(null), note: "A note." }, new AbortController().signal);
+    const carried = asked.at(-1)!.messages.findLast((m) => m.role === "user")!.parts.filter((p) => p.type === "context").map((p) => p.text ?? "");
+    expect(carried.some((c) => c.startsWith("data-"))).toBe(false);
   });
 
   it("gives back the answer's text, and reads the person's memory unless the run is set not to (an agent's choice)", async () => {

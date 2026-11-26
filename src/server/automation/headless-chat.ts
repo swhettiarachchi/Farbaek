@@ -33,6 +33,8 @@ export interface HeadlessTurn {
   note?: string;
   /** False when the run mustn't be given what the person asked Farbaek to remember (an agent set that way). Missing: it is. */
   memory?: boolean;
+  /** Text from outside Farbaek for the run to work with (what a call to the task's link sent), as a part of its own: never joined to the note. */
+  data?: string;
 }
 
 /** The most of an answer's text a run keeps to read its note from: far more than an answer's opening and its last line need. */
@@ -89,7 +91,7 @@ export async function runHeadlessTurn(env: HeadlessEnv, i: HeadlessTurn, signal:
     aspect: "1:1",
     projectId: null,
   });
-  const note = i.note ? { note: i.note } : {};
+  const note = { ...(i.note ? { note: i.note } : {}), ...(i.data ? { data: i.data } : {}) };
   let prepared = await prepareTurn(built.deps, { orgId: i.orgId, userId: i.userId, request: request(conversation), ...note });
   // A conversation that has gone since it was read, or is as long as one can be, isn't a reason to fail: a person would start a new
   // chat, and so does the run.

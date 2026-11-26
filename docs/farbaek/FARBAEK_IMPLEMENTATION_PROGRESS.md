@@ -26,6 +26,7 @@ The running record of the program the owner set on 2026-11-22. Read this first i
 | Stage 274: Home shows scheduled work in one card and leads with a task Farbaek paused (ADR 0281) | Built and tested, PR open, stacked on stage 273's | The owner merges stage 273's first. No migration |
 | Stage 275: agents that keep working toward a goal, on a second tab of the Scheduled page (ADR 0282) | Built and tested, PR #332 open. **Migration v108 to apply before the merge** | The owner applies v108, then merges. No agent has run on production |
 | Stage 276: All work, one page for everything Farbaek is doing, with one pause (ADR 0283) | Built and tested, PR open, stacked on stage 275's | The owner merges stage 275's first. No migration |
+| Stage 277: a link that starts a task or an agent from another app, the first trigger besides time (ADR 0284) | Built, reviewed by a fresh agent (eight groups of faults fixed) and tested, PR open. **Migration v109 to apply before the merge** | The owner applies v109, then merges. No real call has been made |
 | Skills inventory, master audit, the study of the reference products | Written | Nothing |
 | Research on providers and platforms | 2 of 7 notes complete, 5 partial | Finishing the 5, a few at a time |
 

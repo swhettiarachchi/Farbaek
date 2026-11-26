@@ -134,6 +134,11 @@ export interface ScheduledStore {
   agent(taskId: string): Promise<AgentContext | null | "error">;
   /** Keeps what a finished run of an agent did, for its next run. */
   runNote(runId: string, note: string): Promise<void>;
+  /**
+   * What the caller of the task's link sent for this run (stage 277), for a run started by hand; null when there is nothing, or the
+   * database has no links yet. Throws when it couldn't be read: the run is then tried again rather than made without it.
+   */
+  runPayload(runId: string): Promise<string | null>;
 }
 
 const agentContextSchema = z.object({
@@ -214,6 +219,15 @@ export function createScheduledStore(admin: SupabaseClient): ScheduledStore {
       const { data, error } = await admin.rpc("app_scheduled_run_note", { p_run: runId, p_note: note });
       if (error || data !== true) throw new Error("NOTE_NOT_KEPT");
     },
+    async runPayload(runId) {
+      const { data, error } = await admin.rpc("app_scheduled_run_payload", { p_run: runId });
+      if (error) {
+        // No text a caller sends can be mistaken for a fault: a fault is thrown, never returned.
+        if (functionNotThereYet(error)) return null;
+        throw new Error("PAYLOAD_UNREADABLE");
+      }
+      return typeof data === "string" && data.length > 0 ? data : null;
+    },
     async position(orgId, ownerId, taskId) {
       // Named by workspace and owner: this client isn't held to a person's own rows by row-level security.
       const { data, error } = await admin.from("scheduled_tasks").select("id").eq("org_id", orgId).eq("owner_id", ownerId).eq("state", "active").is("archived_at", null).order("created_at", { ascending: true }).order("id", { ascending: true }).limit(200);
@@ -260,6 +274,8 @@ export interface TaskRun {
   startedAt: string;
   /** What a finished run of an agent did and what it will do next, in the answer's own words. */
   note: string | null;
+  /** A call to the task's link started this run (stage 277), not its schedule and not its owner. */
+  fromLink: boolean;
 }
 
 const taskRow = z.object({
@@ -343,6 +359,7 @@ const runRow = z.object({
   finished_at: z.string().nullable(),
   started_at: z.string(),
   note: z.string().nullable().optional(),
+  from_link: z.boolean().optional(),
 });
 
 const RUN_COLUMNS = "id, task_id, due_at, status, manual, detail, conversation_id, finished_at, started_at";
@@ -353,12 +370,14 @@ const RUN_COLUMNS = "id, task_id, due_at, status, manual, detail, conversation_i
  */
 export async function listRuns(client: SupabaseClient, orgId: string, limit = 400): Promise<TaskRun[] | null> {
   const read = (columns: string) => client.from("scheduled_task_runs").select(columns).eq("org_id", orgId).order("due_at", { ascending: false }).limit(limit);
-  let { data, error } = await read(`${RUN_COLUMNS}, note`);
+  // The newest columns first, then as each older database has them: v109 (a link's mark), v108 (an agent's note), v106.
+  let { data, error } = await read(`${RUN_COLUMNS}, note, from_link`);
+  if (error && columnNotThereYet(error)) ({ data, error } = await read(`${RUN_COLUMNS}, note`));
   if (error && columnNotThereYet(error)) ({ data, error } = await read(RUN_COLUMNS));
   if (error) return null;
   const rows = z.array(runRow).safeParse(data ?? []);
   if (!rows.success) return null;
-  return rows.data.map((r) => ({ id: r.id, taskId: r.task_id, dueAt: r.due_at, status: r.status, manual: r.manual, detail: r.detail, conversationId: r.conversation_id, finishedAt: r.finished_at, startedAt: r.started_at, note: r.note ?? null }));
+  return rows.data.map((r) => ({ id: r.id, taskId: r.task_id, dueAt: r.due_at, status: r.status, manual: r.manual, detail: r.detail, conversationId: r.conversation_id, finishedAt: r.finished_at, startedAt: r.started_at, note: r.note ?? null, fromLink: r.from_link === true }));
 }
 
 /** One of the person's own tasks, for an action that changes it. */

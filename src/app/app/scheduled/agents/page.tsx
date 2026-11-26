@@ -9,6 +9,7 @@ import { AGENT_LIMITS } from "@/core/automation/agents";
 import { SCHEDULED_LIMITS, type ScheduledLimit } from "@/core/automation/tasks";
 import { agentCounts, latestRuns, listAgents } from "@/server/automation/agents";
 import { demoAgents } from "@/server/automation/demo";
+import { pageLinks } from "@/server/automation/links";
 import { listRuns, listTasks } from "@/server/automation/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -46,6 +47,8 @@ export default async function AgentsPage() {
     }
   }
 
+  // Each agent's link, the way another app starts it (stage 277); read only when there are agents to show it on.
+  const links = views && views.length > 0 ? await pageLinks(user, ctx.current.id, ctx.mode === "demo") : "off";
   // The plan's limits, read on the server. Unreadable: the smallest plan's are shown, and saving is refused until it can be read.
   const plan = user && admin ? await resolvePlan(createSupabaseWriteDeps(user, admin, ctx.user.id), ctx.current.id) : null;
   const planId = plan?.ok ? plan.value.plan.planId : sample ? "pro" : "free";
@@ -61,6 +64,8 @@ export default async function AgentsPage() {
           : !user || !admin
             ? "Agents aren't set up on this server."
             : null;
+  // Turning a link off is held back only where nothing can be saved at all: never by a pause, a plan or a viewer's role.
+  const stopReason = ctx.mode === "demo" || !user || !admin ? disabledReason : null;
   const count = views?.length ?? 0;
   const full = count >= most;
 
@@ -80,7 +85,7 @@ export default async function AgentsPage() {
           <p className="text-sm text-ink-2">
             {count} of the {most} your plan keeps. Each run uses your plan&apos;s AI usage, as a message in Chat does, and an agent&apos;s work counts as one of your scheduled tasks.
           </p>
-          <AgentList agents={views} limit={limit} disabledReason={disabledReason} serverNow={serverNow} />
+          <AgentList agents={views} limit={limit} links={links} disabledReason={disabledReason} stopReason={stopReason} serverNow={serverNow} />
         </section>
       ) : null}
 

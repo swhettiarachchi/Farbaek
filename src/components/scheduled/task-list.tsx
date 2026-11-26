@@ -7,12 +7,15 @@ import { useState, useTransition } from "react";
 import { removeScheduledTaskAction, runScheduledTaskNowAction, setScheduledTaskStateAction, type ScheduledState } from "@/app/app/scheduled/actions";
 import { describeSchedule } from "@/core/automation/schedule";
 import type { ScheduledLimit } from "@/core/automation/tasks";
+import type { PageLinks } from "@/server/automation/links";
 import type { ScheduledTask, TaskRun } from "@/server/automation/store";
 import { buttonClasses } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { BY_FARBAEK } from "@/core/automation/home";
+import { linkWaitSeconds } from "@/core/automation/links";
+import { RunLink } from "./run-link";
 import { RUN_STATUS, stateBadge } from "./status";
 import { TaskForm } from "./task-form";
 
@@ -22,7 +25,7 @@ const ANSWER_LINK = "tap inline-flex items-center gap-1 font-medium text-accent 
  * One scheduled task (stage 271, ADR 0278): what it does, when it runs next, how its last runs went, and the controls: run now,
  * pause or resume, change, remove. Every control works or says why it's off.
  */
-function TaskCard({ task, runs, limit, disabledReason, serverNow }: { task: ScheduledTask; runs: TaskRun[]; limit: ScheduledLimit; disabledReason: string | null; serverNow: number }) {
+function TaskCard({ task, runs, limit, links, disabledReason, stopReason, serverNow }: { task: ScheduledTask; runs: TaskRun[]; limit: ScheduledLimit; links: PageLinks; disabledReason: string | null; stopReason: string | null; serverNow: number }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [result, setResult] = useState<ScheduledState>({ status: "idle" });
@@ -80,7 +83,7 @@ function TaskCard({ task, runs, limit, disabledReason, serverNow }: { task: Sche
                 <StatusBadge status={RUN_STATUS[r.status].status} label={RUN_STATUS[r.status].label} />
                 <span className="text-ink-2">
                   <LocalTime iso={r.dueAt} />
-                  {r.manual ? ", started by you" : ""}
+                  {r.fromLink ? ", started from its link" : r.manual ? ", started by you" : ""}
                 </span>
                 {href ? (
                   <Link href={href} className={ANSWER_LINK}>
@@ -150,6 +153,19 @@ function TaskCard({ task, runs, limit, disabledReason, serverNow }: { task: Sche
           {result.message}
         </p>
       ) : null}
+      {links === "off" ? null : (
+        <div className="mt-4">
+          <RunLink
+            taskId={task.id}
+            what="task"
+            link={links ? (links[task.id] ?? null) : null}
+            unread={links === null}
+            waitSeconds={linkWaitSeconds(limit)}
+            disabledReason={disabledReason ?? (task.state === "ended" ? "Its schedule has ended: change its schedule first." : null)}
+            stopReason={stopReason}
+          />
+        </div>
+      )}
       {editing ? (
         <div className="mt-4 border-t border-line pt-4">
           <TaskForm
@@ -166,14 +182,14 @@ function TaskCard({ task, runs, limit, disabledReason, serverNow }: { task: Sche
   );
 }
 
-export function TaskList({ tasks, runs, limit, disabledReason, serverNow }: { tasks: ScheduledTask[]; runs: TaskRun[]; limit: ScheduledLimit; disabledReason: string | null; serverNow: number }) {
+export function TaskList({ tasks, runs, limit, links, disabledReason, stopReason, serverNow }: { tasks: ScheduledTask[]; runs: TaskRun[]; limit: ScheduledLimit; links: PageLinks; disabledReason: string | null; stopReason: string | null; serverNow: number }) {
   // Newest first, as read; each task's own, in that order.
   const byTask = new Map<string, TaskRun[]>();
   for (const r of runs) byTask.set(r.taskId, [...(byTask.get(r.taskId) ?? []), r]);
   return (
     <ul className="grid gap-4">
       {tasks.map((t) => (
-        <TaskCard key={t.id} task={t} runs={byTask.get(t.id) ?? []} limit={limit} disabledReason={disabledReason} serverNow={serverNow} />
+        <TaskCard key={t.id} task={t} runs={byTask.get(t.id) ?? []} limit={limit} links={links} disabledReason={disabledReason} stopReason={stopReason} serverNow={serverNow} />
       ))}
     </ul>
   );
