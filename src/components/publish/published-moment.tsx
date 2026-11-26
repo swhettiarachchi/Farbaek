@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, CheckCircleIcon, CopyIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, CopyIcon } from "@/components/icons";
 import { useState } from "react";
 import { SiteThumb } from "@/components/app/site-thumb";
 import { buttonClasses } from "@/components/ui/button";

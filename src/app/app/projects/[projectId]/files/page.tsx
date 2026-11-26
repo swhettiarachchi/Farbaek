@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowsClockwiseIcon, ClockCounterClockwiseIcon, FileDashedIcon, FileIcon, FilePlusIcon, FolderOpenIcon, ImageIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowsClockwiseIcon, ClockCounterClockwiseIcon, FileDashedIcon, FileIcon, FilePlusIcon, FolderOpenIcon, ImageIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

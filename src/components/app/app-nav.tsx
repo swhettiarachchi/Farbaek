@@ -16,7 +16,7 @@ import {
   VideoCameraIcon,
   FlowArrowIcon,
   GearSixIcon,
-  HammerIcon,
+  BlocksIcon,
   HouseSimpleIcon,
   ImageSquareIcon,
   LifebuoyIcon,
@@ -30,8 +30,8 @@ import {
   TerminalWindowIcon,
   ToolboxIcon,
   UsersThreeIcon,
-} from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+} from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { PAGE_NAV } from "@/components/app/page-transition";
 import { usePathname } from "next/navigation";
@@ -56,7 +56,7 @@ const CORE: NavItem[] = [
   { href: "/app/chat", label: "Chat", short: "Chat", icon: ChatCircleTextIcon, about: "Ask, write, code and research with Farbaek AI.", also: ["AI chat", "Assistant", "Ask AI", "Farbaek AI"] },
   { href: "/app/images", label: "Images", short: "Images", icon: ImageSquareIcon, about: "Make and edit pictures with studio finish.", also: ["Image studio", "Pictures", "Image generation", "Photos"] },
   { href: "/app/video", label: "Video", short: "Video", icon: VideoCameraIcon, about: "Make short videos with sound, from words or a picture.", also: ["Video studio", "Videos", "Video generation", "Film"] },
-  { href: "/app/build", label: "Build", short: "Build", icon: HammerIcon, about: "Everything the agent is building or has built." },
+  { href: "/app/build", label: "Build", short: "Build", icon: BlocksIcon, about: "Everything the agent is building or has built." },
   { href: "/app/projects", label: "Projects", short: "Projects", icon: FolderSimpleIcon, about: "Your sites and apps." },
   { href: "/app/scheduled", label: "Scheduled", short: "Scheduled", icon: CalendarCheckIcon, about: "Work Farbaek does by itself, at the times you set.", also: ["Scheduled tasks", "Automations", "Recurring", "Reminders", "Schedule", "Agents", "Personal agents"] },
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckCircleIcon, about: "Changes waiting for your yes or no." },
@@ -160,7 +160,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
           transitionTypes={PAGE_NAV}
           aria-current={active ? "page" : undefined}
           className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-sm transition-colors duration-150 pointer-coarse:h-11 ${
-            active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
+            active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink hover:bg-surface/70"
           }`}
         >
           <item.icon size={20} weight="bold" className="shrink-0" aria-hidden />
@@ -190,7 +190,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
             setClosedHere(open);
             writeToolsOpen(!open);
           }}
-          className="flex h-10 w-full items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 pointer-coarse:h-11 transition-colors duration-150 hover:bg-surface/70 hover:text-ink"
+          className="flex h-10 w-full items-center gap-3 rounded-full px-3.5 text-sm text-ink pointer-coarse:h-11 transition-colors duration-150 hover:bg-surface/70"
         >
           <ToolboxIcon size={20} weight="bold" aria-hidden />
           More tools
@@ -215,7 +215,7 @@ export function MoreList({ helpUnread = 0, children }: { helpUnread?: number; ch
       {MORE_PAGES.map((item) => (
         <li key={item.href}>
           <Link href={item.href} transitionTypes={PAGE_NAV} className="flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-canvas-2">
-            <item.icon size={20} weight="bold" className="shrink-0 text-ink-2" aria-hidden />
+            <item.icon size={24} weight="bold" className="shrink-0 text-ink" aria-hidden />
             <span className="grid min-w-0 gap-0.5">
               <span className="text-body">{item.label}</span>
               <span className="text-label leading-snug text-ink-3">{item.about}</span>

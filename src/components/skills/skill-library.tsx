@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, CheckCircleIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, PlusIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import { addLibrarySkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";

@@ -1,6 +1,6 @@
 "use client";
 
-import { CameraIcon, CircleNotchIcon, ScribbleIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
+import { CameraIcon, CircleNotchIcon, ScribbleIcon, WarningCircleIcon, XIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";

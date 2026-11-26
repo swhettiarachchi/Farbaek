@@ -1,5 +1,5 @@
-import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowRightIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { CardTitle } from "@/components/app/primitives";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";

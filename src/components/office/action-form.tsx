@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, type ReactNode } from "react";
 import { buttonClasses } from "@/components/ui/button";
 

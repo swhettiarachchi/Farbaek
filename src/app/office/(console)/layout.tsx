@@ -1,4 +1,4 @@
-import { SignOutIcon } from "@phosphor-icons/react/ssr";
+import { SignOutIcon } from "@/components/icons";
 import Link from "next/link";
 import { PageTransition } from "@/components/app/page-transition";
 import { BrandLogo } from "@/components/brand/brand-logo";

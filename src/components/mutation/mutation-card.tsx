@@ -1,4 +1,4 @@
-import { ListChecksIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ListChecksIcon, WarningCircleIcon } from "@/components/icons";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";

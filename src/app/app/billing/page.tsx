@@ -1,4 +1,4 @@
-import { BuildingsIcon, CreditCardIcon, GaugeIcon, ReceiptIcon } from "@phosphor-icons/react/ssr";
+import { BuildingsIcon, CreditCardIcon, GaugeIcon, ReceiptIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

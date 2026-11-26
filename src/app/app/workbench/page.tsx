@@ -1,5 +1,5 @@
 import "@/styles/chat-theme.css";
-import { ArrowRightIcon, FolderSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, FolderSimpleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, PlusIcon, TrashIcon, UploadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, PlusIcon, TrashIcon, UploadSimpleIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { officeProfileFromPlanAction, saveOfficeProfileAction, type ProfileState } from "@/app/app/survey/actions";

@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CaretDownIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CaretDownIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@/components/icons";
 import { loadSharedWithMe } from "@/server/workspace/guest-context";
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";

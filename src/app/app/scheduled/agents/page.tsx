@@ -1,4 +1,4 @@
-import { UserGearIcon, UserPlusIcon } from "@phosphor-icons/react/ssr";
+import { UserGearIcon, UserPlusIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";

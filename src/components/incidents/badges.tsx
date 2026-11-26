@@ -1,5 +1,5 @@
-import { WarningIcon, WarningOctagonIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { WarningIcon, WarningOctagonIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import { STATUS_KINDS, StatusBadge, type Status } from "@/components/ui/status-badge";
 import { SEVERITY_WORDS, STATUS_WORDS, type IncidentStatus, type Severity } from "@/core/trust/incidents";
 

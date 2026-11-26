@@ -1,4 +1,4 @@
-import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, ClockCounterClockwiseIcon, ShieldCheckIcon, WalletIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, ClockCounterClockwiseIcon, ShieldCheckIcon, WalletIcon, WarningCircleIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { StatusBadge } from "@/components/ui/status-badge";

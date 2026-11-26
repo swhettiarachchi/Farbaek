@@ -126,13 +126,13 @@ Animate for live state, hierarchy, storytelling or feedback, and nothing else.
 Every state has words and an icon; colour is never the only signal. States are `StatusBadge`'s thirteen kinds (ADR 0183): verified, done, approval, pending, working, attention, paused, failed, blocked, unverified, off, info and simulated. A task's kind is `stateKind()`. Blue (`approval`) is your turn, burnt orange (`caution`) a real warning, steel (`info`) information or work in progress, graphite a sample. No gold, amber or purple anywhere.
 
 **One icon set (ADR 0183).**
-- Phosphor on the web and desktop, SF Symbols on the iPhone.
+- Farbaek's own set on the web (`@/components/icons`, ADR 0289): soft and rounded, one 2 unit stroke with round ends, soft corners on every box. Import icons from there and nowhere else outside the public site; draw a new one to the same rules rather than reaching for a library. The desktop app's window still uses Phosphor, the iPhone SF Symbols.
 - Filled icons report a state, outlined icons name a thing or an action.
-- Sizes are 14, 16, 20, 24 and 32. An outlined icon is `bold` at every size (ADR 0286: one rounded style with a full stroke); never the thin default, `regular`, duotone, light or thin. `tests/design/icon-weight.test.ts` checks it outside the public site.
+- Sizes are 14, 16, 20, 24 and 32. An icon is written `weight="bold"` and a state `weight="fill"`; never the default, `regular`, duotone, light or thin. `tests/design/icon-weight.test.ts` and `tests/design/icon-set.test.ts` check it outside the public site.
 - Section headings in the app use `CardTitle` (20px outlined icon in `ink-3`, then the words). The same concept gets the same icon on every page, and a page's concept takes its navigation icon.
 - Error lines carry a filled WarningCircle in `failed`, success lines a filled CheckCircle in `verified`. External links use ArrowUpRight.
 
-Pick the icon for what the control does, not for "AI": hammer to build, pen nib to draft, tree to map, tray for an inbox, wrench to fix (ADR 0153). Sparkles, robots, wands and brains fail `tests/design/plain-icons.test.ts`.
+Pick the icon for what the control does, not for "AI": blocks to build (not a hammer: the owner turned it down), pen nib to draft, tree to map, tray for an inbox, wrench to fix (ADR 0153). Sparkles, robots, wands and brains fail `tests/design/plain-icons.test.ts`.
 
 Every control works, or it's visibly unavailable with the reason (a `disabledReason`). There are no dead ends: after cancelling, failing or finishing, offer the next step.
 

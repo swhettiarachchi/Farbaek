@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowUpRightIcon, GitBranchIcon, GitPullRequestIcon, GithubLogoIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowUpRightIcon, GitBranchIcon, GitPullRequestIcon, GithubLogoIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

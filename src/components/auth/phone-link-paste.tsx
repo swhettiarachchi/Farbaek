@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightIcon, ClipboardTextIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, ClipboardTextIcon } from "@/components/icons";
 import { useId, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";

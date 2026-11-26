@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, TrashIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { confirmSurveyItemAction, removeSurveySymbolAction } from "@/app/app/survey/actions";

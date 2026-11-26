@@ -5,7 +5,7 @@
  * latest from earlier visits (the project's record). "Use again" puts the words back in the instruction line; a turn of this visit that
  * changed the plan can be taken back while the parts it changed are still as it left them.
  */
-import { ArrowCounterClockwiseIcon, ArrowUUpLeftIcon, MicrophoneIcon, TextAaIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, ArrowUUpLeftIcon, MicrophoneIcon, TextAaIcon, XIcon } from "@/components/icons";
 import type { Status } from "@/components/ui/status-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LocalTime } from "@/components/ui/local-time";

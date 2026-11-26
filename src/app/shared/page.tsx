@@ -1,4 +1,4 @@
-import { ArrowRightIcon, UsersThreeIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, UsersThreeIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";

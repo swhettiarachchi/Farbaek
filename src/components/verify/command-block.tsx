@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CopyIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CopyIcon } from "@/components/icons";
 import { useState } from "react";
 
 /** A shell command to run, with a button that copies it exactly. */

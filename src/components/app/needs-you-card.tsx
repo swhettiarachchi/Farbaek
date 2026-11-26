@@ -1,4 +1,4 @@
-import { ArrowCircleRightIcon, ArrowRightIcon, InfoIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCircleRightIcon, ArrowRightIcon, InfoIcon } from "@/components/icons";
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
 import type { NeedsYou } from "@/core/realityloop/needs-you";

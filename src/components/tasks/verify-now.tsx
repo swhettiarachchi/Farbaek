@@ -1,6 +1,6 @@
 "use client";
 
-import { PlayIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PlayIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { startVerificationAction, type VerifyActionState } from "@/app/app/tasks/[taskId]/actions";

@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretDownIcon, CheckCircleIcon, CheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, CheckCircleIcon, CheckIcon, WarningCircleIcon } from "@/components/icons";
 import dynamic from "next/dynamic";
 import { useActionState, useState } from "react";
 import { pinSkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";

@@ -1,6 +1,6 @@
 "use client";
 
-import { BugBeetleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { BugBeetleIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { runMutationAction, type MutationState } from "@/app/app/tasks/mutation-actions";
 import { buttonClasses } from "@/components/ui/button";

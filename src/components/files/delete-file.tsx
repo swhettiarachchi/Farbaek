@@ -1,6 +1,6 @@
 "use client";
 
-import { TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { TrashIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useState } from "react";
 import { deleteFileAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";

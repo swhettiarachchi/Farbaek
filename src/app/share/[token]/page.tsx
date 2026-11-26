@@ -1,4 +1,4 @@
-import { ArrowUpRightIcon, DownloadSimpleIcon, EyeSlashIcon, FileIcon, ImageIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon, DownloadSimpleIcon, EyeSlashIcon, FileIcon, ImageIcon, SealCheckIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";

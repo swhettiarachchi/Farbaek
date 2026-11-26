@@ -1,4 +1,4 @@
-import { CheckCircleIcon, DeviceMobileIcon, LinkBreakIcon, ProhibitIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, DeviceMobileIcon, LinkBreakIcon, ProhibitIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";

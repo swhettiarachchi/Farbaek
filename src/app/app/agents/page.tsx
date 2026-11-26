@@ -1,4 +1,4 @@
-import { DesktopIcon, EyeIcon, HammerIcon, LinkSimpleIcon, LockSimpleIcon, PencilSimpleLineIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { DesktopIcon, EyeIcon, BlocksIcon, LinkSimpleIcon, LockSimpleIcon, PencilSimpleLineIcon, ShieldCheckIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { revokeAgentAction } from "@/app/app/actions";
@@ -177,7 +177,7 @@ export default async function AgentsPage() {
       </section>
 
       <section aria-labelledby="modes-heading" className="grid gap-4">
-        <CardTitle id="modes-heading" icon={HammerIcon}>
+        <CardTitle id="modes-heading" icon={BlocksIcon}>
           How the agent works
         </CardTitle>
         <ul className="grid gap-4 md:grid-cols-3">

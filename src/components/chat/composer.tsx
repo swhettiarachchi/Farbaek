@@ -19,7 +19,7 @@ import {
   StopIcon,
   WarningCircleIcon,
   XIcon,
-} from "@phosphor-icons/react";
+} from "@/components/icons";
 import { Fragment, useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { fileSizeLabel } from "@/core/chat/files";
 import type { ChatModelOption } from "@/core/chat/models";

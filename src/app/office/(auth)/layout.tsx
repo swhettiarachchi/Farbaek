@@ -1,4 +1,4 @@
-import { LockKeyIcon, ScrollIcon, TimerIcon } from "@phosphor-icons/react/ssr";
+import { LockKeyIcon, ScrollIcon, TimerIcon } from "@/components/icons";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { deploymentName, EnvPill } from "@/components/office/badges";
 import { OFFICE_POLICY } from "@/config/office";

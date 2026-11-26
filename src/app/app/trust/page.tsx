@@ -1,5 +1,5 @@
-import { CursorClickIcon, DesktopIcon, FlowArrowIcon, GraphIcon, MagnifyingGlassIcon, PlugsConnectedIcon, ScalesIcon, FolderSimpleIcon, UserIcon, UsersThreeIcon, WarningIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { CursorClickIcon, DesktopIcon, FlowArrowIcon, GraphIcon, MagnifyingGlassIcon, PlugsConnectedIcon, ScalesIcon, FolderSimpleIcon, UserIcon, UsersThreeIcon, WarningIcon, WrenchIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon } from "@/components/icons";
 import { setLiveAction } from "@/app/app/projects/[projectId]/publish-actions";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 

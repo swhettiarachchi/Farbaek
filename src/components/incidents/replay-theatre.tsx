@@ -1,4 +1,4 @@
-import { ArrowRightIcon, GitDiffIcon, RewindIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, GitDiffIcon, RewindIcon } from "@/components/icons";
 import Link from "next/link";
 import { CardTitle } from "@/components/app/primitives";
 import { LocalTime } from "@/components/ui/local-time";

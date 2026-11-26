@@ -1,6 +1,6 @@
 "use client";
 
-import { EyesIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { EyesIcon, WarningCircleIcon } from "@/components/icons";
 import { useState, useTransition } from "react";
 import { secondCheckAction } from "@/app/app/actions";
 import { Notice } from "@/components/app/primitives";

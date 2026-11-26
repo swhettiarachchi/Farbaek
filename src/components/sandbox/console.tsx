@@ -1,6 +1,6 @@
 "use client";
 
-import { ProhibitIcon, TerminalWindowIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ProhibitIcon, TerminalWindowIcon, WarningCircleIcon } from "@/components/icons";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { FarbaekApiError, type Execution, type FarbaekSandboxClient } from "@/sdk/sandbox-client";
 

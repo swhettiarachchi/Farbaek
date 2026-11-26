@@ -1,6 +1,6 @@
 "use client";
 
-import { DownloadSimpleIcon, FilePdfIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, FilePdfIcon, WarningCircleIcon } from "@/components/icons";
 import { useMemo, useState } from "react";
 import { formatDms, toDms } from "@/core/survey/angles";
 import { area, selfIntersections, zeroLengthLegs } from "@/core/survey/geometry";

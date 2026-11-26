@@ -1,5 +1,5 @@
-import { ClockUserIcon, HammerIcon, ListBulletsIcon, SealCheckIcon, StopCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ClockUserIcon, BlocksIcon, ListBulletsIcon, SealCheckIcon, StopCircleIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CardTitle, EmptyState, PageHeader } from "@/components/app/primitives";
@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Tasks" };
 // heading always agrees with the task's own chip (ADR 0183).
 const GROUPS: { key: string; title: string; icon: Icon; match: (t: Task) => boolean }[] = [
   { key: "needs-you", title: "Needs a person", icon: ClockUserIcon, match: (t) => taskGroup(t.state) === "needs-you" },
-  { key: "in-progress", title: "In progress", icon: HammerIcon, match: (t) => taskGroup(t.state) === "in-progress" },
+  { key: "in-progress", title: "In progress", icon: BlocksIcon, match: (t) => taskGroup(t.state) === "in-progress" },
   { key: "verified", title: "Verified", icon: SealCheckIcon, match: (t) => taskGroup(t.state) === "verified" },
   { key: "stopped", title: "Stopped or cancelled", icon: StopCircleIcon, match: (t) => taskGroup(t.state) === "stopped" },
 ];

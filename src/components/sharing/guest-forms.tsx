@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, FloppyDiskIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, FloppyDiskIcon, PlusIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import {

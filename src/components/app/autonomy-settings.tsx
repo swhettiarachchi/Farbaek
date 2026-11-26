@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ClockCounterClockwiseIcon, FlowArrowIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockCounterClockwiseIcon, FlowArrowIcon, ShieldCheckIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { setAutonomyAction, type AutonomyState } from "@/app/app/actions";

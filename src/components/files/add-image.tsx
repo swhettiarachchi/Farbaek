@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ImageIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ImageIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { addImageAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";

@@ -15,8 +15,8 @@ import {
   TrashIcon,
   UserCheckIcon,
   WarningCircleIcon,
-} from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+} from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { useId, useMemo, useState, useTransition } from "react";
 import { activateRulesAction, draftRulesAction, testRulesAction } from "@/app/app/policies/actions";

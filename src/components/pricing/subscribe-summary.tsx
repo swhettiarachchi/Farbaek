@@ -1,5 +1,5 @@
-import { BuildingsIcon, ClipboardTextIcon, CreditCardIcon, SignInIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { BuildingsIcon, ClipboardTextIcon, CreditCardIcon, SignInIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { StatusGlyph } from "@/components/ui/status-badge";
 import { getPlan, priceWords } from "@/core/billing/catalog";

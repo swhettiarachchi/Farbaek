@@ -42,10 +42,10 @@ function endOfTag(src: string, from: number): number {
   return -1;
 }
 
-/** Every Phosphor icon drawn in a file, by the names the file imports: its tag as written, and the line it starts on. */
+/** Every icon drawn in a file, by the names the file imports from the set (ADR 0289): its tag as written, and the line it starts on. */
 function iconTags(text: string): { tag: string; line: number }[] {
   const names = new Set<string>();
-  for (const m of text.matchAll(/import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*"@phosphor-icons\/react(?:\/ssr)?"/g)) {
+  for (const m of text.matchAll(/import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*"(?:@\/components\/icons|@phosphor-icons\/react(?:\/ssr)?)"/g)) {
     for (const part of m[1]!.split(",")) {
       const name = part.trim().replace(/^type\s+/, "").split(/\s+as\s+/).pop()?.trim();
       if (name && /Icon$/.test(name)) names.add(name);

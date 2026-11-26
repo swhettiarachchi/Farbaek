@@ -1,4 +1,4 @@
-import { DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon } from "@/components/icons";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import type { RecoveryReceipt } from "@/core/proof/recovery-receipt";

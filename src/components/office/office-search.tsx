@@ -18,8 +18,8 @@ import {
   SlidersHorizontalIcon,
   UserIcon,
   UsersThreeIcon,
-} from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+} from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { searchOfficeAction } from "@/app/office/actions";

@@ -1,4 +1,4 @@
-import { SirenIcon } from "@phosphor-icons/react/ssr";
+import { SirenIcon } from "@/components/icons";
 import Link from "next/link";
 import { STAGES, STAGE_TITLES, type Lane, type StageNode, type StageState } from "@/core/insights/project-graph";
 import { RelativeTime } from "@/components/ui/local-time";

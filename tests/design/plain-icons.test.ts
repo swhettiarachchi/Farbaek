@@ -1,7 +1,7 @@
 /**
  * Icons say what a control does (ADR 0153). Sparkles, robots, magic wands and
  * brains are the stock picture of "AI" and read as generated UI; they also
- * say nothing about the action. Building uses the hammer, drafting the pen
+ * say nothing about the action. Building uses the blocks, drafting the pen
  * nib, mapping the tree, an inbox the tray, steering the agent the wheel.
  * The native apps follow the same rule with SF Symbols.
  */

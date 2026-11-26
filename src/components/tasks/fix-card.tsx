@@ -1,4 +1,4 @@
-import { WarningCircleIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
+import { WarningCircleIcon, WrenchIcon } from "@/components/icons";
 import Link from "next/link";
 import { startFixAction } from "@/app/app/tasks/[taskId]/fix-actions";
 import { Card, CardTitle, TaskStateBadge } from "@/components/app/primitives";

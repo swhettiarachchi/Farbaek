@@ -1,4 +1,4 @@
-import { ShieldCheckIcon, TerminalWindowIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ShieldCheckIcon, TerminalWindowIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { SealReveal } from "@/components/proof/seal-reveal";

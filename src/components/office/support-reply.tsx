@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, LockSimpleIcon, PaperPlaneTiltIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, LockSimpleIcon, PaperPlaneTiltIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useId, useState } from "react";
 import type { SupportReplyState } from "@/app/office/(console)/support/[id]/actions";
 import { buttonClasses } from "@/components/ui/button";

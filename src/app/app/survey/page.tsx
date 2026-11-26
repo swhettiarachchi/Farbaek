@@ -1,4 +1,4 @@
-import { CompassToolIcon, IdentificationCardIcon, MapTrifoldIcon, PlusIcon, ToolboxIcon } from "@phosphor-icons/react/ssr";
+import { CompassToolIcon, IdentificationCardIcon, MapTrifoldIcon, PlusIcon, ToolboxIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { approveWorkflowAction, cancelWorkflowAction, continueWorkflowAction, type WorkflowState } from "@/app/app/workflows/actions";
 import { buttonClasses } from "@/components/ui/button";

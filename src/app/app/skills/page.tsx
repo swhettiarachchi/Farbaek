@@ -1,4 +1,4 @@
-import { ArrowRightIcon, BookOpenTextIcon, ClipboardTextIcon, NotePencilIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, BookOpenTextIcon, ClipboardTextIcon, NotePencilIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

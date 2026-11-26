@@ -1,6 +1,6 @@
 "use client";
 
-import { DesktopIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { DesktopIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { requestHandoffAction, type HandoffState } from "@/app/app/tasks/handoff-actions";
 import { buttonClasses } from "@/components/ui/button";

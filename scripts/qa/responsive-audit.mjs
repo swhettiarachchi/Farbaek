@@ -78,7 +78,7 @@ function deviceFor(spec) {
 /** Overlays opened by script after a route's own check, and checked again as "route #name". */
 const OPENERS = [
   { route: "/", name: "menu", kinds: ["phone", "tablet"], run: (page) => page.click('button[aria-controls][aria-expanded="false"]') },
-  { route: "/app/more", name: "workspaces", kinds: ["phone", "tablet"], run: (page) => page.locator("details summary", { hasText: "Switch workspace" }).first().click() },
+  { route: "/app/more", name: "workspaces", kinds: ["phone", "tablet"], run: (page) => page.locator("details summary:visible", { hasText: "Switch workspace" }).first().click() },
   { route: "/app", name: "search", kinds: ["phone", "tablet"], run: (page) => page.click('[data-open-palette]') },
   { route: "/app", name: "palette", kinds: ["desktop"], run: (page) => page.keyboard.press("Control+k") },
   {

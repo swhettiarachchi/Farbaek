@@ -1,4 +1,4 @@
-import { UsersThreeIcon } from "@phosphor-icons/react/ssr";
+import { UsersThreeIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";

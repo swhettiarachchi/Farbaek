@@ -8,7 +8,7 @@ import {
   CheckCircleIcon,
   PlusIcon,
   TrashIcon,
-} from "@phosphor-icons/react";
+} from "@/components/icons";
 import { useId, useState } from "react";
 import { formatDms, formatQuadrant, toDms } from "@/core/survey/angles";
 import { curveOfLeg } from "@/core/survey/lotcurves";

@@ -1,5 +1,5 @@
-import { CloudArrowUpIcon, PenNibIcon as DraftIcon, DesktopIcon, EnvelopeSimpleIcon, GithubLogoIcon, GlobeIcon, LockSimpleIcon, PackageIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { CloudArrowUpIcon, PenNibIcon as DraftIcon, DesktopIcon, EnvelopeSimpleIcon, GithubLogoIcon, GlobeIcon, LockSimpleIcon, PackageIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";

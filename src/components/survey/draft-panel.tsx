@@ -1,6 +1,6 @@
 "use client";
 
-import { CameraIcon, CheckCircleIcon, CircleNotchIcon, FloppyDiskIcon, PenNibIcon, QuestionIcon, TrashIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
+import { CameraIcon, CheckCircleIcon, CircleNotchIcon, FloppyDiskIcon, PenNibIcon, QuestionIcon, TrashIcon, WarningCircleIcon, XIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";

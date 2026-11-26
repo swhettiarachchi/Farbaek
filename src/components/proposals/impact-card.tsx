@@ -1,7 +1,7 @@
 "use client";
 
-import { BrowserIcon, FileArrowUpIcon, GraphIcon, ListChecksIcon, PathIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { BrowserIcon, FileArrowUpIcon, GraphIcon, ListChecksIcon, PathIcon, WarningCircleIcon, WarningIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import { useState, useTransition } from "react";
 import { analyzeImpactAction, type ImpactState } from "@/app/app/impact-actions";
 import { buttonClasses } from "@/components/ui/button";

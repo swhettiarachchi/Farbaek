@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, HandPalmIcon, PauseCircleIcon, PlayIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, HandPalmIcon, PauseCircleIcon, PlayIcon, WarningCircleIcon } from "@/components/icons";
 import { useId, useState, useTransition } from "react";
 import { pauseAgentsAction, resumeAgentsAction, type IncidentActionState } from "@/app/app/incidents/actions";
 import { buttonClasses } from "@/components/ui/button";

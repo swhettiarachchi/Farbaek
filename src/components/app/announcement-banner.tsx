@@ -1,6 +1,6 @@
 "use client";
 
-import { InfoIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
+import { InfoIcon, WarningCircleIcon, XIcon } from "@/components/icons";
 import { useState, useSyncExternalStore } from "react";
 import type { Announcement } from "@/server/platform/announcements";
 

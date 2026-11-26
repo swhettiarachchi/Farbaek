@@ -8,7 +8,7 @@
  * It is not a terminal. Typing commands needs a test space, a private throwaway computer, and that has its own screen:
  * this pane links to it instead of drawing a prompt that can't run anything.
  */
-import { ArrowSquareOutIcon, FileIcon } from "@phosphor-icons/react";
+import { ArrowSquareOutIcon, FileIcon } from "@/components/icons";
 import Link from "next/link";
 import { useState } from "react";
 import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";

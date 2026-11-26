@@ -1,4 +1,4 @@
-import { HammerIcon, UserIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { BlocksIcon, UserIcon, WarningCircleIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { VERIFICATION_RESULT_WORDS, verificationState, type VerificationRecord, type VerificationResult } from "@/core/realityloop/verification";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -12,7 +12,7 @@ function startedBy(v: VerificationRecord, viewerId: string | null): string {
 
 /** The "Started" line, with who started it as an icon too: a person, or the agent working on its own. */
 function Started({ v, viewerId, children }: { v: VerificationRecord; viewerId: string | null; children?: ReactNode }) {
-  const WhoIcon = v.trigger === "autonomy" ? HammerIcon : UserIcon;
+  const WhoIcon = v.trigger === "autonomy" ? BlocksIcon : UserIcon;
   return (
     <p className="flex items-start gap-1.5 text-xs text-ink-3">
       <WhoIcon size={14} weight="bold" className="mt-px shrink-0" aria-hidden />

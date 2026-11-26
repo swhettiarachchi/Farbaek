@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretDownIcon } from "@phosphor-icons/react";
+import { CaretDownIcon } from "@/components/icons";
 import { useEffect, useRef, type ReactNode } from "react";
 
 /**

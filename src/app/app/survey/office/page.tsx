@@ -1,4 +1,4 @@
-import { ArchiveIcon, ToolboxIcon } from "@phosphor-icons/react/ssr";
+import { ArchiveIcon, ToolboxIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { archiveOfficeProfileAction } from "../actions";

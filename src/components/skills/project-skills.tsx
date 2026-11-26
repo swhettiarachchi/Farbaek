@@ -1,4 +1,4 @@
-import { TrashIcon } from "@phosphor-icons/react/ssr";
+import { TrashIcon } from "@/components/icons";
 import { removeSkillAction } from "@/app/app/projects/[projectId]/skill-actions";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { RelativeTime } from "@/components/ui/local-time";

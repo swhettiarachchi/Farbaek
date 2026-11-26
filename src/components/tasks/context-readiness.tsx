@@ -1,4 +1,4 @@
-import { DownloadSimpleIcon, FolderOpenIcon } from "@phosphor-icons/react/ssr";
+import { DownloadSimpleIcon, FolderOpenIcon } from "@/components/icons";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { STATUS_KINDS, StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { FACT_LABELS, READINESS_LABELS, type ContextPassport, type FactStatus, type Readiness } from "@/core/realityloop/context-passport";

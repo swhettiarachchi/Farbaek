@@ -1,4 +1,4 @@
-import { SignOutIcon } from "@phosphor-icons/react/ssr";
+import { SignOutIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { signOut } from "@/app/app/actions";

@@ -1,4 +1,4 @@
-import { CompassIcon } from "@phosphor-icons/react/ssr";
+import { CompassIcon } from "@/components/icons";
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
 import { FOCUSED_TITLE } from "@/components/ui/titles";

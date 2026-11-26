@@ -12,7 +12,7 @@
  * from a changed file in Output. A draft, a review and an error each remember the file they belong to, so nothing written
  * for one file can ever be shown, or saved, as another.
  */
-import { ArrowClockwiseIcon, ArrowLeftIcon, CaretRightIcon, FileIcon, FolderSimpleIcon, GitDiffIcon, ImageSquareIcon, InfoIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, ArrowLeftIcon, CaretRightIcon, FileIcon, FolderSimpleIcon, GitDiffIcon, ImageSquareIcon, InfoIcon, WarningCircleIcon } from "@/components/icons";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

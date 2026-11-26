@@ -5,7 +5,7 @@
  * the engine's answers; a question with answers to tap; a hand-over to a tool; and plain notes. Each card rises from the bar it answers,
  * and stays put under reduced motion.
  */
-import { ArrowSquareOutIcon, CheckIcon, EyeIcon, EyeSlashIcon, PencilSimpleIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowSquareOutIcon, CheckIcon, EyeIcon, EyeSlashIcon, PencilSimpleIcon, WarningCircleIcon, XIcon } from "@/components/icons";
 import type { ReactNode } from "react";
 import type { Answer } from "@/core/survey/assistant/answer";
 import type { Described } from "@/core/survey/assistant/describe";

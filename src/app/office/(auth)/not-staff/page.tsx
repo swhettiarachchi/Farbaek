@@ -1,4 +1,4 @@
-import { ProhibitIcon } from "@phosphor-icons/react/ssr";
+import { ProhibitIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CardTitle } from "@/components/app/primitives";

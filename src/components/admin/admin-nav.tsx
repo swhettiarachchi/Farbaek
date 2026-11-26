@@ -1,7 +1,7 @@
 "use client";
 
-import { BuildingsIcon, ChartLineUpIcon, PulseIcon, UsersThreeIcon } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { BuildingsIcon, ChartLineUpIcon, PulseIcon, UsersThreeIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PAGE_NAV } from "@/components/app/page-transition";

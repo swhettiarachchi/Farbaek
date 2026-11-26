@@ -1,4 +1,4 @@
-import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon } from "@/components/icons";
 import Link from "next/link";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusGlyph, type Status } from "@/components/ui/status-badge";

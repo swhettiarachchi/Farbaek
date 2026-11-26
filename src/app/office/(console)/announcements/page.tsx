@@ -1,4 +1,4 @@
-import { InfoIcon, MegaphoneIcon, PencilSimpleLineIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { InfoIcon, MegaphoneIcon, PencilSimpleLineIcon, WarningCircleIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";

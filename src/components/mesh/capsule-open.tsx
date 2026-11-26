@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretDownIcon, FileZipIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, FileZipIcon, WarningCircleIcon } from "@/components/icons";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { startTransition, useActionState, useId, useRef, useState, useTransition } from "react";

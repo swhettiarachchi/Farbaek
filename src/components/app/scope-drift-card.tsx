@@ -1,4 +1,4 @@
-import { CheckCircleIcon, FolderOpenIcon, GitDiffIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, FolderOpenIcon, GitDiffIcon, WarningCircleIcon } from "@/components/icons";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { LocalTime } from "@/components/ui/local-time";
 import { DRIFT_LABELS, ORIGIN_LABELS, groupDrift, type DriftFinding } from "@/core/realityloop/scope-drift";

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, CalendarCheckIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CalendarCheckIcon, CheckCircleIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";

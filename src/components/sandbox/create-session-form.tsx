@@ -1,6 +1,6 @@
 "use client";
 
-import { CpuIcon, GlobeIcon, HardDrivesIcon, MemoryIcon, ShieldCheckIcon, TimerIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CpuIcon, GlobeIcon, HardDrivesIcon, MemoryIcon, ShieldCheckIcon, TimerIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useMemo, useState } from "react";
 import { createSandboxSessionAction, type CreateSessionState } from "@/app/app/sandbox/actions";
 import { CardTitle } from "@/components/app/primitives";

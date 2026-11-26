@@ -24,8 +24,8 @@ import {
   TrashIcon,
   WarningCircleIcon,
   XIcon,
-} from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+} from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";

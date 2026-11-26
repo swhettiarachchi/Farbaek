@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon } from "@phosphor-icons/react";
+import { CheckIcon } from "@/components/icons";
 import type { AdjustMethod, InstrumentPrecision } from "@/core/survey/adjust";
 
 const CHOICES: { value: AdjustMethod | null; label: string; hint: string }[] = [

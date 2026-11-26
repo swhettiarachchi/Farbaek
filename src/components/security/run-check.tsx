@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ShieldCheckIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { startSecurityCheckAction, type SecurityActionState } from "@/app/app/projects/[projectId]/security/actions";

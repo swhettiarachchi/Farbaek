@@ -1,4 +1,4 @@
-import { CreditCardIcon } from "@phosphor-icons/react/ssr";
+import { CreditCardIcon } from "@/components/icons";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { NotInAndroidApp, WebPurchaseOnly } from "./web-purchase-only";

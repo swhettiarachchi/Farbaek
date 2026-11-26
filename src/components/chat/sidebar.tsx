@@ -18,7 +18,7 @@ import {
   HouseSimpleIcon,
   ChatCircleTextIcon,
   VideoCameraIcon,
-  HammerIcon,
+  BlocksIcon,
   ImageSquareIcon,
   ImagesIcon,
   MagnifyingGlassIcon,
@@ -32,7 +32,7 @@ import {
   TrashIcon,
   UserCircleIcon,
   XIcon,
-} from "@phosphor-icons/react";
+} from "@/components/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -46,10 +46,10 @@ const SPACE_LINKS = [
   { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon },
   { href: "/app/images", label: "Images", icon: ImageSquareIcon },
   { href: "/app/video", label: "Video", icon: VideoCameraIcon },
-  { href: "/app/workbench", label: "Build", icon: HammerIcon },
+  { href: "/app/workbench", label: "Build", icon: BlocksIcon },
 ] as const;
 
-const SPACE_ROW = "group/space flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 transition-[background-color,color,box-shadow] duration-150 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-11";
+const SPACE_ROW = "group/space flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink transition-[background-color,box-shadow] duration-150 hover:bg-surface aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:shadow-e1 pointer-coarse:min-h-12 max-md:text-base max-md:font-medium";
 import { listChatsAction, moveChatAction } from "@/app/app/chat/actions";
 import { useChat } from "./chat-shell";
 import { IconButton, Menu, useToast, type MenuItem } from "./primitives";
@@ -187,7 +187,7 @@ export function Sidebar({
         />
         {SPACE_LINKS.slice(1).map((s) => (
           <Link key={s.href} href={s.href} aria-label={s.label} title={s.label} className="tap inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-raised">
-            <s.icon size={20} weight="bold" className="text-ink-2" aria-hidden />
+            <s.icon size={20} weight="bold" className="text-ink" aria-hidden />
           </Link>
         ))}
         <div className="mt-auto">
@@ -243,16 +243,16 @@ export function Sidebar({
       <div className="mt-3 grid gap-0.5 px-3">
         {/* Home leads, as in the app's own sidebar (ADR 0230): the two lists start the same way. */}
         <Link href="/app" onClick={onNavigate} className={SPACE_ROW}>
-          <HouseSimpleIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Home
+          <HouseSimpleIcon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden /> Home
         </Link>
         {SPACE_LINKS.map((s) => (
           <Link key={s.href} href={s.href} onClick={onNavigate} aria-current={s.href === "/app/chat" && pathname !== "/app/chat/images" ? "page" : undefined} className={SPACE_ROW}>
-            <s.icon size={20} weight="bold" className="shrink-0" aria-hidden /> {s.label}
+            <s.icon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden /> {s.label}
           </Link>
         ))}
         {/* Work Farbaek does by itself, one press from where people ask for it (ADR 0286). */}
         <Link href="/app/scheduled" onClick={onNavigate} className={SPACE_ROW}>
-          <CalendarCheckIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Scheduled
+          <CalendarCheckIcon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden /> Scheduled
         </Link>
       </div>
 
@@ -261,17 +261,17 @@ export function Sidebar({
           href="/app/chat/images"
           onClick={onNavigate}
           aria-current={pathname === "/app/chat/images" ? "page" : undefined}
-          className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-11"
+          className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink hover:bg-surface aria-[current=page]:bg-surface aria-[current=page]:shadow-e1 pointer-coarse:min-h-12 max-md:text-base max-md:font-medium"
         >
-          <ImagesIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Pictures from chats
+          <ImagesIcon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden /> Pictures from chats
         </Link>
         {view === "archived" ? (
-          <button type="button" onClick={() => setView("recent")} className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-left text-sm text-ink-2 hover:bg-surface hover:text-ink pointer-coarse:min-h-11">
-            <ArrowLeftIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Back to your chats
+          <button type="button" onClick={() => setView("recent")} className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-left text-sm text-ink hover:bg-surface pointer-coarse:min-h-12 max-md:text-base max-md:font-medium">
+            <ArrowLeftIcon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden /> Back to your chats
           </button>
         ) : (
-          <button type="button" onClick={() => void openArchived()} className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-left text-sm text-ink-2 hover:bg-surface hover:text-ink pointer-coarse:min-h-11">
-            <ArchiveIcon size={20} weight="bold" className="shrink-0" aria-hidden /> Archived
+          <button type="button" onClick={() => void openArchived()} className="flex min-h-10 items-center gap-3 rounded-full px-3.5 text-left text-sm text-ink hover:bg-surface pointer-coarse:min-h-12 max-md:text-base max-md:font-medium">
+            <ArchiveIcon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden /> Archived
           </button>
         )}
       </div>

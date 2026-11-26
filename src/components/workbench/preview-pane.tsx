@@ -6,7 +6,7 @@
  * It is read from its own route the first time the pane is seen, and again only when the files or the waiting change have
  * changed. A project that can't be shown here says exactly why, with the real way to open it instead; never a made-up frame.
  */
-import { ArrowClockwiseIcon, BrowserIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, BrowserIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { PreviewButton } from "@/components/app/preview-button";

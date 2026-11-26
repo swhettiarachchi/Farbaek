@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowClockwiseIcon, CaretDownIcon, CaretRightIcon, CheckCircleIcon, FileIcon, FilePlusIcon, FloppyDiskIcon, FolderIcon, FolderOpenIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CaretDownIcon, CaretRightIcon, CheckCircleIcon, FileIcon, FilePlusIcon, FloppyDiskIcon, FolderIcon, FolderOpenIcon, WarningCircleIcon } from "@/components/icons";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";

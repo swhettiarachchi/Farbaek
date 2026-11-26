@@ -1,6 +1,6 @@
 "use client";
 
-import { PlayIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PlayIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { tryFailureAction, type FailureTrialState } from "@/app/app/tasks/failure-actions";
 import { buttonClasses } from "@/components/ui/button";

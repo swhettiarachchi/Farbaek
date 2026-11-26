@@ -12,7 +12,7 @@
  * The switch remembers the person's last choice in this browser. Ask leads, since most first questions are questions;
  * for a workspace that hasn't built anything yet, Home asks for Build to lead (`lead`), since its first step is a build.
  */
-import { ArrowUpIcon, ChatCircleTextIcon, HammerIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, ChatCircleTextIcon, BlocksIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { HOME_QUESTION_KEY } from "@/core/chat/protocol";
@@ -48,9 +48,9 @@ function subscribeStart(onChange: () => void) {
   return () => window.removeEventListener(START_EVENT, onChange);
 }
 
-const CHOICES: [Start, typeof HammerIcon, string][] = [
+const CHOICES: [Start, typeof BlocksIcon, string][] = [
   ["ask", ChatCircleTextIcon, "Ask"],
-  ["build", HammerIcon, "Build"],
+  ["build", BlocksIcon, "Build"],
 ];
 
 export function StartBox({ build, lead = "ask" }: { build: ReactNode; /** Which side shows until the person chooses. */ lead?: Start }) {

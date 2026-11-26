@@ -1,4 +1,4 @@
-import { ClockCounterClockwiseIcon, HammerIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ClockCounterClockwiseIcon, BlocksIcon, ShieldCheckIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { CardTitle, PageHeader } from "@/components/app/primitives";
@@ -27,7 +27,7 @@ export default async function AdminActivity() {
       <PageHeader title="Activity" description="The latest agent runs, security checks and recorded actions across every workspace, newest first." />
 
       <section aria-labelledby="runs-heading" className="grid gap-3">
-        <CardTitle id="runs-heading" icon={HammerIcon}>
+        <CardTitle id="runs-heading" icon={BlocksIcon}>
           Agent runs
         </CardTitle>
         {activity.runs.length === 0 ? (

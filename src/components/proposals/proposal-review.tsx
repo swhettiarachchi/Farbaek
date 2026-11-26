@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CheckIcon, ClockIcon, DesktopIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CheckIcon, ClockIcon, DesktopIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon } from "@/components/icons";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

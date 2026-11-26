@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ChartBarIcon, GraphIcon, ListBulletsIcon, ShieldWarningIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ChartBarIcon, GraphIcon, ListBulletsIcon, ShieldWarningIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

@@ -1,4 +1,4 @@
-import { HardDrivesIcon, PlugsConnectedIcon } from "@phosphor-icons/react/ssr";
+import { HardDrivesIcon, PlugsConnectedIcon } from "@/components/icons";
 import { ExecutionModeBadge } from "@/components/app/execution";
 import { CardTitle } from "@/components/app/primitives";
 import { StatusGlyph, type Status } from "@/components/ui/status-badge";

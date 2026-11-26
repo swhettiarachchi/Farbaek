@@ -1,4 +1,4 @@
-import { ArrowsLeftRightIcon } from "@phosphor-icons/react/ssr";
+import { ArrowsLeftRightIcon } from "@/components/icons";
 import { COMPARE_PLANS, FEATURE_LABELS, FEATURE_STATUS, chargeLine, planSessionsGuide, type FeatureKey, type Plan, type PlanLimits } from "@/core/billing/catalog";
 import { CompareCellView, type CompareCell, type CompareGroup, type CompareRow } from "./compare-cell";
 import { ComparePlans } from "./compare-plans";

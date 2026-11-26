@@ -1,4 +1,4 @@
-import { CaretRightIcon, FileIcon, FolderIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, FileIcon, FolderIcon } from "@/components/icons";
 import Link from "next/link";
 import type { TreeNode } from "@/core/workspace/files";
 

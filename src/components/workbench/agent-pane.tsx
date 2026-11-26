@@ -8,7 +8,7 @@
  * It reuses the build flow's own parts (`ApproveBuild`, `StartRun`, `EventRow`, `ApprovalCard`, `MessageBar`,
  * `PromptComposer`), each told that it is in the workspace, so approving and starting come back here.
  */
-import { ArrowRightIcon, CaretDownIcon, CheckIcon, ListChecksIcon, PencilSimpleLineIcon, ShieldCheckIcon, StopCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, CaretDownIcon, CheckIcon, ListChecksIcon, PencilSimpleLineIcon, ShieldCheckIcon, StopCircleIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightIcon, CopyIcon, QrCodeIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, CopyIcon, QrCodeIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { inputClasses } from "@/components/ui/field";

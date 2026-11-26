@@ -1,5 +1,5 @@
-import { InfoIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { InfoIcon, WarningCircleIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 import type { ReactNode } from "react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TASK_STATE_LABELS, stateKind } from "@/core/realityloop/progress";

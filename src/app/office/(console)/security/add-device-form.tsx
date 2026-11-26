@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, PlusIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { StepUpField } from "@/components/office/fields";
 import { buttonClasses } from "@/components/ui/button";

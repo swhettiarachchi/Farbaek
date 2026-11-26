@@ -1,6 +1,6 @@
 "use client";
 
-import { WarningCircleIcon, WrenchIcon } from "@phosphor-icons/react";
+import { WarningCircleIcon, WrenchIcon } from "@/components/icons";
 import { useActionState } from "react";
 import { fixWithAgentAction, type FixState } from "@/app/app/projects/[projectId]/security/actions";
 import { buttonClasses } from "@/components/ui/button";

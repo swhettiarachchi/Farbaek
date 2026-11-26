@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ClipboardTextIcon, ClockCounterClockwiseIcon, FileTextIcon, GitDiffIcon, HammerIcon, ListNumbersIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, ClipboardTextIcon, ClockCounterClockwiseIcon, FileTextIcon, GitDiffIcon, BlocksIcon, ListNumbersIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -29,7 +29,7 @@ export const metadata: Metadata = { title: "Build" };
 const FLOW = [
   { icon: FileTextIcon, title: "Describe", text: "Write the outcome you want as a task in a project." },
   { icon: ClipboardTextIcon, title: "Agree", text: "AI drafts a plan. You read it and approve it." },
-  { icon: HammerIcon, title: "Build", text: "The agent works in the cloud, runs the checks and asks before anything risky." },
+  { icon: BlocksIcon, title: "Build", text: "The agent works in the cloud, runs the checks and asks before anything risky." },
   { icon: GitDiffIcon, title: "Review", text: "You check every change and apply it. You also get a ProofPack, the record of what was checked." },
 ];
 
@@ -121,12 +121,12 @@ export default async function BuildPage() {
         </Disclosure>}
 
       <section aria-labelledby="ready-heading" className="grid gap-4">
-        <CardTitle id="ready-heading" icon={HammerIcon}>
+        <CardTitle id="ready-heading" icon={BlocksIcon}>
           Ready to build
         </CardTitle>
         {ready.length === 0 ? (
           <EmptyState
-            icon={HammerIcon}
+            icon={BlocksIcon}
             title="Nothing is ready to build yet"
             action={
               <Link href="/app/new" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">

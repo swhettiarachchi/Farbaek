@@ -1,4 +1,4 @@
-import { CheckIcon } from "@phosphor-icons/react/ssr";
+import { CheckIcon } from "@/components/icons";
 
 const STEPS = ["Email code", "Authenticator", "Office"] as const;
 

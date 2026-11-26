@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, GaugeIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, GaugeIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { loadUsageAction } from "@/app/app/actions";

@@ -1,4 +1,4 @@
-import { ArrowUpRightIcon, GlobeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon, GlobeIcon, WarningCircleIcon } from "@/components/icons";
 import Link from "next/link";
 import { CardTitle } from "@/components/app/primitives";
 import { RelativeTime } from "@/components/ui/local-time";

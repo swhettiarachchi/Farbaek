@@ -1,4 +1,4 @@
-import { ArrowRightIcon, TerminalWindowIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, TerminalWindowIcon, WarningCircleIcon } from "@/components/icons";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";

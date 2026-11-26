@@ -12,7 +12,7 @@ import {
   ShareNetworkIcon,
   TrashIcon,
   WarningCircleIcon,
-} from "@phosphor-icons/react";
+} from "@/components/icons";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { LOGO } from "@/components/brand/brand-logo";

@@ -1,4 +1,4 @@
-import { CaretRightIcon, EnvelopeSimpleIcon, LifebuoyIcon, ListBulletsIcon, PlusIcon, UsersThreeIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, EnvelopeSimpleIcon, LifebuoyIcon, ListBulletsIcon, PlusIcon, UsersThreeIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

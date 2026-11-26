@@ -5,7 +5,7 @@ import {
   ClipboardTextIcon,
   ClockCounterClockwiseIcon,
   GitDiffIcon,
-  HammerIcon,
+  BlocksIcon,
   ListChecksIcon,
   ListNumbersIcon,
   MagnifyingGlassIcon,
@@ -13,7 +13,7 @@ import {
   SealCheckIcon,
   StopCircleIcon,
   TerminalWindowIcon,
-} from "@phosphor-icons/react/ssr";
+} from "@/components/icons";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { verifiedSeal } from "@/core/proof/verified-digest";
@@ -446,7 +446,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
                 <h3 className="flex items-center gap-2 text-base font-medium">
-                  <HammerIcon size={20} weight="bold" className="shrink-0 text-accent" aria-hidden /> Let the agent build it
+                  <BlocksIcon size={20} weight="bold" className="shrink-0 text-accent" aria-hidden /> Let the agent build it
                 </h3>
                 <p className="text-sm leading-relaxed text-ink-2">
                   The agent works through the plan on its own copy of your project, runs the checks, then shows you every change to review.
@@ -639,7 +639,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           </p>
 
           <Card>
-            <CardTitle icon={HammerIcon}>How the agent works on this</CardTitle>
+            <CardTitle icon={BlocksIcon}>How the agent works on this</CardTitle>
             <div className="mt-3">
               <TaskModeControl taskId={task.id} mode={mode} disabledReason={modeReason} />
             </div>

@@ -1,5 +1,5 @@
-import { CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, ClockIcon, ClockUserIcon, EyeIcon, InfoIcon, MinusCircleIcon, PauseCircleIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, ClockIcon, ClockUserIcon, EyeIcon, InfoIcon, MinusCircleIcon, PauseCircleIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@/components/icons";
+import type { Icon } from "@/components/icons";
 
 /**
  * Where something stands (ADR 0183). Every kind has its words, its icon, its colour and its border, so no state

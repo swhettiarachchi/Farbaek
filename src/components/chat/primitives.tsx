@@ -5,7 +5,7 @@
  * scrolling list, a dialog on the native <dialog> element (focus kept inside, Escape closes, the page behind is inert), and
  * polite toasts that never take focus. Motion is transform and opacity only, and stops under reduced motion.
  */
-import { CheckCircleIcon, WarningCircleIcon, XIcon, type Icon } from "@phosphor-icons/react";
+import { CheckCircleIcon, WarningCircleIcon, XIcon, type Icon } from "@/components/icons";
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 

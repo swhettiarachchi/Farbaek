@@ -24,7 +24,7 @@ Read `CLAUDE.md` first, then `farbaek-ui` for the system. This skill is the laye
 | A sentence squeezed into a chip with an icon ("1 change no line of the plan explains") | Chips are for one or two words | Facts are lines in a list, written as a person would say them |
 | Eyebrows, tracked capitals, `//` labels, numbered sections, version stamps, scroll cues, city-and-time strips | The templated rhythm of generated pages | Headlines stand alone (ADR 0049). Sections aren't numbered. Nothing is stamped BETA. Nobody is told to scroll |
 | Fake-precise or round-perfect numbers (99.99%, 4.1x, 48k) | Invented engineering precision | Real numbers, or sample ones labelled sample |
-| Sparkles, robots, wands, brains, rockets, circuits, lightning as decoration | The stock picture of "AI" | An icon that names the action: hammer to build, pen nib to draft, play to try (ADR 0153) |
+| Sparkles, robots, wands, brains, rockets, circuits, lightning as decoration | The stock picture of "AI" | An icon that names the action: blocks to build, pen nib to draft, play to try (ADR 0153) |
 | `#000`, `#fff`, neon glows, purple-blue gradients, gradient headlines, three equal cards, glass on everything | The defaults a model reaches for | Tokens only, one accent, soft tinted depth, varied layouts (ADR 0008, ADR 0156) |
 | An em dash anywhere in visible text | The single most recognised tell | A comma, a colon, a full stop or parentheses |
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { WarningCircleIcon } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 import { CONTACT } from "@/config/contact";
 

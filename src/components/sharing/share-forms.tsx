@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CheckIcon, CopyIcon, LinkSimpleIcon, UserPlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CheckIcon, CopyIcon, LinkSimpleIcon, UserPlusIcon, WarningCircleIcon } from "@/components/icons";
 import { useActionState, useId, useState } from "react";
 import {
   changeGuestAccessAction,
