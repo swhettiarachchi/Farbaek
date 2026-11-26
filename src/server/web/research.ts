@@ -72,6 +72,8 @@ export interface ResearchInput {
   deepBudgetChars?: number;
   signal: AbortSignal;
   onStage?: (stage: ResearchStage) => void;
+  /** What the answering model already has beside the message, for the planner (stage 282). */
+  known?: string;
 }
 
 export interface ResearchResult {
@@ -159,7 +161,7 @@ export async function research(deps: ResearchDeps, input: ResearchInput): Promis
   const reader = deps.reader;
 
   input.onStage?.({ stage: "planning" });
-  const planned = await planSearch({ question: input.question, earlier: input.earlier, need: input.need, local: input.local, model: input.plannerModel, modelId: input.plannerModelId, signal: input.signal, now: started, timeoutMs: 4_000 });
+  const planned = await planSearch({ question: input.question, earlier: input.earlier, need: input.need, local: input.local, model: input.plannerModel, modelId: input.plannerModelId, signal: input.signal, now: started, timeoutMs: 4_000, known: input.known });
   let plannerUsage = planned.usage;
   if (planned.miss) log("warn", "web.planner_missed", { why: planned.miss, ms: deps.now() - started });
   if (input.signal.aborted) return failed("stopped", at, planned.plan?.queries ?? [], plannerUsage);

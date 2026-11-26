@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { noteMinuteTick } from "@/server/automation/minute-tick";
 import { startDueTasks } from "@/server/automation/wiring";
 import { checkSchedulerToken } from "@/server/jobs/auth";
 import { noteJobRun } from "@/server/ops/jobs";
@@ -20,6 +21,8 @@ export async function POST(request: Request) {
   if (auth === "missing") return problem(503, "NOT_CONFIGURED", "Not configured.");
   if (auth === "denied") return problem(401, "UNAUTHENTICATED", "Not allowed.");
   const tick = await startDueTasks((work) => after(work));
+  // The page may promise "within a minute" only while these ticks arrive and can claim what is due.
+  if (tick.status !== "not_configured" && tick.status !== "failed") noteMinuteTick();
   const admin = createSupabaseAdminClient();
   if (admin && tick.status !== "not_configured") {
     await noteJobRun(admin, "scheduled_tasks", tick.status !== "failed", tick.status === "ran" ? `Started ${tick.claimed}; ${tick.running} running.` : tick.status === "paused" ? "AI is paused for the platform, so nothing was started." : "Due tasks couldn't be claimed.").catch(() => undefined);

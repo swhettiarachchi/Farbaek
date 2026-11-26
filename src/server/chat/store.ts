@@ -152,6 +152,8 @@ export function toMessage(row: z.infer<typeof rowSchema>, now = Date.now()): Cha
       ...readSearch(meta.search),
       // Whether this message asked for something to be remembered, and what came of it (stage 207).
       ...(meta.memory === "saved" || meta.memory === "full" || meta.memory === "failed" ? { memory: meta.memory } : {}),
+      // The project whose brief the answer was given (stage 282): its name as it was then.
+      ...(typeof meta.project === "string" && meta.project.trim() ? { project: meta.project.trim().slice(0, 120) } : {}),
     },
     createdAt: row.created_at,
     siblings: row.siblings ?? [row.id],

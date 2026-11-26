@@ -22,10 +22,12 @@ export interface ChatPrefs {
   searchWeb: boolean;
   /** Use what the person asked Farbaek AI to remember, and save new things they ask for (stage 207). On unless switched off. */
   useMemory: boolean;
+  /** Tell Farbaek AI about the project a chat is filed under: its files and tasks by name (stage 282). On unless switched off. */
+  useProject: boolean;
 }
 
 const KEY = "fb-chat-prefs";
-const DEFAULTS: ChatPrefs = { model: "auto", effort: "balanced", enterSends: true, sidebarFolded: false, answerLanguage: "auto", answerScript: "native", searchWeb: true, useMemory: true };
+const DEFAULTS: ChatPrefs = { model: "auto", effort: "balanced", enterSends: true, sidebarFolded: false, answerLanguage: "auto", answerScript: "native", searchWeb: true, useMemory: true, useProject: true };
 const listeners = new Set<() => void>();
 let cache: ChatPrefs | null = null;
 let raw: string | null = null;
@@ -51,6 +53,7 @@ function read(): ChatPrefs {
       answerScript: language.script,
       searchWeb: typeof parsed.searchWeb === "boolean" ? parsed.searchWeb : DEFAULTS.searchWeb,
       useMemory: typeof parsed.useMemory === "boolean" ? parsed.useMemory : DEFAULTS.useMemory,
+      useProject: typeof parsed.useProject === "boolean" ? parsed.useProject : DEFAULTS.useProject,
     };
   } catch {
     cache = DEFAULTS;

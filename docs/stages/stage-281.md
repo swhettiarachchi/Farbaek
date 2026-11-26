@@ -46,7 +46,7 @@ The owner asked three times on 2026-11-26 for icons like the ones in ChatGPT's p
   - **Every one of the 318 files on a screen.** The pages above were looked at; the rest changed only where they import from, and are covered by the type check and the build.
   - **The layout audit after the phone drawer's rows grew.** The drawer was looked at; the audit ran before.
   - **The owner's own judgement,** which is the test that counts: whether this is the look they asked for.
-  - Production, until it is merged.
+- **Live, 2026-11-26 at about 14:40 (+05:30), after #338 was merged** (production build 2ae53689bfaa, the merge's own): Chat on the owner's account at desktop width drew 54 icons from the set, Build as blocks and the rows in ink. One icon of the old library is left on that page: the hidden "Pause motion" control inside the cat's scene, which lives in a public-site folder. The phone layout was not looked at live.
 
 ## Next
 

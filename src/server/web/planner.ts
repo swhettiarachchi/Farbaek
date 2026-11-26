@@ -29,6 +29,8 @@ export interface PlannerInput {
   signal: AbortSignal;
   now: number;
   timeoutMs?: number;
+  /** What the answering model already has beside the message (a project's record, stage 282), in a sentence. */
+  known?: string;
 }
 
 export interface PlannerResult {
@@ -41,9 +43,9 @@ export interface PlannerResult {
 }
 
 /** What the planner model reads: today's date, the last few turns, trimmed, then the latest message. */
-export function plannerInput(question: string, earlier: PlannerInput["earlier"], now: number): string {
+export function plannerInput(question: string, earlier: PlannerInput["earlier"], now: number, known?: string): string {
   const recent = earlier.slice(-4).map((m) => `${m.role === "user" ? "Person" : "Assistant"}: ${m.text.replace(/\s+/g, " ").slice(0, 600)}`);
-  return [`Today is ${new Date(now).toISOString().slice(0, 10)}.`, recent.length > 0 ? `Conversation so far:\n${recent.join("\n")}` : "No earlier conversation.", "", `Latest message:\n${question.slice(0, 2_000)}`].join("\n");
+  return [`Today is ${new Date(now).toISOString().slice(0, 10)}.`, ...(known ? [known.replace(/\s+/g, " ").slice(0, 400)] : []), recent.length > 0 ? `Conversation so far:\n${recent.join("\n")}` : "No earlier conversation.", "", `Latest message:\n${question.slice(0, 2_000)}`].join("\n");
 }
 
 const fresher = (a: SearchPlan["freshness"], b: SearchPlan["freshness"]) => (FRESHNESS.indexOf(a) <= FRESHNESS.indexOf(b) ? a : b);
@@ -55,7 +57,7 @@ export async function planSearch(input: PlannerInput): Promise<PlannerResult> {
   if (input.local || !input.model?.complete || !input.modelId) return { plan: fallback, usage: null, via: "local" };
   const timeout = AbortSignal.timeout(input.timeoutMs ?? 4_000);
   const reply = await input.model.complete(
-    { model: input.modelId, system: PLANNER_PROMPT, input: plannerInput(input.question, input.earlier, input.now), maxOutputTokens: 800 },
+    { model: input.modelId, system: PLANNER_PROMPT, input: plannerInput(input.question, input.earlier, input.now, input.known), maxOutputTokens: 800 },
     AbortSignal.any([input.signal, timeout]),
   );
   if (!reply.text) return { plan: fallback, usage: reply.usage, via: "fallback", miss: timeout.aborted ? "late" : "no-answer" };

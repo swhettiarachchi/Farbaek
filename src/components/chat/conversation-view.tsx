@@ -6,7 +6,7 @@
  * keeps what was written. Editing a question or asking again makes a branch the arrows switch between. The thread stays at the
  * newest message while the person is there, and leaves them be when they've scrolled up to read.
  */
-import { ArchiveIcon, ArrowDownIcon, CodeIcon, DotsThreeIcon, FileTextIcon, ImageSquareIcon, LightbulbIcon, ListIcon, MagnifyingGlassIcon, NotePencilIcon, PenNibIcon, PencilSimpleIcon, PushPinIcon, PushPinSlashIcon, ShareNetworkIcon, TrashIcon, UploadSimpleIcon } from "@/components/icons";
+import { ArchiveIcon, ArrowDownIcon, CodeIcon, DotsThreeIcon, FileTextIcon, FolderSimpleIcon, ImageSquareIcon, LightbulbIcon, ListIcon, MagnifyingGlassIcon, NotePencilIcon, PenNibIcon, PencilSimpleIcon, PushPinIcon, PushPinSlashIcon, ShareNetworkIcon, TrashIcon, UploadSimpleIcon } from "@/components/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -268,7 +268,12 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
             setTitle(name);
             chat.upsert({ id: e.conversationId, title: name, updatedAt: new Date().toISOString(), projectId: projectId ?? null });
             window.history.replaceState(null, "", `/app/chat/${e.conversationId}`);
-          } else chat.upsert({ id: e.conversationId, updatedAt: new Date().toISOString() });
+          } else {
+            // A chat that wasn't in the sidebar's list (an older or archived one) is added with what the page knows of it, so it
+            // keeps its name and the project it is filed under.
+            const listed = chat.conversations.some((c) => c.id === e.conversationId);
+            chat.upsert({ id: e.conversationId, updatedAt: new Date().toISOString(), ...(listed || !conversation ? {} : { title: conversation.title, pinned: conversation.pinned, shared: conversation.shared, projectId: projectId ?? null }) });
+          }
           if (e.note) toast({ text: e.note, tone: "info" });
         } else if (e.type === "route") {
           // Another model took the question: its thinking starts afresh, and the answer names it.
@@ -324,7 +329,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
         if (!stopped) toast({ text: "The connection dropped. What arrived is kept; continue it when you're back online.", tone: "error" });
       }
     },
-    [chat, convId, flush, messages, projectId, reduced, toast],
+    [chat, conversation, convId, flush, messages, projectId, reduced, toast],
   );
 
   const tail = messages[messages.length - 1];
@@ -352,7 +357,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     const question = placeholder(TEMP_QUESTION, "user", { content: input.text, files: input.files, parentId });
     const answer = placeholder(TEMP_ANSWER, "assistant", { kind: input.mode, meta: input.mode === "image" ? { aspect: input.aspect, prompt: input.text } : {} });
     void runTurn(
-      { action: "send", conversationId: convId, parentId: convId ? parentId : null, text: input.text, files: input.files.map((f) => f.id), model: input.model, effort: input.effort, language: { answer: prefs.answerLanguage, script: prefs.answerScript }, web: prefs.searchWeb, memory: prefs.useMemory, mode: input.mode, aspect: input.aspect, projectId: convId ? null : projectId },
+      { action: "send", conversationId: convId, parentId: convId ? parentId : null, text: input.text, files: input.files.map((f) => f.id), model: input.model, effort: input.effort, language: { answer: prefs.answerLanguage, script: prefs.answerScript }, web: prefs.searchWeb, memory: prefs.useMemory, project: prefs.useProject, mode: input.mode, aspect: input.aspect, projectId: convId ? null : projectId },
       messages,
       [question, answer],
       () => composer.current?.fill(input.text, { mode: input.mode, files: input.files }),
@@ -367,7 +372,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     if (at < 0) return;
     const p = prefs;
     void runTurn(
-      { action: "regenerate", conversationId: convId, messageId: answer.parentId, replacing: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: checkWeb ? true : p.searchWeb, memory: p.useMemory, ...(checkWeb ? { research: "search" as const } : {}), mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
+      { action: "regenerate", conversationId: convId, messageId: answer.parentId, replacing: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: checkWeb ? true : p.searchWeb, memory: p.useMemory, project: p.useProject, ...(checkWeb ? { research: "search" as const } : {}), mode: answer.kind, aspect: ((answer.meta.aspect as SendInput["aspect"]) ?? "1:1") },
       messages.slice(0, at + 1),
       [placeholder(TEMP_ANSWER, "assistant", { kind: answer.kind, parentId: answer.parentId, meta: answer.kind === "image" ? { aspect: answer.meta.aspect, prompt: answer.meta.prompt } : {} })],
       null,
@@ -378,7 +383,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     if (busy || !convId) return;
     const at = messages.findIndex((m) => m.id === question.id);
     const p = prefs;
-    void runTurn({ action: "regenerate", conversationId: convId, messageId: question.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: p.searchWeb, memory: p.useMemory, mode: "text", aspect: "1:1" }, messages.slice(0, at + 1), [placeholder(TEMP_ANSWER, "assistant", { parentId: question.id })], null);
+    void runTurn({ action: "regenerate", conversationId: convId, messageId: question.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: p.searchWeb, memory: p.useMemory, project: p.useProject, mode: "text", aspect: "1:1" }, messages.slice(0, at + 1), [placeholder(TEMP_ANSWER, "assistant", { parentId: question.id })], null);
   };
 
   const edit = (question: ChatMessage, text: string) => {
@@ -389,7 +394,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     const nextAnswer = messages[at + 1];
     const mode = nextAnswer?.kind === "image" ? "image" : "text";
     void runTurn(
-      { action: "edit", conversationId: convId, messageId: question.id, text, files: question.files.map((f) => f.id), model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: p.searchWeb, memory: p.useMemory, mode, aspect: ((nextAnswer?.meta.aspect as SendInput["aspect"]) ?? "1:1") },
+      { action: "edit", conversationId: convId, messageId: question.id, text, files: question.files.map((f) => f.id), model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, web: p.searchWeb, memory: p.useMemory, project: p.useProject, mode, aspect: ((nextAnswer?.meta.aspect as SendInput["aspect"]) ?? "1:1") },
       messages.slice(0, at),
       [placeholder(TEMP_QUESTION, "user", { content: text, files: question.files, parentId: question.parentId }), placeholder(TEMP_ANSWER, "assistant", { kind: mode, meta: mode === "image" ? { aspect: nextAnswer?.meta.aspect, prompt: text } : {} })],
       null,
@@ -401,7 +406,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
     const at = messages.findIndex((m) => m.id === answer.id);
     const p = prefs;
     setMessages((ms) => ms.map((m) => (m.id === answer.id ? { ...m, status: "streaming", error: null } : m)));
-    void runTurn({ action: "continue", conversationId: convId, messageId: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, memory: p.useMemory }, messages.slice(0, at), [{ ...answer, status: "streaming", error: null }], null);
+    void runTurn({ action: "continue", conversationId: convId, messageId: answer.id, model: p.model, effort: p.effort, language: { answer: p.answerLanguage, script: p.answerScript }, memory: p.useMemory, project: p.useProject }, messages.slice(0, at), [{ ...answer, status: "streaming", error: null }], null);
   };
 
   const switchTo = async (id: string) => {
@@ -481,6 +486,10 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
   );
 
   const headerTitle = title || info?.title || "";
+  // The project this chat is filed under (stage 282, ADR 0290). The list knows when it was moved in this visit; the page knows
+  // where it was filed when it opened, and a new chat started inside a project is filed there.
+  const filedUnder = info ? info.projectId : projectId;
+  const projectName = filedUnder ? (chat.projects.find((p) => p.id === filedUnder)?.name ?? null) : null;
   const pinned = info?.pinned ?? conversation?.pinned ?? false;
 
   return (
@@ -512,6 +521,13 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
                 {headerTitle || "New chat"}
               </p>
             </>
+          ) : null}
+          {/* Said where the chat is, so it is no surprise that an answer knows the project. */}
+          {projectName ? (
+            <p className="flex min-w-0 items-center gap-1 text-xs text-ink-3">
+              <FolderSimpleIcon size={14} weight="bold" aria-hidden className="shrink-0" />
+              <span className="truncate">{prefs.useProject && !chat.demo ? `Farbaek AI knows ${projectName} by its files and tasks` : `Filed under ${projectName}`}</span>
+            </p>
           ) : null}
         </div>
         {convId && !chat.demo ? (

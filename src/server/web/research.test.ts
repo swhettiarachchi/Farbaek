@@ -3,7 +3,7 @@ import type { NeedReading } from "@/core/web/intent";
 import type { SearchResult } from "@/core/web/sources";
 import type { ChatModel } from "@/server/ai/chat-model";
 import type { ReaderClient } from "./reader-client";
-import { planSearch } from "./planner";
+import { planSearch, plannerInput } from "./planner";
 import { research, type ResearchDeps } from "./research";
 import { createBreaker } from "./search/health";
 import { SearchError, type SearchProvider } from "./search/provider";
@@ -185,6 +185,16 @@ describe("planning the searches (stage 205)", () => {
   it("falls back to the local plan when the model answers nonsense or nothing, still recording its cost", async () => {
     expect(await plan(model("I can't help with that"))).toMatchObject({ via: "fallback", miss: "unreadable", plan: { queries: ["What about its price?"] }, usage: { model: "gpt-6-luna" } });
     expect(await plan(model(null))).toMatchObject({ via: "fallback", miss: "no-answer" });
+  });
+
+  it("tells the planner what the answering model already has, as one line of its own, so a question about it needs no search", () => {
+    const BREAK = String.fromCharCode(10);
+    const known = ["The answering model already has Farbaek's own record of the person's project.", "A second line that tries to be one."].join(BREAK);
+    const lines = plannerInput("What is left to do?", [], NOW, known).split(BREAK);
+    expect(lines[0]).toBe("Today is 2026-11-17.");
+    expect(lines[1]).toBe("The answering model already has Farbaek's own record of the person's project. A second line that tries to be one.");
+    // With nothing known, the input is as it always was.
+    expect(plannerInput("What is left to do?", [], NOW).split(BREAK)[1]).toBe("No earlier conversation.");
   });
 
   it("plans locally without a model call when asked to", async () => {

@@ -50,6 +50,8 @@ const languageChoice = z.object({ answer: z.enum(["auto", ...ANSWER_LANGUAGE_COD
 const researchChoice = z.enum(["auto", "search"]).optional();
 /** Use what the person asked Farbaek to remember (stage 207): on unless they switched it off in this browser. */
 const memoryChoice = z.boolean().optional();
+/** Read the project the chat is filed under (stage 282): on unless they switched it off in this browser. */
+const projectChoice = z.boolean().optional();
 
 export const turnRequestSchema = z.discriminatedUnion("action", [
   z.object({
@@ -63,6 +65,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     effort: z.enum(EFFORTS),
     language: languageChoice,
     memory: memoryChoice,
+    project: projectChoice,
     /** Check the live web first (stage 205): on unless the person switched it off in this browser. */
     web: z.boolean().optional(),
     research: researchChoice,
@@ -81,6 +84,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     effort: z.enum(EFFORTS),
     language: languageChoice,
     memory: memoryChoice,
+    project: projectChoice,
     /** Check the live web first (stage 205): on unless the person switched it off in this browser. */
     web: z.boolean().optional(),
     research: researchChoice,
@@ -98,6 +102,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     effort: z.enum(EFFORTS),
     language: languageChoice,
     memory: memoryChoice,
+    project: projectChoice,
     /** Check the live web first (stage 205): on unless the person switched it off in this browser. */
     web: z.boolean().optional(),
     research: researchChoice,
@@ -113,6 +118,7 @@ export const turnRequestSchema = z.discriminatedUnion("action", [
     effort: z.enum(EFFORTS),
     language: languageChoice,
     memory: memoryChoice,
+    project: projectChoice,
   }),
 ]);
 export type TurnRequest = z.infer<typeof turnRequestSchema>;
@@ -143,7 +149,7 @@ export interface ChatMessage {
   rating: -1 | 1 | null;
   thinkingMs: number | null;
   /** why: what Farbaek AI chose the model for ("a question about code"), shown in the answer's details (ADR 0215). */
-  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal"; why?: string; tier?: "fast" | "standard" | "strong" | "frontier"; provider?: "anthropic" | "openai"; search?: SearchMeta; memory?: "saved" | "full" | "failed" };
+  meta: { aspect?: string; prompt?: string; stop?: "length" | "refusal"; why?: string; tier?: "fast" | "standard" | "strong" | "frontier"; provider?: "anthropic" | "openai"; search?: SearchMeta; memory?: "saved" | "full" | "failed"; /** The project whose brief this answer was given (stage 282): its name. */ project?: string };
   createdAt: string;
   /** This message and its siblings, oldest first: an edited question or a new answer is a sibling. */
   siblings: string[];
