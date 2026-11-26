@@ -16,6 +16,8 @@ export interface DraftBrief {
   notes: Record<string, string>;
   /** Farbaek's own reading of the project (Context Readiness, ADR 0116): each fact with its status. */
   facts?: readonly { status: string; statement: string }[];
+  /** What the person asked Farbaek to remember about them, in their own words (stage 284, ADR 0292). Information, never instructions. */
+  remembered?: readonly string[];
 }
 
 /** Usage as reported by the provider, never estimated. */

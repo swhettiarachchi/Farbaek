@@ -134,7 +134,7 @@ Present: identity, conversations, memory, metering and usage, approvals, audit, 
 | Intent understanding | Partly: Chat tells research questions, computer requests and the language written in |
 | Next-step recommendations | Partly: Home shows what waits for you, a new workspace's first steps, and, when nothing waits, one suggestion from the person's tasks and live sites (stage 283, ADR 0291). By fixed rules; nothing yet from Chat's history or inside the spaces |
 | Project awareness | Partly: a chat filed under a project is told its files and tasks by name, each task's state and whether its site is live (stage 282, ADR 0290). It does not read what is inside a file, and the studios are not told |
-| Personalised context across spaces | Not started |
+| Personalised context across spaces | Partly: what a person asked Farbaek to remember goes to the plans Build drafts for them, under the same switch (stage 284, ADR 0292). Not to the build agent itself, the studios or the phone apps |
 | Goal tracking, proactive suggestions, decision support | Not started |
 | Explanation of suggestions and user corrections | Partly: every suggestion on Home says why, from the record it came from, and can be put away for a week or switched off by kind (stage 283). Kept in the browser, so it doesn't follow the person across devices |
 | The named systems (IntentSense, MindMemory, FutureSense, ContextVision, DecisionMind, AgentSync, LifeFlow, IntentProof) | Not started |
@@ -259,7 +259,7 @@ Everything not done, in the order that lets each part stand on the one before. I
 3. Automation: schedules are built (stage 271), Chat offers them (stage 273), and a link starts a task from another app (stage 277). Still to do: triggers from inside Farbaek and from connected apps, workflows from words, a visual builder, conditions.
 4. Persistent agents: part 1 is built (stage 275): name, goal, schedule, a limit in runs, notes of its own, the memory switch, progress, pause, resume, remove. Still to do: a budget in AI usage, tools, more than one piece of work, talking to an agent.
 5. One command center with one pause: a first version is built (stage 276, All work). Still to do: each thing's cost, acting from the row, an owner's view of everyone's work.
-6. **Telepathy part 1:** project awareness in Chat (built in stage 282, by names and states), suggested next steps with their reasons and corrections (built in stage 283, on Home), one memory across spaces, suggested next steps with "why this" and corrections.
+6. **Telepathy part 1:** project awareness in Chat (built in stage 282, by names and states), suggested next steps with their reasons and corrections (built in stage 283, on Home), memory reaching Build's plans (built in stage 284), one memory across spaces, suggested next steps with "why this" and corrections.
 7. **The three modes:** Standard, Advanced, Professional.
 8. Build starting in one place; one sidebar across the spaces; **the professional-colours pass** (after the owner's answer).
 9. **Redesign the content of every page** in the app and on the public site; **the missing public pages** (features, docs, API docs, about, contact, help, changelog).

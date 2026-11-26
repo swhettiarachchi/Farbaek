@@ -37,6 +37,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { signOut } from "./actions";
 import { DeviceOwner, SignOutForm } from "@/components/device/device-account";
 import { DISPLAY_TITLE, FOCUSED_TITLE } from "@/components/ui/titles";
+import { MemoryCookieSync } from "@/components/chat/memory-cookie-sync";
 import { ThemeMark } from "@/components/theme/theme-mark";
 import { browserBarColor } from "@/core/theme/theme";
 import { savedTheme } from "@/server/theme";
@@ -277,6 +278,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   return (
     <>
       <ThemeMark theme={await savedTheme()} />
+      {/* The memory switch lives in the browser; this keeps the server's copy of it true on every page (stage 284). */}
+      <MemoryCookieSync />
       <Frame>{children}</Frame>
     </>
   );

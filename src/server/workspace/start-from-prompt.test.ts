@@ -130,6 +130,17 @@ describe("startFromPrompt", () => {
     expect(briefs[1]?.paths).toEqual(["index.html", "styles.css", "script.js"]);
   });
 
+  it("gives the drafter what the person asked Farbaek to remember, and nothing of the kind when there is none (stage 284)", async () => {
+    const briefs: DraftBrief[] = [];
+    const capturing: ContractDrafter = { ...drafterWith({ ok: true, draft: DRAFT, usage: USAGE }), draft: async (b) => (briefs.push(b), { ok: true, draft: DRAFT, usage: USAGE }) };
+    await startFromPrompt(fakeDeps().deps, source(capturing), { ...input("A one-page site for my bakery"), remembered: ["My colours are navy and cream"] });
+    expect(briefs[0]?.remembered).toEqual(["My colours are navy and cream"]);
+    await startFromPrompt(fakeDeps().deps, source(capturing), input("A one-page site for my bakery"));
+    expect(briefs[1]).not.toHaveProperty("remembered");
+    await startFromPrompt(fakeDeps().deps, source(capturing), { ...input("A one-page site for my bakery"), remembered: [] });
+    expect(briefs[2]).not.toHaveProperty("remembered");
+  });
+
   it("uses the template the person chose, even when the prompt's words suggest another starter", async () => {
     const { deps, log } = fakeDeps();
     const briefs: DraftBrief[] = [];

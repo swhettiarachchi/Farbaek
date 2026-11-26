@@ -38,6 +38,8 @@ export async function startFromPrompt(
     prompt: unknown;
     effort?: Effort;
     existing?: { id: string; name: string; description: string | null; paths: readonly string[] };
+    /** What the person asked Farbaek to remember, for the plan's brief (stage 284). Missing: nothing. */
+    remembered?: readonly string[];
     /** A starter or template the person chose; otherwise one is picked from the prompt. */
     starter?: StarterId;
   },
@@ -98,6 +100,7 @@ export async function startFromPrompt(
                 : ""
             }`,
       paths,
+      ...(input.remembered?.length ? { remembered: input.remembered } : {}),
       // A new build adds and edits files; the drafter keeps what's typed here, and the person still reviews it.
       notes: { outcome: prompt.slice(0, 4_000), allowed: "files.create\nfiles.edit" },
     },

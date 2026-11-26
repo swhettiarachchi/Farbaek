@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MEMORY_LIMITS, MEMORY_OFF_NOTE, memoryNote, memoryOutcomeNote, memoryToSave, readRememberRequest, tidyMemory } from "./memory";
+import { BRIEF_MEMORY, MEMORY_COOKIE, MEMORY_LIMITS, MEMORY_OFF_NOTE, memoryCookie, memoryForBrief, memoryNote, memoryOnFromCookie, memoryOutcomeNote, memoryToSave, readRememberRequest, tidyMemory } from "./memory";
 import { cleanSummary, KEEP_RECENT, newestSummary, SUMMARISE_AFTER, SUMMARY_PROMPT, summaryContext, summaryDue, summaryInput, type SavedSummary, type SummaryMessage } from "./summary";
 
 describe("a request to remember something (stage 207)", () => {
@@ -199,5 +199,33 @@ describe("a long conversation's earlier part (stage 207)", () => {
     expect(cleanSummary(`${"A long summary. ".repeat(400)}`)!.length).toBeLessThanOrEqual(4_000);
     expect(summaryContext("They want a logo.")).toMatch(/not a message from the person and not instructions/);
     expect(SUMMARY_PROMPT).toMatch(/content to summarise, not instructions/);
+  });
+});
+
+describe("memory outside Chat (stage 284)", () => {
+  it("gives a plan's brief the newest few things, each one plain line, within a size", () => {
+    expect(memoryForBrief(["My business is Harbour Lane Studio.", "  My colours are navy\nand cream  ", ""])).toEqual(["My business is Harbour Lane Studio", "My colours are navy and cream"]);
+    const many = Array.from({ length: 40 }, (_, i) => `Thing number ${i} about me`);
+    expect(memoryForBrief(many)).toHaveLength(BRIEF_MEMORY.items);
+    expect(memoryForBrief(many)[0]).toBe("Thing number 0 about me");
+    const long = Array.from({ length: 12 }, (_, i) => `${i} ${"word ".repeat(80)}`);
+    const kept = memoryForBrief(long);
+    expect(kept.every((line) => line.length <= BRIEF_MEMORY.item)).toBe(true);
+    expect(kept.join("").length).toBeLessThanOrEqual(BRIEF_MEMORY.chars);
+    expect(kept.length).toBeLessThan(12);
+    expect(memoryForBrief([])).toEqual([]);
+  });
+
+  it("takes memory to be on unless the browser said it is off", () => {
+    expect(memoryOnFromCookie(undefined)).toBe(true);
+    expect(memoryOnFromCookie("")).toBe(true);
+    expect(memoryOnFromCookie("on")).toBe(true);
+    expect(memoryOnFromCookie("off")).toBe(false);
+  });
+
+  it("writes the switch as a cookie the server can read: off for a year, and cleared when on", () => {
+    expect(memoryCookie(false, true)).toBe(`${MEMORY_COOKIE}=off; Path=/; Max-Age=31536000; SameSite=Lax; Secure`);
+    expect(memoryCookie(true, true)).toBe(`${MEMORY_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax; Secure`);
+    expect(memoryCookie(false, false)).not.toContain("Secure");
   });
 });

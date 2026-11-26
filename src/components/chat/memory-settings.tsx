@@ -82,7 +82,7 @@ export function MemorySettings() {
           <span className="text-sm">
             Remember what I ask Farbaek AI to remember
             <span className="block text-xs text-ink-3">
-              Say &ldquo;remember that &hellip;&rdquo; in a chat, or add it here. Only what you ask for is kept, in your own words, and used in your chats in this workspace. Switched off, nothing is used or
+              Say &ldquo;remember that &hellip;&rdquo; in a chat, or add it here. Only what you ask for is kept, in your own words. It is used in your chats, and when Build drafts a plan for you, in this workspace. Switched off, nothing is used or
               saved in this browser.
             </span>
           </span>

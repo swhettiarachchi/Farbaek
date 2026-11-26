@@ -193,6 +193,7 @@ function AiDraftPanel({
             <span>
               Drafted by {modelName(result.model)}. Nothing is saved yet: check every field, fix what&apos;s wrong, then save.
               {result.routeNote ? ` ${result.routeNote}` : null}
+              {result.remembered > 0 ? ` It was given what you asked Farbaek to remember (${result.remembered === 1 ? "1 thing" : `${result.remembered} things`}), to use where it bears on this.` : null}
             </span>
           </p>
         ) : null}

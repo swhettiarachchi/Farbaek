@@ -112,6 +112,15 @@ describe("draftContractWithAi", () => {
     expect(trial.calls[0]!.input).toMatchObject({ grant: { kind: "trial", starts_at: window.startedAt.toISOString(), expires_at: window.endsAt.toISOString() } });
   });
 
+  it("says how many remembered things went with the brief, so the editor can tell the person (stage 284)", async () => {
+    const drafter = fakeDrafter({ ok: true, draft: DRAFT, usage: USAGE });
+    const source = { family: "anthropic" as const, create: (s: { model: string }) => Object.assign(drafter, { model: s.model }) };
+    const none = await draftContractWithAi(fakeDeps().deps, source, { orgId: "o1", userId: "u1", taskId: "t1", brief: BRIEF });
+    expect(none).toMatchObject({ ok: true, value: { remembered: 0 } });
+    const some = await draftContractWithAi(fakeDeps().deps, source, { orgId: "o1", userId: "u1", taskId: "t1", brief: { ...BRIEF, remembered: ["My colours are navy and cream", "  ", "I sell bread"] } });
+    expect(some).toMatchObject({ ok: true, value: { remembered: 2 } });
+  });
+
   it("refuses without calling the model when the wallet can't hold the reservation", async () => {
     const drafter = fakeDrafter({ ok: true, draft: DRAFT, usage: USAGE });
     expect(await run(fakeDeps({ reserveError: "QUOTA_EXCEEDED" }).deps, drafter)).toMatchObject({

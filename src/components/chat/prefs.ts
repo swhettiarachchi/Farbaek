@@ -8,6 +8,7 @@
 import { useSyncExternalStore } from "react";
 import { EFFORTS, type ChatEffort } from "@/core/chat/protocol";
 import { cleanPreference, type AnswerScript } from "@/core/chat/language-names";
+import { memoryCookie } from "@/core/chat/memory";
 
 export interface ChatPrefs {
   model: string;
@@ -70,6 +71,7 @@ export function setChatPrefs(change: Partial<ChatPrefs>) {
   }
   cache = next;
   raw = JSON.stringify(next);
+  if ("useMemory" in change) syncMemoryCookie(next.useMemory);
   listeners.forEach((l) => l());
 }
 
@@ -83,6 +85,23 @@ function subscribe(listener: () => void) {
     listeners.delete(listener);
     window.removeEventListener("storage", onStorage);
   };
+}
+
+/**
+ * The memory switch, written where the server can read it (stage 284, ADR 0292): work outside Chat, such as a plan Build drafts,
+ * asks the server for what is remembered, and the server must know when this browser has memory switched off.
+ */
+export function syncMemoryCookie(on: boolean) {
+  try {
+    document.cookie = memoryCookie(on, window.location.protocol === "https:");
+  } catch {
+    // Cookies blocked: the server takes memory to be on, which is what the switch's text says of a browser that can't keep choices.
+  }
+}
+
+/** The same, from what this browser has kept: called once when a signed-in page opens. */
+export function syncMemoryCookieFromPrefs() {
+  syncMemoryCookie(read().useMemory);
 }
 
 export function useChatPrefs(): ChatPrefs {
