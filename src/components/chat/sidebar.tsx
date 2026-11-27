@@ -46,7 +46,7 @@ const SPACE_LINKS = [
   { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon },
   { href: "/app/images", label: "Images", icon: ImageSquareIcon },
   { href: "/app/video", label: "Video", icon: VideoCameraIcon },
-  { href: "/app/workbench", label: "Build", icon: BlocksIcon },
+  { href: "/app/build", label: "Build", icon: BlocksIcon },
 ] as const;
 
 const SPACE_ROW = "group/space flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink transition-[background-color,box-shadow] duration-150 hover:bg-surface aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:shadow-e1 pointer-coarse:min-h-12 max-md:text-base max-md:font-medium";

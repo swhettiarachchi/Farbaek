@@ -32,7 +32,7 @@ export default async function TemplatePage({ params }: Params) {
         title={`${t.name} template`}
         description={`${t.summary} Everything in it is sample content.${t.gallery ? " This preview is a picture of its pages; start it in a test space to sign up and use it." : ""}`}
         actions={
-          <Link href={`/app/new?template=${t.id}`} className={buttonClasses("primary", "sm")}>
+          <Link href={`/app/build?template=${t.id}`} className={buttonClasses("primary", "sm")}>
             Use this template <ArrowRightIcon size={16} weight="bold" aria-hidden />
           </Link>
         }

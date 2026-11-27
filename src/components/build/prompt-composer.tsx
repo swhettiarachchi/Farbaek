@@ -159,7 +159,7 @@ export function PromptComposer({
         if (!followUp) store(value);
         if (mode === "public") {
           e.preventDefault();
-          router.push("/sign-in?next=/app/new%3Fresume%3D1");
+          router.push("/sign-in?next=/app/build%3Fresume%3D1");
         }
       }}
       className="grid gap-3"

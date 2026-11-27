@@ -138,4 +138,4 @@ Every signed-in page sits in one frame (ADR 0230), used by the app's frame, Chat
 
 - Pages outside the public site's layout that no server marks (shared links, the device page, the desktop app's connect page, the page for an address that doesn't exist) in Dark.
 - The iPhone app and the desktop app in Dark.
-- One sidebar across Chat, the studios, Build's workspace and the app's pages; and "Build" starting in one place (it starts in three).
+- One sidebar across Chat, the studios, Build's workspace and the app's pages. ("Build" starts in one place since stage 286, ADR 0294.)

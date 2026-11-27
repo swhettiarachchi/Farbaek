@@ -70,7 +70,7 @@ export default async function ApprovalsPage() {
         description="Changes waiting for your yes or no. Open one to see exactly what changes, then approve it or discard it. Each one stays open for 72 hours."
       />
       {cards.length === 0 && unread.length === 0 ? (
-        <EmptyState icon={CheckCircleIcon} title="Nothing waiting for you" action={<ButtonLink href="/app/new" size="sm">Describe what you want to build</ButtonLink>}>
+        <EmptyState icon={CheckCircleIcon} title="Nothing waiting for you" action={<ButtonLink href="/app/build" size="sm">Describe what you want to build</ButtonLink>}>
           When the agent finishes a change, it waits here for you. Nothing goes into your project until you approve it.
         </EmptyState>
       ) : (

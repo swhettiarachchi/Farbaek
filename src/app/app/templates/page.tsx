@@ -20,7 +20,7 @@ export default async function TemplatesPage() {
         title="Templates"
         description="Sites built to the Farbaek Studio standard, each with its own design, motion and a feature that works. When the agent puts your content in, it follows the template's design brief."
         actions={
-          <Link href="/app/new" className={buttonClasses("secondary", "sm")}>
+          <Link href="/app/build" className={buttonClasses("secondary", "sm")}>
             Start from a sentence instead
           </Link>
         }
@@ -37,7 +37,7 @@ export default async function TemplatesPage() {
                 <p className="text-sm leading-relaxed text-ink-2">{t.summary}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2 px-1.5 pb-1.5">
-                <Link href={`/app/new?template=${t.id}`} className={buttonClasses("primary", "sm")}>
+                <Link href={`/app/build?template=${t.id}`} className={buttonClasses("primary", "sm")}>
                   Use this template <ArrowRightIcon size={16} weight="bold" aria-hidden />
                 </Link>
                 <Link href={`/app/templates/${t.id}`} className={buttonClasses("secondary", "sm")}>
@@ -67,7 +67,7 @@ export default async function TemplatesPage() {
                   <p className="text-sm leading-relaxed text-ink-2">{t.summary}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 px-1.5 pb-1.5">
-                  <Link href={`/app/new?template=${t.id}`} className={buttonClasses("primary", "sm")}>
+                  <Link href={`/app/build?template=${t.id}`} className={buttonClasses("primary", "sm")}>
                     Use this template <ArrowRightIcon size={16} weight="bold" aria-hidden />
                   </Link>
                   <Link href={`/app/templates/${t.id}`} className={buttonClasses("secondary", "sm")}>

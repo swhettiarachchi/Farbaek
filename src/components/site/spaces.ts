@@ -63,7 +63,7 @@ export const SPACES: readonly Space[] = [
     short: "Build",
     icon: HammerIcon,
     page: "/build",
-    app: "/app/new",
+    app: "/app/build",
     open: "Start building",
     promise: "Describe a site or app. The agent plans, builds and checks it, and waits for your approval.",
   },

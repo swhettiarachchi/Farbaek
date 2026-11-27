@@ -14,7 +14,7 @@ describe("an answer's hand-off", () => {
   it("opens each space at its own page", () => {
     expect(handOffPlan("images", talk).href).toBe("/app/images");
     expect(handOffPlan("video", talk).href).toBe("/app/video");
-    expect(handOffPlan("build", talk).href).toBe("/app/new");
+    expect(handOffPlan("build", talk).href).toBe("/app/build");
   });
 
   it("carries the last thing the person asked, trimmed, never the answer", () => {

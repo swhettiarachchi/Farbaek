@@ -30,7 +30,7 @@ export default async function TasksPage() {
     <div className={PAGE_STACK}>
       <PageHeader title="Tasks" description="Every task in this workspace, grouped by what it needs." />
       {tasks.length === 0 ? (
-        <EmptyState icon={ListBulletsIcon} title="No tasks yet" action={<ButtonLink href="/app/new" size="sm">Describe what you want to build</ButtonLink>}>
+        <EmptyState icon={ListBulletsIcon} title="No tasks yet" action={<ButtonLink href="/app/build" size="sm">Describe what you want to build</ButtonLink>}>
           Describe a site or app, and Farbaek sets up the project and a plan for its first task.
         </EmptyState>
       ) : (

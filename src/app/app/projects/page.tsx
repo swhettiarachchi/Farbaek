@@ -87,7 +87,7 @@ export default async function ProjectsPage() {
             icon={FolderSimpleIcon}
             title="No projects yet"
             action={
-              <Link href="/app/new" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">
+              <Link href="/app/build" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">
                 Describe what you want to build <ArrowRightIcon size={16} weight="bold" aria-hidden />
               </Link>
             }

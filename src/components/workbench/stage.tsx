@@ -9,7 +9,7 @@ const SPACES = [
   { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon, tone: "text-accent" },
   { href: "/app/images", label: "Images", icon: ImageSquareIcon, tone: "text-spark-rose" },
   { href: "/app/video", label: "Video", icon: VideoCameraIcon, tone: "text-spark-aqua" },
-  { href: "/app/workbench", label: "Build", icon: BlocksIcon, tone: "text-spark-leaf" },
+  { href: "/app/build", label: "Build", icon: BlocksIcon, tone: "text-spark-leaf" },
 ] as const;
 
 /**
@@ -18,7 +18,7 @@ const SPACES = [
  *
  * Own-frame pages get none of the app's chrome, so this provides the skip link, the one `h1`, `main` and the ways out.
  */
-export function WorkbenchStage({ heading, name, skip, projects = true, children }: { heading: string; name: string; skip: { href: string; label: string }; projects?: boolean; children: ReactNode }) {
+export function WorkbenchStage({ heading, name, skip, children }: { heading: string; name: string; skip: { href: string; label: string }; children: ReactNode }) {
   return (
     <div className="chat-root relative h-[100dvh] overflow-hidden bg-canvas text-ink [--tab-bar:0px]">
       <a href={skip.href} className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm text-on-primary focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
@@ -37,12 +37,10 @@ export function WorkbenchStage({ heading, name, skip, projects = true, children 
               {name}
             </p>
           </div>
-          {projects ? (
-            <Link href="/app/workbench" className="tap inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-raised hover:text-ink">
-              <FolderSimpleIcon size={16} weight="bold" aria-hidden />
-              <span className="max-sm:sr-only">Projects</span>
-            </Link>
-          ) : null}
+          <Link href="/app/build#projects" className="tap inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-raised hover:text-ink">
+            <FolderSimpleIcon size={16} weight="bold" aria-hidden />
+            <span className="max-sm:sr-only">Projects</span>
+          </Link>
           <nav aria-label="Farbaek AI" className="hidden shrink-0 items-center gap-0.5 rounded-full bg-canvas-2 p-1 ring-1 ring-line lg:flex">
             {SPACES.map((s) => (
               <Link

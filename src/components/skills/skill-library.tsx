@@ -120,7 +120,7 @@ export function LibraryCard({ skill, projects, disabledReason }: { skill: Librar
       {projects.length === 0 ? (
         <p className="text-sm text-ink-3">
           Skills belong to a project.{" "}
-          <Link href="/app/new" className="font-medium text-accent underline underline-offset-2">
+          <Link href="/app/build" className="font-medium text-accent underline underline-offset-2">
             Start one
           </Link>{" "}
           to add this.

@@ -17,6 +17,7 @@ import { TaskStateBadge } from "@/components/app/primitives";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { ApproveBuild } from "@/components/build/approve-build";
+import { CancelTaskControl } from "@/components/app/forms";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { ApprovalCard, EventRow, MessageBar } from "@/components/build/run-live";
 import { RunStatusBadge } from "@/components/build/run-status";
@@ -137,6 +138,8 @@ export function AgentPane({ data, run, events, usage, live }: { data: WorkbenchD
                           Edit the plan
                         </Link>
                       </p>
+                      {/* A plan that isn't wanted can be cancelled here, as on its own page. */}
+                      <CancelTaskControl taskId={task.id} version={task.version} disabledReason={data.editOff} />
                     </div>
                   ) : null}
 
@@ -223,14 +226,18 @@ function PlanBlock({ plan, open }: { plan: WorkbenchPlan; open: boolean }) {
           <p className="text-ink-2">{plan.changes}</p>
           {plan.resources.length ? <p className="break-all font-mono text-xs text-ink-3">{plan.resources.join(", ")}</p> : <p className="text-ink-3">Anywhere in the project.</p>}
         </div>
-        {plan.checks.length ? (
+        {plan.checks.length || plan.requiredChecks.length ? (
           <div className="grid gap-1.5">
             <p className="font-medium text-ink">How it will be checked</p>
-            <ul className="grid list-disc gap-1 pl-5 text-ink-2 marker:text-ink-3">
-              {plan.checks.map((c) => (
-                <li key={c}>{c}</li>
-              ))}
-            </ul>
+            {plan.checks.length ? (
+              <ul className="grid list-disc gap-1 pl-5 text-ink-2 marker:text-ink-3">
+                {plan.checks.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            ) : null}
+            {/* The commands that must pass are part of what is approved, so they are shown as the plan's own page shows them. */}
+            {plan.requiredChecks.length ? <p className="break-all font-mono text-xs text-ink-3">{plan.requiredChecks.join(", ")}</p> : null}
           </div>
         ) : null}
         {plan.kept.length ? (
@@ -248,6 +255,7 @@ function PlanBlock({ plan, open }: { plan: WorkbenchPlan; open: boolean }) {
         <div className="grid gap-1.5">
           <p className="font-medium text-ink">If something goes wrong</p>
           <p className="text-ink-2">{plan.recovery}</p>
+          {plan.assumptions.length ? <p className="text-xs leading-relaxed text-ink-3">Assumes: {plan.assumptions.join("; ")}</p> : null}
         </div>
         {plan.questions.length ? (
           <div className="grid gap-1.5 rounded-sm border border-approval/30 bg-approval/[0.04] p-3">

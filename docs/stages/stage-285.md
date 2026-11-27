@@ -50,6 +50,12 @@ The owner's rule is the most intelligence behind the scenes and the least comple
   - this page had three unfilled lines.
   - It also noted two pieces under no test (the More page's rows, and Chat asking for Auto): each is now one tested function (`moreRowsAt`, `modelToAsk`).
 - **A fault in one of those fixes, caught by the suite:** `modelToAsk` was first put in `core/chat/models.ts`, which reaches the plan catalog, so two browser components began to download what plans cost Farbaek. `tests/design/browser-imports.test.ts` failed on it. The function has its own module with no imports (`core/chat/model-to-ask.ts`).
+- **Live, 2026-11-27 at about 08:25 (+05:30), after #342 was merged** (production build ada21bd3efa0, the merge's own; it carried stage 284's commit too):
+  - Settings showed "How much Farbaek shows" with Standard chosen, and the sidebar listed the five tools and "Show more tools". No level had been saved in that browser.
+  - Pressing Advanced listed ten tools at once, with "3 more are shown at Professional", and saved the choice.
+  - Chat, loaded afresh, had "Model and answer style" with the models: the server had read the choice.
+  - Back at Standard, Chat's menu read "Farbaek AI picks", with what Auto does there, "Choose a model yourself", the answer style and the web switch. The browser was left at Standard.
+  - Not sent: a message at Standard with a model picked earlier. The owner's saved model there is Auto, so an answer would not have told the two apart.
 - **Not verified:**
   - **On production,** with a real account and a real answer: that a message sent at Standard is answered by Auto when a model had been picked before. The request's own `model` field is set in one place per kind of turn and was read, not watched on the wire. Auto can still answer with a stronger model: a continued answer keeps the model that began it, and a short follow-up keeps the step the conversation was on.
   - **Safari itself.** That Safari keeps the cookie the server sends for its year follows from WebKit's published rule; it was not watched on an iPhone.

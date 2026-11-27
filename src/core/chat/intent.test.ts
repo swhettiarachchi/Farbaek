@@ -125,6 +125,6 @@ describe("where an answer can go next (stage 206)", () => {
 
   it("the desktop entry opens the desktop app's page and carries nothing", () => {
     expect(handOffPlan("desktop", [{ role: "user", content: "Create a folder on my desktop." }])).toMatchObject({ href: "/app/agents", text: "" });
-    expect(handOffPlan("build", [{ role: "user", content: "A site for my cafe" }])).toMatchObject({ href: "/app/new", text: "A site for my cafe" });
+    expect(handOffPlan("build", [{ role: "user", content: "A site for my cafe" }])).toMatchObject({ href: "/app/build", text: "A site for my cafe" });
   });
 });

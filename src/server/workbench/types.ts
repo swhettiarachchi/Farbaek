@@ -33,9 +33,13 @@ export interface WorkbenchPlan {
   resources: string[];
   /** How it will be checked. */
   checks: string[];
+  /** The commands that must pass, as the plan names them. */
+  requiredChecks: string[];
   /** What stays untouched. */
   kept: string[];
   recovery: string;
+  /** What the draft took for granted because the request did not say. */
+  assumptions: string[];
   questions: string[];
   approved: boolean;
   approve: {

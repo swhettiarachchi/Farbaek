@@ -19,6 +19,8 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#fbfbfc",
     theme_color: "#fbfbfc",
     categories: ["developer", "productivity"],
+    // The address a share is sent to stays the one the released Android app carries (src/config/android-app.test.ts holds
+    // the two together); it leads on to Build's start with what was shared (stage 286, ADR 0294).
     share_target: { action: "/app/new", method: "GET", enctype: "application/x-www-form-urlencoded", params: { title: "title", text: "text", url: "url" } },
     icons: [
       { src: "/brand/farbaek-app-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
@@ -27,7 +29,7 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       { name: "Approvals", short_name: "Approvals", url: "/app/approvals", icons: [{ src: "/brand/farbaek-app-192.png", sizes: "192x192" }] },
-      { name: "New build", short_name: "Build", url: "/app/new", icons: [{ src: "/brand/farbaek-app-192.png", sizes: "192x192" }] },
+      { name: "New build", short_name: "Build", url: "/app/build", icons: [{ src: "/brand/farbaek-app-192.png", sizes: "192x192" }] },
     ],
   };
 }
