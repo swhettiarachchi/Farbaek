@@ -48,6 +48,10 @@ Research lived inside Chat. A question that had read twelve pages last week coul
   10. the globe already means a published site in the app: Research has the magnifier;
   12. the read had no test, and nothing held the demo's row in place.
 - **Named and not fixed** (in the ADR's "Not yet"): an edited question is listed as two, and a row opens its chat at the latest message (9); Chat's folded rail scrolls on a short screen now that it has ten icons (11).
+- **Live, 2026-11-27 at about 10:35 (+05:30), after #345 was merged** (production build a514a33c9f14, the merge's own), in the owner's signed-in browser, nothing sent or changed:
+  - Research listed seven real pieces of the owner's research, newest first, each with its question, what it cited of what it checked, how its citations checked, and its sites. So the read's filter on what an answer keeps returns the right rows from the real database.
+  - Research was lit in the sidebar, and "Kept up to date" showed its sentence: no scheduled research exists there.
+  - **A flaw the real list showed:** three rows named a site "go". Answers saved on 2026-11-26 kept a search engine's own redirect (`https://go/…`) as a source, from before such addresses were dropped. The list no longer names a host that is no site on the web (fixed in stage 289, with its test).
 - **Not verified:**
   - **A real person's list on production.** The read sends a filter on what an answer keeps (`meta` contains a search that is done); that it returns the right rows from the real database is read from the code and the fake reader's steps, not seen.
   - **A question sent from the box with a live model,** and that it searches with the web switch off.

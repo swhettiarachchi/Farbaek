@@ -72,7 +72,9 @@ function toItem(answer: ResearchAnswer, search: SearchMeta, question: string | n
   for (const source of named) {
     // By its address, as Chat names it, never by what the page calls itself.
     const name = siteOf(source.url) || oneLine(source.site).toLowerCase();
-    if (name && !sites.includes(name)) sites.push(name);
+    // A host with no dot in it is no site on the web: answers from 2026-11-26 kept a search engine's own redirect
+    // ("https://go/…"), and it read "From go." on the real list. Such a page is still counted, and not named.
+    if (name && name.includes(".") && !sites.includes(name)) sites.push(name);
   }
   return {
     id: answer.id,

@@ -8,7 +8,7 @@ import { nonceFromCsp } from "@/server/http/app-headers";
 import { waitingChanges } from "@/server/workspace/waiting-changes";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
 import { NavCountsProvider } from "@/components/app/nav-counts";
-import { CommandPalette, PaletteIconButton, PaletteTrigger } from "@/components/app/command-palette";
+import { AskButton, CommandPalette, PaletteIconButton, PaletteTrigger } from "@/components/app/command-palette";
 import { CspSafe } from "@/components/app/csp-safe";
 import { ServiceWorker } from "@/components/app/service-worker";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
@@ -164,7 +164,13 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
         <Link href="/app/build" transitionTypes={PAGE_NAV} className={buttonClasses("primary", "sm", "w-full")}>
           <PlusIcon size={16} weight="bold" aria-hidden /> New build
         </Link>
-        <PaletteTrigger />
+        {/* Ask or search by typing, or ask by voice: both open the same palette (stage 289, ADR 0297). */}
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <PaletteTrigger />
+          </div>
+          <AskButton />
+        </div>
         <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
         {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} /> : null}
         <SidebarNav helpUnread={helpUnread} level={level} />
