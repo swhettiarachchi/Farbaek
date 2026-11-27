@@ -7,6 +7,7 @@ import {
   CaretDownIcon,
   CaretRightIcon,
   GraphIcon,
+  MagnifyingGlassIcon,
   ClockCounterClockwiseIcon,
   CompassToolIcon,
   CheckCircleIcon,
@@ -64,6 +65,7 @@ const CORE: NavItem[] = [
   { href: "/app/images", label: "Images", short: "Images", icon: ImageSquareIcon, about: "Make and edit pictures with studio finish.", also: ["Image studio", "Pictures", "Image generation", "Photos"] },
   { href: "/app/video", label: "Video", short: "Video", icon: VideoCameraIcon, about: "Make short videos with sound, from words or a picture.", also: ["Video studio", "Videos", "Video generation", "Film"] },
   { href: "/app/build", label: "Build", short: "Build", icon: BlocksIcon, about: "Everything the agent is building or has built." },
+  { href: "/app/research", label: "Research", short: "Research", icon: MagnifyingGlassIcon, about: "Everything you've researched, with its sources.", also: ["Research studio", "Sources", "Web research", "Deep research"] },
   { href: "/app/projects", label: "Projects", short: "Projects", icon: FolderSimpleIcon, about: "Your sites and apps." },
   { href: "/app/scheduled", label: "Scheduled", short: "Scheduled", icon: CalendarCheckIcon, about: "Work Farbaek does by itself, at the times you set.", also: ["Scheduled tasks", "Automations", "Recurring", "Reminders", "Schedule", "Agents", "Personal agents"] },
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckCircleIcon, about: "Changes waiting for your yes or no." },
@@ -113,7 +115,7 @@ export const APP_PAGES: readonly NavItem[] = [...CORE, ...TOOLS, ...ACCOUNT];
 // The phone's five tabs (ADR 0228): Home, Chat, Build, Approvals and More. Every product studied opens on a box to type
 // in, so Chat is a tab. Projects, Tasks, Images and Video are reached through More there, with the tools and the account
 // pages: five tabs is the most a phone bar holds, and a project is one press from Build and from Home.
-const PHONE_EXTRAS = new Set(["/app/projects", "/app/images", "/app/video", "/app/scheduled"]);
+const PHONE_EXTRAS = new Set(["/app/projects", "/app/images", "/app/video", "/app/research", "/app/scheduled"]);
 const TAB_ITEMS = CORE.filter((i) => !PHONE_EXTRAS.has(i.href));
 /** The rows on the phone's More page, in order. */
 export const MORE_PAGES: readonly NavItem[] = [...CORE.filter((i) => PHONE_EXTRAS.has(i.href)), ...TOOLS, ...ACCOUNT];
