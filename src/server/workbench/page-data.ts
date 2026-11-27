@@ -8,7 +8,6 @@
  * server action that saves re-renders this page inside its answer, and a whole site's text must not ride along each time.
  */
 import { isLive } from "@/core/agent/cloud-run";
-import { sayOperation } from "@/components/app/contract-view";
 import { UUID, changeKey } from "@/core/workbench/key";
 import { pickTask, threadStage } from "@/core/workbench/thread";
 import { getRunUsage, listRunEvents, listRuns, type RunEventView, type RunView } from "@/server/cloud-agent/store";
@@ -17,6 +16,7 @@ import type { AppContext } from "@/server/workspace/context";
 import { loadPlanCard } from "@/server/workspace/plan-card";
 import { runUsageView, type RunUsageView } from "@/server/workspace/plan-card-data";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
+import { planWords } from "./plan-words";
 import type { WorkbenchData, WorkbenchPlan, WorkbenchTask } from "./types";
 
 type Signed = AppContext & { current: NonNullable<AppContext["current"]> };
@@ -63,13 +63,7 @@ export async function loadWorkbench(ctx: Signed, projectId: string, wantedTask?:
       // Offered for approval only where the pane will show the control: a drafted plan on a request that hasn't ended.
       const waiting = threadStage({ state: task.state, hasPlan: true, planApproved: card.contract.status === "approved", runLive: false, changePending: false }) === "plan_waiting";
       plan = {
-        outcome: c.outcome,
-        changes: c.allowedOperations.length ? c.allowedOperations.map(sayOperation).join(", ") : "Nothing yet: the plan allows no changes.",
-        resources: c.scope.resources,
-        checks: c.acceptanceCriteria.map((a) => a.statement),
-        kept: card.kept,
-        recovery: c.recovery,
-        questions: c.openQuestions,
+        ...planWords(c, card.kept),
         approved: card.contract.status === "approved",
         approve: waiting
           ? {

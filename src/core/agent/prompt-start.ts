@@ -28,9 +28,13 @@ export function promptFromShare(shared: { title?: unknown; text?: unknown; url?:
   return cleanPrompt([onlyAddress ? title : text || title, onlyAddress ? text : text.includes(url) ? "" : url].filter(Boolean).join("\n"));
 }
 
-/** Whether an address carries something shared to Farbaek, which signing in shouldn't lose. */
+/**
+ * Whether an address carries something shared to Farbaek, which signing in shouldn't lose. Build's start is where a share
+ * arrives (stage 286, ADR 0294); the older address is still read, since an installed app may send a share there and be
+ * sent on.
+ */
 export function isSharedBuild(pathname: string, search: URLSearchParams): boolean {
-  return pathname === "/app/new" && (search.has("text") || search.has("url") || search.has("title"));
+  return (pathname === "/app/build" || pathname === "/app/new") && (search.has("text") || search.has("url") || search.has("title"));
 }
 
 const LEAD = /^(please\s+)?((can|could|would)\s+you\s+)?(i\s+(want|need|would\s+like)(\s+to)?\s+)?(help\s+me\s+)?(build|make|create|design|develop|code|generate|write|set\s+up)?\s*(me\s+)?(this\s+(?:into\s+)?)?(a|an|the|my|our)?\s+/i;

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SITE_ROUTE } from "@/core/publish/site";
+import { olderBuildStart } from "@/core/agent/build-surface";
 import { isAdminEmail } from "@/server/admin/allowlist";
 import { decideRoute } from "@/server/http/hosts";
 import { APP_CSP_PATH, SIGN_IN_CSP_PATH, appCsp, appCspEnforced, appCspHeaders } from "@/server/http/app-headers";
@@ -104,6 +105,14 @@ async function officeRequest(request: NextRequest, rewrite: string, https: boole
 
 async function appRequest(request: NextRequest) {
   if (!SESSION_PATH.test(request.nextUrl.pathname)) return NextResponse.next();
+
+  // Build starts in one place (stage 286, ADR 0294). Its two older addresses are answered here, before a page is drawn: a
+  // redirect from inside the page would paint the app once, then load it again. The address is built in code from five
+  // known names, so it can only ever be Build's start.
+  if (request.method === "GET" || request.method === "HEAD") {
+    const start = olderBuildStart(request.nextUrl.pathname, request.nextUrl.searchParams);
+    if (start) return NextResponse.redirect(new URL(start, siteUrl()), 307);
+  }
 
   // The app's nonce CSP (ADR 0107): Next.js reads the nonce from this request header and puts it on its scripts.
   // Sign-in pages only report for now (ADR 0175): a mistake there would stop anyone signing in.

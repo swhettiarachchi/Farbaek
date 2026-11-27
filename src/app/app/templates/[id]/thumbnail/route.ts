@@ -4,7 +4,7 @@ import { loadAppContext } from "@/server/workspace/context";
 
 /**
  * A template's home page as one document, for the lazy pictures in the
- * gallery and on the new-build page. Templates are Farbaek's own sample
+ * gallery and on Build's start. Templates are Farbaek's own sample
  * content and only change with a deploy, so it caches for an hour. It's
  * JSON, shown only inside a frame that runs no scripts.
  */

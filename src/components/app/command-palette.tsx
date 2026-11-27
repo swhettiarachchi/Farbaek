@@ -126,7 +126,7 @@ export function CommandPalette({
     if (canBuild && typed.length >= BUILD_MIN) {
       all.push({ id: "build", group: "Build", label: `Plan a build: ${typed}`, hint: "You approve the plan first", icon: BlocksIcon, action: { kind: "build", prompt: typed } });
     }
-    all.push({ id: "new", group: "Build", label: "New build", icon: PlusIcon, keywords: ["create", "start", "prompt"], action: { kind: "go", href: "/app/new" } });
+    all.push({ id: "new", group: "Build", label: "New build", icon: PlusIcon, keywords: ["create", "start", "prompt"], action: { kind: "go", href: "/app/build" } });
     for (const page of APP_PAGES) all.push({ id: page.href, group: "Go to", label: page.label, icon: page.icon, keywords: [page.short, ...(page.also ?? [])], action: { kind: "go", href: page.href } });
     all.push({ id: "/app/templates", group: "Go to", label: "Templates", icon: LayoutIcon, keywords: ["gallery", "starter", "site"], action: { kind: "go", href: "/app/templates" } });
     all.push({ id: "/app/rescue", group: "Go to", label: "Check an app built elsewhere", icon: ShieldCheckIcon, keywords: ["import", "zip", "security", "rescue"], action: { kind: "go", href: "/app/rescue" } });
@@ -147,13 +147,13 @@ export function CommandPalette({
     close();
     if (action.kind === "go") router.push(action.href);
     else if (action.kind === "build") {
-      // Kept in this browser only, never in a URL; the New build page sends it once.
+      // Kept in this browser only, never in a URL; Build's start sends it once.
       try {
         window.localStorage.setItem(PROMPT_STORAGE_KEY, action.prompt);
       } catch {
-        // Without storage the New build page opens empty and the text is typed again.
+        // Without storage Build's start opens empty and the text is typed again.
       }
-      router.push("/app/new?resume=1");
+      router.push("/app/build?resume=1");
     } else {
       const form = new FormData();
       form.set("orgId", action.orgId);

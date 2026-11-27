@@ -158,7 +158,7 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
           <Brand />
         </div>
         {/* The same order as Chat's sidebar (ADR 0230): the brand, the main button, search, then the list. */}
-        <Link href="/app/new" transitionTypes={PAGE_NAV} className={buttonClasses("primary", "sm", "w-full")}>
+        <Link href="/app/build" transitionTypes={PAGE_NAV} className={buttonClasses("primary", "sm", "w-full")}>
           <PlusIcon size={16} weight="bold" aria-hidden /> New build
         </Link>
         <PaletteTrigger />

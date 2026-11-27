@@ -30,7 +30,10 @@ describe("promptFromShare", () => {
 });
 
 describe("isSharedBuild", () => {
-  it("is only the new build page with something shared", () => {
+  it("is only Build's start, or the older address that leads to it, with something shared", () => {
+    expect(isSharedBuild("/app/build", new URLSearchParams("text=hello"))).toBe(true);
+    expect(isSharedBuild("/app/build", new URLSearchParams("template=blog"))).toBe(false);
+    expect(isSharedBuild("/app/build/run-1", new URLSearchParams("text=hello"))).toBe(false);
     expect(isSharedBuild("/app/new", new URLSearchParams("text=hello"))).toBe(true);
     expect(isSharedBuild("/app/new", new URLSearchParams("url=https://a.example"))).toBe(true);
     expect(isSharedBuild("/app/new", new URLSearchParams("template=blog"))).toBe(false);

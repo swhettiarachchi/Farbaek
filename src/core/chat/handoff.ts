@@ -15,7 +15,7 @@ export function handOffPlan(to: HandOff, messages: readonly { role: string; cont
   if (to === "desktop") return { href: "/app/agents", key: STUDIO_PROMPT_KEY, text: "" };
   const asked = [...messages].reverse().find((m) => m.role === "user" && m.content.trim())?.content.trim().slice(0, HANDOFF_MAX) ?? "";
   return {
-    href: to === "images" ? "/app/images" : to === "video" ? "/app/video" : "/app/new",
+    href: to === "images" ? "/app/images" : to === "video" ? "/app/video" : "/app/build",
     key: to === "build" ? PROMPT_STORAGE_KEY : STUDIO_PROMPT_KEY,
     text: asked,
   };

@@ -26,7 +26,7 @@ const args = process.argv.slice(2);
 const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const BASE = flag("base") ?? "http://localhost:3000";
 const RUNS = Number(flag("runs") ?? 3);
-const ROUTES = (flag("routes") ?? "/,/pricing,/sign-in,/security,/app,/app/new,/app/projects,/app/tasks").split(",");
+const ROUTES = (flag("routes") ?? "/,/pricing,/sign-in,/security,/app,/app/build,/app/projects,/app/tasks").split(",");
 const OUT = flag("out") ?? join(tmpdir(), `farbaek-vitals-${Date.now()}.json`);
 
 function chromePath() {

@@ -42,7 +42,7 @@ const COOKIE_OPTIONS = { httpOnly: true, sameSite: "lax" as const, secure: proce
 export async function startFromPromptAction(_previous: PromptStartState, form: FormData): Promise<PromptStartState> {
   const effort = z.enum(EFFORTS).catch("balanced").parse(form.get("effort"));
   const ctx = await loadAppContext();
-  if (!ctx) redirect("/sign-in?next=/app/new");
+  if (!ctx) redirect("/sign-in?next=/app/build");
   if (ctx.mode === "demo" || isDemoMode()) return { status: "error", message: "The demo workspace is read-only. Sign in to build for real." };
 
   if (!ctx.current) {
@@ -53,7 +53,7 @@ export async function startFromPromptAction(_previous: PromptStartState, form: F
     const id = z.string().safeParse(data);
     if (id.success) (await cookies()).set(WORKSPACE_COOKIE, id.data, COOKIE_OPTIONS);
     revalidatePath("/app", "layout");
-    redirect("/app/new?resume=1");
+    redirect("/app/build?resume=1");
   }
 
   if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason };
