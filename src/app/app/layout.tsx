@@ -7,6 +7,7 @@ import { AndroidEarlyMark } from "@/components/billing/android-early-mark";
 import { nonceFromCsp } from "@/server/http/app-headers";
 import { waitingChanges } from "@/server/workspace/waiting-changes";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
+import { NavCountsProvider } from "@/components/app/nav-counts";
 import { CommandPalette, PaletteIconButton, PaletteTrigger } from "@/components/app/command-palette";
 import { CspSafe } from "@/components/app/csp-safe";
 import { ServiceWorker } from "@/components/app/service-worker";
@@ -151,6 +152,8 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
       <AndroidEarlyMark nonce={nonce} />
       <DeviceOwner userId={ctx.user.id} />
       {/* Farbaek Chat (stage 199) brings its own full-screen frame; every other page gets this one. In the sidebar, children never shrink: on a short screen it scrolls instead of squeezing its controls. */}
+      {/* What the navigation counts reaches every frame's list of places from here (stage 287, ADR 0295). */}
+      <NavCountsProvider approvals={approvals} helpUnread={helpUnread}>
       <AppFrame
         sidebar={
       <aside className="hidden h-full min-h-0 flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
@@ -164,7 +167,7 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
         <PaletteTrigger />
         <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
         {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} /> : null}
-        <SidebarNav approvals={approvals} helpUnread={helpUnread} level={level} />
+        <SidebarNav helpUnread={helpUnread} level={level} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
           {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
           {admin ? (
@@ -256,6 +259,7 @@ async function Frame({ children }: Readonly<{ children: React.ReactNode }>) {
       >
         {children}
       </AppFrame>
+      </NavCountsProvider>
       <CommandPalette
         projects={projects.filter((p) => !p.archivedAt).slice(0, 50).map((p) => ({ id: p.id, name: p.name }))}
         workspaces={ctx.workspaces.map((w) => ({ id: w.id, name: w.name, current: w.id === current.id }))}

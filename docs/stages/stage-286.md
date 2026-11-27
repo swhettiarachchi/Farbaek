@@ -60,6 +60,12 @@ The pages were looked at side by side first, on a wide screen and a phone, with 
   6. the notice that a server can't run checks never showed before a first run: it is under the box;
   7. claims the code did not match (Home's door and the studios' header as ways in; "nothing is missing" while only six projects were listed) and an option nothing used.
 - **A fault the suite caught:** the web manifest's share address had moved to the new page, away from the one the released Android app carries; a test holds the two together. It stays the older address and is sent on.
+- **Live, 2026-11-27 at about 09:20 (+05:30), after #343 was merged** (production build 97fd4fd032a3, the merge's own), in the owner's signed-in browser, nothing started or changed:
+  - `/app/new?template=portfolio` arrived at `/app/build?template=portfolio` after one redirect, with the template's card above the box.
+  - `/app/workbench` arrived at `/app/build` after one redirect.
+  - Build's start showed the question, the box, Ready to build with two tasks, Open a project, Start from a template and Runs, with Build lit in the sidebar.
+  - The New build button and Chat's sidebar both led to `/app/build`; a project opened in Build's workspace.
+  - Not seen there: the workspace's plan block with a command or an assumption (the request open in that project had no plan to show), and a build started from the page.
 - **Not verified:**
   - **A real build started from this page.** The demo can't start one. The path is the one the workspace's own start used: the same action, the same word (`surface=workbench`).
   - **The cancel control in the workspace.** No sample request has a plan waiting for approval, so it was not seen on a screen. It is the control the plan's own page uses.

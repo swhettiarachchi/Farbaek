@@ -8,12 +8,9 @@
  */
 import {
   ArrowUpRightIcon,
-  ChatCircleTextIcon,
   CheckCircleIcon,
   DownloadSimpleIcon,
   VideoCameraIcon,
-  HouseSimpleIcon,
-  ImageSquareIcon,
   ListIcon,
   PaintBrushIcon,
   PaperclipIcon,
@@ -29,6 +26,7 @@ import type { Icon } from "@/components/icons";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { PlacesNav, PlacesRail } from "@/components/app/app-nav";
 import { buttonClasses } from "@/components/ui/button";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
 import { STUDIO_PROMPT_KEY } from "@/core/chat/protocol";
@@ -96,12 +94,6 @@ const VIDEO_EXAMPLES: { text: string; style: VideoStyle; shape: VideoShape }[] =
   { text: "A paper boat sails down a rain-filled street past little houses", style: "animation", shape: "16:9" },
   { text: "A city skyline at night with trains crossing a bridge", style: "dither", shape: "16:9" },
   { text: "Two friends laugh over coffee by a rainy window", style: "conversation", shape: "16:9" },
-];
-
-const SPACES: { href: string; label: string; icon: Icon; kind: Kind | "chat" }[] = [
-  { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon, kind: "chat" },
-  { href: "/app/images", label: "Images", icon: ImageSquareIcon, kind: "image" },
-  { href: "/app/video", label: "Video", icon: VideoCameraIcon, kind: "video" },
 ];
 
 export function Studio(props: StudioProps) {
@@ -285,6 +277,8 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
         Skip to the description
       </a>
       <div className="relative flex h-full overflow-hidden bg-canvas">
+      {/* The places of Farbaek, the same list every frame draws (stage 287, ADR 0295). */}
+      <PlacesRail />
       <aside aria-label="Your library" className="hidden h-full w-[18.5rem] shrink-0 border-r border-line bg-canvas-2 lg:flex">
         {library(false)}
       </aside>
@@ -295,31 +289,10 @@ function StudioInner({ kind, items: initial, pictures = [], disabledReason, init
       <main id="main" className="relative flex h-full min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-2 sm:px-4">
           <span className="lg:hidden">
-            <IconButton label="Your library" icon={ListIcon} onClick={() => setDrawer(true)} />
+            <IconButton label="Menu and your library" icon={ListIcon} onClick={() => setDrawer(true)} />
           </span>
           <h1 className={`sr-only ${FOCUSED_TITLE}`}>{title}</h1>
           <p aria-hidden className="min-w-0 truncate text-title-4 font-medium tracking-[-0.02em]">{title}</p>
-          <nav aria-label="Farbaek AI" className="ml-auto flex items-center gap-0.5 rounded-full bg-canvas-2 p-1 ring-1 ring-line">
-            {SPACES.map((s) => {
-              const on = s.kind === kind;
-              const SpaceIcon = s.icon;
-              return (
-                <Link
-                  key={s.href}
-                  href={s.href}
-                  aria-current={on ? "page" : undefined}
-                  className={`inline-flex h-9 min-w-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors duration-200 pointer-coarse:h-11 ${on ? "bg-surface text-ink shadow-e1 ring-1 ring-line" : "text-ink-2 hover:text-ink"}`}
-                >
-                  <SpaceIcon size={16} weight={on ? "fill" : "bold"} aria-hidden className={on ? "text-accent" : ""} />
-                  <span className="hidden sm:inline">{s.label}</span>
-                  <span className="sr-only sm:hidden">{s.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-          <Link href="/app" aria-label="Farbaek home" title="Farbaek home" className="tap inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink">
-            <HouseSimpleIcon size={16} weight="bold" aria-hidden />
-          </Link>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -707,19 +680,26 @@ function Library({ kind, items, unread = false, onOpen, onClose }: { kind: Kind;
     else groups.push({ label, items: [item] });
   }
   return (
-    <div className="flex h-full w-full flex-col">
-      <div className="flex h-14 shrink-0 items-center gap-2 px-3">
-        <Link href="/app" className="flex min-h-11 items-center gap-2 rounded-full pr-2" aria-label="Farbaek home">
-          <BrandLogo height={30} />
-          <span className="text-body font-semibold tracking-[-0.02em]">Farbaek AI</span>
-        </Link>
-        {onClose ? (
-          <span className="ml-auto">
-            <IconButton label="Close the library" icon={XIcon} onClick={onClose} />
-          </span>
-        ) : null}
-      </div>
-      <div className="px-3 pb-2">
+    <div className={`flex h-full w-full flex-col ${onClose ? "overflow-y-auto overscroll-contain" : ""}`}>
+      {onClose ? (
+        <>
+          {/* It stays put while the rest scrolls: this drawer has no swipe to close. */}
+          <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-canvas-2 px-3">
+            <Link href="/app" className="flex min-h-11 items-center gap-2 rounded-full pr-2" aria-label="Farbaek home">
+              <BrandLogo height={30} />
+              <span className="text-body font-semibold tracking-[-0.02em]">Farbaek AI</span>
+            </Link>
+            <span className="ml-auto">
+              <IconButton label="Close the menu" icon={XIcon} onClick={onClose} />
+            </span>
+          </div>
+          {/* On a phone the drawer is the way to every other place, as Chat's is (stage 287, ADR 0295). */}
+          <nav aria-label="App" className="shrink-0 border-b border-line px-3 pb-3">
+            <PlacesNav more rows={5} onNavigate={onClose} />
+          </nav>
+        </>
+      ) : null}
+      <div className={`shrink-0 px-3 pb-2 ${onClose ? "pt-3" : "pt-4"}`}>
         <p className="px-1 text-sm font-medium text-ink">Your library</p>
         {kind === "image" ? (
           <div role="radiogroup" aria-label="Show" className="mt-2 grid grid-cols-3 rounded-full bg-surface p-0.5 ring-1 ring-line">
@@ -738,7 +718,7 @@ function Library({ kind, items, unread = false, onOpen, onClose }: { kind: Kind;
           </div>
         ) : null}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+      <div className={`px-3 pb-4 ${onClose ? "" : "min-h-0 flex-1 overflow-y-auto"}`}>
         {groups.length === 0 ? (
           <p className="px-1 pt-4 text-sm leading-relaxed text-ink-2">
             {unread ? "Your library couldn't be read just now. Reload the page in a moment." : kind === "image" ? "Pictures you make and upload are kept here, private to you." : "Videos you make are kept here, private to you."}
@@ -920,7 +900,7 @@ function Drawer({ open, onClose, children }: { open: boolean; onClose: () => voi
   return (
     <dialog
       ref={ref}
-      aria-label="Your library"
+      aria-label="Menu and your library"
       onClose={onClose}
       onCancel={(e) => {
         e.preventDefault();

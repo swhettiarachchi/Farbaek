@@ -261,7 +261,7 @@ Everything not done, in the order that lets each part stand on the one before. I
 5. One command center with one pause: a first version is built (stage 276, All work). Still to do: each thing's cost, acting from the row, an owner's view of everyone's work.
 6. **Telepathy part 1:** project awareness in Chat (built in stage 282, by names and states), suggested next steps with their reasons and corrections (built in stage 283, on Home), memory reaching Build's plans (built in stage 284), one memory across spaces, suggested next steps with "why this" and corrections.
 7. **The three modes:** a first version is built (stage 285): the menus' tools and Chat's list of models follow the level. Still to do: Settings, Build's workspace, the studios and the apps reading it; the choice kept with the account.
-8. Build starting in one place: built (stage 286, ADR 0294). Still to do: one sidebar across the spaces; **the professional-colours pass** (after the owner's answer).
+8. Build starting in one place: built (stage 286, ADR 0294). One list of places in every frame: built (stage 287, ADR 0295); still to do there, one sidebar component for the app's frame and Chat's, and the list in Build's workspace on a phone. **The professional-colours pass** waits for the owner's answer.
 9. **Redesign the content of every page** in the app and on the public site; **the missing public pages** (features, docs, API docs, about, contact, help, changelog).
 10. The routers reading the registry; failover beyond Chat; **the benchmark engine** with cost per finished task; the registry's missing fields.
 11. Grok, X search and the X connector (needs the owner's xAI key, budget and X developer account).

@@ -1,62 +1,49 @@
-import { ChatCircleTextIcon, VideoCameraIcon, FolderSimpleIcon, BlocksIcon, HouseSimpleIcon, ImageSquareIcon } from "@/components/icons";
+import { BlocksIcon, FolderSimpleIcon } from "@/components/icons";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { PlacesRail } from "@/components/app/app-nav";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
 
-/** Farbaek AI's spaces, as Chat's sidebar and the studios' headers show them (ADR 0217). */
-const SPACES = [
-  { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon, tone: "text-accent" },
-  { href: "/app/images", label: "Images", icon: ImageSquareIcon, tone: "text-spark-rose" },
-  { href: "/app/video", label: "Video", icon: VideoCameraIcon, tone: "text-spark-aqua" },
-  { href: "/app/build", label: "Build", icon: BlocksIcon, tone: "text-spark-leaf" },
-] as const;
-
 /**
  * The frame of Build's workspace (stage 202, ADR 0219): it fills the screen, as Chat and every signed-in page do (ADR 0230).
- * The header names the place, links back to Farbaek and to the other spaces, each in its colour.
+ *
+ * On a wide screen the places of Farbaek are a rail at the left, the same list every frame draws (stage 287, ADR 0295),
+ * and the header names the project. On a phone the panes need the whole width, so the header keeps the way home.
  *
  * Own-frame pages get none of the app's chrome, so this provides the skip link, the one `h1`, `main` and the ways out.
  */
 export function WorkbenchStage({ heading, name, skip, children }: { heading: string; name: string; skip: { href: string; label: string }; children: ReactNode }) {
   return (
-    <div className="chat-root relative h-[100dvh] overflow-hidden bg-canvas text-ink [--tab-bar:0px]">
+    <div className="chat-root relative flex h-[100dvh] overflow-hidden bg-canvas text-ink [--tab-bar:0px]">
       <a href={skip.href} className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm text-on-primary focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
         {skip.label}
       </a>
 
-      <main id="main" className="relative flex h-full flex-col overflow-hidden bg-canvas">
+      <PlacesRail />
+
+      <main id="main" className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-canvas">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-2 sm:px-3">
-          <Link href="/app" aria-label="Farbaek, Home" title="Home" className="tap inline-flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-surface-raised">
-            <BrandLogo height={28} />
-          </Link>
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          {/* The rail carries the way home on a wide screen. */}
+          <span className="lg:hidden">
+            <Link href="/app" aria-label="Farbaek, Home" title="Home" className="tap inline-flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-surface-raised">
+              <BrandLogo height={28} />
+            </Link>
+          </span>
+          <div className="flex min-w-0 flex-1 items-center gap-2 lg:pl-2">
             <BlocksIcon size={16} weight="fill" className="shrink-0 text-spark-leaf" aria-hidden />
             <h1 className={`sr-only ${FOCUSED_TITLE}`}>{heading}</h1>
             <p aria-hidden className="truncate text-sm font-medium text-ink sm:text-base">
               {name}
             </p>
           </div>
-          <Link href="/app/build#projects" className="tap inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-raised hover:text-ink">
-            <FolderSimpleIcon size={16} weight="bold" aria-hidden />
-            <span className="max-sm:sr-only">Projects</span>
-          </Link>
-          <nav aria-label="Farbaek AI" className="hidden shrink-0 items-center gap-0.5 rounded-full bg-canvas-2 p-1 ring-1 ring-line lg:flex">
-            {SPACES.map((s) => (
-              <Link
-                key={s.href}
-                href={s.href}
-                aria-current={s.label === "Build" ? "page" : undefined}
-                className="inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-sm text-ink-2 transition-colors duration-150 hover:text-ink pointer-coarse:min-h-11 aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:text-ink aria-[current=page]:shadow-e1"
-              >
-                <s.icon size={14} weight="fill" className={s.tone} aria-hidden />
-                {s.label}
-              </Link>
-            ))}
-          </nav>
-          <Link href="/app" aria-label="Back to Farbaek" title="Back to Farbaek" className="tap hidden size-10 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink lg:inline-flex">
-            <HouseSimpleIcon size={20} weight="bold" aria-hidden />
-          </Link>
+          {/* On a phone, the way to another project. On a wide screen the rail has Build and Projects. */}
+          <span className="lg:hidden">
+            <Link href="/app/build#projects" className="tap inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm text-ink-2 hover:bg-surface-raised hover:text-ink">
+              <FolderSimpleIcon size={16} weight="bold" aria-hidden />
+              <span className="max-sm:sr-only">Projects</span>
+            </Link>
+          </span>
         </header>
         {children}
       </main>
