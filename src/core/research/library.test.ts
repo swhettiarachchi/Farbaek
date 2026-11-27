@@ -138,6 +138,19 @@ describe("the research a person can find again (stage 288, ADR 0296)", () => {
     expect(item!.siteCount).toBe(4);
   });
 
+  it("never names a host that is no site on the web, as older records kept one", () => {
+    const kept = (sources: unknown[]) => researchItems([answer({ meta: { search: search({ sources }) } })], questions)[0]!;
+    // A search engine's own redirect, saved as a source before such addresses were dropped.
+    const mixed = kept([source(1, "https://go/v1/abc", { cited: true }), source(2, "https://securityweek.com/a", { cited: true }), source(3, "https://techstartups.com/b", { cited: true })]);
+    expect(mixed.sites).toEqual(["securityweek.com", "techstartups.com"]);
+    expect(mixed.cited).toBe(3);
+    expect(sitesLine(mixed)).toBe("From securityweek.com and techstartups.com.");
+    // When that is the only one, the row says nothing of where, rather than "From go."
+    const only = kept([source(1, "https://go/v1/abc", { cited: true })]);
+    expect(only).toMatchObject({ pages: 1, cited: 1, sites: [], siteCount: 0 });
+    expect(sitesLine(only)).toBe("");
+  });
+
   it("carries the depth, the rounds and a roundup when the record has them", () => {
     const [item] = researchItems([answer({ meta: { search: search({ depth: "deep", rounds: 2, roundup: true }) } })], questions);
     expect(item).toMatchObject({ depth: "deep", rounds: 2, roundup: true });

@@ -130,6 +130,12 @@ export interface ListenOptions {
 }
 
 const noSubscribe = () => () => {};
+
+/**
+ * The one place that is listening now (stage 289): Chat's box, Survey's assistant and the palette each have this hook,
+ * and two recognisers at once abort each other. Starting in one place hands the other its words and ends it.
+ */
+let listeningNow: { finish(): void } | null = null;
 /** Restarts in a row with nothing heard before an instruction ends anyway (Chrome on Android ends each phrase by itself). */
 const MAX_QUIET_RESTARTS = 4;
 
@@ -158,6 +164,7 @@ export function useSpeech() {
   const heard = useRef("");
   const quickEnds = useRef(0);
   const [listening, setListening] = useState(false);
+  const self = useRef<{ finish(): void }>({ finish: () => {} });
 
   /** Ends the current session: no callback of its recogniser runs after this. */
   const end = useCallback(() => {
@@ -168,6 +175,7 @@ export function useSpeech() {
     rec.current = null;
     detach(r);
     setListening(false);
+    if (listeningNow === self.current) listeningNow = null;
   }, []);
 
   // Leaving the page drops what was being heard: nothing is sent after the surveyor has gone.
@@ -248,7 +256,9 @@ export function useSpeech() {
   /** Starts listening; any listening before is dropped, unsent. */
   const start = useCallback(
     (o: ListenOptions) => {
+      if (listeningNow && listeningNow !== self.current) listeningNow.finish();
       end();
+      listeningNow = self.current;
       opts.current = o;
       heard.current = "";
       quickEnds.current = 0;
@@ -277,6 +287,10 @@ export function useSpeech() {
       o?.onFinal(words);
     }
   }, [end]);
+
+  useEffect(() => {
+    self.current.finish = stop;
+  }, [stop]);
 
   /** Stops and drops the words. */
   const abort = end;

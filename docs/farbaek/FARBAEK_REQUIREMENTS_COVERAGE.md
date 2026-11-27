@@ -119,7 +119,7 @@ Present: identity, conversations, memory, metering and usage, approvals, audit, 
 | --- | --- |
 | Dictation and read aloud in Chat (the browser's own speech) | Done |
 | Survey Studio's voice drafting assistant | Done |
-| Floating assistant, orb, quick actions | Not started |
+| Floating assistant, orb, quick actions | Partly: a microphone button beside the sidebar's search box opens the palette listening, and the palette hands a question, typed or spoken, to Chat (stage 289, ADR 0297). No answer in place, no quick actions that do work, no orb |
 | Android: assistant role, App Functions, shortcuts, foreground service | Not started |
 | iPhone: App Intents, Siri, Shortcuts, Action Button, widgets, Live Activities | Not started |
 | Sinhala speech recognition and voice on the server | Not started (research report written: `reports/Voice drafting assistant technology.md`) |
@@ -182,11 +182,11 @@ Plans bound by hash, approvals, ProofPack, receipts, undo, history, the rules en
 | Area | State |
 | --- | --- |
 | Home (main screen) | Done: a greeting and one box that asks or builds |
-| Navigation | Partly: shorter sidebar, five phone tabs. Build still starts in three places; Chat, the studios and Build have different sidebars |
+| Navigation | Partly: shorter sidebar, five phone tabs, Build starting in one place (stage 286) and one list of places drawn in every frame (stage 287). The app's frame and Chat's are still two sidebar components |
 | The pages inside the app (Projects, Tasks, Approvals, Workflows, Agents, Integrations, Settings, Billing and others) | Partly: they have the new frame and Dark; their content wasn't redesigned |
 | Public: homepage, spaces, pricing, security, privacy, legal, sign-in | Partly: Dark added; not redesigned in this program |
 | Public: features, solutions, docs, API docs, about, contact, help, changelog | Not started (these pages don't exist) |
-| App sections that don't exist yet | Partly: Scheduled exists, with Tasks and Agents (stages 271 and 275). Research, Audio, Voice, Telepathy and MCP have no section yet |
+| App sections that don't exist yet | Partly: Scheduled exists, with Tasks and Agents (stages 271 and 275). Research exists (stage 288). Audio, Voice, Telepathy and MCP have no section yet |
 
 ### A24 Mobile: Partly
 
@@ -267,7 +267,7 @@ Everything not done, in the order that lets each part stand on the one before. I
 11. Grok, X search and the X connector (needs the owner's xAI key, budget and X developer account).
 12. **Research Studio:** a first step is built (stage 288): the list of a person's research and a box that starts one. Still to do: reports saved on their own, monitoring, project knowledge.
 13. **Audio Studio:** transcription, speech, translation; then Sinhala voice.
-14. The voice assistant: the floating assistant on the web, then iPhone and Android through their supported features.
+14. The voice assistant: a first step on the web is built (stage 289): asking from any page by voice or typing. Still to do: answers in place, quick actions, then iPhone and Android through their supported features.
 15. **Secure work environment:** an isolated browser for agents, a persistent workspace, a credential vault for connectors, one task timeline.
 16. **Specialist agents** with their own model, tools, budget, risk level and audit.
 17. Plans: an entitlement for each kind of use, usage percentiles, Free and Enterprise, the financial model and strategy; then the new prices live (the owner).

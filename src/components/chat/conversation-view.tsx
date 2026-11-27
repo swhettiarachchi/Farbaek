@@ -8,7 +8,7 @@
  */
 import { ArchiveIcon, ArrowDownIcon, CodeIcon, DotsThreeIcon, FileTextIcon, FolderSimpleIcon, ImageSquareIcon, LightbulbIcon, ListIcon, MagnifyingGlassIcon, NotePencilIcon, PenNibIcon, PencilSimpleIcon, PushPinIcon, PushPinSlashIcon, ShareNetworkIcon, TrashIcon, UploadSimpleIcon } from "@/components/icons";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
 import { CHAT_LIMITS, HOME_QUESTION_KEY, titleFrom, type HandOff, type ChatFile, type ChatMessage, type TurnEvent, type TurnRequest } from "@/core/chat/protocol";
@@ -121,6 +121,8 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
 
   // A question asked on the homepage before signing in waits here once, ready to send: the person still presses send.
   // One handed over from the Research page (stage 288, ADR 0296) also asks for the web when it is sent as it was handed.
+  // It is taken whenever it arrives: the palette hands one over while a chat is already open (stage 289, ADR 0297).
+  const handedOver = useSearchParams().get("ask");
   useEffect(() => {
     const asked = new URLSearchParams(window.location.search);
     if (conversation || !asked.has("ask")) return;
@@ -136,7 +138,7 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
       composer.current?.fill(question.slice(0, 8_000));
       researchFor.current = asked.has("research") ? question.slice(0, 8_000).trim() : null;
     }
-  }, [conversation, projectId]);
+  }, [conversation, projectId, handedOver]);
 
   // "/" goes to the message box from anywhere that isn't a field.
   useEffect(() => {
