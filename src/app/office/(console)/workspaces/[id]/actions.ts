@@ -26,7 +26,7 @@ export async function suspendWorkspaceAction(_prev: OfficeFormState, form: FormD
     await requestMeta(),
   );
   if (!r.ok) return { ok: false, message: OFFICE_MESSAGES[r.code] };
-  const stopped = abortCloudRuns({ orgId: orgId.data });
+  const stopped = abortCloudRuns({ orgId: orgId.data }, "suspended");
   refresh();
   return { ok: true, message: `Suspended. Members see your notice, its sites show "temporarily unavailable"${stopped ? `, and ${stopped} live ${stopped === 1 ? "run was" : "runs were"} stopped` : ""}.` };
 }

@@ -2,7 +2,7 @@
 
 What the owner's brief asks of automation, what exists today, and what comes next. A line says "built" only when it has a test or a look in a browser behind it; the stage and the ADR are named so the claim can be checked.
 
-Last updated: 2026-11-25 (stage 273).
+Last updated: 2026-11-27 (stage 291).
 
 ## What the brief asks for
 
@@ -20,6 +20,7 @@ Tell Farbaek what to do in plain words, and it does the work by itself: on a sch
 | Retries | Built: twice more, 2 and 10 minutes later, only for trouble that may pass | `settle()` in `src/core/automation/tasks.ts` |
 | A task that keeps failing | Built: paused after five due times in a row, with the reason on it | The same |
 | A server that stops mid-run | Built: the lease runs out and the due time is claimed again | Migration v106 |
+| An agent's build when the server stops under it | Built: what the build had changed so far is kept as a partial change to review and carry on from. It does not carry on by itself, and a server that dies without warning still loses it. A build stopped by a pause suggests nothing, by design | ADR 0299, `src/server/cloud-agent/executor.ts` |
 | Pause, resume, run now, change, remove | Built, each through a service-only function that checks the person. A change made while a run is under way is kept; Run now is apart from the schedule and isn't counted as one of its runs | `src/app/app/scheduled/actions.ts`, migration v106 |
 | History of runs | Built: each run's time, how it ended, why, and a link to its answer | `scheduled_task_runs`, the task's card |
 | Told when it has run | Built: email and push, by the person's own preferences | `scheduledFinished` in the notifier |
