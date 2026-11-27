@@ -37,6 +37,8 @@ import Link from "next/link";
 import { PAGE_NAV } from "@/components/app/page-transition";
 import { usePathname } from "next/navigation";
 import { useId, useState, useSyncExternalStore, type ReactNode } from "react";
+import { BrandLogo } from "@/components/brand/brand-logo";
+import { useNavCounts } from "@/components/app/nav-counts";
 import { useLevel } from "@/components/experience/apply";
 import { atLevel, hiddenLine, type Level } from "@/core/experience/level";
 
@@ -96,6 +98,15 @@ const ACCOUNT: NavItem[] = [
   { href: "/app/help", label: "Help and support", short: "Help", icon: LifebuoyIcon, about: "Ask a question or report a problem." },
 ];
 
+/**
+ * The places of Farbaek, in the one order every frame lists them (stage 287, ADR 0295): the app's sidebar, Chat's, the
+ * studios' and the rail beside Build's workspace all draw this list with `PlacesNav`. A new place goes here, once.
+ */
+export const PLACES: readonly NavItem[] = CORE;
+
+/** Every other page, from the frames that have no room for the tools and the account: one row that leads to them all. */
+const MORE_PLACE: NavItem = { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon, about: "Every other tool, and your account." };
+
 /** Every page in the app's navigation, for the command palette. */
 export const APP_PAGES: readonly NavItem[] = [...CORE, ...TOOLS, ...ACCOUNT];
 
@@ -115,6 +126,120 @@ const PHONE_TAB_FOR: readonly { tab: string; page: RegExp }[] = [{ tab: "/app/bu
 
 function isActive(pathname: string, item: NavItem): boolean {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+/** Pages that belong to a place though their address starts elsewhere: Build's workspace and a plan's own page are Build. */
+const ALSO_IN: Record<string, RegExp> = { "/app/build": /^\/app\/(?:workbench|new)(?:\/|$)/ };
+
+/** Whether a place is where the person is now. */
+export function placeLit(pathname: string, item: NavItem): boolean {
+  return isActive(pathname, item) || (ALSO_IN[item.href]?.test(pathname) ?? false);
+}
+
+/**
+ * A row of the list of places: one look in every frame. 40px with a mouse, 44px on a touch screen, and 48px with larger
+ * words on a touch phone, where it sits in a drawer. The phone's height is a two-part variant on purpose: Tailwind writes
+ * one-part variants in a fixed order, and `max-md:` alone would lose to `pointer-coarse:`.
+ */
+export const PLACE_ROW =
+  "flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink transition-[background-color,box-shadow] duration-150 hover:bg-surface/70 aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:shadow-e1 pointer-coarse:min-h-11 max-md:pointer-coarse:min-h-12 max-md:text-base max-md:font-medium";
+
+/**
+ * The list of places (stage 287, ADR 0295), as rows where a frame has a sidebar or a drawer to hold them, and as a rail of
+ * icons where the page needs its width. The same places, order, icons and count everywhere.
+ *
+ * `more` adds the place that leads to every other page, for frames that don't list the tools and the account themselves.
+ * `rows` is for a sidebar with a long list of its own under this one (Chat's conversations): that many places are rows,
+ * and the rest follow as one strip of icons, so the list underneath keeps its room.
+ * `lit` lets a frame say which place is lit where it knows better than the address; it answers undefined to leave it be.
+ */
+export function PlacesNav({
+  form = "rows",
+  more = false,
+  rows,
+  onNavigate,
+  lit,
+}: {
+  form?: "rows" | "rail";
+  more?: boolean;
+  rows?: number;
+  onNavigate?: () => void;
+  lit?: (item: NavItem, pathname: string) => boolean | undefined;
+}) {
+  const pathname = usePathname();
+  const { approvals, helpUnread } = useNavCounts();
+  const items = more ? [...PLACES, MORE_PLACE] : PLACES;
+  const on = (item: NavItem) => lit?.(item, pathname) ?? placeLit(pathname, item);
+
+  // A place as an icon: its name is read out and shown on hover, and the count sits on its corner.
+  const icon = (item: NavItem) => (
+    <li key={item.href}>
+      <Link
+        href={item.href}
+        transitionTypes={PAGE_NAV}
+        onClick={onNavigate}
+        title={item.label}
+        aria-current={on(item) ? "page" : undefined}
+        className="tap relative inline-flex size-10 items-center justify-center rounded-full text-ink transition-[background-color,box-shadow] duration-150 hover:bg-surface/70 aria-[current=page]:bg-surface aria-[current=page]:shadow-e1"
+      >
+        <item.icon size={20} weight="bold" className="max-md:size-6" aria-hidden />
+        <span className="sr-only">{item.label}</span>
+        {item.href === "/app/approvals" && approvals > 0 ? (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-approval px-1 text-[0.6875rem] font-semibold leading-none text-on-accent tabular">
+            {approvals > 99 ? "99+" : approvals}
+            <span className="sr-only"> waiting</span>
+          </span>
+        ) : null}
+        {/* Help is behind More in these frames. The same unread mark as on the phone's tabs says Farbaek replied. */}
+        {item.href === MORE_PLACE.href && helpUnread > 0 ? (
+          <span className="absolute right-1 top-1 size-[10px] rounded-full bg-accent ring-2 ring-canvas-2">
+            <span className="sr-only">, Farbaek replied to your request</span>
+          </span>
+        ) : null}
+      </Link>
+    </li>
+  );
+
+  // 8px between the 40px circles, so their 48px touch areas meet and never overlap.
+  if (form === "rail") return <ul className="grid justify-items-center gap-2">{items.map(icon)}</ul>;
+
+  const asRows = rows === undefined ? items : items.slice(0, rows);
+  const asIcons = rows === undefined ? [] : items.slice(rows);
+  return (
+    <div className="grid gap-1">
+      <ul className="grid gap-0.5">
+        {asRows.map((item) => (
+          <li key={item.href}>
+            <Link href={item.href} transitionTypes={PAGE_NAV} onClick={onNavigate} aria-current={on(item) ? "page" : undefined} className={PLACE_ROW}>
+              <item.icon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden />
+              {item.label}
+              {item.href === "/app/approvals" ? <Badge count={approvals} /> : null}
+              {item.href === MORE_PLACE.href ? <Badge count={helpUnread} tone="accent" label={helpUnread === 1 ? "new reply" : "new replies"} /> : null}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {/* Lined up under the rows' own icons. */}
+      {asIcons.length > 0 ? <ul className="flex flex-wrap items-center gap-2 pl-1">{asIcons.map(icon)}</ul> : null}
+    </div>
+  );
+}
+
+/**
+ * The list of places as a slim column at the left of a page that needs its width: the studios and Build's workspace. Wide
+ * screens only; on a phone those pages keep their own header and drawer.
+ */
+export function PlacesRail() {
+  return (
+    <aside className="hidden h-full w-16 shrink-0 flex-col items-center gap-2 overflow-y-auto border-r border-line bg-canvas-2 py-3 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden">
+      <Link href="/app" aria-label="Farbaek, Home" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full">
+        <BrandLogo height={30} />
+      </Link>
+      <nav aria-label="App" className="shrink-0">
+        <PlacesNav form="rail" more />
+      </nav>
+    </aside>
+  );
 }
 
 /** Where a person chooses their level: the row that says more tools exist leads here. */
@@ -168,7 +293,7 @@ function Badge({ count, tone = "approval", label = "waiting" }: { count: number;
   );
 }
 
-export function SidebarNav({ approvals, helpUnread = 0, level: saved }: { approvals: number; helpUnread?: number; level: Level }) {
+export function SidebarNav({ helpUnread = 0, level: saved }: { helpUnread?: number; level: Level }) {
   const pathname = usePathname();
   const tools = toolsAt(useLevel(saved), pathname);
   const toolsId = useId();
@@ -180,13 +305,10 @@ export function SidebarNav({ approvals, helpUnread = 0, level: saved }: { approv
           href={item.href}
           transitionTypes={PAGE_NAV}
           aria-current={active ? "page" : undefined}
-          className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-sm transition-colors duration-150 pointer-coarse:h-11 ${
-            active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink hover:bg-surface/70"
-          }`}
+          className={PLACE_ROW}
         >
           <item.icon size={20} weight="bold" className="shrink-0" aria-hidden />
           {item.label}
-          {item.href === "/app/approvals" ? <Badge count={approvals} /> : null}
           {item.href === "/app/help" ? <Badge count={helpUnread} tone="accent" label={helpUnread === 1 ? "new reply" : "new replies"} /> : null}
         </Link>
       </li>
@@ -201,7 +323,8 @@ export function SidebarNav({ approvals, helpUnread = 0, level: saved }: { approv
 
   return (
     <nav aria-label="App" className="grid gap-5">
-      <ul className="grid gap-0.5">{CORE.map(link)}</ul>
+      {/* The places, as every frame lists them. */}
+      <PlacesNav />
       <div>
         <button
           type="button"
@@ -243,7 +366,7 @@ export function SidebarNav({ approvals, helpUnread = 0, level: saved }: { approv
   );
 }
 
-const TABS: NavItem[] = [...TAB_ITEMS, { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon, about: "Every other tool, and your account." }];
+const TABS: NavItem[] = [...TAB_ITEMS, MORE_PLACE];
 
 /** The phone's More page: every other page, each with one plain line saying what it's for. */
 /**

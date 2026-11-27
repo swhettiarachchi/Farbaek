@@ -131,11 +131,11 @@ Every signed-in page sits in one frame (ADR 0230), used by the app's frame, Chat
 
 - **Wide screens (1024 px and up):** full screen. The sidebar on the left, 280 px wide; the page scrolls beside it.
 - **Phones and small tablets:** the page fills the screen and scrolls itself, with a header at the top and five tabs at the bottom: Home, Chat, Build, Approvals, More.
-- **The sidebar's first list:** Home, Chat, Images, Video, Build, Projects, Approvals. The four spaces carry their colours. Everything else is under More tools, then the account pages.
+- **The places** (ADR 0295): Home, Chat, Images, Video, Build, Projects, Scheduled, Approvals, one list in every frame. Rows in the app's sidebar, with everything else under More tools and the account pages; five rows and a strip of icons in Chat's sidebar and a phone's drawer; a rail of icons beside the studios and Build's workspace. An icon is the colour of its row's words (ADR 0286).
 - **The main screen** (ADR 0228) is a greeting and one box that asks or builds, then what needs the person.
 
 ## Not yet
 
 - Pages outside the public site's layout that no server marks (shared links, the device page, the desktop app's connect page, the page for an address that doesn't exist) in Dark.
 - The iPhone app and the desktop app in Dark.
-- One sidebar across Chat, the studios, Build's workspace and the app's pages. ("Build" starts in one place since stage 286, ADR 0294.)
+- One sidebar component across Chat and the app's pages. (The places are one list in every frame since stage 287, ADR 0295, and "Build" starts in one place since stage 286, ADR 0294.)

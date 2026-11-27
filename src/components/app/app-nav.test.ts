@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LEVELS } from "@/core/experience/level";
-import { APP_PAGES, LEVEL_SETTING, MORE_PAGES, moreRowsAt, toolsAt } from "./app-nav";
+import { APP_PAGES, LEVEL_SETTING, MORE_PAGES, PLACES, moreRowsAt, placeLit, toolsAt } from "./app-nav";
 
 describe("the app's navigation (ADR 0170)", () => {
   it("still reaches every page it always did, under its plain name", () => {
@@ -100,5 +100,47 @@ describe("the tools each level lists (stage 285, ADR 0293)", () => {
     const levelled = APP_PAGES.filter((p) => p.from !== undefined).map((p) => p.href);
     for (const href of ["/app", "/app/chat", "/app/images", "/app/video", "/app/build", "/app/projects", "/app/scheduled", "/app/approvals", "/app/billing", "/app/settings", "/app/help"]) expect(levelled).not.toContain(href);
     expect(LEVEL_SETTING).toBe("/app/settings#experience");
+  });
+});
+
+describe("the places every frame lists (stage 287, ADR 0295)", () => {
+  const place = (href: string) => PLACES.find((p) => p.href === href)!;
+  const lit = (pathname: string) => PLACES.filter((p) => placeLit(pathname, p)).map((p) => p.href);
+
+  it("are one list, in one order: Home, the four spaces, then the work", () => {
+    expect(PLACES.map((p) => p.label)).toEqual(["Home", "Chat", "Images", "Video", "Build", "Projects", "Scheduled", "Approvals"]);
+    // The first five are the ones a sidebar with its own list shows as rows; the rest follow as icons.
+    expect(PLACES.slice(0, 5).map((p) => p.href)).toEqual(["/app", "/app/chat", "/app/images", "/app/video", "/app/build"]);
+    // Every place is also a page search finds, and none of them waits for a level.
+    for (const p of PLACES) {
+      expect(APP_PAGES, p.href).toContain(p);
+      expect(p.from, p.href).toBeUndefined();
+    }
+  });
+
+  it("light exactly one place wherever a person is in them", () => {
+    expect(lit("/app")).toEqual(["/app"]);
+    expect(lit("/app/chat")).toEqual(["/app/chat"]);
+    expect(lit("/app/chat/c/123")).toEqual(["/app/chat"]);
+    expect(lit("/app/images")).toEqual(["/app/images"]);
+    expect(lit("/app/video")).toEqual(["/app/video"]);
+    expect(lit("/app/build")).toEqual(["/app/build"]);
+    expect(lit("/app/build/run-1")).toEqual(["/app/build"]);
+    expect(lit("/app/projects/p1/files")).toEqual(["/app/projects"]);
+    expect(lit("/app/scheduled/agents")).toEqual(["/app/scheduled"]);
+    expect(lit("/app/approvals")).toEqual(["/app/approvals"]);
+  });
+
+  it("count Build's workspace and a plan's own page as Build", () => {
+    expect(lit("/app/workbench/00000000-0000-4000-8000-00000000a001")).toEqual(["/app/build"]);
+    expect(lit("/app/new/00000000-0000-4000-8000-00000000b007")).toEqual(["/app/build"]);
+    expect(placeLit("/app/workbenches", place("/app/build"))).toBe(false);
+    expect(placeLit("/app/newer", place("/app/build"))).toBe(false);
+  });
+
+  it("light none on a page that is not one of them", () => {
+    for (const pathname of ["/app/settings", "/app/tasks", "/app/more", "/app/billing", "/app/chatty", "/app/imagesx"]) expect(lit(pathname), pathname).toEqual([]);
+    // Home is only Home itself: every page starts with its address.
+    expect(placeLit("/app/tasks", place("/app"))).toBe(false);
   });
 });

@@ -9,17 +9,11 @@ import {
   ArchiveIcon,
   ArrowLeftIcon,
   ArrowUUpLeftIcon,
-  CalendarCheckIcon,
   CreditCardIcon,
   DotsThreeIcon,
   FolderSimpleIcon,
   GearSixIcon,
   HouseIcon,
-  HouseSimpleIcon,
-  ChatCircleTextIcon,
-  VideoCameraIcon,
-  BlocksIcon,
-  ImageSquareIcon,
   ImagesIcon,
   MagnifyingGlassIcon,
   NotePencilIcon,
@@ -38,18 +32,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ConversationSummary } from "@/core/chat/protocol";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { PlacesNav } from "@/components/app/app-nav";
 import { buttonClasses } from "@/components/ui/button";
 import { inputClasses } from "@/components/ui/field";
 
-/** Farbaek AI's spaces, one press from any chat. Their colours are for their own pages; in a list they are words and outlines (ADR 0286). */
-const SPACE_LINKS = [
-  { href: "/app/chat", label: "Chat", icon: ChatCircleTextIcon },
-  { href: "/app/images", label: "Images", icon: ImageSquareIcon },
-  { href: "/app/video", label: "Video", icon: VideoCameraIcon },
-  { href: "/app/build", label: "Build", icon: BlocksIcon },
-] as const;
-
-const SPACE_ROW = "group/space flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink transition-[background-color,box-shadow] duration-150 hover:bg-surface aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:shadow-e1 pointer-coarse:min-h-12 max-md:text-base max-md:font-medium";
 import { listChatsAction, moveChatAction } from "@/app/app/chat/actions";
 import { useChat } from "./chat-shell";
 import { IconButton, Menu, useToast, type MenuItem } from "./primitives";
@@ -168,8 +154,8 @@ export function Sidebar({
 
   if (folded) {
     return (
-      <nav aria-label="Chats" className="flex h-full w-16 flex-col items-center gap-1 border-r border-line bg-canvas-2 py-3">
-        <Link href="/app" aria-label="Farbaek, Home" className="mb-2 flex min-h-11 items-center">
+      <nav aria-label="Chats" className="flex h-full w-16 flex-col items-center gap-1 overflow-y-auto border-r border-line bg-canvas-2 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+        <Link href="/app" aria-label="Farbaek, Home" className="mb-2 flex min-h-11 min-w-11 items-center justify-center rounded-full">
           <BrandLogo height={30} />
         </Link>
         <IconButton label="Open the sidebar" icon={SidebarSimpleIcon} onClick={onFold} size={20} />
@@ -185,11 +171,7 @@ export function Sidebar({
             window.setTimeout(() => document.getElementById("chat-search")?.focus(), 0);
           }}
         />
-        {SPACE_LINKS.slice(1).map((s) => (
-          <Link key={s.href} href={s.href} aria-label={s.label} title={s.label} className="tap inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-raised">
-            <s.icon size={20} weight="bold" className="text-ink" aria-hidden />
-          </Link>
-        ))}
+        <PlacesNav form="rail" more lit={(item, path) => (item.href === "/app/chat" && path === "/app/chat/images" ? false : undefined)} />
         <div className="mt-auto">
           <IconButton label="Settings" icon={GearSixIcon} size={20} onClick={chat.openSettings} />
         </div>
@@ -240,20 +222,10 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="mt-3 grid gap-0.5 px-3">
-        {/* Home leads, as in the app's own sidebar (ADR 0230): the two lists start the same way. */}
-        <Link href="/app" onClick={onNavigate} className={SPACE_ROW}>
-          <HouseSimpleIcon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden /> Home
-        </Link>
-        {SPACE_LINKS.map((s) => (
-          <Link key={s.href} href={s.href} onClick={onNavigate} aria-current={s.href === "/app/chat" && pathname !== "/app/chat/images" ? "page" : undefined} className={SPACE_ROW}>
-            <s.icon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden /> {s.label}
-          </Link>
-        ))}
-        {/* Work Farbaek does by itself, one press from where people ask for it (ADR 0286). */}
-        <Link href="/app/scheduled" onClick={onNavigate} className={SPACE_ROW}>
-          <CalendarCheckIcon size={20} weight="bold" className="shrink-0 max-md:size-6" aria-hidden /> Scheduled
-        </Link>
+      <div className="mt-3 px-3">
+        {/* The places, as every frame lists them (stage 287, ADR 0295). The pictures page has its own row below, so it isn't "Chat". */}
+        {/* Home and the four spaces as rows, the rest as a strip of icons: the conversations below keep their room. */}
+        <PlacesNav more rows={5} onNavigate={onNavigate} lit={(item, path) => (item.href === "/app/chat" && path === "/app/chat/images" ? false : undefined)} />
       </div>
 
       <div className="mt-3 grid gap-0.5 px-3">
@@ -428,7 +400,7 @@ function Item({ c, current, onNavigate, onMove, archivedView }: { c: Conversatio
         href={`/app/chat/${c.id}`}
         onClick={onNavigate}
         aria-current={current ? "page" : undefined}
-        className="flex min-h-10 items-center gap-2 rounded-full py-2 pl-3.5 pr-11 text-sm text-ink-2 transition-colors duration-100 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:shadow-e1 aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-11"
+        className="flex min-h-10 items-center gap-2 rounded-full py-2 pl-3.5 pr-11 text-sm text-ink-2 transition-colors duration-100 hover:bg-surface hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:font-medium aria-[current=page]:shadow-e1 aria-[current=page]:text-ink aria-[current=page]:shadow-e1 pointer-coarse:min-h-12"
       >
         {c.pinned ? <PushPinIcon size={14} weight="fill" className="shrink-0 text-ink-3" aria-label="Pinned" /> : null}
         <span className="min-w-0 flex-1 truncate">{c.title}</span>
