@@ -151,7 +151,7 @@ Done: history with search, sidebar, composer, streaming, stop, model choice with
 
 | Studio | State |
 | --- | --- |
-| Research Studio | Partly: research lives inside Chat. No saved research, no monitoring, no project knowledge base, no X research |
+| Research Studio | Partly: a Research place lists everything a person has researched, from the record each answer keeps, and starts a piece of research in Chat (stage 288, ADR 0296). No report saved on its own, no search of the list, no monitoring on the page, no project knowledge base, no X research |
 | Image Studio | Done: from words, editing your own pictures, references, a library, download |
 | Video Studio | Built, Waiting on the owner: no paid video key, so it can't make a video |
 | Audio Studio (transcription, speech, translation) | Not started |
@@ -265,7 +265,7 @@ Everything not done, in the order that lets each part stand on the one before. I
 9. **Redesign the content of every page** in the app and on the public site; **the missing public pages** (features, docs, API docs, about, contact, help, changelog).
 10. The routers reading the registry; failover beyond Chat; **the benchmark engine** with cost per finished task; the registry's missing fields.
 11. Grok, X search and the X connector (needs the owner's xAI key, budget and X developer account).
-12. **Research Studio:** saved research, monitoring, project knowledge.
+12. **Research Studio:** a first step is built (stage 288): the list of a person's research and a box that starts one. Still to do: reports saved on their own, monitoring, project knowledge.
 13. **Audio Studio:** transcription, speech, translation; then Sinhala voice.
 14. The voice assistant: the floating assistant on the web, then iPhone and Android through their supported features.
 15. **Secure work environment:** an isolated browser for agents, a persistent workspace, a credential vault for connectors, one task timeline.

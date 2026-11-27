@@ -73,6 +73,9 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
   const [atBottom, setAtBottom] = useState(true);
   const [dragging, setDragging] = useState(false);
   const composer = useRef<ComposerHandle>(null);
+  // The question the Research page handed over, while it waits to be sent: that message asks for the live web. Another
+  // message sent first ends it; a send that fails keeps it, so the same question sent again still asks.
+  const researchFor = useRef<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const controller = useRef<AbortController | null>(null);
@@ -117,8 +120,10 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
   useEffect(() => () => controller.current?.abort(), []);
 
   // A question asked on the homepage before signing in waits here once, ready to send: the person still presses send.
+  // One handed over from the Research page (stage 288, ADR 0296) also asks for the web when it is sent as it was handed.
   useEffect(() => {
-    if (conversation || !new URLSearchParams(window.location.search).has("ask")) return;
+    const asked = new URLSearchParams(window.location.search);
+    if (conversation || !asked.has("ask")) return;
     let question: string | null = null;
     try {
       question = window.localStorage.getItem(HOME_QUESTION_KEY);
@@ -127,7 +132,10 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
       // Storage refused: nothing waiting.
     }
     window.history.replaceState(null, "", projectId ? `/app/chat?project=${projectId}` : "/app/chat");
-    if (question?.trim()) composer.current?.fill(question.slice(0, 8_000));
+    if (question?.trim()) {
+      composer.current?.fill(question.slice(0, 8_000));
+      researchFor.current = asked.has("research") ? question.slice(0, 8_000).trim() : null;
+    }
   }, [conversation, projectId]);
 
   // "/" goes to the message box from anywhere that isn't a field.
@@ -359,10 +367,13 @@ export function ConversationView({ conversation, initialMessages, initialHasEarl
       return false;
     }
     const parentId = tail?.id ?? null;
+    // Asked from the Research page, and still that question: this message asks for the web even with the web switch off.
+    const fromResearch = input.mode === "text" && researchFor.current !== null && input.text.trim() === researchFor.current;
+    if (!fromResearch) researchFor.current = null;
     const question = placeholder(TEMP_QUESTION, "user", { content: input.text, files: input.files, parentId });
     const answer = placeholder(TEMP_ANSWER, "assistant", { kind: input.mode, meta: input.mode === "image" ? { aspect: input.aspect, prompt: input.text } : {} });
     void runTurn(
-      { action: "send", conversationId: convId, parentId: convId ? parentId : null, text: input.text, files: input.files.map((f) => f.id), model: input.model, effort: input.effort, language: { answer: prefs.answerLanguage, script: prefs.answerScript }, web: prefs.searchWeb, memory: prefs.useMemory, project: prefs.useProject, mode: input.mode, aspect: input.aspect, projectId: convId ? null : projectId },
+      { action: "send", conversationId: convId, parentId: convId ? parentId : null, text: input.text, files: input.files.map((f) => f.id), model: input.model, effort: input.effort, language: { answer: prefs.answerLanguage, script: prefs.answerScript }, web: fromResearch ? true : prefs.searchWeb, ...(fromResearch ? { research: "search" as const } : {}), memory: prefs.useMemory, project: prefs.useProject, mode: input.mode, aspect: input.aspect, projectId: convId ? null : projectId },
       messages,
       [question, answer],
       () => composer.current?.fill(input.text, { mode: input.mode, files: input.files }),

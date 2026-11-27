@@ -48,6 +48,10 @@ Five pieces of navigation each kept a list of the places, and they had drifted a
   7. the test that keeps the list one could pass with Chat's rows written out by hand;
   8. the count of replies was carried and never shown.
 - **An older fault the audit found,** fixed here: Chat's conversation rows were 44 px on touch, so the touch areas of two rows' action buttons overlapped by 2 px. They are 48 px.
+- **Live, 2026-11-27 at about 10:05 (+05:30), after #344 was merged** (production build cd3d8691077b, the merge's own), in the owner's signed-in browser at 1920 by 963:
+  - Chat's sidebar had Home and the four spaces as rows, then Projects, Scheduled, Approvals and More as icons, with eight conversations in view.
+  - The image studio had the rail of nine places at the left with Images lit, and no switcher in its header.
+  - Not looked at there: Build's workspace, a phone, and the unread mark on More.
 - **Not verified:**
   - **A real phone, and 200% text.**
   - **The owner's verdict** on the rail and the strip of icons: they are icons without words.

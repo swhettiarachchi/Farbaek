@@ -12,7 +12,7 @@ export const STATIC_ROUTES = [
   "/auth/connect", "/auth/connect/done", "/device",
   // The signed-in app.
   "/app", "/app/chat", "/app/images", "/app/video", "/app/agents", "/app/approvals", "/app/billing", "/app/build", "/app/help", "/app/help/new", "/app/mesh",
-  "/app/more", "/app/projects", "/app/rescue", "/app/sandbox", "/app/sandbox/new", "/app/settings",
+  "/app/more", "/app/research", "/app/projects", "/app/rescue", "/app/sandbox", "/app/sandbox/new", "/app/settings",
   "/app/tasks", "/app/work", "/app/scheduled", "/app/scheduled/agents", "/app/templates", "/app/workspaces/new", "/app/skills",
   "/app/activity", "/app/incidents", "/app/integrations", "/app/policies", "/app/trust", "/app/workflows", "/app/workflows/new",
   // Survey Studio.

@@ -31,6 +31,8 @@ describe("the app's navigation (ADR 0170)", () => {
     expect(rows).toContain("/app/tasks");
     // Chat is a tab of its own (ADR 0228), so it isn't a row here; Projects is, since its tab went to Chat.
     expect(rows).toContain("/app/projects");
+    // Research is a place on a wide screen and a row here: the phone's five tabs stay five.
+    expect(rows).toContain("/app/research");
     expect(rows).not.toContain("/app/chat");
     expect(rows).not.toContain("/app");
     expect(rows).not.toContain("/app/build");
@@ -108,7 +110,7 @@ describe("the places every frame lists (stage 287, ADR 0295)", () => {
   const lit = (pathname: string) => PLACES.filter((p) => placeLit(pathname, p)).map((p) => p.href);
 
   it("are one list, in one order: Home, the four spaces, then the work", () => {
-    expect(PLACES.map((p) => p.label)).toEqual(["Home", "Chat", "Images", "Video", "Build", "Projects", "Scheduled", "Approvals"]);
+    expect(PLACES.map((p) => p.label)).toEqual(["Home", "Chat", "Images", "Video", "Build", "Research", "Projects", "Scheduled", "Approvals"]);
     // The first five are the ones a sidebar with its own list shows as rows; the rest follow as icons.
     expect(PLACES.slice(0, 5).map((p) => p.href)).toEqual(["/app", "/app/chat", "/app/images", "/app/video", "/app/build"]);
     // Every place is also a page search finds, and none of them waits for a level.
@@ -126,6 +128,7 @@ describe("the places every frame lists (stage 287, ADR 0295)", () => {
     expect(lit("/app/video")).toEqual(["/app/video"]);
     expect(lit("/app/build")).toEqual(["/app/build"]);
     expect(lit("/app/build/run-1")).toEqual(["/app/build"]);
+    expect(lit("/app/research")).toEqual(["/app/research"]);
     expect(lit("/app/projects/p1/files")).toEqual(["/app/projects"]);
     expect(lit("/app/scheduled/agents")).toEqual(["/app/scheduled"]);
     expect(lit("/app/approvals")).toEqual(["/app/approvals"]);
