@@ -1,3 +1,5 @@
+import { QUICK_IDS, quickAction } from "@/core/assistant/quick";
+
 /**
  * How well a command matches what was typed in the command palette: every
  * word typed must appear in the label or its keywords. A label that starts
@@ -91,17 +93,23 @@ export interface Rankable {
 /** The three commands made from the typed words themselves. */
 export const TYPED_IDS = ["ask", "research", "build"] as const;
 
+/** Where a request the assistant answers or does in place sits: above a page that was named (4) and the typed words' own commands (under 7). */
+export const QUICK_SCORE = 9;
+
 /**
- * What the palette lists for what was typed, best first, by id: the pages and projects that match, and the typed words'
- * own three commands ("ask", "research", "build") where `typedScores` puts them. Things that score the same keep the
- * order they were given in, the typed words' commands first.
+ * What the palette lists for what was typed, best first, by id: the pages and projects that match, the typed words' own
+ * three commands ("ask", "research", "build") where `typedScores` puts them, and what the assistant answers or does in
+ * place ("needs", "progress", "pause", "resume"; stage 290) when the words are that request, whole. With nothing typed,
+ * "needs" is offered first: one press answers it. Things that score the same keep the order they were given in.
  */
 export function rankCommands(typed: string, items: readonly Rankable[], canBuild: boolean, max = 12): string[] {
   const text = typed.trim();
   const scored = items.map((item, i) => ({ id: item.id, i, score: matchScore(text, item.label, item.keywords) }));
   const own = typedScores(text, canBuild, text ? Math.max(0, ...scored.map((x) => x.score)) : 0);
   const mine = TYPED_IDS.map((id, i) => ({ id: id as string, i: i - TYPED_IDS.length, score: own[id] }));
-  return [...mine, ...scored]
+  const asked = quickAction(text);
+  const quick = QUICK_IDS.map((id, i) => ({ id: id as string, i: i - TYPED_IDS.length - QUICK_IDS.length, score: asked === id ? QUICK_SCORE : !text && id === "needs" ? 1 : 0 }));
+  return [...quick, ...mine, ...scored]
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score || a.i - b.i)
     .slice(0, max)

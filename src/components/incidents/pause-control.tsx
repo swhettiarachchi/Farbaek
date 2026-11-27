@@ -16,18 +16,26 @@ export function PauseControl({
   paused,
   pauseReason,
   resumeReason,
+  onDone,
 }: {
   paused: { at: string; reason: string | null } | null;
   /** Why this person can't pause here, or null. */
   pauseReason: string | null;
   /** Why this person can't resume, or null. */
   resumeReason: string | null;
+  /** Called once a pause or a resume has been made, for whoever shows this to read the state again. */
+  onDone?: () => void;
 }) {
   const id = useId();
   const [reason, setReason] = useState("");
   const [state, setState] = useState<IncidentActionState>({ status: "idle" });
   const [pending, start] = useTransition();
-  const run = (action: () => Promise<IncidentActionState>) => start(async () => setState(await action()));
+  const run = (action: () => Promise<IncidentActionState>) =>
+    start(async () => {
+      const next = await action();
+      setState(next);
+      if (next.status === "done") onDone?.();
+    });
 
   return (
     <div className="grid gap-4">

@@ -54,6 +54,12 @@ A question could be asked from Home and from Chat. From any other page a person 
   9. Enter confirming a word still being composed (Japanese, Chinese, Korean) chose a command: it is ignored while composing;
   10. the box had three names ("Search or jump to", "Ask, search or jump to", "Ask or search"): one name.
 - **The fixes were checked by the tests and in the demo, not by a second review.**
+- **Live, 2026-11-27 at about 16:05 (+05:30), after #346 was merged** (production build 4d6e2859d82e, the merge's own), in the owner's signed-in browser, nothing sent:
+  - the sidebar's box read "Ask or search" with the microphone beside it, and the palette had its own;
+  - "bill" listed Billing and usage first, then Ask and Research;
+  - a question listed Ask, Research and Plan a build, in that order; Enter opened Chat with the question in its box and no message sent. The box was cleared afterwards;
+  - Research no longer named a site "go": the rows that had read "From go." named their real sites.
+  - **Found on the way:** the Agents tab on production still says "Your agents couldn't be read just now", so migration v108 (stage 275) has not been applied; v109 (stage 277) comes after it. The owner has both lines.
 - **Not verified:**
   - **Speaking into it.** No words were spoken into the recogniser here: the path from heard words into the box is the one Chat's box uses, and the silence, take-over and one-microphone rules are read from the code.
   - **A build chosen from the palette:** the demo workspace cannot build, so "Plan a build" was never listed there. Its place in the list is held by the tests.

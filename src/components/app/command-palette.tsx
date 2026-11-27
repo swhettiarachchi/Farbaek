@@ -1,11 +1,15 @@
 "use client";
 
-import { ArrowsLeftRightIcon, BlocksIcon, ChatCircleTextIcon, LayoutIcon, MagnifyingGlassIcon, MicrophoneIcon, PlusIcon, ShieldCheckIcon, ShieldStarIcon, FolderSimpleIcon } from "@/components/icons";
+import { ArrowsLeftRightIcon, BlocksIcon, ChatCircleTextIcon, LayoutIcon, ListChecksIcon, MagnifyingGlassIcon, MicrophoneIcon, PauseCircleIcon, PlayCircleIcon, PlayIcon, PlusIcon, ShieldCheckIcon, ShieldStarIcon, FolderSimpleIcon, UserFocusIcon } from "@/components/icons";
 import type { Icon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { switchWorkspace } from "@/app/app/actions";
 import { PROMPT_STORAGE_KEY } from "@/components/build/prompt-composer";
+import { useSpeaker } from "@/components/chat/use-speaker";
+import { PauseControl } from "@/components/incidents/pause-control";
+import { QUICK_WORDS, answersByItself, quickAction, type QuickId } from "@/core/assistant/quick";
+import { SAMPLE_SENTENCE, spokenStatus, type WorkStatusReply } from "@/core/command/status";
 import { HOME_QUESTION_KEY } from "@/core/chat/protocol";
 import { useSpeech } from "@/components/survey/assistant/use-speech";
 import { APP_PAGES } from "./app-nav";
@@ -17,17 +21,22 @@ const MAX_RESULTS = 12;
 const LISTEN_PAUSE_MS = 1_600;
 
 /** What choosing a command does, carried out by one handler. */
-type Action = { kind: "go"; href: string } | { kind: "build"; prompt: string } | { kind: "ask"; question: string; research: boolean } | { kind: "switch"; orgId: string };
+type Action = { kind: "go"; href: string } | { kind: "build"; prompt: string } | { kind: "ask"; question: string; research: boolean } | { kind: "switch"; orgId: string } | { kind: "quick"; id: QuickId };
 
 interface Command {
   id: string;
-  group: "Ask" | "Build" | "Go to" | "Projects" | "Workspaces";
+  group: "Your work" | "Needs you" | "In progress" | "Ask" | "Build" | "Go to" | "Projects" | "Workspaces";
   label: string;
   hint?: string;
+  /** Where it stands, under its name: a row of an answer is two lines at every width. */
+  sub?: string;
   icon: Icon;
   keywords?: string[];
   action: Action;
 }
+
+/** What the assistant is answering in place: one of the few requests it answers without a model (stage 290, ADR 0298). */
+type Answer = { id: QuickId; state: "loading" } | { id: QuickId; state: "failed" } | { id: QuickId; state: "ready"; status: WorkStatusReply };
 
 const noSubscribe = () => () => {};
 const isMac = () => /Mac|iPhone|iPad/.test(navigator.platform);
@@ -96,6 +105,10 @@ export function AskButton() {
  * page or project, start a build from what you type, or switch workspace.
  * It only navigates or calls the same actions the pages use, so every rule
  * still applies on the server.
+ *
+ * It also answers in place (stage 290, ADR 0298): "what needs me?" and "what is in progress?" are answered here from the
+ * person's own work, read as them by the server, and said aloud when the question was spoken. "Pause everything" shows
+ * the workspace's real pause, which still takes a press.
  */
 export function CommandPalette({
   projects,
@@ -123,6 +136,78 @@ export function CommandPalette({
   // Dictation, by the browser's own recogniser: the words land in the box, and the person still chooses what to do with them.
   const speech = useSpeech();
   const [note, setNote] = useState<string | null>(null);
+
+  // What the assistant answers in place (stage 290, ADR 0298).
+  const speaker = useSpeaker();
+  const [answer, setAnswer] = useState<Answer | null>(null);
+  /** The number of the latest question: an answer that arrives for an earlier one is dropped. */
+  const asked = useRef(0);
+  /** Whether the words in the box were spoken: only then is an answer said aloud. */
+  const heard = useRef(false);
+  /** Whether the palette itself is speaking: it never cuts off an answer Chat is reading aloud. */
+  const speaking = useRef(false);
+  const hush = () => {
+    if (speaking.current) speaker.cancel();
+    speaking.current = false;
+  };
+  const forget = () => {
+    asked.current++;
+    hush();
+    setAnswer(null);
+  };
+  /** The person's work, said short by the server, or null when it couldn't be read. */
+  const readStatus = (): Promise<WorkStatusReply | null> =>
+    fetch("/app/work/status", { headers: { accept: "application/json" }, cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<{ data?: WorkStatusReply }>) : null))
+      .then((body) => {
+        const status = body?.data;
+        return status && Array.isArray(status.needsYou) && Array.isArray(status.working) && status.pause ? status : null;
+      });
+  /** Reads the person's work and shows it here. */
+  const answerQuick = (id: QuickId, aloud: boolean) => {
+    const mine = ++asked.current;
+    hush();
+    setActive(0);
+    // A note about the microphone has done its work once an answer is asked for: the answer's own sentence is what is read.
+    setNote(null);
+    setAnswer({ id, state: "loading" });
+    readStatus()
+      .then((status) => {
+        if (asked.current !== mine) return;
+        if (!status) {
+          setAnswer({ id, state: "failed" });
+          return;
+        }
+        setAnswer({ id, state: "ready", status });
+        if (aloud && (id === "needs" || id === "progress")) {
+          speaking.current = true;
+          speaker.speak(spokenStatus(id, status), () => {
+            speaking.current = false;
+          });
+        }
+      })
+      .catch(() => {
+        if (asked.current === mine) setAnswer({ id, state: "failed" });
+      });
+  };
+  /**
+   * After a pause or a resume was made here: the state is read again for the control that is showing. If the person has
+   * moved on since, nothing is brought back; if it can't be read, what is shown stays, with the control's own confirmation.
+   */
+  const refreshPause = (id: QuickId) => {
+    const mine = asked.current;
+    readStatus()
+      .then((status) => {
+        if (status && asked.current === mine) setAnswer({ id, state: "ready", status });
+      })
+      .catch(() => {});
+  };
+  // The newest way to put an answer away, for the opener below, which is set up once.
+  const forgetNow = useRef(forget);
+  useEffect(() => {
+    forgetNow.current = forget;
+  });
+
   /** What dictation last put in the box. Once the box holds anything else, the person has taken over. */
   const spoken = useRef<string | null>(null);
   const pause = useRef<number | null>(null);
@@ -135,6 +220,8 @@ export function CommandPalette({
   const startListening = (startText: string) => {
     quiet();
     setNote(null);
+    forget();
+    heard.current = false;
     const base = startText ? `${startText.trimEnd()} ` : "";
     spoken.current = startText;
     const put = (words: string): boolean => {
@@ -146,6 +233,7 @@ export function CommandPalette({
       }
       const next = `${base}${words}`;
       spoken.current = next;
+      heard.current = true;
       setQuery(next);
       setActive(0);
       return true;
@@ -161,8 +249,12 @@ export function CommandPalette({
       },
       onFinal: (words) => {
         quiet();
-        if (words) put(words);
+        const landed = words ? put(words) : (input.current?.value ?? "") === spoken.current;
         input.current?.focus();
+        // A spoken request that only reads is answered as soon as it has been said. One that changes something is shown
+        // with its real button, and waits for the press.
+        const said = heard.current && landed ? quickAction(spoken.current ?? "") : null;
+        if (said) answerQuick(said, answersByItself(said));
       },
       onError: (code) => {
         quiet();
@@ -195,6 +287,8 @@ export function CommandPalette({
       setQuery("");
       setActive(0);
       setNote(null);
+      forgetNow.current();
+      heard.current = false;
       const d = dialog.current;
       if (d && !d.open) {
         d.showModal();
@@ -219,6 +313,18 @@ export function CommandPalette({
   }, []);
 
   const commands = useMemo(() => {
+    const allWork: Command = { id: "/app/work", group: "Go to", label: "All work", icon: ListChecksIcon, action: { kind: "go", href: "/app/work" } };
+    // An answer in place: its rows are the board's own, each opening the page that owns it, and All work has the rest.
+    if (answer) {
+      if (answer.state !== "ready" || answer.id === "pause" || answer.id === "resume") return [allWork];
+      const needs = answer.id === "needs";
+      const rows = needs ? answer.status.needsYou : answer.status.working;
+      const more = needs ? answer.status.moreNeeds : answer.status.moreWorking;
+      return [
+        ...rows.map((r): Command => ({ id: `a:${r.id}`, group: needs ? "Needs you" : "In progress", label: r.title, sub: r.line, icon: needs ? UserFocusIcon : PlayCircleIcon, action: { kind: "go", href: r.href } })),
+        { ...allWork, label: more > 0 ? `All work, with ${more} more` : "All work" },
+      ];
+    }
     const all: Command[] = [];
     const typed = query.trim();
     all.push({ id: "new", group: "Build", label: "New build", icon: PlusIcon, keywords: ["create", "start", "prompt"], action: { kind: "go", href: "/app/build" } });
@@ -236,14 +342,28 @@ export function CommandPalette({
       ask: { id: "ask", group: "Ask", label: `Ask Farbaek AI: ${typed}`, hint: "Opens in Chat, ready to send", icon: ChatCircleTextIcon, action: { kind: "ask", question: typed, research: false } },
       research: { id: "research", group: "Ask", label: `Research: ${typed}`, hint: "Opens in Chat, set to check the web", icon: MagnifyingGlassIcon, action: { kind: "ask", question: typed, research: true } },
       build: { id: "build", group: "Build", label: `Plan a build: ${typed}`, hint: "You approve the plan first", icon: BlocksIcon, action: { kind: "build", prompt: typed } },
+      // What the assistant answers or does here, in the palette (stage 290).
+      needs: { id: "needs", group: "Your work", ...QUICK_WORDS.needs, icon: UserFocusIcon, action: { kind: "quick", id: "needs" } },
+      progress: { id: "progress", group: "Your work", ...QUICK_WORDS.progress, icon: PlayCircleIcon, action: { kind: "quick", id: "progress" } },
+      pause: { id: "pause", group: "Your work", ...QUICK_WORDS.pause, icon: PauseCircleIcon, action: { kind: "quick", id: "pause" } },
+      resume: { id: "resume", group: "Your work", ...QUICK_WORDS.resume, icon: PlayIcon, action: { kind: "quick", id: "resume" } },
     };
     const pages = new Map(all.map((c) => [c.id, c]));
     return rankCommands(typed, all, canBuild, MAX_RESULTS)
       .map((id) => own[id] ?? pages.get(id))
       .filter((c): c is Command => c !== undefined);
-  }, [query, canBuild, admin, projects, workspaces]);
+  }, [query, canBuild, admin, projects, workspaces, answer]);
 
   const run = (action: Action) => {
+    // Answered or done here: the palette stays open. Said aloud only when the words in the box were spoken.
+    if (action.kind === "quick") {
+      const aloud = answersByItself(action.id) && heard.current && (input.current?.value ?? "") === spoken.current;
+      // Chosen while still listening: the listening ends here, so it can't answer a second time or write over the answer.
+      quiet();
+      speech.abort();
+      answerQuick(action.id, aloud);
+      return;
+    }
     close();
     if (action.kind === "go") router.push(action.href);
     else if (action.kind === "build") {
@@ -269,6 +389,18 @@ export function CommandPalette({
     }
   };
 
+  // What is said above the list. For the pause, shown below with its own words, this is what a screen reader hears when it appears.
+  const answerLine = !answer
+    ? null
+    : answer.state === "loading"
+      ? "Reading your work."
+      : answer.state === "failed"
+        ? "Your work couldn't be read just now. Open All work to try again."
+        : answer.id === "needs" || answer.id === "progress"
+          ? [answer.status.sentence, answer.id === "needs" ? answer.status.others : null, answer.status.sample ? SAMPLE_SENTENCE : null].filter(Boolean).join(" ")
+          : answer.status.pause.paused
+            ? "Agents are paused. They stay paused until someone presses the button below."
+            : "Agents are running. Nothing is paused until you press the button below.";
   const current = Math.min(active, Math.max(0, commands.length - 1));
   const optionId = (i: number) => `${listId}-${i}`;
 
@@ -282,6 +414,7 @@ export function CommandPalette({
       onClose={() => {
         quiet();
         speech.abort();
+        forget();
       }}
       className="m-0 mx-auto mt-[12dvh] w-[min(640px,calc(100vw-2rem))] max-w-none overflow-hidden rounded-lg border border-line bg-surface p-0 text-ink shadow-e3 backdrop:bg-ink/25 backdrop:backdrop-blur-sm open:motion-safe:animate-[usage-in_160ms_cubic-bezier(0.16,1,0.3,1)_both]"
     >
@@ -293,6 +426,10 @@ export function CommandPalette({
           onChange={(e) => {
             setQuery(e.target.value);
             setActive(0);
+            // Typing again puts an answer away: the words are a new question. A note about the microphone goes with it.
+            heard.current = false;
+            setNote(null);
+            if (answer) forget();
           }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -335,6 +472,15 @@ export function CommandPalette({
         <p role="status" className="border-b border-line px-4 py-2.5 text-sm text-ink-2">
           Listening. Say what you want to ask, find or build.
         </p>
+      ) : answerLine ? (
+        <p role="status" className="border-b border-line px-4 py-2.5 text-sm leading-relaxed text-ink-2">
+          {answerLine}
+        </p>
+      ) : null}
+      {answer?.state === "ready" && (answer.id === "pause" || answer.id === "resume") ? (
+        <div className="max-h-[min(50dvh,380px)] overflow-y-auto border-b border-line p-4">
+          <PauseControl paused={answer.status.pause.paused} pauseReason={answer.status.pause.pauseReason} resumeReason={answer.status.pause.resumeReason} onDone={() => refreshPause(answer.id)} />
+        </div>
       ) : null}
       <ul id={listId} role="listbox" aria-label="Results" className="max-h-[min(60dvh,440px)] overflow-y-auto p-2">
         {commands.length === 0 ? (
@@ -357,9 +503,9 @@ export function CommandPalette({
                 >
                   <c.icon size={16} weight="bold" className={c.group === "Build" ? "shrink-0 text-accent" : "shrink-0"} aria-hidden />
                   {/* On a phone the words typed keep the row's width, and what choosing it does sits under them. */}
-                  <span className="flex min-w-0 flex-1 flex-col py-1.5 sm:flex-row sm:items-center sm:gap-3 sm:py-0">
-                    <span className="min-w-0 truncate sm:flex-1">{c.label}</span>
-                    {c.hint ? <span className="truncate text-xs text-ink-3 sm:shrink-0">{c.hint}</span> : null}
+                  <span className={`flex min-w-0 flex-1 flex-col py-1.5 ${c.sub ? "" : "sm:flex-row sm:items-center sm:gap-3 sm:py-0"}`}>
+                    <span className={`min-w-0 truncate ${c.sub ? "" : "sm:flex-1"}`}>{c.label}</span>
+                    {c.sub ? <span className="truncate text-xs text-ink-3">{c.sub}</span> : c.hint ? <span className="truncate text-xs text-ink-3 sm:shrink-0">{c.hint}</span> : null}
                   </span>
                 </div>
               </li>
