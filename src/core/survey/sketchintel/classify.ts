@@ -7,7 +7,8 @@ import { codeBase, codeOf, lookupCode, type CodeEntry } from "../codes";
 import type { DrawingFeature } from "../document";
 import type { SketchLineStyle, SketchSymbolKind } from "./drawing";
 
-export const LINE_KINDS = ["wall", "fence", "drain", "road", "gate", "line"] as const;
+/** "building" is a wall of a building: a line with a building's code (P, Permanent Building), drawn as a line like any other. */
+export const LINE_KINDS = ["wall", "fence", "drain", "road", "gate", "building", "line"] as const;
 export type LineKind = (typeof LINE_KINDS)[number];
 
 export interface LineClass {
@@ -28,24 +29,36 @@ export interface SketchHabit {
   code: string;
 }
 
-/** What a line drawn this way is taken for when nothing is written along it: the kind a habit for that style is offered among. */
-export const HABIT_KIND: Record<SketchHabit["style"], LineKind> = { double: "wall", crossed: "fence" };
+/**
+ * The kinds a habit for a style may name: walls for a double line; fences for a line with x marks, as wire fences are drawn, or a
+ * building's walls, which some surveyors hatch (stage 298, the owner's word for their father's sketches).
+ */
+export const HABIT_KINDS: Record<SketchHabit["style"], readonly LineKind[]> = { double: ["wall"], crossed: ["fence", "building"] };
+
+/** What a habit for a style may be, said: "a wall", "a fence or a building's wall". */
+export const HABIT_TAKES: Record<SketchHabit["style"], string> = { double: "a wall", crossed: "a fence or a building's wall" };
 
 /** How a style is said: "a double line", "a line with x marks". */
 export const STYLE_WORDS: Record<SketchHabit["style"], string> = { double: "a double line", crossed: "a line with x marks" };
 
+/** Whether a code list entry is one a habit for this style may name: a line or an outline of a kind the style is drawn for. */
+const habitFits = (style: SketchHabit["style"], c: CodeEntry) => (c.kind === "line" || c.kind === "outline") && HABIT_KINDS[style].includes(kindOfEntry(c));
+
 /**
- * The codes a habit for this style may name (stage 298): the code list's lines and outlines of the kind the style is drawn for (walls for a
- * double line), the ones written most on this sketch first, at most three.
+ * The codes a habit for this style may name (stage 298): the code list's lines and outlines of the kinds the style is drawn for (walls for a
+ * double line; fences or a building for x marks), the ones written most on this sketch first, at most three, with the first of each kind
+ * among them so a building isn't crowded out by fences.
  */
 export function habitChoices(style: SketchHabit["style"], codes: readonly CodeEntry[], written: readonly string[], limit = 3): CodeEntry[] {
   const count = (c: CodeEntry) => written.filter((w) => entryOf(w.trim(), codes)?.code === c.code).length;
-  return codes
-    .filter((c) => (c.kind === "line" || c.kind === "outline") && kindOfEntry(c) === HABIT_KIND[style])
+  const fitting = codes
+    .filter((c) => habitFits(style, c))
     .map((c, i) => ({ c, n: count(c), i }))
     .sort((a, b) => b.n - a.n || a.i - b.i)
-    .slice(0, limit)
     .map((x) => x.c);
+  const chosen = new Set(HABIT_KINDS[style].flatMap((k) => fitting.filter((c) => kindOfEntry(c) === k).slice(0, 1)).slice(0, limit));
+  for (const c of fitting) if (chosen.size < limit) chosen.add(c);
+  return fitting.filter((c) => chosen.has(c));
 }
 
 /**
@@ -53,14 +66,17 @@ export function habitChoices(style: SketchHabit["style"], codes: readonly CodeEn
  * null when this list has none: a habit carried onto a plan with another list does nothing there, and isn't said to.
  */
 export function habitEntry(habit: SketchHabit, codes: readonly CodeEntry[]): CodeEntry | null {
-  return codes.find((c) => c.code === habit.code && (c.kind === "line" || c.kind === "outline") && kindOfEntry(c) === HABIT_KIND[habit.style]) ?? null;
+  return codes.find((c) => c.code === habit.code && habitFits(habit.style, c)) ?? null;
 }
 
 /** "a masonry wall", "an iron fence": a code's meaning as a thing a line is. */
 export const asThing = (meaning: string) => `${/^[aeiou]/i.test(meaning.trim()) ? "an" : "a"} ${meaning.trim().toLowerCase()}`;
 
-/** A habit as the surveyor said it: "a double line is a masonry wall (MW)". */
-export const habitSaid = (style: SketchHabit["style"], entry: CodeEntry) => `${STYLE_WORDS[style]} is ${asThing(entry.meaning)} (${entry.code})`;
+/** What a line with this code is, said: "a masonry wall", or for a building's code "a wall of a permanent building". */
+export const lineThing = (entry: CodeEntry) => (kindOfEntry(entry) === "building" ? `a wall of ${asThing(entry.meaning)}` : asThing(entry.meaning));
+
+/** A habit as the surveyor said it: "a double line is a masonry wall (MW)", "a line with x marks is a wall of a permanent building (P)". */
+export const habitSaid = (style: SketchHabit["style"], entry: CodeEntry) => `${STYLE_WORDS[style]} is ${lineThing(entry)} (${entry.code})`;
 
 /** Words that name a kind of line, in English and Sinhala, tried in this order. */
 const WORDS: { kind: LineKind; re: RegExp; why: string }[] = [
@@ -78,6 +94,8 @@ const WORDS: { kind: LineKind; re: RegExp; why: string }[] = [
 function kindOfEntry(e: CodeEntry): LineKind {
   const m = e.meaning.toLowerCase();
   if (/\bwall\b/.test(m)) return "wall";
+  // A building's outline code on a line is a wall of that building (P, Permanent Building), never a free-standing wall.
+  if (e.kind === "outline" && /\bbuilding\b/.test(m)) return "building";
   if (/\b(fence|hedge)\b/.test(m)) return "fence";
   if (/\b(drain|ditch|canal)\b/.test(m)) return "drain";
   if (/\b(road|tar edge|edge)\b/.test(m)) return "road";
@@ -99,14 +117,14 @@ export function classifyLine(label: string, style: SketchLineStyle, codes: reado
   // Nothing written along it, and the surveyor has said what a line drawn this way is on their sketches (stage 298): their word.
   const habit = !t && (style === "double" || style === "crossed") ? habits.find((h) => h.style === style) : undefined;
   const own = habit ? habitEntry(habit, codes) : null;
-  if (habit && own) return { kind: kindOfEntry(own), code: own, why: `it's drawn as ${STYLE_WORDS[habit.style]}, which is ${asThing(own.meaning)} (${own.code}) on your sketches, as you said`, fromWriting: false, fromHabit: true };
+  if (habit && own) return { kind: kindOfEntry(own), code: own, why: `it's drawn as ${STYLE_WORDS[habit.style]}, which is ${lineThing(own)} (${own.code}) on your sketches, as you said`, fromWriting: false, fromHabit: true };
   if (style === "double") return { kind: "wall", code: null, why: "it's drawn as a double line, as walls are, with nothing written along it", fromWriting: false };
   if (style === "crossed") return { kind: "fence", code: null, why: "it's drawn with x marks along it, as wire fences are, with nothing written along it", fromWriting: false };
   return { kind: "line", code: null, why: t ? `"${t}" isn't a code in the code list or a word Farbaek knows` : "nothing is written along it", fromWriting: false };
 }
 
 /** The drawing layer a kind of line goes on. */
-export const LAYER_OF: Record<LineKind, DrawingFeature["layer"]> = { wall: "WALLS", fence: "FENCES", drain: "DRAINS", road: "ROADS", gate: "FENCES", line: "BUILDINGS" };
+export const LAYER_OF: Record<LineKind, DrawingFeature["layer"]> = { wall: "WALLS", fence: "FENCES", drain: "DRAINS", road: "ROADS", gate: "FENCES", building: "BUILDINGS", line: "BUILDINGS" };
 
 /** Words that name each kind of symbol, in English and Sinhala: a well (ළිඳ), a tree (ගස), a post (කණුව), a gate (ගේට්ටුව). */
 const KIND_WORDS: Record<SketchSymbolKind, RegExp | null> = { well: /\bwell\b|ළිඳ/i, tree: /\btree\b|(?:^|\s)ගස(?:\s|$)/i, post: /\bpost\b|කණුව/i, gate: /\bgate\b|ගේට්ටු/i, other: null };

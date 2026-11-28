@@ -511,7 +511,7 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     }
     const id = itemId("line", mt.points.map((p) => p.id));
     const evidence: string[] = [`Drawn on ${line.file} through ${list(ids(mt.points))}${line.label ? `, with "${line.label}" written along it` : ""}${line.style !== "single" ? ` (${line.style})` : ""}.`];
-    evidence.push(`Read as a ${cls.kind === "line" ? "line of unknown kind" : cls.kind}: ${cls.why}.`);
+    evidence.push(`Read as a ${cls.kind === "line" ? "line of unknown kind" : cls.kind === "building" ? "building's wall" : cls.kind}: ${cls.why}.`);
     evidence.push(...mt.notes);
     // The surveyor's habit says what it is as surely as writing would (stage 298).
     let level: Level = mt.exact && line.certain && (cls.fromWriting || cls.fromHabit) ? "strong" : "check";
@@ -571,9 +571,10 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
       layer: LAYER_OF[cls.kind],
       code: cls.code?.code ?? "",
       label: line.label,
-      // A closed line of unknown kind is drawn round to its start, never as a closed outline: on its layer that would be a building.
-      points: cls.kind === "line" && mt.closes ? [...mt.points, mt.points[0]!] : mt.points,
-      closed: mt.closes && cls.kind !== "line",
+      // A closed line of unknown kind, or a building's wall, is drawn round to its start, never as a closed outline: on its layer that
+      // would be a building, which only its label and the lines round it make (stage 254).
+      points: (cls.kind === "line" || cls.kind === "building") && mt.closes ? [...mt.points, mt.points[0]!] : mt.points,
+      closed: mt.closes && cls.kind !== "line" && cls.kind !== "building",
       arcs,
       dashed: line.style === "dashed",
       runsOn: mt.closes ? null : (line.runsOn ?? null),
@@ -851,11 +852,12 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     const onLot = new Set(lot ? [...lot.corners, ...lot.onSides].map((p) => p.id) : []);
     // Its walls: lines along its outline with nothing written to say they're something else, at least one of them inside the lot (a side
     // of the lot drawn as a plain line stays the lot's). Those wholly on its outline are drawn as it; one that runs on past a corner stays.
-    const bounding = lines.filter((l) => l.proposal && !absorbed.has(l.proposal.id) && !l.written && l.kind !== "road" && l.line.style !== "dashed" && legsAlong(l, face.points) && l.points.some((p) => !onLot.has(p.id)));
+    // A line written as a building's wall (P) is one of them too (stage 299).
+    const bounding = lines.filter((l) => l.proposal && !absorbed.has(l.proposal.id) && (!l.written || l.kind === "building") && l.kind !== "road" && l.line.style !== "dashed" && legsAlong(l, face.points) && l.points.some((p) => !onLot.has(p.id)));
     const walls = bounding.filter((l) => l.points.every((p) => onFace.has(p.id)));
     // A side written as a fence, a drain or a gate says the area is something else; a line through its corners that couldn't be drawn
     // leaves its outline unsettled.
-    const other = lines.find((l) => l.proposal && l.written && l.kind !== "wall" && legsAlong(l, face.points));
+    const other = lines.find((l) => l.proposal && l.written && l.kind !== "wall" && l.kind !== "building" && legsAlong(l, face.points));
     const lost = dropped.find((d) => [...d.ids].some((id) => onFace.has(id)));
     if (bounding.length === 0 || other || lost) {
       cannot(

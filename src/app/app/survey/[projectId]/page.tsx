@@ -24,6 +24,8 @@ import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives
 import { LotsEditor } from "@/components/survey/boundary-editor";
 import { FindingsList } from "@/components/survey/findings";
 import { DraftPanel } from "@/components/survey/draft-panel";
+import { DraftNext } from "@/components/survey/draft-next";
+import { Disclosure } from "@/components/ui/disclosure";
 import { ResumeSketches } from "@/components/survey/resume-sketches";
 import { jobState } from "@/core/survey/autosurvey/job";
 import { SketchPanel } from "@/components/survey/sketch-panel";
@@ -44,7 +46,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { checkSketch } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
 import { SURVEY_MODE_COOKIE, parseMode, stepsFor } from "@/core/survey/modes";
-import { autoDoubt, doubtContext, drawnWithoutDoubt, planStatus, type PlanStatus } from "@/core/survey/exceptions";
+import { autoDoubt, doubtContext, drawnWithoutDoubt, exceptionsFor, planStatus, type PlanStatus } from "@/core/survey/exceptions";
 import { readModelKey } from "@/server/ai/workspace-ai";
 import { fmt } from "@/core/survey/sheet/compose";
 import { compareDocuments, type ChangeArea } from "@/core/survey/compare";
@@ -115,7 +117,12 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
     if (rows.some((a) => a.withdrawn_at === null)) return <StatusBadge status="done" label="Approved" />;
     return rows.length > 0 ? <StatusBadge status="off" label="Approval withdrawn" /> : null;
   };
-  const fallback: StepId = data.points.length === 0 ? "import" : doc.lots.length === 0 ? "draft" : "plan";
+  // Where the plan stands, for its header (ADR 0235), and where it opens: on the plan as soon as anything is drawn on it (stage 300), so a
+  // plan the sketch drew without its lot opens where its questions are, not on the tools for drawing it by hand.
+  const drawn = doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0;
+  // A symbol drawn from the sketch (a well) is something to check too.
+  const anything = drawn || (doc.symbols ?? []).length > 0;
+  const fallback: StepId = data.points.length === 0 ? "import" : anything ? "plan" : "draft";
   const step: StepId = STEPS.some((s) => s.id === sp.step) ? (sp.step as StepId) : fallback;
   const base = `/app/survey/${projectId}`;
   const surveyors = data.profiles.map((p) => ({ userId: p.user_id, name: p.full_name, designation: p.designation, registration: p.registration, address: p.address, contact: p.contact }));
@@ -144,8 +151,6 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   const changes = earlier?.readable ? compareDocuments(earlier.document, doc, data.points) : null;
   const changeAreas = changes ? ([...new Set(changes.map((c) => c.area))] as ChangeArea[]) : [];
   const draftOff = data.points.length === 0 ? "Import the surveyed points first: the draft names lots by their corner points." : aiOff(draftAi);
-  // Where the plan stands, for its header (ADR 0235).
-  const drawn = doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0;
   // Express, Professional or Manual CAD (ADR 0238): which steps are on show, the person's choice, the Sample included.
   const mode = parseMode((await cookies()).get(SURVEY_MODE_COOKIE)?.value);
   // The latest Generate Plan run (ADR 0239), shown while it works, when it was cut off, or when a stage failed in the last day.
@@ -159,6 +164,18 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   const status = planStatus({ drawn, findings: view.findings, approved: Boolean(approval), exported });
   const doubtContextNow = doubtContext(view.findings);
   const doubtful = Object.keys(doc.provenance).filter((k) => autoDoubt(doc, data.points, k, doubtContextNow) !== null);
+
+  const drawFromPointsCard = (
+    <Card>
+      <CardTitle icon={PolygonIcon}>Draw the plan from the points</CardTitle>
+      <p className="mt-1 text-sm text-ink-2">
+        Farbaek draws the lot through the boundary marks (CP, St and the other marks in your code list) in the order they were observed, the walls, fences and buildings from their field codes, and the road from edges coded RD1 and RD2. Everything it draws is marked for you to check before approval; no point moves.
+      </p>
+      <div className="mt-4">
+        <DrawFromPoints projectId={projectId} readOnly={readOnly} />
+      </div>
+    </Card>
+  );
 
   return (
     <div className="grid gap-6">
@@ -187,7 +204,8 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
         />
       ) : null}
       <ModeChoice mode={mode} />
-      <StepNav steps={stepsFor(mode, STEPS, { drawn, current: step }).map(({ id, label }) => ({ id, label }))} current={step} base={base} />
+      {/* Express keeps Draft until there's a lot (stage 300): it's where a plan the sketch drew without its lot goes back to the sketch. */}
+      <StepNav steps={stepsFor(mode, STEPS, { drawn: doc.lots.length > 0, current: step }).map(({ id, label }) => ({ id, label }))} current={step} base={base} />
 
       {step === "import" ? (
         <div className="grid gap-6">
@@ -275,31 +293,21 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
         </div>
       ) : null}
 
-      {(step === "draft" || step === "boundary") && data.points.length > 0 && doc.lots.length === 0 ? (
-        <Card>
-          <CardTitle icon={PolygonIcon}>Draw the plan from the points</CardTitle>
-          <p className="mt-1 text-sm text-ink-2">
-            Farbaek draws the lot through the boundary marks (CP, St and the other marks in your code list) in the order they were observed, the walls, fences and buildings from their field codes, and the road from edges coded RD1 and RD2. Everything it draws is marked for you to check before approval; no point moves.
-          </p>
-          <div className="mt-4">
-            <DrawFromPoints projectId={projectId} readOnly={readOnly} />
-          </div>
-        </Card>
-      ) : null}
+      {step === "boundary" && data.points.length > 0 && doc.lots.length === 0 ? drawFromPointsCard : null}
 
-      {step === "draft" ? (
-        <DraftPanel
-          key={data.drawing.version}
-          projectId={projectId}
-          baseVersion={data.drawing.version}
-          document={doc}
-          points={data.points}
-          crsId={data.project.crsId}
-          crsConfirmation={input.crsConfirmation}
-          draftOff={draftOff}
-          readOff={aiOff(readAi)}
-          provider={readAi?.provider ?? null}
-          aiCost={draftCost}
+      {/* The Draft step leads with one next step and the field sketch (stage 300): the ways to draw by hand are folded away below. */}
+      {step === "draft" && data.points.length > 0 ? (
+        <DraftNext
+          base={base}
+          lots={doc.lots.length}
+          lines={doc.features.length}
+          symbols={(doc.symbols ?? []).length}
+          roads={doc.roads.length}
+          sketchRead={Boolean(doc.sketch)}
+          fromSketch={[...doc.lots, ...doc.features, ...doc.roads, ...(doc.symbols ?? [])].every((x) => x.id.startsWith("sk-"))}
+          reading={Boolean(job && jobState(job, now) === "running" && job.stages.some((s) => s.id === "sketches" && (s.state === "running" || s.state === "waiting")))}
+          waiting={drawn ? (() => { const ex = exceptionsFor(doc, data.points, view.findings); return ex.fix.length + ex.confirm.length; })() : 0}
+          codeless={data.points.every((p) => !p.code?.trim())}
         />
       ) : null}
 
@@ -316,6 +324,27 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           orgId={ctx.current.id}
           userId={ctx.mode === "live" ? me : null}
         />
+      ) : null}
+
+      {step === "draft" ? (
+        <Disclosure summary="Other ways to draw the plan" hint="From the points' field codes, from a description of the job, or from an old plan.">
+          <div className="grid gap-6">
+            {data.points.length > 0 && doc.lots.length === 0 ? drawFromPointsCard : null}
+            <DraftPanel
+              key={data.drawing.version}
+              projectId={projectId}
+              baseVersion={data.drawing.version}
+              document={doc}
+              points={data.points}
+              crsId={data.project.crsId}
+              crsConfirmation={input.crsConfirmation}
+              draftOff={draftOff}
+              readOff={aiOff(readAi)}
+              provider={readAi?.provider ?? null}
+              aiCost={draftCost}
+            />
+          </div>
+        </Disclosure>
       ) : null}
 
       {step === "boundary" ? (
@@ -354,7 +383,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
         </Card>
       ) : null}
 
-      {step === "plan" && drawn ? <NeedsYou doc={doc} points={data.points} findings={view.findings} base={base} projectId={projectId} baseVersion={data.drawing.version} readOnly={readOnly} approved={Boolean(approval)} /> : null}
+      {step === "plan" && anything ? <NeedsYou doc={doc} points={data.points} findings={view.findings} base={base} projectId={projectId} baseVersion={data.drawing.version} readOnly={readOnly} approved={Boolean(approval)} /> : null}
 
       {step === "plan" ? (
         <AssistantProvider earlier={assistHistory}>

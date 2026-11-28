@@ -12,7 +12,7 @@ import type { SurveyPoint } from "./parcel";
 import type { Finding } from "./qc";
 import { roadWidth } from "./roads";
 import { interpretDocument, settledSketchLine, sketchEvidence } from "./sketchintel/findings";
-import { habitChoices, habitEntry } from "./sketchintel/classify";
+import { habitChoices, habitEntry, lineThing } from "./sketchintel/classify";
 
 /** A road whose surveyed edges are further apart in one place than another by more than this may have an edge point on the wrong side. */
 export const ROAD_WIDTH_DOUBT_M = 0.5;
@@ -37,11 +37,14 @@ export function itemOf(doc: SurveyDocument, key: string): { label: string; step:
   if (kind === "adjoining") return { label: `Adjoining land: ${doc.adjoining.find((a) => a.id === id)?.text ?? ""}`, step: "boundary" };
   if (kind === "feature") {
     const f = doc.features.find((x) => x.id === id);
-    const meaning = f ? lookupCode(doc.codes, f.code)?.meaning : undefined;
+    const entry = f ? lookupCode(doc.codes, f.code) : null;
+    const meaning = entry?.meaning;
     // Read from the sketch's drawing (ADR 0249), or joined from the field codes.
     const how = id.startsWith("sk-") ? "read from the sketch" : "joined from the field codes";
     const what = meaning ? meaning.toLowerCase() : f && f.layer !== "BUILDINGS" ? LAYER_WORDS[f.layer] : "";
-    return { label: what ? `A ${what} line ${how}` : `A line ${how}`, step: "boundary" };
+    // A line with a building's code is one of its walls (P on a line): "A permanent building wall read from the sketch".
+    const piece = entry?.kind === "outline" && /\bbuilding\b/i.test(entry.meaning) && !/\bwall\b/i.test(entry.meaning) && !f?.closed ? "wall" : "line";
+    return { label: what ? `A ${what} ${piece} ${how}` : `A line ${how}`, step: "boundary" };
   }
   if (kind === "symbol") {
     const s = (doc.symbols ?? []).find((x) => x.id === id);
@@ -157,7 +160,7 @@ function habitOffer(doc: SurveyDocument, sketch: ReturnType<typeof interpretDocu
   const style = drawn.style;
   // A habit that names nothing in this plan's list (carried from a plan with another list) is as good as none: the card offers this list's.
   if ((doc.sketchHabits ?? []).some((h) => h.style === style && habitEntry(h, doc.codes))) return {};
-  const choices = habitChoices(style, doc.codes, doc.sketch?.drawing?.lines.map((l) => l.label) ?? []).map((c) => ({ code: c.code, meaning: c.meaning }));
+  const choices = habitChoices(style, doc.codes, doc.sketch?.drawing?.lines.map((l) => l.label) ?? []).map((c) => ({ code: c.code, thing: lineThing(c) }));
   return choices.length > 0 ? { habit: { style, choices } } : {};
 }
 
@@ -201,7 +204,8 @@ export interface SurveyException {
    * For a line the sketch draws double, or with x marks, with nothing written along it (stage 298): the codes the surveyor can say such a
    * line always is on their sketches, in one press, which answers this card and every other like it.
    */
-  habit?: { style: "double" | "crossed"; choices: { code: string; meaning: string }[] };
+  /** Each choice's code and what a line with it is, said: "a live fence", "a wall of a permanent building". */
+  habit?: { style: "double" | "crossed"; choices: { code: string; thing: string }[] };
 }
 
 const BLOCK_WORDS: Record<Finding["blocks"][number], string> = { plan: "the plan", export: "export", approval: "approval" };

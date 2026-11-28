@@ -4,7 +4,7 @@ import { ArrowCounterClockwiseIcon, CheckCircleIcon, TrashIcon, WarningCircleIco
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { confirmSketchItemsAction, confirmSurveyItemAction, forgetSketchHabitAction, labelLotAction, removeSurveySymbolAction, saveSketchHabitAction } from "@/app/app/survey/actions";
-import { asThing, STYLE_WORDS } from "@/core/survey/sketchintel/classify";
+import { STYLE_WORDS } from "@/core/survey/sketchintel/classify";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { PLAN_UNSAVED_REASON, usePlanUnsaved } from "./unsaved-plan";
@@ -59,7 +59,7 @@ export function ConfirmItem({ projectId, baseVersion, keyId, confirmed, readOnly
  * The surveyor's sketch habit, said in one press (stage 298): "On my sketches, a double line is a masonry wall (MW)". It answers this
  * card and every line drawn the same way with nothing written, now and on their next plans; it can be forgotten.
  */
-export function HabitChoice({ projectId, baseVersion, style, choices, readOnly }: { projectId: string; baseVersion: number; style: "double" | "crossed"; choices: readonly { code: string; meaning: string }[]; readOnly: string | null }) {
+export function HabitChoice({ projectId, baseVersion, style, choices, readOnly }: { projectId: string; baseVersion: number; style: "double" | "crossed"; choices: readonly { code: string; thing: string }[]; readOnly: string | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [doing, setDoing] = useState<string | null>(null);
@@ -79,8 +79,8 @@ export function HabitChoice({ projectId, baseVersion, style, choices, readOnly }
       <p className="text-sm text-ink-2">Or, if {STYLE_WORDS[style]} always means the same on your sketches, say what, and Farbaek stops asking:</p>
       <div className="flex flex-wrap gap-2">
         {choices.map((c) => (
-          <button key={c.code} type="button" onClick={() => save(c.code)} disabled={pending || readOnly !== null || unsaved} aria-label={`On my sketches, ${STYLE_WORDS[style]} is ${asThing(c.meaning)} (${c.code})`} className={buttonClasses("secondary", "sm", "w-fit max-w-full")}>
-            {pending && doing === c.code ? "Saving…" : <span className="min-w-0 truncate">{`${c.meaning} (${c.code})`}</span>}
+          <button key={c.code} type="button" onClick={() => save(c.code)} disabled={pending || readOnly !== null || unsaved} aria-label={`On my sketches, ${STYLE_WORDS[style]} is ${c.thing} (${c.code})`} className={buttonClasses("secondary", "sm", "w-fit max-w-full")}>
+            {pending && doing === c.code ? "Saving…" : <span className="min-w-0 truncate">{`${c.thing[0]!.toUpperCase()}${c.thing.slice(1)} (${c.code})`}</span>}
           </button>
         ))}
       </div>
