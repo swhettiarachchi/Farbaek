@@ -42,7 +42,9 @@ export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPo
     ...drawing.symbols.filter((s) => s.kind === "gate" && s.at).map((s) => [s.at]),
     ...drawing.lines.filter((l) => classifyLine(l.label, l.style, doc.codes).kind === "gate").map((l) => l.points),
   ];
-  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames, placed: placedNumbers(readings), labels, gates });
+  // Point numbers read with doubt (stage 295 review): reads agreeing never settle a line through one.
+  const doubtfulNumbers = readings.filter((r) => r.kind === "point" && r.certain === false).map((r) => ({ file: r.file, label: r.text }));
+  return interpretSketch(drawing, points, doc.codes, { statedM2: stated?.m2 ?? null, widths, roadNames, doubtfulWidths, doubtfulRoadNames, placed: placedNumbers(readings), labels, gates, doubtfulNumbers });
 }
 
 /**

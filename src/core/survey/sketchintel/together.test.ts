@@ -69,6 +69,13 @@ describe("the sketch's lines nothing stands against", () => {
     expect(settledLines(unsure())).toBe(0);
     expect(settledLines(unsure(1))).toBe(0);
     expect(settledLines(unsure(2))).toBeGreaterThan(0);
+    // A number read with doubt (a 16 that may be 91): reads agreeing never settle a line through it (stage 295 review).
+    const doc = unsure(2);
+    const through = (d: SurveyDocument, label: string) => interpretDocument(d, SYNTH_POINTS)!.proposals.filter((x) => x.kind === "line" && x.settled && x.from.some((f) => d.sketch!.drawing!.lines.find((l) => l.id === f)?.points.includes(label)));
+    const label = SYNTH_DRAWING.lines.find((l) => through(doc, l.points[0]!.replace(/^0+(?=\d)/, "")).length > 0)!.points[0]!.replace(/^0+(?=\d)/, "");
+    const doubted = { ...doc, sketch: { ...doc.sketch!, readings: [...doc.sketch!.readings, { id: "r9", file: "sketch.jpg", kind: "point" as const, text: label, from: "", to: "", near: "", certain: false as const }] } };
+    expect(through(doc, label).length).toBeGreaterThan(0);
+    expect(through(doubted, label)).toEqual([]);
   });
 
   it("are left out once confirmed, and never include an item the surveyor drew or a plan with no sketch", () => {

@@ -28,6 +28,11 @@ import { facesOf, within, type Face } from "./faces";
 import { misplacedNumbers, photoPlaces, type PlacedNumber } from "./placement";
 
 export interface InterpretOptions {
+  /**
+   * The numbers read with doubt on each photo (a 16 that may be 91, a number the reads disagreed on): a line through one is never
+   * settled by reads agreeing, only by a sure read (stage 295 review).
+   */
+  doubtfulNumbers?: readonly { file: string; label: string }[];
   /** A point within this many metres of the straight line between its neighbours lies on that side; further off, it's a corner. Farbaek's default: 0.25 m. */
   onLineM?: number;
   /** Within this many metres, the coordinates are strong evidence for the line. Farbaek's default: 0.10 m. */
@@ -468,6 +473,8 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
   const drawing: SketchDrawing = given.areas.some((a) => a.around.some(isCornerWord)) ? { ...given, areas: given.areas.map((a) => ({ ...a, around: a.around.filter((p) => !isCornerWord(p)) })) } : given;
   const onLine = options.onLineM ?? 0.25;
   const tight = options.tightM ?? 0.1;
+  // Numbers read with doubt, by photo: reads agreeing never settle a line through one (stage 295 review).
+  const doubtedNumbers = new Set((options.doubtfulNumbers ?? []).map((d) => `${d.file}|${d.label}`));
   const index = indexPoints(points);
   const proposals: Proposal[] = [];
   const questions: Question[] = [];
@@ -508,7 +515,7 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     // Nothing about where it runs is in doubt (stage 294): every number matched exactly, its points lie on it, and the reader was sure of
     // it or at least two separate reads of the sketch drew it through the same numbers (stage 295: on a hand sketch the reader is rarely
     // sure of any one line, and two reads agreeing is what the lot is built from).
-    let settled = mt.exact && (line.certain || (line.reads ?? 1) >= 2);
+    let settled = mt.exact && (line.certain || ((line.reads ?? 1) >= 2 && !line.points.some((label) => doubtedNumbers.has(`${line.file}|${label}`))));
     const arcs: ArcRun[] = [];
     let blocked = false;
     if (line.style === "curved" && mt.points.length >= 3) {
@@ -978,7 +985,13 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
           : `${m.likelyWritten ? "It may be misread" : `It may be ${m.likely}, misread`}. A sketch isn't drawn to scale, so this only asks: check the number on the sketch, and correct the plan on the Lots step if it's wrong.`,
         "Nothing was changed.",
       ],
-      { item: uses.id, answeredBy: "confirm", ...(offer ? { suggest: { file: m.file, reading: m.id!, label: m.label, to: m.likely } } : {}) },
+      {
+        item: uses.id,
+        answeredBy: "confirm",
+        ...(offer ? { suggest: { file: m.file, reading: m.id!, label: m.label, to: m.likely } } : {}),
+        // Every line through the doubted number bears on it, whichever item answers it (stage 295 review): none is settled until then.
+        ...(m.pointId ? { lines: lines.filter((l) => l.proposal && l.points.some((p) => p.pointId === m.pointId)).map((l) => l.proposal!.id) } : {}),
+      },
     );
   }
 
