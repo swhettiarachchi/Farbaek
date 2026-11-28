@@ -14,6 +14,7 @@ import type { AssistLanguage } from "@/core/survey/assistant/languages";
 import type { AssistOutput, PlanOp } from "@/core/survey/assistant/ops";
 import type { SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
+import { SURVEY_FREE_BOOST, surveyFreeBoosted } from "@/server/ai/config";
 import { routeModel } from "@/server/ai/routing";
 import { SURVEY_ASSIST_PROMPT, surveyAssistMessage, type SurveyAssistOutcome, type SurveyAssistant } from "@/server/ai/survey-assistant";
 import { refundUsage, reserveMetered, resolveMetering, settleUsage, type AiUsageDeps, type FreeUsageDeps, type ModelSource } from "@/server/workspace/ai-usage";
@@ -24,6 +25,12 @@ export const ASSIST_LIMITS = { words: 2_000, recent: 6 } as const;
 
 /** What one person may ask Survey Studio's free AI in a UTC day while it's tested (ADR 0212): instructions, drafts and photo reads. */
 export const SURVEY_AI_DAILY = { assist: 300, draft: 20, read: 20 } as const;
+
+/** Today's share for one person: more drafts and photo reads during the ten days with more free AI (stage 302), the usual after. */
+export function surveyAiDaily(now: Date = new Date()): { assist: number; draft: number; read: number } {
+  if (!surveyFreeBoosted(now)) return { ...SURVEY_AI_DAILY };
+  return { assist: SURVEY_AI_DAILY.assist, draft: Math.max(SURVEY_AI_DAILY.draft, SURVEY_FREE_BOOST.perPerson), read: Math.max(SURVEY_AI_DAILY.read, SURVEY_FREE_BOOST.perPerson) };
+}
 
 export interface SurveyAssistDeps {
   /** Records the turn (words, reply, operations as checked, outcome) and its audit event; returns its id. */

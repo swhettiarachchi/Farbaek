@@ -14,6 +14,7 @@ import { withDefaults } from "@/core/survey/autosurvey/defaults";
 import { officeProfileBodySchema, profileFromPlan, profilePrecision, withProfile, type OfficeProfile } from "@/core/survey/profile";
 import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
 import { interpretDocument } from "@/core/survey/sketchintel/findings";
+import { withLinePutBack } from "@/core/survey/sketchintel/second-reading";
 import { HABIT_STYLES, HABIT_TAKES, STYLE_WORDS, habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
@@ -479,7 +480,7 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
  * Only a near miss the plan has now can be kept.
  */
 export async function setKeptAsSurveyedAction(input: { projectId: string; baseVersion: number; key: string; keep: boolean }): Promise<SurveyFormState> {
-  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(?:(?:dup|leg):[0-9a-f:|-]{36,120}|sketch:r\d{1,3}|check:[im]\d{1,3})$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(?:(?:dup|leg):[0-9a-f:|-]{36,120}|sketch:r\d{1,3}|check:[im]\d{1,3}|left:l\d{1,3})$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
   const g = await writer();
   if (!g.ok) return { status: "error", message: g.message };
   const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
@@ -490,13 +491,41 @@ export async function setKeptAsSurveyedAction(input: { projectId: string; baseVe
   if (!finding) return { status: "error", message: "That near miss isn't on the plan any more. Reload to see the checks as they are now." };
   const doc = structuredClone(data.drawing.document);
   doc.kept = input.keep ? [...new Set([...doc.kept, input.key])] : doc.kept.filter((k) => k !== input.key);
-  const note = `${input.keep ? "Kept as surveyed" : "To check again"}: ${finding.message}`.slice(0, 200);
+  const left = input.key.startsWith("left:");
+  const note = `${input.keep ? (left ? "Left out" : "Kept as surveyed") : "To check again"}: ${finding.message}`.slice(0, 200);
   const next = tidy(pruneProvenance(doc), data);
   if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
   const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: next, note });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };
+}
+
+/**
+ * "Put it back" (stage 302, ADR 0308): a line Farbaek left out because the independent check didn't find it drawn, drawn again as the
+ * sketch was read, and what it draws redrawn: items nobody confirmed are replaced, each waiting for the surveyor; anything confirmed is
+ * left as it is. Saved as a new version.
+ */
+export async function putBackSketchLineAction(input: { projectId: string; baseVersion: number; line: string }): Promise<SurveyFormState> {
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.line !== "string" || !/^l\d{1,3}$/.test(input.line)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== input.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be changed on it. Reload, or ask support." };
+  const entry = data.drawing.document.sketch?.leftOut?.find((l) => l.line === input.line);
+  const back = withLinePutBack(structuredClone(data.drawing.document), data.points, input.line);
+  if (!entry || !back) return { status: "error", message: "That line isn't left out any more. Reload to see the plan as it is now." };
+  const next = tidy(pruneProvenance(back.document), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const through = entry.points.join(", ");
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: next, note: `Put back the line through ${through}, as the sketch was read`.slice(0, 200) });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${input.projectId}`);
+  const changed = back.removed.length + back.added.length;
+  const redrawn = changed > 0 ? ` ${back.removed.length} ${back.removed.length === 1 ? "item" : "items"} taken off, ${back.added.length} drawn, each waiting for you.` : "";
+  return { status: "done", message: `Put back: the line through ${through} is drawn as the sketch was read.${redrawn} Saved as version ${r.value}.`, version: r.value };
 }
 
 /**

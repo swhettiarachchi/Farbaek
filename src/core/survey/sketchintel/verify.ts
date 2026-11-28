@@ -181,6 +181,24 @@ export function sketchCheckFindings(doc: SurveyDocument, points: readonly Survey
         keep: { key, kept: false },
       });
   });
+  // A line Farbaek left out (stage 302, ADR 0308): said, with what the check said, until the surveyor agrees to leave it out or puts it
+  // back. It holds approval as a doubt does: the lot may be drawn round a different line because of it.
+  for (const l of (doc.sketch as { leftOut?: { line: string; points: string[]; note: string }[] } | null)?.leftOut ?? []) {
+    const key = `left:${l.line}`;
+    const said = `Farbaek left out the line through ${l.points.join(", ")}: the sketch was read with it once, with doubt, and an independent check of the sketch doesn't find it drawn.`;
+    if (kept.has(key)) out.push({ code: "SKETCH_LEFT_OUT_KEPT", severity: "information", message: `Left out, as you agreed: ${said}`, target: { kind: "project" }, action: "Nothing to do, unless the sketch shows it after all: then put it back.", blocks: [], keep: { key, kept: true } });
+    else
+      out.push({
+        code: "SKETCH_LEFT_OUT",
+        severity: "professional_review",
+        message: said,
+        target: { kind: "project" },
+        ...(l.note ? { detail: `The check says: ${l.note}` } : {}),
+        action: "Look at the sketch. If the line isn't drawn there, leave it out; if it is, put it back, and what it draws is drawn again.",
+        blocks: ["approval"],
+        keep: { key, kept: false },
+      });
+  }
   const confirmed = live.filter((v) => v.verdict === "drawn").length;
   out.push({
     code: "SKETCH_CHECKED",

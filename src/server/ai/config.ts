@@ -61,13 +61,25 @@ export const DEFAULT_SURVEY_FREE_DAILY_USD = 3;
  * the platform's own limit, so free use can't spend what the rest of Farbaek
  * needs from Farbaek's own key.
  */
-export function surveyFreeDailyUnits(read: (name: string) => string | null = env): number | null {
+export function surveyFreeDailyUnits(read: (name: string) => string | null = env, now: Date = new Date()): number | null {
   const raw = read("SURVEY_AI_FREE_DAILY_USD")?.toLowerCase() ?? null;
   if (raw === "off") return null;
   const usd = raw === null ? DEFAULT_SURVEY_FREE_DAILY_USD : Number(raw);
   const safe = Number.isFinite(usd) && usd > 0 ? Math.min(usd, 100_000) : DEFAULT_SURVEY_FREE_DAILY_USD;
-  return Math.floor(safe / USD_PER_UNIT);
+  // Ten days with more room (stage 302): never less than the boost while it lasts, and back to the setting by itself after.
+  const boosted = surveyFreeBoosted(now) ? Math.max(safe, SURVEY_FREE_BOOST.usd) : safe;
+  return Math.floor(boosted / USD_PER_UNIT);
 }
+
+/**
+ * Ten days with more of Survey Studio's free AI (the owner's word, 2026-11-28): while surveyors test it with their real jobs, a day holds
+ * this much across every workspace, still inside the platform's own limit, and one person this many drafts and photo reads. It ends by
+ * itself at `until`, back to the usual allowance; nothing is charged either way.
+ */
+export const SURVEY_FREE_BOOST = { until: "2026-12-08T00:00:00.000Z", usd: 10, perPerson: 60 } as const;
+
+/** Whether the ten days with more free AI are on now. */
+export const surveyFreeBoosted = (now: Date = new Date()) => now.getTime() < Date.parse(SURVEY_FREE_BOOST.until);
 
 export type AiProviderResolution = { provider: AiProviderId; label: string } | { provider: null; reason: string; detail?: string };
 

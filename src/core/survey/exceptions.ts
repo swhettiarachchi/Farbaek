@@ -200,6 +200,8 @@ export interface SurveyException {
   together?: { keys: string[]; lines: string[] };
   /** The one lot without a label, labelled right on its card (stage 294). */
   lotLabel?: { lotId: string };
+  /** A sketch line Farbaek left out because the independent check doesn't find it drawn (stage 302): put back in one press. */
+  leftOut?: { line: string };
   /**
    * For a line the sketch draws double, or with x marks, with nothing written along it (stage 298): the codes the surveyor can say such a
    * line always is on their sketches, in one press, which answers this card and every other like it.
@@ -331,6 +333,8 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
       step: stepFor(f),
       confirm: f.code === "LEGEND_UNREVIEWED" ? "codes" : null,
       keep: f.keep ?? null,
+      // A line Farbaek left out (stage 302): put back in one press, beside leaving it out.
+      ...((f.code === "SKETCH_LEFT_OUT" || f.code === "SKETCH_LEFT_OUT_KEPT") && f.keep?.key.startsWith("left:") ? { leftOut: { line: f.keep.key.slice("left:".length) } } : {}),
       // One lot without a label is labelled on the card itself; several are labelled together on the Lots step.
       ...(f.code === "LOT_LABEL_MISSING" && unlabelled.length === 1 ? { lotLabel: { lotId: unlabelled[0]!.id } } : {}),
     });

@@ -11,7 +11,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { ConfirmItem, ConfirmTogether, ForgetHabit, HabitChoice, LotLabel } from "./confirm-item";
-import { KeepAsSurveyed } from "./keep-as-surveyed";
+import { KeepAsSurveyed, PutBackLine } from "./keep-as-surveyed";
 import { SketchFix, SketchFixResult } from "./sketch-fix";
 
 const STEP_NAMES: Record<ExceptionStep, string> = { import: "Import", points: "Points", draft: "Draft", boundary: "Lots", plan: "Plan", settings: "Settings" };
@@ -111,7 +111,8 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
         {e.together ? <ConfirmTogether projectId={projectId} baseVersion={baseVersion} keys={e.together.keys} readOnly={readOnly} /> : null}
         {e.confirm ? <ConfirmItem projectId={projectId} baseVersion={baseVersion} keyId={e.confirm} confirmed={false} readOnly={readOnly} /> : null}
         {e.habit ? <HabitChoice projectId={projectId} baseVersion={baseVersion} style={e.habit.style} choices={e.habit.choices} readOnly={readOnly} /> : null}
-        {e.keep ? <KeepAsSurveyed projectId={projectId} baseVersion={baseVersion} keyId={e.keep.key} kept={e.keep.kept} readOnly={readOnly} /> : null}
+        {e.keep ? <KeepAsSurveyed projectId={projectId} baseVersion={baseVersion} keyId={e.keep.key} kept={e.keep.kept} readOnly={readOnly} {...(e.leftOut ? { label: "Leave it out" } : {})} /> : null}
+        {e.leftOut ? <PutBackLine projectId={projectId} baseVersion={baseVersion} line={e.leftOut.line} readOnly={readOnly} /> : null}
         {e.step && e.step !== "plan" ? (
           <Link href={`${base}?step=${e.step}`} className="inline-flex min-h-10 items-center text-sm font-medium text-accent underline-offset-2 hover:underline">
             {e.code.startsWith("SKETCH_") ? "See the sketch" : e.group === "fix" ? "Fix it" : e.confirm ? "Correct it" : "Open"} on the {STEP_NAMES[e.step]} step
