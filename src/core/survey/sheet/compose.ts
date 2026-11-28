@@ -30,7 +30,7 @@ import { drawTexts } from "./texts";
 import { Placer, atPage, textQuad, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawRoads, drawScaleBar, drawSimpleNorth, overlappingEntities, overlappingLabels, suggestScale, type DrawCtx } from "./draw";
 import { textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import { MAX_GRID_PLACES, MAX_SHEETS, clipItems, gridEdges, keyToSheets, matchLines, matchSpot, numberSheets, showsDrawing, tileGrid, type Sheet } from "./tiles";
-import type { SheetTemplate } from "./template";
+import { drawingLines, type SheetTemplate } from "./template";
 
 export { fmt } from "../units";
 export { overlappingLabels, suggestScale } from "./draw";
@@ -418,7 +418,7 @@ function composePanel(input: ComposeInput): ComposedSheet {
   let suggested: number | null = null;
   let scale: number | null = null;
   const sizes = { label: t.text.label, small: t.text.small, lotLabel: t.text.body * 1.35, body: t.text.body, heading: t.text.heading };
-  const strokes = { boundary: t.lines.boundary, feature: t.lines.feature, thin: t.lines.thin };
+  const strokes = drawingLines(doc.settings, t.lines);
   const slant = doc.settings.slant ? 12 : 0;
   // One sheet's drawing: everything in the drawing area, at the viewport given, words kept within `bounds`.
   const drawPlan = (out: SceneItem[], v: Viewport, bounds: [number, number, number, number], reserve: (ctx: DrawCtx) => void = () => {}): DrawCtx => {
@@ -515,7 +515,7 @@ function composePanel(input: ComposeInput): ComposedSheet {
   const frontPage = (drawing: SceneItem[], part: { sheet: Sheet; viewport: Viewport } | null): SheetPage => {
     const items: SceneItem[] = [...front, ...drawing];
     const cols = columns.map((c) => new Column(c.x, c.top, c.w, c.bottom));
-    if (part && cut) items.push(...matchLines([vp.x, vp.y, vp.x + vp.w, vp.y + vp.h], part.sheet, cut.sheets, t.text.small, t.lines.thin));
+    if (part && cut) items.push(...matchLines([vp.x, vp.y, vp.x + vp.w, vp.y + vp.h], part.sheet, cut.sheets, t.text.small, strokes.thin));
     const panels = buildPanels(input, notes, part && cut ? { self: part.sheet, sheets: cut.sheets, cols: cut.cols, rows: cut.rows } : null);
     if (landscape) {
       for (const p of panels) p(cols[0]!);

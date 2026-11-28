@@ -228,6 +228,14 @@ export const settingsSchema = z.object({
   /** The lots' boundaries drawn at the weight of the other lines, as some surveyors draw them (stage 261). Absent unless chosen. */
   thinBoundary: z.literal(true).optional(),
   /**
+   * The drawing's line thickness, mm, on paper (stage 304, ADR 0310): every line of the drawing (lots, walls, roads, dimensions, marks) is
+   * drawn at it; the frame keeps its own. A new plan starts at 0.13 mm, as a practising surveyor asked, or at the surveyor's own from their
+   * last plan. Absent on plans made before it, which keep the template's weights.
+   */
+  lineMm: z.number().min(0.05).max(1).optional(),
+  /** The lots' boundaries at their own thickness, mm, with `lineMm` (stage 304). Absent: as the other lines. */
+  boundaryMm: z.number().min(0.05).max(1).optional(),
+  /**
    * A drawing that doesn't fit one sheet at the scale chosen is drawn over several sheets at that scale, with match lines and a key
    * to the sheets (stage 268, ADR 0275). Only with a scale chosen; absent unless chosen.
    */
@@ -385,7 +393,10 @@ export function defaultSettings(): DrawingSettings {
   return { template: "classic", paper: "auto", orientation: "portrait", scale: null, perchDecimals: 2, secondDecimals: 0, distanceDecimals: 2, overleaf: true, permitBox: false, slant: true, faceDimensions: false };
 }
 
-/** A new project's first document: no lots yet, the common codes, the classic layout. */
+/** A new plan's line thickness, mm (stage 304): as a practising Sri Lankan surveyor draws, every line at 0.13 mm. */
+export const NEW_PLAN_LINE_MM = 0.13;
+
+/** A new project's first document: no lots yet, the common codes, the classic layout, lines at 0.13 mm. */
 export function emptyDocument(): SurveyDocument {
   return {
     schema: 2,
@@ -398,7 +409,7 @@ export function emptyDocument(): SurveyDocument {
     labelOffsets: {},
     layers: defaultLayers(),
     sheet: emptySheetFields(),
-    settings: defaultSettings(),
+    settings: { ...defaultSettings(), lineMm: NEW_PLAN_LINE_MM },
     provenance: {},
     kept: [],
     rules: null,

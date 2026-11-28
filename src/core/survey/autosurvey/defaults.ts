@@ -6,8 +6,8 @@
  *   when that list is still the common or Survey Department list, which the new plan starts from anyway. It waits for one press on
  *   the new plan: the mark records no reviewer, and a list can change after its check, so a carried list is never taken as checked.
  * - How the crew writes line words (ADR 0243): from that same newest checked plan, when it isn't Farbaek's own.
- * - The sheet's presentation: layout, paper, orientation, decimals, overleaf, permit box, lettering and face dimensions from their
- *   latest plan. The scale isn't carried: it belongs to each land.
+ * - The sheet's presentation: layout, paper, orientation, decimals, overleaf, permit box, lettering, face dimensions and line thickness
+ *   from their latest plan. The scale isn't carried: it belongs to each land.
  * Nothing about the land itself (title, lots, owners, extents) is ever carried: a past plan is never a source of legal truth.
  * An office code library uploaded with the files wins over a carried list (codelib.ts).
  */
@@ -21,7 +21,7 @@ export interface EarlierPlan {
   document: SurveyDocument;
 }
 
-export const CARRIED_SETTINGS = ["template", "paper", "orientation", "perchDecimals", "secondDecimals", "distanceDecimals", "overleaf", "permitBox", "slant", "faceDimensions"] as const;
+export const CARRIED_SETTINGS = ["template", "paper", "orientation", "perchDecimals", "secondDecimals", "distanceDecimals", "overleaf", "permitBox", "slant", "faceDimensions", "lineMm", "boundaryMm"] as const;
 export type CarriedSettings = Pick<SurveyDocument["settings"], (typeof CARRIED_SETTINGS)[number]>;
 
 export interface StartingDefaults {
@@ -51,7 +51,8 @@ export function defaultsFrom(earlier: readonly EarlierPlan[]): StartingDefaults 
   const said = earlier.filter((p) => p.document.sketchHabits !== undefined).reduce<EarlierPlan | null>((best, p) => (!best || when(p) > when(best) ? p : best), null);
   return {
     codes: checked ? { entries: checked.document.codes.map((c) => ({ ...c })), from: checked.name } : null,
-    settings: latest ? { values: Object.fromEntries(CARRIED_SETTINGS.map((k) => [k, latest.document.settings[k]])) as CarriedSettings, from: latest.name } : null,
+    // Only what the plan has: a plan made before the line thickness (stage 304) leaves a new plan's 0.13 mm as it is.
+    settings: latest ? { values: Object.fromEntries(CARRIED_SETTINGS.filter((k) => latest.document.settings[k] !== undefined).map((k) => [k, latest.document.settings[k]])) as CarriedSettings, from: latest.name } : null,
     grammar: newest && words && words !== "farbaek" ? { id: words, from: newest.name } : null,
     habits: said ? { entries: said.document.sketchHabits!.map((h) => ({ ...h })), from: said.name, saidAt: said.document.sketchHabitsSaidAt ?? null } : null,
   };

@@ -16,11 +16,12 @@ import { CODE_MAX, adoptCode, codeHints, type UnknownCode } from "@/core/survey/
 import { CODE_KINDS, LINE_STYLES, commonCodes, dsrCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
 import { GRAMMAR, GRAMMARS, type GrammarId } from "@/core/survey/grammar";
 import { runsText, titleSentence } from "@/core/survey/description";
-import { STANDARD_SCALES, lotName, type SurveyDocument } from "@/core/survey/document";
+import { NEW_PLAN_LINE_MM, STANDARD_SCALES, lotName, type SurveyDocument } from "@/core/survey/document";
 import { roadWidth } from "@/core/survey/roads";
 import { UDA_2020, readDecimal, reviewNote } from "@/core/survey/rules";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt } from "@/core/survey/sheet/compose";
+import { BOUNDARY_MM_CHOICES, LINE_MM_CHOICES } from "@/core/survey/sheet/template";
 import { fromSquareMetres, formatArp, toArp } from "@/core/survey/units";
 import { buildPlan } from "@/core/survey/view";
 import { LAYER_NAMES } from "@/core/survey/assistant/describe";
@@ -281,10 +282,61 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
           if (v) d.settings.wallTicks = true;
           else delete d.settings.wallTicks;
         })}
-        {check("Lot boundaries drawn as thin as the other lines", st.thinBoundary === true, (d, v) => {
-          if (v) d.settings.thinBoundary = true;
-          else delete d.settings.thinBoundary;
-        })}
+        {/* Stage 304, ADR 0310: one thickness for every line of the drawing, 0.13 mm on a new plan; the frame keeps its own. */}
+        <label className="grid gap-1.5">
+          <span className={LABEL_CLASSES}>Line thickness</span>
+          <select
+            value={st.lineMm === undefined ? "" : String(st.lineMm)}
+            disabled={readOnly}
+            onChange={(e) =>
+              update((d) => {
+                const v = Number(e.target.value);
+                if (e.target.value && Number.isFinite(v)) d.settings.lineMm = v;
+              })
+            }
+            className={inputClasses()}
+          >
+            {st.lineMm === undefined ? <option value="">As this plan was drawn (lot boundaries heavier)</option> : null}
+            {[...new Set([...LINE_MM_CHOICES, ...(st.lineMm === undefined ? [] : [st.lineMm])])]
+              .sort((a, b) => a - b)
+              .map((mm) => (
+                <option key={mm} value={String(mm)}>
+                  {mm} mm{mm === NEW_PLAN_LINE_MM ? ", as new plans start" : ""}
+                </option>
+              ))}
+          </select>
+        </label>
+        {st.lineMm === undefined ? (
+          check("Lot boundaries drawn as thin as the other lines", st.thinBoundary === true, (d, v) => {
+            if (v) d.settings.thinBoundary = true;
+            else delete d.settings.thinBoundary;
+          })
+        ) : (
+          <label className="grid gap-1.5">
+            <span className={LABEL_CLASSES}>Lot boundaries</span>
+            <select
+              value={st.boundaryMm === undefined ? "" : String(st.boundaryMm)}
+              disabled={readOnly}
+              onChange={(e) =>
+                update((d) => {
+                  const v = Number(e.target.value);
+                  if (e.target.value && Number.isFinite(v)) d.settings.boundaryMm = v;
+                  else delete d.settings.boundaryMm;
+                })
+              }
+              className={inputClasses()}
+            >
+              <option value="">As the other lines ({st.lineMm} mm)</option>
+              {[...new Set([...BOUNDARY_MM_CHOICES, ...(st.boundaryMm === undefined ? [] : [st.boundaryMm])])]
+                .sort((a, b) => a - b)
+                .map((mm) => (
+                  <option key={mm} value={String(mm)}>
+                    Heavier, {mm} mm
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
         {check("Development permit box (UDA areas, panel layout)", st.permitBox, (d, v) => void (d.settings.permitBox = v))}
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Extract of one lot</span>

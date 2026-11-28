@@ -69,6 +69,8 @@ const SETTING_LABELS: Record<keyof DrawingSettings, string> = {
   noLotLetters: "Lot letters left off the drawing",
   wallTicks: "Walls lettered small with a tick",
   thinBoundary: "Lot boundaries drawn thin",
+  lineMm: "Line thickness",
+  boundaryMm: "Lot boundary thickness",
   deedExtentOnFace: "The deed's extent on the face",
   severalSheets: "Over several sheets",
 };
@@ -237,7 +239,10 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
     const optional = key === "crowdedLegsToSchedule" || key === "deedExtentOnFace" || key === "noCornerCircles" || key === "noLotLetters" || key === "wallTicks" || key === "thinBoundary";
     const a = optional ? (before.settings[key] ?? false) : before.settings[key];
     const b = optional ? (after.settings[key] ?? false) : after.settings[key];
-    if (a !== b) add("Sheet", key === "scale" ? `Scale changed from ${a ? `1:${a}` : "automatic"} to ${b ? `1:${b}` : "automatic"}.` : changed(SETTING_LABELS[key], a, b));
+    if (a !== b && (key === "lineMm" || key === "boundaryMm")) {
+      const mm = (v: unknown) => (typeof v === "number" ? `${v} mm` : key === "lineMm" ? "the template's" : "as the other lines");
+      add("Sheet", `${SETTING_LABELS[key]} changed from ${mm(a)} to ${mm(b)}.`);
+    } else if (a !== b) add("Sheet", key === "scale" ? `Scale changed from ${a ? `1:${a}` : "automatic"} to ${b ? `1:${b}` : "automatic"}.` : changed(SETTING_LABELS[key], a, b));
   }
   const moved = new Set([...Object.keys(before.labelOffsets), ...Object.keys(after.labelOffsets)].filter((k) => JSON.stringify(before.labelOffsets[k]) !== JSON.stringify(after.labelOffsets[k]))).size;
   if (moved > 0) add("Sheet", `${moved} ${moved === 1 ? "label was" : "labels were"} moved on paper.`);
