@@ -133,7 +133,8 @@ const Items = memo(function Items(props: ItemsProps & { page: SheetPage; badge: 
           const d = pathOf(item);
           return (
             <g key={i}>
-              {marked ? <path d={d} fill={item.closed ? "color-mix(in oklab, var(--color-accent) 7%, transparent)" : "none"} stroke="var(--color-accent)" strokeWidth={item.width + 2.2} strokeOpacity={0.22} strokeLinejoin="round" /> : null}
+              {/* The fill's own opacity, not color-mix(): before Chrome 111 an SVG fill it can't read is drawn black (stage 293). */}
+              {marked ? <path d={d} fill={item.closed ? "var(--color-accent)" : "none"} fillOpacity={0.07} stroke="var(--color-accent)" strokeWidth={item.width + 2.2} strokeOpacity={0.22} strokeLinejoin="round" /> : null}
               {selected ? <path d={d} fill="none" stroke="var(--color-accent)" strokeWidth={item.width + 1.2} strokeOpacity={0.35} strokeLinejoin="round" /> : null}
               <path
                 {...p}

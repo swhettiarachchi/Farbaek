@@ -6,7 +6,8 @@ import { z } from "zod";
 import { ADJUST_METHODS, ADJUST_NAMES, weighedShort } from "@/core/survey/adjust";
 import { grammarForLibrary } from "@/core/survey/grammar";
 import { autoDraft } from "@/core/survey/autodraft";
-import { START_LIMITS, gridProblem, importOrder, importPointsOf, pointClashes, readSurveyFile, readTogether, startName, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
+import { START_LIMITS, gridProblem, importOrder, importPointsOf, pointClashes, readSurveyFile, readTogether, statedSurveyDate, drawsWithDsrList, type FileRead, type StartProblem } from "@/core/survey/autosurvey/start";
+import { startName } from "@/core/survey/autosurvey/job-facts";
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
 import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
 import { withDefaults } from "@/core/survey/autosurvey/defaults";
@@ -302,7 +303,7 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
     const grammar = grammarForLibrary(i.library.name);
     document = { ...document, codes: taken.codes, provenance: { ...document.provenance, codes: { source: "engine", reviewed: false } }, ...(grammar ? { grammar } : {}) };
   }
-  const created = await surveyStore.createProject(g.w.admin, g.w.actor, { name: startName(i.title, reads[0]?.name ?? null, new Date()), planType: "cadastral", crsId: crs.id, confirm: true, document });
+  const created = await surveyStore.createProject(g.w.admin, g.w.actor, { name: startName(i.title, reads, new Date()), planType: "cadastral", crsId: crs.id, confirm: true, document });
   if (!created.ok) return { status: "error", message: created.message, problems: [] };
   const projectId = created.value;
   // The next plan starts from the same profile, or from none when none was chosen; a choice that can't be recorded (before schema v105)

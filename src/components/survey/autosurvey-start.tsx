@@ -12,7 +12,8 @@ import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { GRAMMAR, grammarForLibrary, type GrammarId } from "@/core/survey/grammar";
 import { profilePrecision, profileSummary, resolveProfile, type OfficeProfile } from "@/core/survey/profile";
 import { LIBRARY_LIMITS, libraryFor, librarySummary, looksLikeCodeLibrary, parseCodeLibrary } from "@/core/survey/codelib";
-import { START_LIMITS, gridProblem, importOrder, kindOfUpload, notReadYet, pointClashes, readSurveyFile, readTogether, startName, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
+import { START_LIMITS, gridProblem, gridsThatFit, importOrder, kindOfUpload, notReadYet, pointClashes, readSurveyFile, readTogether, drawsWithDsrList, type FileRead } from "@/core/survey/autosurvey/start";
+import { jobFactsTogether, startName } from "@/core/survey/autosurvey/job-facts";
 import type { AdjustMethod } from "@/core/survey/adjust";
 import { IMPORT_LIMITS } from "@/core/survey/import/delimited";
 import { buttonClasses } from "@/components/ui/button";
@@ -21,9 +22,12 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { shrink } from "./photo";
 import { sketchesKey, stage, staged, startKey, unstage } from "./staging";
 import { fromKept, toKept, type Upload } from "./start-uploads";
+import { StartPreview } from "./start-preview";
 import { TraverseChoice } from "./traverse-choice";
 
 const CRS_OPTIONS = [...CRS_REGISTRY, LOCAL_CRS];
+// The common code list, made once: the list of points judges codes by it when nothing else is chosen.
+const COMMON_CODES = commonCodes();
 
 
 /**
@@ -99,7 +103,9 @@ export function AutoSurveyStart({
   const [opening, setOpening] = useState<string | null>(null);
   const [crsId, setCrsId] = useState<string>(crsById(startingCrsId)?.id ?? "");
   const [changingCrs, setChangingCrs] = useState(!crsById(startingCrsId));
+  // The surveyor's own name for the project. Until they type one, the box shows the name the files give (stage 293).
   const [title, setTitle] = useState("");
+  const [ownName, setOwnName] = useState(false);
   // The office profile: null follows what the files and the last choice say; "none" starts from the surveyor's recent plans.
   const [pick, setPick] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -158,6 +164,7 @@ export function AutoSurveyStart({
         setChangingCrs(false);
       }
       setTitle(back.title);
+      if (back.title.trim()) setOwnName(true);
     });
     return () => {
       live = false;
@@ -176,6 +183,7 @@ export function AutoSurveyStart({
     setRestored(null);
     setUploads([]);
     setTitle("");
+    setOwnName(false);
     if (key) void unstage(key);
   };
 
@@ -256,9 +264,32 @@ export function AutoSurveyStart({
   const clashes = pointClashes(reads);
   // The same survey as its instrument file, printed list and drawing: said beside each file that repeats another (stage 252).
   // By the read itself, never its name: two uploads may share one.
-  const ordered = importOrder(reads);
-  const repeats = new Map(readTogether(ordered).repeats.flatMap((x) => (x.count > 0 ? [[ordered[x.index]!, x] as const] : [])));
+  // What the files hold, worked out once per change of files, never per key typed in the name box (stage 293): the same survey as its
+  // instrument file, printed list and drawing is said beside each file that repeats another (stage 252), by the read itself, never its
+  // name; each point once, as it will be imported, is what the drawing and the list show; and the name the files give.
+  const held = useMemo(() => {
+    const rs = shown.flatMap((u) => (u.kind === "survey-data" && u.read ? [u.read] : []));
+    const order = importOrder(rs);
+    const together = readTogether(order);
+    return {
+      repeats: new Map(together.repeats.flatMap((x) => (x.count > 0 ? [[order[x.index]!, x] as const] : []))),
+      unique: [...together.kept].map(([pointId, k], i) => ({ line: i + 1, pointId, e: k.e, n: k.n, z: k.z, code: k.code })),
+      facts: jobFactsTogether(rs.map((r) => r.job)),
+      // Filled in for the surveyor to keep or change; nothing until there's a file to name it from.
+      suggested: rs.length > 0 ? startName("", rs, new Date()) : "",
+    };
+  }, [shown]);
+  const { repeats, unique, facts, suggested } = held;
   const grid = crs ? gridProblem(points, crs) : null;
+  // The grids the points do fit, offered as one press each when none of them fits the one shown; never chosen for the surveyor.
+  const fits = crs && grid ? gridsThatFit(points, crs) : [];
+  const crsRow = useRef<HTMLButtonElement>(null);
+  const pickCrs = (id: string) => {
+    chooseCrs(id);
+    setChangingCrs(false);
+    // The button pressed is gone once the warning clears: the keyboard goes on from the coordinate system now chosen.
+    requestAnimationFrame(() => crsRow.current?.focus());
+  };
   const problems = data.filter((u) => u.problem).length + clashes.length + (grid ? 1 : 0);
   const dataBytes = data.reduce((sum, u) => sum + u.content.length, 0);
   // More than one profile and nothing to tell them apart: asked once, never guessed (ADR 0256).
@@ -312,7 +343,7 @@ export function AutoSurveyStart({
       // Marked as sent first: a refresh before the answer can't tell whether the plan was made, and the screen says so if they come back.
       if (key) await stage(key, toKept(uploads, title, crsId, Date.now()));
       // A request the server refuses before the action runs (too large to carry) comes back as a thrown error: said, not lost.
-      const r = await generateSurveyPlanAction({ title, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content, adjust: u.adjust })), library: library ? { name: library.name, content: library.content } : null, sketches: reading ? sketches.filter((u) => u.photo).length : 0, profileId: profile?.id ?? null }).catch(
+      const r = await generateSurveyPlanAction({ title: ownName ? title : suggested, crsId: crs.id, files: data.map((u) => ({ name: u.name, content: u.content, adjust: u.adjust })), library: library ? { name: library.name, content: library.content } : null, sketches: reading ? sketches.filter((u) => u.photo).length : 0, profileId: profile?.id ?? null }).catch(
         (): GenerateState => ({ status: "error", message: "The files couldn't be sent: they may be too large together. Generate from fewer files, then import the rest into the project.", problems: [] }),
       );
       if (r.status !== "done") {
@@ -379,8 +410,10 @@ export function AutoSurveyStart({
     return { status: "working", label: "Reading", text: `${size(u.size)}.` };
   };
 
-  const placeholder = startName("", data[0]?.name ?? null, new Date());
   const dsr = drawsWithDsrList(points, commonCodes());
+  // The code list the plan will be drawn with, for the list of points to judge codes by, as the server chooses it: an uploaded library,
+  // else the profile's; the surveyor's carried list or the Survey Department's aren't known here, so codes aren't judged then.
+  const planCodes = library?.read.ok ? library.read.entries : profile?.body.codes ? profile.body.codes.entries : carried.codes || dsr ? null : COMMON_CODES;
 
   return (
     <div className="grid gap-6">
@@ -474,14 +507,27 @@ export function AutoSurveyStart({
         </ul>
       ) : null}
 
+      {unique.length > 0 ? <StartPreview points={unique} facts={facts} codes={planCodes} files={reads.length} sketch={reading ? "read" : sketches.length === 0 ? "none" : sketchOff ? "off" : "tick"} /> : null}
+
       {clashes.length > 0 || grid ? (
         <ul className="grid gap-2" aria-label="What needs you">
           {[...clashes, ...(grid ? [grid] : [])].map((p, n) => (
             <li key={n} className="flex items-start gap-2 text-sm text-ink">
               <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
-              <span>
-                {p.file ? <span className="font-medium">{p.file}: </span> : null}
-                {p.problem}
+              <span className="grid gap-2">
+                <span>
+                  {p.file ? <span className="font-medium">{p.file}: </span> : null}
+                  {p.problem}
+                </span>
+                {p === grid && fits.length > 0 ? (
+                  <span className="flex flex-wrap gap-2">
+                    {fits.map((c) => (
+                      <button key={c.id} type="button" onClick={() => pickCrs(c.id)} disabled={pending || Boolean(drawn)} className={buttonClasses("secondary", "sm")}>
+                        Use {c.id === LOCAL_CRS.id ? "local coordinates" : c.name}
+                      </button>
+                    ))}
+                  </span>
+                ) : null}
               </span>
             </li>
           ))}
@@ -512,18 +558,35 @@ export function AutoSurveyStart({
               <p className="text-body text-ink">{crs?.name}</p>
               {crsNote ? <p className="text-sm text-ink-3">{crsNote}</p> : null}
             </div>
-            <button type="button" onClick={() => setChangingCrs(true)} className={buttonClasses("ghost", "sm")}>
+            <button ref={crsRow} type="button" onClick={() => setChangingCrs(true)} className={buttonClasses("ghost", "sm")}>
               <PencilSimpleIcon size={16} weight="bold" aria-hidden /> Change
             </button>
           </div>
         )}
 
-        <label className="grid gap-1.5">
-          <span className={LABEL_CLASSES}>
-            Project name <span className="font-normal text-ink-3">(optional)</span>
-          </span>
-          <input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder={placeholder} className={inputClasses()} />
-        </label>
+        <div className="grid gap-1.5">
+          <label className="grid gap-1.5">
+            <span className={LABEL_CLASSES}>
+              Project name <span className="font-normal text-ink-3">(optional)</span>
+            </span>
+            <input
+              value={ownName ? title : suggested}
+              maxLength={120}
+              onChange={(e) => {
+                setOwnName(true);
+                setTitle(e.target.value);
+              }}
+              placeholder={suggested || "Name this survey"}
+              aria-describedby={!ownName && suggested ? "start-name-note" : undefined}
+              className={inputClasses()}
+            />
+          </label>
+          {!ownName && suggested ? (
+            <p id="start-name-note" className="text-sm text-ink-3">
+              Named from your files. Change it if you like.
+            </p>
+          ) : null}
+        </div>
 
         <p className="text-sm text-ink-2">
           {surveyorName ? (
@@ -597,7 +660,7 @@ export function AutoSurveyStart({
           </p>
         ) : carried.sheet ? (
           <p className="text-sm text-ink-2">
-            Sheet: laid out as on <span className="font-medium text-ink">{carried.sheet.from}</span> ({carried.sheet.paper === "auto" ? "paper chosen to fit" : carried.sheet.paper}, {carried.sheet.orientation}).
+            Sheet: laid out like your plan <span className="font-medium text-ink">&ldquo;{carried.sheet.from}&rdquo;</span> ({carried.sheet.paper === "auto" ? "paper chosen to fit" : carried.sheet.paper}, {carried.sheet.orientation}).
           </p>
         ) : null}
         {dsr && !library && !(profile?.body.codes ?? carried.codes) ? <p className="text-sm text-ink-2">These files use the Survey Department&apos;s codes (Chapter XXII), so the plan is drawn with its code list.</p> : null}

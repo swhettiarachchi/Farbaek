@@ -567,7 +567,7 @@ function PointsMap({ points, willDraw, outline, lines, marks }: { points: Survey
         {lines.map((l, i) => (
           <path key={i} d={path(l.ids, l.closed)} fill="none" stroke="var(--color-ink-3)" strokeWidth={s * 0.8} />
         ))}
-        {outline ? <path d={path(outline.map((p) => p.id), true)} fill="color-mix(in oklab, var(--color-accent) 8%, transparent)" stroke="var(--color-accent)" strokeWidth={s * 1.2} strokeDasharray={`${s * 4} ${s * 2.5}`} /> : null}
+        {outline ? <path d={path(outline.map((p) => p.id), true)} fill="var(--color-accent)" fillOpacity={0.08} stroke="var(--color-accent)" strokeWidth={s * 1.2} strokeDasharray={`${s * 4} ${s * 2.5}`} /> : null}
         {points.map((p) => (
           <circle key={p.id} cx={x(p.e)} cy={y(p.n)} r={marks.has(p.id) ? s * 2 : s * 1.1} fill={marks.has(p.id) ? "var(--color-ink)" : "var(--color-ink-3)"} />
         ))}

@@ -1,8 +1,8 @@
 /** AutoSurvey's start (stage 222): sorting uploads and reading them without questions the files settle. Every value is SYNTHETIC. */
 import { describe, expect, it } from "vitest";
 import { commonCodes } from "../codes";
-import { crsById } from "../crs";
-import { gridProblem, importOrder, importPointsOf, kindOfUpload, notReadYet, pointClashes, readSurveyFile, readTogether, startName, startingCrs, statedSurveyDate, drawsWithDsrList, type FileRead } from "./start";
+import { CRS_REGISTRY, crsById } from "../crs";
+import { gridProblem, gridsThatFit, importOrder, importPointsOf, kindOfUpload, notReadYet, pointClashes, readSurveyFile, readTogether, startingCrs, statedSurveyDate, drawsWithDsrList, type FileRead } from "./start";
 
 const SLD99 = crsById("EPSG:5235")!;
 const LOCAL = crsById("LOCAL")!;
@@ -164,9 +164,36 @@ describe("the files read together", () => {
     const swapped = inside.map((p) => ({ e: p.n, n: p.e }));
     expect(gridProblem(swapped, SLD99)!.problem).toMatch(/swapped/);
     const far = inside.map((p) => ({ e: p.e + 900_000, n: p.n }));
-    expect(gridProblem(far, SLD99)!.problem).toMatch(/^3 of 3 points fall outside the area SLD99/);
+    expect(gridProblem(far, SLD99)!.problem).toMatch(/^All 3 points fall outside the area SLD99 \/ Sri Lanka Grid 1999 covers\. They fit none of the grids Farbaek knows, .* If it is, choose local coordinates\.$/);
     // A local grid has no area to check against.
     expect(gridProblem(far, LOCAL)).toBeNull();
+  });
+
+  const site = (e = 1000, n = 1000) => read("site.csv", ["Point,Easting,Northing", `100,${e},${n}`, `101,${e + 8.315},${n + 5.712}`].join("\n"), LOCAL).points;
+
+  it("counts each point once, however many files give it (stage 293)", () => {
+    // The same two points from an instrument file, a printout and a drawing: two points, not six.
+    expect(gridProblem([...site(), ...site(), ...site()], SLD99)!.problem).toMatch(/^All 2 points fall outside/);
+    expect(gridProblem([...read("a.csv", csv).points, ...site()], SLD99)!.problem).toBe("2 of 5 points fall outside the area SLD99 / Sri Lanka Grid 1999 covers. Check those points, or choose the coordinate system the survey is in.");
+  });
+
+  it("offers the grids the points do fit, or local coordinates, and never chooses one (stage 293)", () => {
+    expect(gridsThatFit(site(), SLD99).map((c) => c.id)).toEqual(["LOCAL"]);
+    expect(gridsThatFit(site(), LOCAL)).toEqual([]);
+    const kandawala = site(200_100, 250_200);
+    expect(gridsThatFit(kandawala, SLD99).map((c) => c.id)).toEqual(["EPSG:5234", "EPSG:32644"]);
+    expect(gridProblem(kandawala, SLD99)!.problem).toMatch(/They do fit Kandawala .* and WGS 84 \/ UTM zone 44N: choose the one the survey is in\.$/);
+    // Swapped columns are offered nothing, though they land inside UTM 44N's box: pressing it would hide the swap.
+    const swapped = read("a.csv", csv).points.map((p) => ({ ...p, e: p.n, n: p.e }));
+    expect(CRS_REGISTRY.find((c) => c.id === "EPSG:32644")!.plausibleRange!.minE).toBeLessThan(700_000);
+    expect(gridsThatFit(swapped, SLD99)).toEqual([]);
+    expect(gridProblem(swapped, SLD99)!.problem).toMatch(/swapped/);
+    // One point is "it".
+    expect(gridProblem(site().slice(0, 1), SLD99)!.problem).toMatch(/^The point falls outside .* It fits none of the grids/);
+    expect(gridProblem([...read("a.csv", csv).points, ...site().slice(0, 1)], SLD99)!.problem).toMatch(/^1 of 4 points falls outside/);
+    // Points that fit the chosen grid, even in part, are offered nothing: some of them are the question.
+    expect(gridsThatFit(read("a.csv", csv).points, SLD99)).toEqual([]);
+    expect(gridsThatFit([...read("a.csv", csv).points, ...site()], SLD99)).toEqual([]);
   });
 
   it("draws with the Survey Department's list only when the files use at least two of its codes", () => {
@@ -189,11 +216,9 @@ describe("the files read together", () => {
 describe("what the start fills in for the surveyor", () => {
   const day = new Date("2026-11-23T08:00:00Z");
 
-  it("uses the surveyor's own name for the project, or one from the first file and the day", () => {
-    expect(startName("  Lot 4   boundary ", "a.csv", day)).toBe("Lot 4 boundary");
-    expect(startName("", "bankuwatta_job.sdr", day)).toBe("Survey from bankuwatta job, 23 Nov 2026");
-    expect(startName("", null, day)).toBe("Survey of 23 Nov 2026");
-    expect(startName("x".repeat(200), null, day)).toHaveLength(120);
+  it("reads what each file says about its job with it; the project's name is tested in job-facts.test.ts (stage 293)", () => {
+    expect(read("a.csv", csv).job).toEqual({ project: null, job: null, instrument: null, serial: null, scaleFactor: null, stations: [] });
+    expect(day.getUTCFullYear()).toBe(2026);
   });
 
   it("starts from the coordinate system the surveyor last confirmed, only when Farbaek still knows it", () => {

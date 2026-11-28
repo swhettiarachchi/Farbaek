@@ -7,12 +7,13 @@
  * two files that give one point two places, or points that don't fit the chosen grid each stop the start with one plain question.
  */
 import { codeBase, codeOf, dsrCodesIn, type CodeEntry } from "../codes";
-import { crsById, implausiblePoints, looksSwapped, type CrsRecord } from "../crs";
+import { CRS_REGISTRY, LOCAL_CRS, crsById, implausiblePoints, looksSwapped, type CrsRecord } from "../crs";
 import { suggestColumns } from "../import/columns";
 import { IMPORT_LIMITS, previewDelimited, type ColumnRole, type Delimiter, type ImportedPoint, type ImportIssue } from "../import/delimited";
 import { IMPORT_FORMATS, detectFormat, unreadableFile, type ImportFormat } from "../import/detect";
 import { readPoints, type PointsRead } from "../import/read";
 import type { AdjustMethod, InstrumentPrecision } from "../adjust";
+import { jobFacts, type JobFacts } from "./job-facts";
 
 /** What an uploaded file is to AutoSurvey. */
 export type UploadKind = "survey-data" | "sketch" | "document" | "unreadable";
@@ -55,6 +56,8 @@ export interface FileRead {
   surveyDate: string | null;
   /** When points were worked out from observations, with the traverse's closure and any adjustment: recorded with the import (ADR 0236, ADR 0241). */
   reduction: NonNullable<PointsRead["reduction"]> | null;
+  /** The job's name, instrument, scale factor and stations, as the file states them (stage 293); none for formats that state none. */
+  job: JobFacts;
 }
 
 export type FileReadResult = { ok: true; read: FileRead } | { ok: false; name: string; problem: string };
@@ -98,7 +101,7 @@ export function readSurveyFile(name: string, text: string, crs: CrsRecord | null
     return { ok: false, name, problem: `${where}${first.message}${errors.length > 1 ? ` (${errors.length - 1} more ${errors.length === 2 ? "problem" : "problems"} like this.)` : ""}` };
   }
   if (result.points.length === 0) return { ok: false, name, problem: "This file has no points in it." };
-  return { ok: true, read: { name, format, formatLabel, delimiter, hasHeader, columns, points: result.points, notes: result.issues.filter((i) => i.severity !== "error").slice(0, 20), surveyDate: result.surveyDate, reduction: result.reduction ?? null } };
+  return { ok: true, read: { name, format, formatLabel, delimiter, hasHeader, columns, points: result.points, notes: result.issues.filter((i) => i.severity !== "error").slice(0, 20), surveyDate: result.surveyDate, reduction: result.reduction ?? null, job: jobFacts(format, text) } };
 }
 
 /** A question that stops the start, with the file it's about when there is one. */
@@ -213,12 +216,43 @@ export function pointClashes(reads: readonly FileRead[]): StartProblem[] {
  * Do the points fit the coordinate system the surveyor chose? Farbaek never works the system out from the numbers (several
  * Sri Lankan and UTM grids overlap); this only catches a wrong choice or swapped columns before anything is saved.
  */
-export function gridProblem(points: readonly { e: number; n: number }[], crs: CrsRecord): StartProblem | null {
-  if (points.length === 0 || !crs.plausibleRange) return null;
-  const outside = implausiblePoints(points, crs);
+export function gridProblem(points: readonly { e: number; n: number; pointId?: string }[], crs: CrsRecord): StartProblem | null {
+  // Each point once: the same survey as an instrument file, a printout and a drawing is one set of points, not three (stage 293).
+  const each = onePerPoint(points);
+  if (each.length === 0 || !crs.plausibleRange) return null;
+  const outside = implausiblePoints(each, crs);
   if (outside === 0) return null;
-  if (looksSwapped(points, crs)) return { file: null, problem: `Every point falls outside ${crs.name} as read, and inside it with easting and northing swapped. Check the file's column order: Farbaek never swaps them by itself.` };
-  return { file: null, problem: `${outside} of ${points.length} ${points.length === 1 ? "point falls" : "points fall"} outside the area ${crs.name} covers. Check that the survey is in this coordinate system, or choose the right one.` };
+  if (looksSwapped(each, crs)) return { file: null, problem: `Every point falls outside ${crs.name} as read, and inside it with easting and northing swapped. Check the file's column order: Farbaek never swaps them by itself.` };
+  if (outside < each.length) return { file: null, problem: `${outside} of ${each.length} points ${outside === 1 ? "falls" : "fall"} outside the area ${crs.name} covers. Check those points, or choose the coordinate system the survey is in.` };
+  const one = each.length === 1;
+  const head = one ? `The point falls outside the area ${crs.name} covers.` : `All ${each.length} points fall outside the area ${crs.name} covers.`;
+  const fits = gridsThatFit(each, crs);
+  if (fits[0]?.id === LOCAL_CRS.id) return { file: null, problem: `${head} ${one ? "It fits" : "They fit"} none of the grids Farbaek knows, which is how a survey on its own site grid looks (its first station set up at 1000, 1000, for example). If it is, choose local coordinates.` };
+  return { file: null, problem: `${head} ${one ? "It does" : "They do"} fit ${fits.map((c) => c.name).join(" and ")}: choose the one the survey is in.` };
+}
+
+/** Each point once, by its number where it has one. */
+function onePerPoint<T extends { e: number; n: number; pointId?: string }>(points: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return points.filter((p) => {
+    const key = p.pointId ?? `${p.e},${p.n}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * The coordinate systems to offer when every point falls outside the chosen one: the grids every point fits, or local coordinates when
+ * none does. Only offered, for the surveyor to press: Farbaek never chooses a coordinate system from the numbers (several overlap).
+ */
+export function gridsThatFit(points: readonly { e: number; n: number; pointId?: string }[], chosen: CrsRecord): CrsRecord[] {
+  const each = onePerPoint(points);
+  if (each.length === 0 || implausiblePoints(each, chosen) < each.length) return [];
+  // Swapped columns are the question, never another grid: SLD99 points read northing first land inside UTM 44N's wide box.
+  if (looksSwapped(each, chosen)) return [];
+  const fit = CRS_REGISTRY.filter((c) => c.id !== chosen.id && implausiblePoints(each, c) === 0);
+  return fit.length > 0 ? fit : chosen.id === LOCAL_CRS.id ? [] : [LOCAL_CRS];
 }
 
 /** Whether to draw with the Survey Department's code list: when the files use at least two of its codes the project's list lacks. */
@@ -229,17 +263,6 @@ export function drawsWithDsrList(points: readonly ImportedPoint[], library: read
 /** The first survey date any file states, offered to the draft for the surveyor to check. */
 export function statedSurveyDate(reads: readonly FileRead[]): string | null {
   return reads.find((r) => r.surveyDate)?.surveyDate ?? null;
-}
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** The project's name: the surveyor's own, or one made from the first data file and the day ("Survey from bankuwatta, 23 Nov 2026"). */
-export function startName(title: string, firstFile: string | null, today: Date): string {
-  const own = title.trim().replace(/\s+/g, " ");
-  if (own) return own.slice(0, 120);
-  const day = `${today.getUTCDate()} ${MONTHS[today.getUTCMonth()]} ${today.getUTCFullYear()}`;
-  const stem = (firstFile ?? "").replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim().slice(0, 60);
-  return stem ? `Survey from ${stem}, ${day}` : `Survey of ${day}`;
 }
 
 /** The coordinate system to show first: the one this surveyor last confirmed, when it's still one Farbaek knows. */
