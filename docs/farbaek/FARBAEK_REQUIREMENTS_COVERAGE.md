@@ -111,7 +111,7 @@ Present: identity, conversations, memory, metering and usage, approvals, audit, 
 | Conditions, loops with limits | Not started |
 | Durable execution that survives a restart, retries, dead letters, checkpoints, idempotency | Partly: scheduled runs are claimed once under a lease in Postgres, retried twice, given ten minutes, and the task pauses itself after five that didn't finish (ADR 0278). Usage reserved by a call a restart cut off is given back each hour (ADR 0279). Agent builds and workflows still hold their run in the web server's memory for at most 40 minutes; no checkpoints inside a run |
 | Autonomy levels (Observe to Delegated) | Partly: the build agent has levels 0 to 4; automations have none |
-| Command center | Partly: the All work page and one pause (ADR 0283). Cost and acting from a row are not built |
+| Command center | Partly: the All work page and one pause (ADR 0283), and its board answered from any page in the palette (stage 290, ADR 0298). Cost and acting from a row are not built |
 
 ### A15, B8 Universal voice assistant: Partly in the browser, Not started on phones
 
@@ -119,11 +119,12 @@ Present: identity, conversations, memory, metering and usage, approvals, audit, 
 | --- | --- |
 | Dictation and read aloud in Chat (the browser's own speech) | Done |
 | Survey Studio's voice drafting assistant | Done |
-| Floating assistant, orb, quick actions | Partly: a microphone button beside the sidebar's search box opens the palette listening, and the palette hands a question, typed or spoken, to Chat (stage 289, ADR 0297). No answer in place, no quick actions that do work, no orb |
+| Floating assistant, orb, quick actions | Partly: a microphone button beside the sidebar's search box opens the palette listening, and the palette hands a question, typed or spoken, to Chat (stage 289, ADR 0297). Two questions about a person's own work (what needs me, what is in progress) are answered in place and said aloud when spoken, and the workspace's pause is shown in place with its real button (stage 290, ADR 0298). No model's answer in place, no orb |
 | Android: assistant role, App Functions, shortcuts, foreground service | Not started |
 | iPhone: App Intents, Siri, Shortcuts, Action Button, widgets, Live Activities | Not started |
 | Sinhala speech recognition and voice on the server | Not started (research report written: `reports/Voice drafting assistant technology.md`) |
-| `FARBAEK_VOICE_ASSISTANT.md`, `_ANDROID_SPEC`, `_IOS_SPEC` | Not written |
+| `FARBAEK_VOICE_ASSISTANT.md` | Written (stage 290) |
+| `_ANDROID_SPEC`, `_IOS_SPEC` | Not written |
 
 ### A16 Telepathy: Partly
 
@@ -245,10 +246,10 @@ Each stage has its record in `docs/stages/`, and the program's state is kept bet
 
 | Document | State |
 | --- | --- |
-| `FARBAEK_MASTER_AUDIT.md`, `_SKILLS_INVENTORY`, `_REFERENCE_RESEARCH`, `_DESIGN_SYSTEM`, `_MODEL_REGISTRY` (the "frontier model registry"), `_SUBSCRIPTION_ECONOMICS`, `_IMPLEMENTATION_PROGRESS` | Written |
+| `FARBAEK_MASTER_AUDIT.md`, `_SKILLS_INVENTORY`, `_REFERENCE_RESEARCH`, `_DESIGN_SYSTEM`, `_MODEL_REGISTRY` (the "frontier model registry"), `_SUBSCRIPTION_ECONOMICS`, `_IMPLEMENTATION_PROGRESS`, `_AUTOMATION_SPEC`, `_VOICE_ASSISTANT` | Written |
 | `FARBAEK_CHATGPT_RESEARCH.md` | Written as `FARBAEK_CHATGPT_STUDY.md` |
 | `FARBAEK_REQUIREMENTS_COVERAGE.md` | This page |
-| `_FEATURE_INVENTORY`, `_ROUTE_INVENTORY`, `_EXISTING_ARCHITECTURE`, `_REFERENCE_REGISTRY`, `_CLAUDE_RESEARCH`, `_DOTS_RESEARCH`, `_MUSE_RESEARCH`, `_ANTIGRAVITY_RESEARCH`, `_ADDITIONAL_PLATFORMS`, `_MODEL_BENCHMARKS`, `_INTELLIGENCE_ARCHITECTURE`, `_PRODUCT_ARCHITECTURE`, `_AUTOMATION_ARCHITECTURE` (or `_AUTOMATION_SPEC`), `_PERSISTENT_AGENTS` (or `_AGENT_RUNTIME`), `_SECURE_EXECUTION`, `_VOICE_ASSISTANT`, `_ANDROID_SPEC`, `_IOS_SPEC`, `_XAI_INTEGRATION`, `_API_AUDIT`, `_SECURITY_REVIEW`, `_SUBSCRIPTION_STRATEGY`, `_UNIT_ECONOMICS`, `_FINANCIAL_MODEL`, `_INVESTOR_READINESS`, `_TEST_REPORT`, `_REMAINING_ISSUES` | Not written. Each is written with the stage that builds its subject, never ahead of it |
+| `_FEATURE_INVENTORY`, `_ROUTE_INVENTORY`, `_EXISTING_ARCHITECTURE`, `_REFERENCE_REGISTRY`, `_CLAUDE_RESEARCH`, `_DOTS_RESEARCH`, `_MUSE_RESEARCH`, `_ANTIGRAVITY_RESEARCH`, `_ADDITIONAL_PLATFORMS`, `_MODEL_BENCHMARKS`, `_INTELLIGENCE_ARCHITECTURE`, `_PRODUCT_ARCHITECTURE`, `_PERSISTENT_AGENTS` (or `_AGENT_RUNTIME`), `_SECURE_EXECUTION`, `_ANDROID_SPEC`, `_IOS_SPEC`, `_XAI_INTEGRATION`, `_API_AUDIT`, `_SECURITY_REVIEW`, `_SUBSCRIPTION_STRATEGY`, `_UNIT_ECONOMICS`, `_FINANCIAL_MODEL`, `_INVESTOR_READINESS`, `_TEST_REPORT`, `_REMAINING_ISSUES` | Not written. Each is written with the stage that builds its subject, never ahead of it |
 
 ## The full order of work
 
@@ -258,7 +259,7 @@ Everything not done, in the order that lets each part stand on the one before. I
 2. Durable work: done for scheduled runs (stage 271) and for usage a restart left reserved (stage 272). Still to do: agent builds and workflows out of the server's memory, with checkpoints.
 3. Automation: schedules are built (stage 271), Chat offers them (stage 273), and a link starts a task from another app (stage 277). Still to do: triggers from inside Farbaek and from connected apps, workflows from words, a visual builder, conditions.
 4. Persistent agents: part 1 is built (stage 275): name, goal, schedule, a limit in runs, notes of its own, the memory switch, progress, pause, resume, remove. Still to do: a budget in AI usage, tools, more than one piece of work, talking to an agent.
-5. One command center with one pause: a first version is built (stage 276, All work). Still to do: each thing's cost, acting from the row, an owner's view of everyone's work.
+5. One command center with one pause: a first version is built (stage 276, All work), and its board is answered from any page (stage 290). Still to do: each thing's cost, acting from the row, an owner's view of everyone's work.
 6. **Telepathy part 1:** project awareness in Chat (built in stage 282, by names and states), suggested next steps with their reasons and corrections (built in stage 283, on Home), memory reaching Build's plans (built in stage 284), one memory across spaces, suggested next steps with "why this" and corrections.
 7. **The three modes:** a first version is built (stage 285): the menus' tools and Chat's list of models follow the level. Still to do: Settings, Build's workspace, the studios and the apps reading it; the choice kept with the account.
 8. Build starting in one place: built (stage 286, ADR 0294). One list of places in every frame: built (stage 287, ADR 0295); still to do there, one sidebar component for the app's frame and Chat's, and the list in Build's workspace on a phone. **The professional-colours pass** waits for the owner's answer.
@@ -267,7 +268,7 @@ Everything not done, in the order that lets each part stand on the one before. I
 11. Grok, X search and the X connector (needs the owner's xAI key, budget and X developer account).
 12. **Research Studio:** a first step is built (stage 288): the list of a person's research and a box that starts one. Still to do: reports saved on their own, monitoring, project knowledge.
 13. **Audio Studio:** transcription, speech, translation; then Sinhala voice.
-14. The voice assistant: a first step on the web is built (stage 289): asking from any page by voice or typing. Still to do: answers in place, quick actions, then iPhone and Android through their supported features.
+14. The voice assistant: on the web, asking from any page by voice or typing is built (stage 289), and so are answers in place about a person's own work and the pause as a quick action (stage 290). Still to do: a model's answer in place, more quick actions, a language for listening, then iPhone and Android through their supported features.
 15. **Secure work environment:** an isolated browser for agents, a persistent workspace, a credential vault for connectors, one task timeline.
 16. **Specialist agents** with their own model, tools, budget, risk level and audit.
 17. Plans: an entitlement for each kind of use, usage percentiles, Free and Enterprise, the financial model and strategy; then the new prices live (the owner).

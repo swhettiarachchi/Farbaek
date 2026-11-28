@@ -142,11 +142,30 @@ describe("what the palette lists, with the app's real pages (stage 289, ADR 0297
     expect(new Set(listed).size).toBe(listed.length);
   });
 
+  it("leads with what the assistant answers or does in place when the words are that request, whole (stage 290, ADR 0298)", () => {
+    expect(rankCommands("what needs me", pages, true).slice(0, 2)).toEqual(["needs", "ask"]);
+    expect(first("What's waiting for me?")).toBe("needs");
+    expect(first("what are you working on")).toBe("progress");
+    expect(first("pause everything")).toBe("pause");
+    expect(first("resume agents", false)).toBe("resume");
+    // Only the one that was asked for.
+    const listed = rankCommands("pause everything", pages, true);
+    for (const other of ["needs", "progress", "resume"]) expect(listed).not.toContain(other);
+    // A question that only shares words with one stays a question, and a page that was named still opens.
+    expect(first("what needs to change in my essay")).toBe("ask");
+    expect(first("how do I pause a video")).toBe("ask");
+    expect(first("in progress")).toBe("/app/work");
+    expect(rankCommands("bill", pages, true)).not.toContain("needs");
+  });
+
   it("lists every page and no typed command when nothing is typed, and never more than it is given room for", () => {
     const empty = rankCommands("", pages, true, 12);
     expect(empty).toHaveLength(12);
     expect(empty).not.toContain("ask");
-    expect(empty[0]).toBe("new");
+    // What needs the person is one press away, then the pages as before.
+    expect(empty[0]).toBe("needs");
+    expect(empty[1]).toBe("new");
+    for (const id of ["research", "build", "progress", "pause", "resume"]) expect(empty).not.toContain(id);
     expect(rankCommands("a", pages, true, 5).length).toBeLessThanOrEqual(5);
   });
 });
