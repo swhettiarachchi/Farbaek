@@ -178,7 +178,7 @@ export function SketchPanel(props: {
         </div>
       ) : (
         <p className="mt-1 text-sm text-ink-2">
-          Add photos of your field sketches, and Claude writes down the point numbers, distances, bearings and names on them, as written. Farbaek compares every measurement with your survey data, and the plan&apos;s checks show what differs. Nothing is drawn or moved from a sketch.
+          Add photos of your field sketches. Claude reads the point numbers, distances and names on them, as written, and Farbaek draws the lot, walls and road the sketch shows through your surveyed points, each waiting for you to check. No point moves, and every measurement is compared with your survey data.
         </p>
       )}
 

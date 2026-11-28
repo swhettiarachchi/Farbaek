@@ -391,6 +391,9 @@ export function AutoSurveyStart({
       let sketchRead: ReadOutcome = null;
       let deedRead: ReadOutcome = null;
       const said: string[] = [];
+      // Where the plan opens: chosen before the sketch was read, from what the points alone drew. A sketch that drew the plan opens it
+      // on the Plan step, where its questions are, never on the tools for drawing it by hand (stage 300).
+      let opened = r.next;
       if (toRead.length > 0) {
         setPhase("reading");
         setOpening(r.next);
@@ -412,12 +415,13 @@ export function AutoSurveyStart({
           // Nothing could be read: said here, where the sketches are, before the plan opens.
           sketchRead = read.readings === 0 ? "empty" : "read";
           if (read.readings === 0) said.push(read.message);
+          if ((read.drawn ?? 0) > 0) opened = `/app/survey/${r.projectId}?step=plan&generated=1`;
         }
       }
       // The deed or old plan into the title (stage 294), on the version the sketch's read saved.
       if (titleFrom.length > 0) {
         setPhase("title");
-        setOpening(r.next);
+        setOpening(opened);
         const form = new FormData();
         form.set("projectId", r.projectId);
         form.set("baseVersion", String(version));
@@ -434,10 +438,10 @@ export function AutoSurveyStart({
         }
       }
       if (said.length > 0) {
-        setDrawn({ next: r.next, failed, message: said.join(" "), sketch: sketchRead, deed: deedRead });
+        setDrawn({ next: opened, failed, message: said.join(" "), sketch: sketchRead, deed: deedRead });
         return;
       }
-      if (!left.current) router.push(r.next);
+      if (!left.current) router.push(opened);
     });
   };
 
@@ -785,6 +789,15 @@ export function AutoSurveyStart({
                 : `Generate Plan confirms the points are in ${crs?.name}, and records that you confirmed it.`}
           </p>
         </div>
+        {/* Points with no codes don't say which make the lot: the sketch does (stage 300). Said, never a block: a description works too. */}
+        {!pending && !blocked && !reading && sketchOff === null && points.length > 0 && points.every((p) => !p.code?.trim()) ? (
+          <p className="flex items-start gap-2 text-sm text-ink-2">
+            <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
+            {sketches.length === 0
+              ? "Your points carry no codes, so they don't say which points make the lot. Add a photo of your field sketch above, and Farbaek draws the lot, walls and road from it."
+              : "Your points carry no codes, so the lot is drawn from your sketch: tick reading it with Claude above."}
+          </p>
+        ) : null}
         {pending && (phase === "reading" || phase === "title") && opening ? (
           <p className="text-sm text-ink-2">
             <Link href={opening} onClick={() => (left.current = true)} className="font-medium text-accent underline-offset-2 hover:underline">

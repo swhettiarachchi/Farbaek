@@ -302,7 +302,7 @@ export function DraftPanel(props: DraftPanelProps) {
             rows={8}
             maxLength={BRIEF_MAX}
             disabled={running || props.draftOff !== null}
-            placeholder={"Sub division of lot B depicted in Plan No. 1234 dated 01.02.2003.\nLot B1 is points 1 2 3 8 7. Lot B2 is points 7 8 5 6.\nA road along points 9 10 and 11 12, from Main Road.\nBetween points 6 and 7 is the land claimed by the neighbour."}
+            placeholder={"For example: Lot A is points 1 2 3 4. A road along points 9 and 10."}
             className={textareaClasses()}
           />
           <span className="text-sm text-ink-3">
@@ -315,7 +315,10 @@ export function DraftPanel(props: DraftPanelProps) {
             {running && which === "draft" ? <CircleNotchIcon size={16} weight="bold" className="motion-safe:animate-spin" aria-hidden /> : <PenNibIcon size={16} weight="bold" aria-hidden />}
             {running && which === "draft" ? "Drafting the plan" : "Draft the plan"}
           </button>
-          <span className="text-sm text-ink-3">{props.draftOff ?? props.aiCost}</span>
+          {/* Why the button is off, never a grey button with no word (stage 300). */}
+          <span className="text-sm text-ink-3">
+            {props.draftOff ?? (brief.trim().length < 20 ? (brief.trim().length === 0 ? "Write which points make each lot, then draft the plan." : "Write a little more: which points make each lot, by their numbers.") : props.aiCost)}
+          </span>
         </div>
       </Card>
 
