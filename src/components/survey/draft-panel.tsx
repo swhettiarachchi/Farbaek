@@ -1,6 +1,6 @@
 "use client";
 
-import { CameraIcon, CheckCircleIcon, CircleNotchIcon, FloppyDiskIcon, PenNibIcon, QuestionIcon, TrashIcon, WarningCircleIcon, XIcon } from "@/components/icons";
+import { CameraIcon, CheckCircleIcon, CircleNotchIcon, FileTextIcon, FloppyDiskIcon, PenNibIcon, QuestionIcon, TrashIcon, WarningCircleIcon, XIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -20,6 +20,8 @@ import { SheetSvg } from "./sheet-svg";
 
 const BRIEF_MAX = 4_000;
 const PHOTO_MAX = 3;
+/** A scanned PDF's size, as the server takes it (PHOTO_LIMITS.pdfBytes). */
+const PDF_MAX = 3_000_000;
 
 export interface DraftPanelProps {
   projectId: string;
@@ -41,6 +43,8 @@ export interface DraftPanelProps {
 type Done = Extract<SurveyDraftState, { status: "done" }>;
 interface Photo {
   name: string;
+  /** A scanned PDF, sent as it is: Claude reads its pages (stage 296). */
+  pdf?: boolean;
   blob: Blob;
   url: string;
 }
@@ -107,7 +111,7 @@ export function DraftPanel(props: DraftPanelProps) {
       const form = new FormData();
       form.set("projectId", props.projectId);
       form.set("baseVersion", String(props.baseVersion));
-      photos.forEach((p, i) => form.append("photo", new File([p.blob], `photo-${i + 1}.jpg`, { type: "image/jpeg" })));
+      photos.forEach((p, i) => form.append("photo", p.pdf ? new File([p.blob], `scan-${i + 1}.pdf`, { type: "application/pdf" }) : new File([p.blob], `photo-${i + 1}.jpg`, { type: "image/jpeg" })));
       take(await readOldPlanAction(form));
     });
   };
@@ -121,6 +125,12 @@ export function DraftPanel(props: DraftPanelProps) {
     setShrinking(true);
     const added: Photo[] = [];
     for (const f of files.slice(0, room)) {
+      // A scanned PDF goes as it is, within its size: the server reads it by its own bytes (stage 296).
+      if (f.type === "application/pdf" || /.pdf$/i.test(f.name)) {
+        if (f.size > PDF_MAX) setError(`${f.name} is larger than ${PDF_MAX / 1_000_000} MB. Scan it at a lower resolution, or photograph its pages.`);
+        else added.push({ name: f.name, blob: f, url: "", pdf: true });
+        continue;
+      }
       try {
         const blob = await shrink(f);
         const url = URL.createObjectURL(blob);
@@ -315,9 +325,16 @@ export function DraftPanel(props: DraftPanelProps) {
           {photos.length > 0 ? (
             <ul className="flex flex-wrap gap-3">
               {photos.map((p, i) => (
-                <li key={p.url} className="grid w-28 gap-1">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of a photo that's never uploaded as-is */}
-                  <img src={p.url} alt={`Photo ${i + 1}, ${p.name}`} className="aspect-square w-28 rounded-sm object-cover ring-1 ring-line" />
+                <li key={`${i}-${p.name}`} className="grid w-28 gap-1">
+                  {p.pdf ? (
+                    <span className="grid aspect-square w-28 place-content-center justify-items-center gap-1 rounded-sm bg-canvas-2 p-2 text-center ring-1 ring-line">
+                      <FileTextIcon size={24} weight="bold" className="text-ink-3" aria-hidden />
+                      <span className="line-clamp-2 text-xs break-all text-ink-2">{p.name}</span>
+                    </span>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element -- a local preview of a photo that's never uploaded as-is
+                    <img src={p.url} alt={`Photo ${i + 1}, ${p.name}`} className="aspect-square w-28 rounded-sm object-cover ring-1 ring-line" />
+                  )}
                   <button type="button" onClick={() => removePhoto(i)} disabled={running} className={buttonClasses("ghost", "sm")}>
                     <TrashIcon size={16} weight="bold" aria-hidden />
                     Remove
@@ -328,10 +345,10 @@ export function DraftPanel(props: DraftPanelProps) {
           ) : null}
           <label className={`${buttonClasses("secondary", "md")} w-fit has-focus-visible:outline-2 has-focus-visible:outline-accent ${pickerOff ? "pointer-events-none opacity-50" : "cursor-pointer"}`}>
             {shrinking ? <CircleNotchIcon size={16} weight="bold" className="motion-safe:animate-spin" aria-hidden /> : <CameraIcon size={16} weight="bold" aria-hidden />}
-            {shrinking ? "Preparing the photos" : photos.length === 0 ? "Choose photos" : "Add a photo"}
+            {shrinking ? "Preparing the photos" : photos.length === 0 ? "Choose photos or a PDF" : "Add another"}
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               multiple
               className="sr-only"
               disabled={pickerOff}

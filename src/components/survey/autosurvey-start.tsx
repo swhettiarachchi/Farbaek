@@ -28,6 +28,9 @@ import { TraverseChoice } from "./traverse-choice";
 const CRS_OPTIONS = [...CRS_REGISTRY, LOCAL_CRS];
 /** Photos of the deed or an old plan read at a time: the server's limit for "Read an old plan" (PHOTO_LIMITS in drafting.ts). */
 const DEED_PHOTOS = 3;
+/** A scanned PDF of the deed or an old plan, sent as it is: the server's PHOTO_LIMITS.pdfBytes, and together within what one request carries. */
+const DEED_PDF_BYTES = 3_000_000;
+const DEED_TOTAL_BYTES = 5_500_000;
 // The common code list, made once: the list of points judges codes by it when nothing else is chosen.
 const COMMON_CODES = commonCodes();
 
@@ -201,7 +204,13 @@ export function AutoSurveyStart({
       const key = `${counter.current}-${file.name}`;
       const kind = kindOfUpload(file.name, file.type);
       if (kind === "document") {
-        added.push({ key, name: file.name, size: file.size, kind, reason: notReadYet(file.name) });
+        // A scanned PDF is read as the deed or an old plan, into the title (stage 296); Claude reads its pages. Other documents aren't read.
+        const pdf = file.type === "application/pdf" || /.pdf$/i.test(file.name);
+        if (pdf && file.size <= DEED_PDF_BYTES) {
+          added.push({ key, name: file.name, size: file.size, kind: "sketch", photo: file, problem: null, deed: true, pdf: true });
+          continue;
+        }
+        added.push({ key, name: file.name, size: file.size, kind, reason: pdf ? `This PDF is larger than ${DEED_PDF_BYTES / 1_000_000} MB. Scan it at a lower resolution, or photograph its pages.` : notReadYet(file.name) });
         continue;
       }
       if (kind === "sketch") {
@@ -321,7 +330,9 @@ export function AutoSurveyStart({
       : sketches.length > SKETCH_LIMITS.photos
         ? `Farbaek reads up to ${SKETCH_LIMITS.photos} sketches at a time. Remove some, or untick reading them.`
         : deeds.length > DEED_PHOTOS
-          ? `Farbaek reads up to ${DEED_PHOTOS} photos of the deed or old plan. Remove some, or untick reading them.`
+          ? `Farbaek reads up to ${DEED_PHOTOS} photos or scans of the deed or old plan. Remove some, or untick reading them.`
+          : deeds.reduce((sum, u) => sum + (u.photo?.size ?? 0), 0) > DEED_TOTAL_BYTES
+            ? "The deed's photos and scans are too large together. Remove some, or untick reading them."
           : sketchBytes > SKETCH_LIMITS.totalBytes
             ? "The sketch photos are too large together. Remove some, or untick reading them."
             : null;
@@ -531,7 +542,7 @@ export function AutoSurveyStart({
           {shown.map((u) => (
             <li key={u.key} className="flex items-start gap-3 rounded-md border border-line bg-surface p-3 shadow-e1 sm:p-4">
               <span aria-hidden className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-canvas-2 text-ink-2">
-                {u.kind === "sketch" ? <ImageIcon size={20} weight="bold" /> : <FileTextIcon size={20} weight="bold" />}
+                {u.kind === "sketch" && !u.pdf ? <ImageIcon size={20} weight="bold" /> : <FileTextIcon size={20} weight="bold" />}
               </span>
               <div className="grid min-w-0 flex-1 gap-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -555,7 +566,7 @@ export function AutoSurveyStart({
                     can't be used, so they can choose again. */}
                 {u.kind === "survey-data" && (u.adjust !== null || u.read?.reduction?.traverse) ? <TraverseChoice value={u.adjust} onChange={(m) => chooseAdjust(u.key, m)} disabled={pending || Boolean(drawn)} precision={weight} /> : null}
                 {/* What a photo is (stage 294): a field sketch is read for its lines and measurements, the deed or an old plan into the title. */}
-                {u.kind === "sketch" && u.photo ? (
+                {u.kind === "sketch" && u.photo && !u.pdf ? (
                   <div role="group" aria-label={`What ${u.name} is`} className="mt-1 inline-flex w-fit gap-1 rounded-full bg-canvas-2 p-1">
                     {([false, true] as const).map((deed) => (
                       <button

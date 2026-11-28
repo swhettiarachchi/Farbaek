@@ -25,6 +25,12 @@ describe("a photo marked as the deed or an old plan (stage 294)", () => {
     ]);
     const back = fromKept(kept, () => "k")!;
     expect(back.uploads.map((u) => u.kind === "sketch" && u.deed === true)).toEqual([true, false]);
+    // A scanned PDF keeps its mark too, and is only ever the deed (stage 296).
+    const pdf: Upload = { key: "p", name: "deed.pdf", size: 9, kind: "sketch", photo, problem: null, deed: true, pdf: true };
+    const pdfBack = fromKept(toKept([pdf], "", "LOCAL"), () => "k")!.uploads[0]!;
+    expect(pdfBack.kind === "sketch" && pdfBack.pdf === true && pdfBack.deed === true).toBe(true);
+    const notDeed = fromKept({ ...toKept([pdf], "", "LOCAL"), uploads: [{ ...toKept([pdf], "", "LOCAL").uploads[0]!, deed: undefined }] }, () => "k")!.uploads[0]!;
+    expect(notDeed.kind === "sketch" && "pdf" in notDeed).toBe(false);
     // Anything but true is no mark: a damaged entry is a sketch, as before.
     const odd = fromKept({ ...kept, uploads: [{ ...kept.uploads[0]!, deed: "yes" }] }, () => "k")!;
     expect(odd.uploads[0]!.kind === "sketch" && "deed" in odd.uploads[0]!).toBe(false);

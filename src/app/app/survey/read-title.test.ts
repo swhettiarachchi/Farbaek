@@ -8,7 +8,7 @@ import { emptyDocument, type SurveyDocument } from "@/core/survey/document";
 
 const { saves, reads, reader } = vi.hoisted(() => ({
   saves: [] as Record<string, unknown>[],
-  reads: { count: 0 },
+  reads: { count: 0, types: [] as string[] },
   reader: { result: null as unknown },
 }));
 
@@ -43,8 +43,9 @@ vi.mock("@/server/survey/drafting", async () => {
   const actual = await vi.importActual<typeof import("@/server/survey/drafting")>("@/server/survey/drafting");
   return {
     ...actual,
-    readSurveyPhotos: async () => {
+    readSurveyPhotos: async (_deps: unknown, _source: unknown, input: { images: { mediaType: string }[] }) => {
       reads.count++;
+      reads.types = input.images.map((i) => i.mediaType);
       return reader.result;
     },
   };
@@ -79,6 +80,7 @@ const readInto = (fields: Partial<SurveyDocument["sheet"]>) => {
 beforeEach(() => {
   saves.length = 0;
   reads.count = 0;
+  reads.types = [];
   reader.result = readInto({ landName: "Sample Watta", village: "Sample Village" });
 });
 
@@ -97,7 +99,9 @@ describe("reading the deed or an old plan into the title at the start", () => {
 
   it("sends nothing without the say-so, and refuses what isn't a photo", async () => {
     expect(await readTitleIntoPlanAction(form({ consent: "" }))).toMatchObject({ status: "error" });
-    expect(await readTitleIntoPlanAction(form({}, [new File(["%PDF-1.7"], "deed.pdf", { type: "application/pdf" })]))).toMatchObject({ status: "error" });
+    expect(await readTitleIntoPlanAction(form({}, [new File(["GIF89a"], "deed.gif", { type: "image/gif" })]))).toMatchObject({ status: "error" });
+    // A PDF's bytes decide, never its name: a "PDF" that isn't one is refused.
+    expect(await readTitleIntoPlanAction(form({}, [new File(["not a pdf"], "deed.pdf", { type: "application/pdf" })]))).toMatchObject({ status: "error" });
     expect(await readTitleIntoPlanAction(form({}, []))).toMatchObject({ status: "error" });
     expect(await readTitleIntoPlanAction(form({}, [jpeg(), jpeg(), jpeg(), jpeg()]))).toMatchObject({ status: "error" });
     expect(reads.count).toBe(0);
@@ -110,6 +114,18 @@ describe("reading the deed or an old plan into the title at the start", () => {
     reader.result = { ok: false, message: "Claude couldn't read the photo." };
     expect(await readTitleIntoPlanAction(form())).toEqual({ status: "error", message: "Claude couldn't read the photo." });
     expect(saves).toEqual([]);
+  });
+
+  it("reads a scanned PDF as it is, by its own bytes, within its size (stage 296)", async () => {
+    const pdf = (bytes: number) => new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, ...new Array(Math.max(0, bytes - 5)).fill(32)])], "deed.pdf", { type: "application/pdf" });
+    expect(await readTitleIntoPlanAction(form({}, [pdf(2_000), jpeg()]))).toMatchObject({ status: "done", filled: 2 });
+    expect(reads.types).toEqual(["application/pdf", "image/jpeg"]);
+    // Larger than a photo may be, within a PDF's own limit.
+    expect(await readTitleIntoPlanAction(form({}, [pdf(2_500_000)]))).toMatchObject({ status: "done" });
+    reads.count = 0;
+    expect(await readTitleIntoPlanAction(form({}, [pdf(3_100_000)]))).toMatchObject({ status: "error", message: "A PDF scan can be up to 3 MB. Scan it at a lower resolution, or photograph the pages." });
+    expect(await readTitleIntoPlanAction(form({}, [pdf(2_900_000), pdf(2_900_000)]))).toMatchObject({ status: "error" });
+    expect(reads.count).toBe(0);
   });
 
   it("refuses a version that isn't the latest before anything is read", async () => {

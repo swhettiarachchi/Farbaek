@@ -24,7 +24,7 @@ import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { SURVEY_AI_DAILY } from "@/server/survey/assistant";
-import { BRIEF_LIMITS, PHOTO_LIMITS, draftSurveyPlan, imageTypeOf, readSurveyPhotos, type SurveyDraftDeps } from "@/server/survey/drafting";
+import { BRIEF_LIMITS, PHOTO_LIMITS, draftSurveyPlan, imageTypeOf, readSurveyPhotos, scanLimit, scanTypeOf, type SurveyDraftDeps } from "@/server/survey/drafting";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { JobTracker, loadJob } from "@/server/survey/jobs";
 import { SKETCH_PHOTOS, checkPlanAgainstSketch, readFieldSketches } from "@/server/survey/sketches";
@@ -107,20 +107,32 @@ export async function draftSurveyPlanAction(input: { projectId: string; baseVers
   return { status: "done", source: "ai_brief", baseVersion: p.data.drawing.version, ...r.value };
 }
 
-/** "Read an old plan": reads photos of an earlier plan or deed into the title. The photos aren't stored. */
-export async function readOldPlanAction(form: FormData): Promise<SurveyDraftState> {
-  const projectId = String(form.get("projectId") ?? "");
-  const baseVersion = Number(form.get("baseVersion"));
+/**
+ * The photos or scanned PDFs of an earlier plan or deed sent with a read (stage 296), checked by their own bytes: each a JPEG, PNG or
+ * WebP photo within its size, or a PDF within its own; at most three, and within what one request carries together.
+ */
+async function scansOf(form: FormData, what: string): Promise<{ images: ReadRequest["images"] } | { error: string }> {
   const files = form.getAll("photo").filter((f): f is File => typeof f === "object" && f !== null && "arrayBuffer" in f);
-  if (files.length < 1 || files.length > PHOTO_LIMITS.count) return { status: "error", message: `Choose one to ${PHOTO_LIMITS.count} photos.` };
-  if (files.some((f) => f.size > PHOTO_LIMITS.bytes)) return { status: "error", message: "One of the photos is too large. Choose it again so Farbaek can shrink it." };
+  if (files.length < 1 || files.length > PHOTO_LIMITS.count) return { error: `Choose one to ${PHOTO_LIMITS.count} photos or PDF scans of ${what}.` };
+  if (files.reduce((sum, f) => sum + f.size, 0) > PHOTO_LIMITS.totalBytes) return { error: "The photos and scans are too large together. Send fewer, or smaller scans." };
   const images: ReadRequest["images"] = [];
   for (const f of files) {
     const data = Buffer.from(await f.arrayBuffer());
-    const mediaType = imageTypeOf(data);
-    if (!mediaType) return { status: "error", message: "Use photos or scans saved as JPEG, PNG or WebP." };
+    const mediaType = scanTypeOf(data);
+    if (!mediaType) return { error: "Use photos saved as JPEG, PNG or WebP, or scans saved as PDF." };
+    if (data.length > scanLimit(mediaType)) return { error: mediaType === "application/pdf" ? `A PDF scan can be up to ${PHOTO_LIMITS.pdfBytes / 1_000_000} MB. Scan it at a lower resolution, or photograph the pages.` : "One of the photos is too large. Choose it again so Farbaek can shrink it." };
     images.push({ mediaType, data });
   }
+  return { images };
+}
+
+/** "Read an old plan": reads photos or scanned PDFs of an earlier plan or deed into the title. They aren't stored. */
+export async function readOldPlanAction(form: FormData): Promise<SurveyDraftState> {
+  const projectId = String(form.get("projectId") ?? "");
+  const baseVersion = Number(form.get("baseVersion"));
+  const scans = await scansOf(form, "the old plan or deed");
+  if ("error" in scans) return { status: "error", message: scans.error };
+  const { images } = scans;
   const p = await prepare(projectId, baseVersion, "Reading old plans", "read");
   if ("error" in p) return { status: "error", message: p.error };
   const r = await readSurveyPhotos(p.ai.deps, p.source, { ...p.common, images });
@@ -140,16 +152,9 @@ export async function readTitleIntoPlanAction(form: FormData): Promise<TitleRead
   if (form.get("consent") !== "yes") return { status: "error", message: "The deed or old plan is read only when you agree to send its photos to Anthropic for reading." };
   const projectId = String(form.get("projectId") ?? "");
   const baseVersion = Number(form.get("baseVersion"));
-  const files = form.getAll("photo").filter((f): f is File => typeof f === "object" && f !== null && "arrayBuffer" in f);
-  if (files.length < 1 || files.length > PHOTO_LIMITS.count) return { status: "error", message: `Choose one to ${PHOTO_LIMITS.count} photos of the deed or old plan.` };
-  if (files.some((f) => f.size > PHOTO_LIMITS.bytes)) return { status: "error", message: "One of the photos is too large. Choose it again so Farbaek can shrink it." };
-  const images: ReadRequest["images"] = [];
-  for (const f of files) {
-    const data = Buffer.from(await f.arrayBuffer());
-    const mediaType = imageTypeOf(data);
-    if (!mediaType) return { status: "error", message: "Use photos or scans saved as JPEG, PNG or WebP." };
-    images.push({ mediaType, data });
-  }
+  const scans = await scansOf(form, "the deed or old plan");
+  if ("error" in scans) return { status: "error", message: scans.error };
+  const { images } = scans;
   const p = await prepare(projectId, baseVersion, "Reading old plans", "read");
   if ("error" in p) return { status: "error", message: p.error };
   const r = await readSurveyPhotos(p.ai.deps, p.source, { ...p.common, images });

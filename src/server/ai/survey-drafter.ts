@@ -32,9 +32,9 @@ Never invent names, plan numbers, dates, lot labels, point numbers, owners, road
 
 ${DATA_RULE}`;
 
-export const SURVEY_READ_PROMPT = `You help a licensed land surveyor in Sri Lanka by reading photos or scans of an earlier survey plan or a deed for the land they are surveying now, so they don't retype its title. You get one to three images, and as JSON the field names you may fill.
+export const SURVEY_READ_PROMPT = `You help a licensed land surveyor in Sri Lanka by reading photos or scans of an earlier survey plan or a deed for the land they are surveying now, so they don't retype its title. You get one to three images or scanned PDFs, and as JSON the field names you may fill.
 
-The document in the images is the earlier record of this land, not the new plan. So:
+The document in the images or PDFs is the earlier record of this land, not the new plan. So:
 - Its own plan number, date and surveyor go in "previousPlanNumber", "previousPlanDate" and "previousPlanBy", never in "planNumber", "surveyDate" or "partitionDate", which belong to the new survey. A deed that says the land is depicted in a plan gives that plan's number, date and surveyor the same way. "previousPlanFiling" is where that plan was filed of record, as printed.
 - The land's name, alias and "now called and known as" name, the village, pattu, korale, district, province and GN division, what bounds the entire land on each side ("North by" and so on) and the lots it describes ("parentLots") are read as printed.
 - "statedExtent" is the extent exactly as printed, such as "0 A. 2 R. 04.60 P." or "0.21398 Hectares". Never convert or recompute it.
@@ -55,7 +55,8 @@ export interface DraftRequest {
 }
 
 export interface ReadRequest {
-  images: { mediaType: "image/jpeg" | "image/png" | "image/webp"; data: Buffer }[];
+  /** Photos, or scanned PDFs whose pages Claude reads itself (stage 296). */
+  images: { mediaType: "image/jpeg" | "image/png" | "image/webp" | "application/pdf"; data: Buffer }[];
 }
 
 export type SurveyDraftOutcome = { ok: true; output: DraftOutput; usage: ProviderUsage } | { ok: false; failure: DraftFailure; usage: ProviderUsage | null };
@@ -117,7 +118,12 @@ export function createAnthropicSurveyDrafter(options: { model: string; client?: 
       call(
         SURVEY_READ_PROMPT,
         [
-          ...request.images.map((img): Anthropic.Beta.Messages.BetaContentBlockParam => ({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data.toString("base64") } })),
+          ...request.images.map((img): Anthropic.Beta.Messages.BetaContentBlockParam =>
+            // A scanned PDF goes as a document, whose pages Claude reads itself (stage 296); a photo as an image.
+            img.mediaType === "application/pdf"
+              ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: img.data.toString("base64") } }
+              : { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data.toString("base64") } },
+          ),
           { type: "text", text: surveyReadMessage() },
         ],
         signal,

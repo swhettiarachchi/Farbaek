@@ -20,7 +20,11 @@ export const MANUAL_SURVEY_DRAFT = "Add the lots on the Lots step and fill in th
 export const MANUAL_SURVEY_READ = "Type the earlier plan's details into the title on the Plan step yourself.";
 
 export const BRIEF_LIMITS = { min: 20, max: 4_000 } as const;
-export const PHOTO_LIMITS = { count: 3, bytes: 1_800_000 } as const;
+/**
+ * Photos or scans of an earlier plan or deed: a photo as the browser shrank it, or a scanned PDF as it is (stage 296), within the 6 MB a
+ * server action carries.
+ */
+export const PHOTO_LIMITS = { count: 3, bytes: 1_800_000, pdfBytes: 3_000_000, totalBytes: 5_500_000 } as const;
 
 export interface SurveyDraftDeps {
   recordAiDraft(input: { orgId: string; actor: string; projectId: string; operation: "survey_draft" | "survey_read"; model: string; accepted: number; dropped: number; questions: number }): Promise<RpcResult<null>>;
@@ -136,7 +140,19 @@ export async function readSurveyPhotos(deps: Deps, source: ModelSource<SurveyDra
 }
 
 /** What a photo's first bytes say it is: JPEG, PNG or WebP, or null. The browser's word for it isn't trusted. */
-export function imageTypeOf(bytes: Uint8Array): ReadRequest["images"][number]["mediaType"] | null {
+/**
+ * A scan of an earlier plan or deed: a photo, or a PDF by its own first bytes (stage 296). Claude reads a PDF's pages itself, so nothing
+ * here opens it. Never by the name or the type the browser says.
+ */
+export function scanTypeOf(bytes: Uint8Array): ReadRequest["images"][number]["mediaType"] | null {
+  if (bytes.length >= 5 && String.fromCharCode(...bytes.slice(0, 5)) === "%PDF-") return "application/pdf";
+  return imageTypeOf(bytes);
+}
+
+/** The size a scan may be: a PDF as it is, a photo as the browser shrank it. */
+export const scanLimit = (mediaType: ReadRequest["images"][number]["mediaType"]) => (mediaType === "application/pdf" ? PHOTO_LIMITS.pdfBytes : PHOTO_LIMITS.bytes);
+
+export function imageTypeOf(bytes: Uint8Array): Exclude<ReadRequest["images"][number]["mediaType"], "application/pdf"> | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
   if (bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((b, i) => bytes[i] === b)) return "image/png";
   if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP") return "image/webp";
