@@ -38,15 +38,29 @@ export const STYLE_WORDS: Record<SketchHabit["style"], string> = { double: "a do
  * The codes a habit for this style may name (stage 298): the code list's lines and outlines of the kind the style is drawn for (walls for a
  * double line), the ones written most on this sketch first, at most three.
  */
-export function habitChoices(style: SketchHabit["style"], codes: readonly CodeEntry[], written: readonly string[]): CodeEntry[] {
+export function habitChoices(style: SketchHabit["style"], codes: readonly CodeEntry[], written: readonly string[], limit = 3): CodeEntry[] {
   const count = (c: CodeEntry) => written.filter((w) => entryOf(w.trim(), codes)?.code === c.code).length;
   return codes
     .filter((c) => (c.kind === "line" || c.kind === "outline") && kindOfEntry(c) === HABIT_KIND[style])
     .map((c, i) => ({ c, n: count(c), i }))
     .sort((a, b) => b.n - a.n || a.i - b.i)
-    .slice(0, 3)
+    .slice(0, limit)
     .map((x) => x.c);
 }
+
+/**
+ * The code list's line or outline a habit names, of the kind its style is drawn for (MW the masonry wall, never MW the mark on a wall), or
+ * null when this list has none: a habit carried onto a plan with another list does nothing there, and isn't said to.
+ */
+export function habitEntry(habit: SketchHabit, codes: readonly CodeEntry[]): CodeEntry | null {
+  return codes.find((c) => c.code === habit.code && (c.kind === "line" || c.kind === "outline") && kindOfEntry(c) === HABIT_KIND[habit.style]) ?? null;
+}
+
+/** "a masonry wall", "an iron fence": a code's meaning as a thing a line is. */
+export const asThing = (meaning: string) => `${/^[aeiou]/i.test(meaning.trim()) ? "an" : "a"} ${meaning.trim().toLowerCase()}`;
+
+/** A habit as the surveyor said it: "a double line is a masonry wall (MW)". */
+export const habitSaid = (style: SketchHabit["style"], entry: CodeEntry) => `${STYLE_WORDS[style]} is ${asThing(entry.meaning)} (${entry.code})`;
 
 /** Words that name a kind of line, in English and Sinhala, tried in this order. */
 const WORDS: { kind: LineKind; re: RegExp; why: string }[] = [
@@ -84,8 +98,8 @@ export function classifyLine(label: string, style: SketchLineStyle, codes: reado
   for (const w of WORDS) if (t && w.re.test(t)) return { kind: w.kind, code: null, why: w.why, fromWriting: true };
   // Nothing written along it, and the surveyor has said what a line drawn this way is on their sketches (stage 298): their word.
   const habit = !t && (style === "double" || style === "crossed") ? habits.find((h) => h.style === style) : undefined;
-  const own = habit ? entryOf(habit.code, codes) : null;
-  if (own && (own.kind === "line" || own.kind === "outline")) return { kind: kindOfEntry(own), code: own, why: `it's drawn as ${STYLE_WORDS[style as SketchHabit["style"]]}, which is ${own.meaning.toLowerCase()} (${own.code}) on your sketches, as you said`, fromWriting: false, fromHabit: true };
+  const own = habit ? habitEntry(habit, codes) : null;
+  if (habit && own) return { kind: kindOfEntry(own), code: own, why: `it's drawn as ${STYLE_WORDS[habit.style]}, which is ${asThing(own.meaning)} (${own.code}) on your sketches, as you said`, fromWriting: false, fromHabit: true };
   if (style === "double") return { kind: "wall", code: null, why: "it's drawn as a double line, as walls are, with nothing written along it", fromWriting: false };
   if (style === "crossed") return { kind: "fence", code: null, why: "it's drawn with x marks along it, as wire fences are, with nothing written along it", fromWriting: false };
   return { kind: "line", code: null, why: t ? `"${t}" isn't a code in the code list or a word Farbaek knows` : "nothing is written along it", fromWriting: false };

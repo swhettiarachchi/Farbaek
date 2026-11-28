@@ -7,6 +7,8 @@ import { NewSurveyProjectForm } from "@/components/survey/forms";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FOCUSED_TITLE } from "@/components/ui/titles";
 import { startingCrs } from "@/core/survey/autosurvey/start";
+import { commonCodes } from "@/core/survey/codes";
+import { habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
 import { readModelKey } from "@/server/ai/workspace-ai";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { surveyReadOnlyReason } from "@/server/survey/access";
@@ -53,6 +55,11 @@ export default async function NewSurveyPage() {
   const [profiles, lastProfile] = client ? await Promise.all([loadOfficeProfiles(client, ctx.current.id), loadProfileChoice(client, ctx.current.id, ctx.user.id)]) : [[], null];
   const likely = resolveProfile(profiles, { formats: [], lastChosen: lastProfile }).chosen;
   const profileCrs = likely?.body.crsId ? startingCrs(likely.body.crsId) : null;
+  // The surveyor's sketch habits (stage 298), said as they said them ("a double line is a masonry wall (MW)"), in the code list the plan
+  // starts with: one that list has no such line for does nothing on it, so it isn't said.
+  const startList = likely?.body.codes?.entries ?? defaults.codes?.entries ?? commonCodes();
+  const habitsSaid = "habits" in defaults && defaults.habits ? defaults.habits.entries.flatMap((h) => { const e = habitEntry(h, startList); return e ? [habitSaid(h.style, e)] : []; }) : [];
+  const carriedHabits = habitsSaid.length > 0 && "habits" in defaults && defaults.habits ? { from: defaults.habits.from, said: habitsSaid } : null;
 
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-6 pt-2 sm:pt-6 lg:gap-8">
@@ -71,7 +78,7 @@ export default async function NewSurveyPage() {
         disabledReason={disabledReason}
         sketchOff={sketchOff}
         aiCost={aiCost}
-        carried={carried}
+        carried={{ ...carried, habits: carriedHabits }}
         userId={disabledReason ? null : ctx.user.id}
         orgId={ctx.current.id}
       />

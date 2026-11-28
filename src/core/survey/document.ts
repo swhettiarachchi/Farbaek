@@ -298,6 +298,11 @@ export const surveyDocumentSchema = z.object({
    */
   sketchHabits: z.array(z.object({ style: z.enum(["double", "crossed"]), code: text(12).pipe(z.string().min(1)) })).max(2).optional(),
   /**
+   * When the surveyor last said or forgot a sketch habit (stage 298), carried with them: the newest decision is the one a new plan starts
+   * from, whichever plan was saved last.
+   */
+  sketchHabitsSaidAt: z.iso.datetime().optional(),
+  /**
    * Words the surveyor writes on the plan (stage 255, ADR 0263): beside a surveyed point, or along the line from it to another, such as
    * "Gate" or "Proposed Drain". Presentation only: nothing is measured from them. Absent until the first, so earlier approvals stand.
    */

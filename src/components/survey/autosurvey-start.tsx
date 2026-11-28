@@ -99,7 +99,7 @@ export function AutoSurveyStart({
   /** What reading them costs, in a sentence. */
   aiCost: string;
   /** What a new plan takes from this surveyor's own recent plans (ADR 0237). */
-  carried?: { codes: { from: string; count: number } | null; sheet: { from: string; paper: string; orientation: string } | null; grammar?: { id: GrammarId; from: string } | null };
+  carried?: { codes: { from: string; count: number } | null; sheet: { from: string; paper: string; orientation: string } | null; grammar?: { id: GrammarId; from: string } | null; habits?: { from: string; said: string[] } | null };
 }) {
   const router = useRouter();
   const [uploads, setUploads] = useState<Upload[]>([]);
@@ -736,6 +736,11 @@ export function AutoSurveyStart({
         {!profile?.body.codes && carried.grammar && !(library && grammarForLibrary(library.name)) ? (
           <p className="text-sm text-ink-2">
             Line words: read the {GRAMMAR[carried.grammar.id].label} way ({GRAMMAR[carried.grammar.id].words}), as on <span className="font-medium text-ink">{carried.grammar.from}</span>.
+          </p>
+        ) : null}
+        {carried.habits ? (
+          <p className="text-sm text-ink-2">
+            Your sketch habits: {carried.habits.said.join("; ")}, as you said on <span className="font-medium text-ink">&ldquo;{carried.habits.from}&rdquo;</span>. Farbaek won&apos;t ask about those lines.
           </p>
         ) : null}
         {profile?.body.sheet ? (

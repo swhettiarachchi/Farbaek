@@ -14,6 +14,7 @@ import { withDefaults } from "@/core/survey/autosurvey/defaults";
 import { officeProfileBodySchema, profileFromPlan, profilePrecision, withProfile, type OfficeProfile } from "@/core/survey/profile";
 import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
 import { interpretDocument } from "@/core/survey/sketchintel/findings";
+import { HABIT_KIND, STYLE_WORDS, habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
@@ -456,7 +457,14 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
   }
   // What was read from the sketches is only ever written by reading them (readSketchesAction): a plan saved from the browser keeps
   // the stored readings, so none can be made up, changed or removed to clear a difference that holds approval.
-  const next = { ...pruned, sketch: data.drawing.readable ? data.drawing.document.sketch : null };
+  const next: SurveyDocument = { ...pruned, sketch: data.drawing.readable ? data.drawing.document.sketch : null };
+  // The surveyor's sketch habits are set only by their press on a card (saveSketchHabitAction): a plan saved from the browser keeps the
+  // stored ones, so none can be set, changed or carried without it.
+  delete next.sketchHabits;
+  delete next.sketchHabitsSaidAt;
+  const stored = data.drawing.readable ? data.drawing.document : null;
+  if (stored?.sketchHabits !== undefined) next.sketchHabits = stored.sketchHabits;
+  if (stored?.sketchHabitsSaidAt !== undefined) next.sketchHabitsSaidAt = stored.sketchHabitsSaidAt;
   // Marks for items no longer on the plan are dropped, so none can hold an approval with nothing to check.
   const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: tidy(pruneProvenance(next), data), note: input.note?.slice(0, 200) ?? null });
   if (!r.ok) return { status: "error", message: r.message };
@@ -549,6 +557,80 @@ export async function confirmSketchItemsAction(input: { projectId: string; baseV
   revalidatePath(`/app/survey/${input.projectId}`);
   const left = input.keys.length - keys.length;
   return { status: "done", message: `Confirmed ${what}${left > 0 ? `; ${left} gained a question since, so ${left === 1 ? "it stays" : "they stay"} on the list` : ""}. Saved as version ${r.value}.`, version: r.value };
+}
+
+const habitInput = z.object({ projectId: z.string().uuid(), baseVersion: z.number().int().min(1), style: z.enum(["double", "crossed"]), code: z.string().min(1).max(12).optional() });
+
+/**
+ * The surveyor's sketch habit (stage 298, ADR 0304): "on my sketches, a double line is a masonry wall". Saved as theirs on this plan and
+ * carried to their next ones. The code must be one the card offers, of the kind the style is drawn for, in the plan's own list. The lines
+ * the sketch drew that way, with nothing written along them and nobody has confirmed yet, take the code at once; anything confirmed or
+ * drawn by hand is left as it is. Saved as a new version that says what was said.
+ */
+export async function saveSketchHabitAction(input: z.input<typeof habitInput>): Promise<SurveyFormState> {
+  const parsed = habitInput.safeParse(input);
+  if (!parsed.success || !parsed.data.code) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const { projectId, baseVersion, style, code } = parsed.data;
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be saved on it. Reload, or ask support." };
+  const doc = structuredClone(data.drawing.document);
+  const entry = habitEntry({ style, code }, doc.codes);
+  if (!entry) return { status: "error", message: `${code} isn't a ${HABIT_KIND[style]} in this plan's code list. Choose one the card offers.` };
+  // A line keeps any code it has, unless that code is the one this habit replaces: one the surveyor typed is theirs.
+  const before = (doc.sketchHabits ?? []).find((h) => h.style === style)?.code;
+  doc.sketchHabits = [...(doc.sketchHabits ?? []).filter((h) => h.style !== style), { style, code }];
+  doc.sketchHabitsSaidAt = new Date().toISOString();
+  // What the sketch drew that way and nobody has confirmed takes the code now; the interpretation says which, by the same rule.
+  const sketch = interpretDocument(doc, data.points);
+  let changed = 0;
+  for (const f of doc.features) {
+    const mark = doc.provenance[`feature:${f.id}`];
+    if (mark?.source !== "ai_photo" || mark.reviewed) continue;
+    const p = sketch?.proposals.find((x) => x.kind === "line" && x.id === f.id);
+    if (!p || p.kind !== "line" || p.code !== code || f.code === code || (f.code !== "" && f.code !== before)) continue;
+    const drawn = doc.sketch?.drawing?.lines.find((l) => p.from.includes(l.id));
+    if (!drawn || drawn.style !== style || drawn.label.trim()) continue;
+    f.code = code;
+    f.layer = p.layer;
+    changed++;
+  }
+  const next = tidy(pruneProvenance(doc), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const said = habitSaid(style, entry);
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId, baseVersion, document: next, note: `Your sketch habit: ${said}`.slice(0, 200) });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${projectId}`);
+  return { status: "done", message: `Saved: on your sketches, ${said}.${changed > 0 ? ` ${changed} ${changed === 1 ? "line takes" : "lines take"} it now.` : ""} Your next plans start with it. Saved as version ${r.value}.`, version: r.value };
+}
+
+/**
+ * Forgets a sketch habit (stage 298): the lines it named keep their code until the surveyor changes them, and the question comes back for
+ * any not yet confirmed. Forgetting the last one leaves an empty list, so it isn't carried back from an older plan.
+ */
+export async function forgetSketchHabitAction(input: z.input<typeof habitInput>): Promise<SurveyFormState> {
+  const parsed = habitInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const { projectId, baseVersion, style } = parsed.data;
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be saved on it. Reload, or ask support." };
+  const doc = structuredClone(data.drawing.document);
+  if (!(doc.sketchHabits ?? []).some((h) => h.style === style)) return { status: "error", message: "That habit isn't on this plan any more. Reload to see the plan as it is now." };
+  doc.sketchHabits = (doc.sketchHabits ?? []).filter((h) => h.style !== style);
+  doc.sketchHabitsSaidAt = new Date().toISOString();
+  const next = tidy(pruneProvenance(doc), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId, baseVersion, document: next, note: `Sketch habit forgotten: ${STYLE_WORDS[style]}` });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${projectId}`);
+  return { status: "done", message: `Forgotten. Farbaek asks again what ${STYLE_WORDS[style]} is. Saved as version ${r.value}.`, version: r.value };
 }
 
 const lotLabelInput = z.object({
