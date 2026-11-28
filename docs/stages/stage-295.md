@@ -1,6 +1,6 @@
 # Stage 295: fewer confirmations, measured on the real job
 
-Checked live after stage 294 (#350, build 234e5a17f5e3): a fresh Generate names the surveyor on the sheet ("U.Hettiarachchi, Licensed Surveyor & Leveller"), and the real job's plan has the lot's label field on its card. But no sketch line was grouped, and the plan still asked for 44 confirmations. Decision: ADR 0302.
+Checked live after stage 294 (#350, build 234e5a17f5e3): a fresh Generate names the surveyor on the sheet (the surveyor's own details, in place of "Surveyor not chosen yet"), and the real job's plan has the lot's label field on its card. But no sketch line was grouped, and the plan still asked for 44 confirmations. Decision: ADR 0302.
 
 ## What was done
 
@@ -16,3 +16,12 @@ Checked live after stage 294 (#350, build 234e5a17f5e3): a fresh Generate names 
 ## Next
 
 - After the merge: the live plan's count, from production's own repeated reads.
+
+## Review after the merge
+
+A fresh review found two ways a line through a doubted number could still be confirmed with the rest, both fixed (`fix/stage-295-review`):
+
+- The question about a number written where another point would be was answered on one item's card (the lot, or the first line through it) and named no other line, so the walls through that number counted as settled. It now names every line through the number (`lines`), as the crossing question does.
+- Two agreeing reads settled a line even through a number read with doubt (a 16 that may be 91, or numbers the reads disagreed on). Reads agreeing now settle a line only when none of its numbers was read with doubt (`doubtfulNumbers`); a sure read still does.
+
+This note named the surveyor as printed on the sheet; the name is taken out.

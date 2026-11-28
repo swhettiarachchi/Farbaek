@@ -85,6 +85,10 @@ describe("the engine asks, and the lot's card says so", () => {
     expect(q?.item).toBe(lot.id);
     expect(lot.evidence.join(" ")).toContain("Its corner 4 may be misread: it's written on the sketch where point 8 would be.");
     expect(lot.level).toBe("check");
+    // Asked on the lot's card, but it names both walls through 4 (stage 295 review): neither is settled while it's open.
+    const through4 = r.proposals.filter((p) => p.kind === "line" && p.points.some((x) => x.pointId === "4")).map((p) => p.id);
+    expect(through4).toHaveLength(2);
+    expect([...(q?.lines ?? [])].sort()).toEqual([...through4].sort());
   });
 
   it("offers the correction in one press only when the other point's number isn't written too (stage 249)", () => {
