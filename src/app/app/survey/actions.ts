@@ -11,6 +11,7 @@ import { startName } from "@/core/survey/autosurvey/job-facts";
 import { codesAreCommonList, dsrCodes } from "@/core/survey/codes";
 import { LIBRARY_LIMITS, libraryFor, parseCodeLibrary } from "@/core/survey/codelib";
 import { withDefaults } from "@/core/survey/autosurvey/defaults";
+import { asThePlanHasThem, conflictSaid, pointConflicts, updateForNewPoints } from "@/core/survey/autosurvey/update";
 import { officeProfileBodySchema, profileFromPlan, profilePrecision, withProfile, type OfficeProfile } from "@/core/survey/profile";
 import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
 import { interpretDocument } from "@/core/survey/sketchintel/findings";
@@ -363,6 +364,117 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
   const next = `/app/survey/${projectId}?step=${drawn ? "plan" : "draft"}&generated=1`;
   await job.stage("draw", drawing.ok ? "done" : "failed", !drawing.ok ? drawing.message : drawn ? `Version ${drawn}: ${drawing.drawn.length} ${drawing.drawn.length === 1 ? "thing" : "things"} drawn.` : (drawing.notDrawn[0] ?? "Nothing to draw from the points."), { next });
   return { status: "done", projectId, next, version: drawn ?? 1, jobId: job.id };
+}
+
+const addInput = z.object({
+  projectId: uuid,
+  /** The version the surveyor was looking at: the plan is updated on it, or not at all. */
+  baseVersion: z.number().int().min(1),
+  /** The grid the page showed: files are read in it, and nothing is added if it has changed since. */
+  crsId: z.string().max(40),
+  files: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(200).regex(/^[^\u0000-\u001f\u007f]+$/),
+        content: z.string().max(IMPORT_LIMITS.maxBytes),
+        /** The rule the surveyor chose for this file's traverse (ADR 0241); none keeps its points as shot. */
+        adjust: z.enum(ADJUST_METHODS).nullable().default(null),
+      }),
+    )
+    .min(1)
+    .max(START_LIMITS.files),
+});
+
+export type AddState =
+  | { status: "idle" }
+  | { status: "error"; message: string; problems: StartProblem[] }
+  /** `before` is the version the update was made on, for "See what changed". */
+  | { status: "done"; message: string; version: number; before: number; newPoints: number; said: string[]; kept: string[] };
+
+/**
+ * "Add to this plan" (stage 306, ADR 0311): more survey files for a plan already drawn. Every file is read again here with the same tested
+ * readers; any that can't be read, a point number given twice, points off the plan's grid, or a point the plan already has somewhere
+ * else stops it before anything is imported, each said with what to do. Points the plan has are sent exactly as it has them, so each is
+ * kept once. Then each file is imported as its own source, and the plan is updated only where the new points change it
+ * (`updateForNewPoints`), saved as one version. A file that fails part way still leaves the plan updated for those before it, and a save
+ * another press got in before is made again once on the newest version, so the points imported are never left undrawn.
+ */
+export async function addToSurveyPlanAction(input: z.input<typeof addInput>): Promise<AddState> {
+  const parsed = addInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST, problems: [] };
+  const i = parsed.data;
+  const bytes = i.files.reduce((sum, f) => sum + f.content.length, 0);
+  if (bytes > START_LIMITS.dataBytes) return { status: "error", message: `These files hold more than ${START_LIMITS.dataBytes / 1024 / 1024} MB of survey data together. Add fewer at a time.`, problems: [] };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message, problems: [] };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, i.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND, problems: [] };
+  if (data.project.crsId !== i.crsId) return { status: "error", message: SURVEY_MESSAGES.CRS_CHANGED, problems: [] };
+  if (data.drawing.version !== i.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT, problems: [] };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be added to it. Reload, or ask support.", problems: [] };
+  const crs = crsById(data.project.crsId);
+  if (!crs) return { status: "error", message: "This plan's coordinate system isn't one Farbaek knows, so nothing can be added to it.", problems: [] };
+
+  const reads: FileRead[] = [];
+  const contents: string[] = [];
+  const problems: StartProblem[] = [];
+  for (const f of i.files) {
+    const r = readSurveyFile(f.name, f.content, crs, f.adjust);
+    if (r.ok) {
+      reads.push(r.read);
+      contents.push(f.content);
+    } else problems.push({ file: r.name, problem: r.problem });
+  }
+  problems.push(...pointClashes(reads));
+  const grid = gridProblem(reads.flatMap((r) => r.points), crs);
+  if (grid) problems.push(grid);
+  // A point the plan already has, given somewhere else: the database would refuse the whole file, so each is said first.
+  for (const r of reads) {
+    const clash = pointConflicts(data.points, r);
+    if (clash.length > 0) problems.push({ file: r.name, problem: `${clash.slice(0, 4).map(conflictSaid).join(" ")}${clash.length > 4 ? ` And ${clash.length - 4} more.` : ""} Points are never changed once imported: if a point was shot again, give it a new number in the file.` });
+  }
+  if (problems.length > 0) return { status: "error", message: problems.length === 1 ? "One thing needs you before these files can be added. Nothing was changed." : `${problems.length} things need you before these files can be added. Nothing was changed.`, problems };
+
+  const ordered = importOrder(reads);
+  const together = readTogether(ordered);
+  let newPoints = 0;
+  let addedFiles: string[] = [];
+  let failed = "";
+  for (const [index, r] of ordered.entries()) {
+    const imported = await surveyStore.importPoints(g.w.admin, g.w.actor, {
+      projectId: i.projectId,
+      fileName: r.name,
+      format: r.format,
+      content: contents[reads.indexOf(r)]!,
+      settings: { delimiter: r.delimiter, hasHeader: r.hasHeader, columns: r.columns, units: "metre", crs: crs.id, by: "update", ...(r.reduction ? { reduction: r.reduction } : {}), ...(r.surveyDate ? { surveyDate: r.surveyDate } : {}) },
+      points: asThePlanHasThem(data.points, importPointsOf(ordered, index, together.kept)).map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
+    });
+    if (!imported.ok) {
+      failed = ` ${r.name} wasn't added: ${imported.message}${index + 1 < ordered.length ? " Nor were the files after it." : ""} Add ${index + 1 < ordered.length ? "them" : "it"} again once ${r.name} is fixed.`;
+      break;
+    }
+    newPoints += imported.value.added;
+    addedFiles = [...addedFiles, r.name];
+  }
+  revalidatePath(`/app/survey/${i.projectId}`);
+  if (addedFiles.length === 0) return { status: "error", message: `Nothing was changed.${failed}`, problems: [] };
+  const files = addedFiles.length === 1 ? addedFiles[0]! : `the ${addedFiles.length} files`;
+  const pointsSaid = newPoints === 0 ? `Every point in ${files} was already in the plan.` : `${newPoints} new ${newPoints === 1 ? "point" : "points"} added from ${files}.`;
+  const added = reads.filter((r) => addedFiles.includes(r.name));
+  const note = `Added ${newPoints} ${newPoints === 1 ? "point" : "points"} from ${addedFiles.join(", ")}`.slice(0, 200);
+  // The plan updated for the points it didn't have when the surveyor pressed, on the version they saw, or once on a newer one saved since.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const now = await loadSurveyProject(g.w.user, g.w.actor.orgId, i.projectId);
+    if (!now || !now.drawing.readable) return { status: "error", message: `${pointsSaid} The plan wasn't updated with them: its latest version couldn't be read. Draw what's needed on the Lots step.${failed}`, problems: [] };
+    const u = updateForNewPoints(now.drawing.document, data.points, now.points, statedSurveyDate(added));
+    if (u.added.length + u.removed.length === 0) return { status: "done", message: `${pointsSaid}${newPoints > 0 ? " Nothing on the plan changes with them." : ""}${failed}`, version: now.drawing.version, before: i.baseVersion, newPoints, said: u.said, kept: u.kept };
+    const next = tidy(pruneProvenance(u.document), now);
+    if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: `${pointsSaid} The plan couldn't be updated with them: the result didn't pass the plan's own checks. Draw what's needed on the Lots step.${failed}`, problems: [] };
+    const saved = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: i.projectId, baseVersion: now.drawing.version, document: next, note });
+    if (saved.ok) return { status: "done", message: `${pointsSaid} The plan is updated as version ${saved.value}.${failed}`, version: saved.value, before: i.baseVersion, newPoints, said: u.said, kept: u.kept };
+    if (saved.code !== "VERSION_CONFLICT" || attempt === 1) return { status: "error", message: `${pointsSaid} The plan wasn't updated with them: ${saved.message} Draw what's needed on the Lots step.${failed}`, problems: [] };
+  }
+  return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT, problems: [] };
 }
 
 /**

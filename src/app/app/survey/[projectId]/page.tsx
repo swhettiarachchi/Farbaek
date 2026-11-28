@@ -35,6 +35,7 @@ import { InverseTool } from "@/components/survey/inverse-tool";
 import { PartitionPanel } from "@/components/survey/partition-panel";
 import { DrawFromPoints } from "@/components/survey/draw-from-points";
 import { NeedsYou } from "@/components/survey/needs-you";
+import { AddToPlan } from "@/components/survey/add-to-plan";
 import { AssistantProvider } from "@/components/survey/assistant/assistant-context";
 import { PlanEditor } from "@/components/survey/plan-editor";
 import { JobProgress, showJob } from "@/components/survey/job-progress";
@@ -130,7 +131,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
   const named = doc.surveyorUserId;
   // The drafting assistant (ADR 0202): its availability, read only on its own step.
   const ws = ctx.current;
-  const [draftAi, readAi] = step === "draft" && !readOnly ? await Promise.all([loadAiAvailability(ctx, ws, "survey_draft").catch(() => null), loadAiAvailability(ctx, ws, "survey_read").catch(() => null)]) : [null, null];
+  const [draftAi, readAi] = step === "draft" && !readOnly ? await Promise.all([loadAiAvailability(ctx, ws, "survey_draft").catch(() => null), loadAiAvailability(ctx, ws, "survey_read").catch(() => null)]) : [null, step === "plan" && !readOnly && !sample ? await loadAiAvailability(ctx, ws, "survey_read").catch(() => null) : null];
   const aiOff = (a: typeof draftAi) => readOnly ?? (a ? a.disabledReason : "AI isn't available right now. Try again in a minute, or fill in the plan yourself on the Lots and Plan steps.");
   // The drafting assistant on the Plan step (stage 195, ADR 0210): why its AI is off here, if it is. Its local reader works regardless.
   const assistAi = step === "plan" && !readOnly && ctx.mode !== "demo" ? await loadAiAvailability(ctx, ws, "survey_assist").catch(() => null) : null;
@@ -381,6 +382,13 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
             />
           </div>
         </Card>
+      ) : null}
+
+      {/* Back with more (stage 306, ADR 0311): survey files, another sketch or the deed, added and the plan updated where they change it. */}
+      {step === "plan" && data.points.length > 0 ? (
+        <Disclosure summary="Add to this plan" hint="More survey files, another sketch or the deed. Only what they change is updated." icon={<FileArrowUpIcon size={20} weight="bold" aria-hidden />}>
+          <AddToPlan projectId={projectId} baseVersion={data.drawing.version} crsId={data.project.crsId} known={data.points.map((p) => ({ pointId: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code }))} keptSketches={doc.sketch?.files.length ?? 0} readOnly={readOnly} photosOff={readOnly ?? (readAi ? readAi.disabledReason : "Reading photos isn't available right now. Try again in a minute.")} />
+        </Disclosure>
       ) : null}
 
       {step === "plan" && anything ? <NeedsYou doc={doc} points={data.points} findings={view.findings} base={base} projectId={projectId} baseVersion={data.drawing.version} readOnly={readOnly} approved={Boolean(approval)} /> : null}

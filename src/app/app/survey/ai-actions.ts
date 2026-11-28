@@ -212,7 +212,7 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   if (files.some((f) => f.size > SKETCH_PHOTOS.bytes) || files.reduce((s, f) => s + f.size, 0) > SKETCH_PHOTOS.total) {
     return { status: "error", message: "The sketch photos are too large together. Choose them again so Farbaek can shrink them." };
   }
-  const images: SketchImage[] = [];
+  let images: SketchImage[] = [];
   // Each photo's name is its own: a phone camera names every shot "image.jpg", and a reading opens its photo by name.
   const names = sketchFileNames(files.map((f) => f.name));
   for (const [n, f] of files.entries()) {
@@ -227,6 +227,33 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   }
   const p = await prepare(projectId, baseVersion, "Reading field sketches", "read");
   if ("error" in p) return { status: "error", message: p.error };
+  // A sketch added to a plan already read (stage 306, ADR 0311): read with the photos the plan keeps, so the earlier sketches' readings
+  // aren't lost, and every photo is kept again with the new read. The same photo sent again is read once.
+  const earlierRecord = form.get("withStored") === "yes" ? p.data.drawing.document.sketch : null;
+  if (earlierRecord) {
+    const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
+    const sent = new Set(images.map((im) => sha(im.data)));
+    const earlier: SketchImage[] = [];
+    let found = 0;
+    for (const photo of await loadSketchPhotos(p.user, projectId, earlierRecord.readAt)) {
+      const got = await readSketchPhoto(p.user, projectId, photo.id);
+      if (!got) continue;
+      const data = Buffer.from(got.content, "base64");
+      const mediaType = imageTypeOf(data);
+      if (!mediaType) continue;
+      found++;
+      if (sent.has(sha(data))) continue;
+      sent.add(sha(data));
+      earlier.push({ name: photo.fileName, mediaType, data });
+    }
+    // Every photo the earlier readings came from, or none of this: a read without one of them would lose what it said (stage 306 review).
+    if (found < earlierRecord.files.length) return { status: "error", message: `${earlierRecord.files.length - found} of the ${earlierRecord.files.length} sketch photos this plan was read from ${earlierRecord.files.length - found === 1 ? "isn't" : "aren't"} kept with it, so reading the new sketch would lose what ${earlierRecord.files.length - found === 1 ? "it says" : "they say"}. Read every sketch again from the Draft step, choosing all the photos.` };
+    if (earlier.length + images.length > SKETCH_PHOTOS.count) return { status: "error", message: `This plan keeps ${earlier.length} sketch ${earlier.length === 1 ? "photo" : "photos"} already, and Farbaek reads up to ${SKETCH_PHOTOS.count} together. Add ${Math.max(0, SKETCH_PHOTOS.count - earlier.length)} at most.` };
+    if ([...earlier, ...images].reduce((sum, im) => sum + im.data.length, 0) > SKETCH_PHOTOS.total) return { status: "error", message: "The new sketch photos and the ones this plan keeps are too large to read together. Add fewer, or smaller photos." };
+    const all = [...earlier, ...images];
+    const names = sketchFileNames(all.map((im) => im.name));
+    images = all.map((im, k) => ({ ...im, name: names[k]! }));
+  }
   // Generate Plan's job, when this read is its last stage (ADR 0239): read through row-level security, so only the workspace's own.
   const jobRow = await loadJob(p.user, String(form.get("jobId") ?? ""), projectId);
   const job = jobRow && jobRow.state === "running" ? JobTracker.resume(p.admin, p.common.orgId, jobRow) : null;
@@ -251,7 +278,12 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   const withReadings = (document: SurveyDocument, points: readonly SurveyPoint[]) => {
     // What an earlier read drew and nobody has confirmed goes: the new read draws what it reads (stage 256). The surveyor's own stays.
     // A new read's check answers for itself: the earlier answers to readings and to a check go with them (stage 263).
-    const read = pruneProvenance({ ...withoutWaitingSketchItems(document), sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:") && !k.startsWith("check:") && !k.startsWith("left:") && !k.startsWith("join:")) });
+    // Photos read again with a new one (stage 306): the surveyor's corrections of their numbers and the strokes they joined on them go on.
+    const again = (xs: readonly { file: string }[] | undefined) => (earlierRecord ? (xs ?? []).filter((x) => record.files.includes(x.file)) : []);
+    const corrections = again(earlierRecord?.corrections) as NonNullable<typeof record.corrections>;
+    const joins = again(earlierRecord?.joins) as NonNullable<typeof record.joins>;
+    const carried = { ...record, ...(corrections.length > 0 ? { corrections } : {}), ...(joins.length > 0 ? { joins } : {}) };
+    const read = pruneProvenance({ ...withoutWaitingSketchItems(document), sketch: carried, kept: document.kept.filter((k) => !k.startsWith("sketch:") && !k.startsWith("check:") && !k.startsWith("left:") && !(k.startsWith("join:") && !earlierRecord)) });
     // The plain misreads the engine would offer to correct in one press are corrected now, as Farbaek's, before anything is drawn, when
     // that helps (ADR 0260): what they draw waits for the surveyor as everything from a sketch does, and each is put back in one press.
     const auto = withAutoCorrections(read, points, new Date());

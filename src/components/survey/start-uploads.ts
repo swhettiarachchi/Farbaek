@@ -9,6 +9,19 @@ import { START_LIMITS, notReadYet, type FileRead } from "@/core/survey/autosurve
 import { LIBRARY_LIMITS, parseCodeLibrary, type LibraryRead } from "@/core/survey/codelib";
 import { IMPORT_LIMITS } from "@/core/survey/import/delimited";
 
+/** Photos or scans of the deed or an old plan read at a time, and a scanned PDF's limits: the server's PHOTO_LIMITS (drafting.ts). */
+export const DEED_LIMITS = { photos: 3, pdfBytes: 3_000_000, totalBytes: 5_500_000 } as const;
+
+/** A survey file's text: UTF-8 first, strictly; a file that isn't (CASS files are often in the Chinese GBK code page) is read as GB18030, and said. */
+export async function decodeSurveyText(file: Blob): Promise<{ content: string; encoding: string | null }> {
+  const bytes = await file.arrayBuffer();
+  try {
+    return { content: new TextDecoder("utf-8", { fatal: true }).decode(bytes), encoding: null };
+  } catch {
+    return { content: new TextDecoder("gb18030").decode(bytes), encoding: "Read as Chinese GB18030 text, the way CASS often writes it. Check the codes read right." };
+  }
+}
+
 /** One uploaded file and what Farbaek found in it, read here so the surveyor sees it at once. The server reads it all again. */
 export type Upload =
   | { key: string; name: string; size: number; kind: "survey-data"; content: string; read: FileRead | null; problem: string | null; encoding: string | null; adjust: AdjustMethod | null }
