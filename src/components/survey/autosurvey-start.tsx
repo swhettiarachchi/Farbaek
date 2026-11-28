@@ -21,16 +21,13 @@ import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { photoSize, shrink } from "./photo";
 import { sketchesKey, stage, staged, startKey, unstage } from "./staging";
-import { fromKept, toKept, type Upload } from "./start-uploads";
+import { DEED_LIMITS, decodeSurveyText, fromKept, toKept, type Upload } from "./start-uploads";
 import { StartPreview } from "./start-preview";
 import { TraverseChoice } from "./traverse-choice";
 
 const CRS_OPTIONS = [...CRS_REGISTRY, LOCAL_CRS];
-/** Photos of the deed or an old plan read at a time: the server's limit for "Read an old plan" (PHOTO_LIMITS in drafting.ts). */
-const DEED_PHOTOS = 3;
-/** A scanned PDF of the deed or an old plan, sent as it is: the server's PHOTO_LIMITS.pdfBytes, and together within what one request carries. */
-const DEED_PDF_BYTES = 3_000_000;
-const DEED_TOTAL_BYTES = 5_500_000;
+/** Photos of the deed or an old plan read at a time, and a scanned PDF sent as it is (PHOTO_LIMITS in drafting.ts). */
+const { photos: DEED_PHOTOS, pdfBytes: DEED_PDF_BYTES, totalBytes: DEED_TOTAL_BYTES } = DEED_LIMITS;
 // The common code list, made once: the list of points judges codes by it when nothing else is chosen.
 const COMMON_CODES = commonCodes();
 
@@ -45,15 +42,7 @@ type Drawn = { next: string; failed: boolean; message: string; sketch: ReadOutco
 
 const size = (bytes: number) => (bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
 
-async function decode(file: File): Promise<{ content: string; encoding: string | null }> {
-  // UTF-8 first, strictly; a file that isn't (CASS files are often in the Chinese GBK code page) is read as GB18030 and said.
-  const bytes = await file.arrayBuffer();
-  try {
-    return { content: new TextDecoder("utf-8", { fatal: true }).decode(bytes), encoding: null };
-  } catch {
-    return { content: new TextDecoder("gb18030").decode(bytes), encoding: "Read as Chinese GB18030 text, the way CASS often writes it. Check the codes read right." };
-  }
-}
+const decode = decodeSurveyText;
 
 /** What a read file holds, in one line: its kind, how many points, and its first codes. */
 function summary(r: FileRead): string {
