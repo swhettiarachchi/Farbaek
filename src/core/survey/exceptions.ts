@@ -11,7 +11,7 @@ import { lotName, provenanceLive, unreviewed, type SurveyDocument } from "./docu
 import type { SurveyPoint } from "./parcel";
 import type { Finding } from "./qc";
 import { roadWidth } from "./roads";
-import { interpretDocument, sketchEvidence } from "./sketchintel/findings";
+import { interpretDocument, settledSketchLine, sketchEvidence } from "./sketchintel/findings";
 
 /** A road whose surveyed edges are further apart in one place than another by more than this may have an edge point on the wrong side. */
 export const ROAD_WIDTH_DOUBT_M = 0.5;
@@ -126,6 +126,27 @@ export function drawnWithoutDoubt(doc: SurveyDocument, points: readonly SurveyPo
   ];
 }
 
+/**
+ * The lines read from a sketch that nothing stands against (stage 294): every number on one matched a surveyed point exactly, the reader
+ * was sure of it, its points lie on it, and no question is still open about it or the sketch lines it comes from, nor a number Farbaek
+ * corrected on it. The surveyor confirms these together in one press; lots, roads, symbols (which a card removes), title facts and
+ * anything in doubt keep a card of their own. Worked out from the current plan every time, on the server again when the press arrives,
+ * so an item that gains a question is never confirmed with the rest.
+ */
+export function quietSketchItems(doc: SurveyDocument, points: readonly SurveyPoint[]): string[] {
+  const sketch = interpretDocument(doc, points);
+  if (!sketch) return [];
+  return unreviewed(doc).filter((key) => {
+    if (doc.provenance[key]?.source !== "ai_photo" || !provenanceLive(doc, key) || !key.startsWith("feature:")) return false;
+    const found = sketchEvidence(sketch, key);
+    if (!found || found.questions.length > 0 || found.fixes.length > 0 || !settledSketchLine(sketch, doc, key)) return false;
+    return farbaekCorrections(doc, points, key, found.file).length === 0;
+  });
+}
+
+/** Fewer than this many quiet items keep their own cards: grouping one or two saves nothing. */
+export const QUIET_GROUP_MIN = 3;
+
 export type ExceptionGroup = "fix" | "confirm" | "note";
 
 export interface SurveyException {
@@ -155,6 +176,10 @@ export interface SurveyException {
    * and the corrections of a misread number the surveyor can make in one press.
    */
   sketch?: { lead: string; evidence: string[]; questions: string[]; fixes: { file: string; reading: string; label: string; to: string; undo?: true }[] };
+  /** Items confirmed together with one press (stage 294): their provenance keys, and what the sketch shows for each, one line each. */
+  together?: { keys: string[]; lines: string[] };
+  /** The one lot without a label, labelled right on its card (stage 294). */
+  lotLabel?: { lotId: string };
 }
 
 const BLOCK_WORDS: Record<Finding["blocks"][number], string> = { plan: "the plan", export: "export", approval: "approval" };
@@ -186,11 +211,33 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
   const out: Record<ExceptionGroup, SurveyException[]> = { fix: [], confirm: [], note: [] };
   const pending = unreviewed(doc);
   const context = doubtContext(findings);
+  const unlabelled = doc.lots.filter((l) => !l.label.trim());
   for (const [n, f] of findings.entries()) {
     if (f.code === "AI_ITEMS_UNREVIEWED") {
       // Items read from the sketch's drawing show the evidence they rest on (ADR 0249): the lines, the matches, the coordinates' fit.
       const sketch = interpretDocument(doc, points);
-      for (const key of pending.filter((k) => doc.provenance[k]?.source !== "auto")) {
+      // The sketch's lines that nothing stands against, on one card with one press (stage 294).
+      const quietKeys = quietSketchItems(doc, points);
+      const quiet = new Set(quietKeys.length >= QUIET_GROUP_MIN ? quietKeys : []);
+      if (quiet.size > 0) {
+        out.confirm.push({
+          id: "confirm:sketch-together",
+          code: f.code,
+          group: "confirm",
+          severity: f.severity,
+          title: `${quietKeys.length} lines read from your sketch, with nothing against them, not confirmed yet.`,
+          holds: holdsText(f.blocks),
+          item: null,
+          evidence: "Every number on each matched a surveyed point exactly, Claude was sure of it, its points lie on it, and no question is open about it.",
+          next: "Look them over on the sheet below, then confirm them together. Correct any of them on the Lots step first if it's wrong.",
+          step: "boundary",
+          confirm: null,
+          keep: null,
+          // What each is and where it runs, as its evidence says first.
+          together: { keys: quietKeys, lines: quietKeys.map((k) => sketchEvidence(sketch, k)?.evidence.slice(0, 2).join(" ") ?? itemOf(doc, k).label) },
+        });
+      }
+      for (const key of pending.filter((k) => doc.provenance[k]?.source !== "auto" && !quiet.has(k))) {
         const it = itemOf(doc, key);
         const found = sketchEvidence(sketch, key);
         // A number Farbaek corrected when it read the sketch (ADR 0260), where this item uses it: said, with the press that puts it back.
@@ -257,6 +304,8 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
       step: stepFor(f),
       confirm: f.code === "LEGEND_UNREVIEWED" ? "codes" : null,
       keep: f.keep ?? null,
+      // One lot without a label is labelled on the card itself; several are labelled together on the Lots step.
+      ...(f.code === "LOT_LABEL_MISSING" && unlabelled.length === 1 ? { lotLabel: { lotId: unlabelled[0]!.id } } : {}),
     });
   }
   return out;

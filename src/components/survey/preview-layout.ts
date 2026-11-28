@@ -27,6 +27,8 @@ export interface PreviewLayout {
 }
 
 const PAD = 28;
+/** More room on the right, so no point sits under the north arrow at the top right. */
+const PAD_RIGHT = PAD + 18;
 const TEXT = 12;
 /** Geist's figures are about 0.62 em wide. */
 const charWidth = TEXT * 0.62;
@@ -49,13 +51,13 @@ export function layoutPreview(points: readonly PreviewPoint[], stations: Readonl
   const across = maxE - minE;
   const along = maxN - minN;
   // A tall survey is drawn taller, within what a phone shows at once.
-  const inner = Math.max(1, width - 2 * PAD);
+  const inner = Math.max(1, width - PAD - PAD_RIGHT);
   const shape = across > 0 ? along / across : 1;
   const height = Math.round(Math.min(420, Math.max(220, inner * Math.min(shape, 1.2) + 2 * PAD)));
   const spanE = Math.max(across, 1e-6);
   const spanN = Math.max(along, 1e-6);
   const scale = across === 0 && along === 0 ? 1 : Math.min(inner / spanE, (height - 2 * PAD) / spanN);
-  const offX = (width - spanE * scale) / 2;
+  const offX = PAD + (inner - spanE * scale) / 2;
   const offY = (height - spanN * scale) / 2;
   const dots = points.map((p) => ({ id: p.id, x: across === 0 ? width / 2 : offX + (p.e - minE) * scale, y: along === 0 ? height / 2 : offY + (maxN - p.n) * scale, station: stations.has(p.id) }));
 

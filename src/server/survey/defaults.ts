@@ -17,6 +17,19 @@ export async function loadStartingDefaults(client: SupabaseClient, orgId: string
 }
 
 /**
+ * Whether this person has surveyor details in this workspace (stage 294): a plan they generate names them as its surveyor, as the start
+ * screen tells them, whatever is drawn first. Read through row-level security; a read that fails names no one.
+ */
+export async function hasSurveyorDetails(client: SupabaseClient, orgId: string, userId: string): Promise<boolean> {
+  try {
+    const { data } = await client.from("survey_surveyor_profiles").select("user_id").eq("org_id", orgId).eq("user_id", userId).maybeSingle();
+    return z.object({ user_id: z.string() }).safeParse(data).success;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * This surveyor's own recent plans in this workspace, newest first, each at its latest version: what their defaults (ADR 0237) and the
  * suggestions learned for their office profiles (ADR 0277) come from. Read through row-level security; a read that fails gives none.
  */

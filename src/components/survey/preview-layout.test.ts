@@ -79,6 +79,8 @@ describe("drawing the points on the start screen", () => {
     const arrow = { x0: l.north.x - 7, x1: l.north.x + 7, y0: l.north.y - 2, y1: l.north.y + 30 };
     const bar = { x0: l.bar!.x, x1: l.bar!.x + l.bar!.pixels + 40, y0: l.bar!.y - 12, y1: l.bar!.y + 8 };
     const hit = (a: { x0: number; x1: number; y0: number; y1: number }, b: typeof a) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+    // Nor is a point drawn under the arrow, even the one at the north-east corner.
+    for (const d of l.dots) expect(hit({ x0: d.x - 3, x1: d.x + 3, y0: d.y - 3, y1: d.y + 3 }, arrow), `point ${d.id} under the arrow`).toBe(false);
     for (const t of l.labels) {
       expect(hit(box(t), arrow), `${t.id} on the arrow`).toBe(false);
       expect(hit(box(t), bar), `${t.id} on the bar`).toBe(false);
