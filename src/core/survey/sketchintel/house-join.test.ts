@@ -53,6 +53,15 @@ describe("a house one short stroke from closing", () => {
     expect(joined.document.sketch?.joins).toEqual([{ file: "s.jpg", from: "7", to: "8", by: "11111111-1111-4111-8111-111111111111", at: "2026-11-28T11:00:00.000Z" }]);
     expect(buildings(joined.document)).toEqual(["1-5-6-7-8"]);
     expect(joined.document.provenance[`feature:${joined.document.features.find((f) => f.closed && f.layer === "BUILDINGS")!.id}`]).toEqual({ source: "ai_photo", reviewed: false });
+    // An outline an earlier version of the reader drew inside the house, which the sketch as read now doesn't draw, goes with the redraw
+    // while it waits; one the surveyor confirmed stays (stage 304).
+    const id = (n: string) => POINTS.find((p) => p.pointId === n)!.id;
+    const stale = { ...doc, features: [...doc.features, { id: "sk-b-old", code: "P", layer: "BUILDINGS" as const, points: [id("5"), id("6"), id("7")], closed: true }, { id: "sk-b-mine", code: "P", layer: "BUILDINGS" as const, points: [id("9"), id("10"), id("6")], closed: true }], provenance: { ...doc.provenance, "feature:sk-b-old": { source: "ai_photo" as const, reviewed: false }, "feature:sk-b-mine": { source: "ai_photo" as const, reviewed: true } } };
+    const cleaned = withJoin(stale, POINTS, [{ from: "7", to: "8" }], null, new Date("2026-11-28T11:00:00Z"))!;
+    expect(cleaned.removed).toContain("feature:sk-b-old");
+    expect(cleaned.document.features.map((f) => f.id)).not.toContain("sk-b-old");
+    expect(cleaned.document.features.map((f) => f.id)).toContain("sk-b-mine");
+    expect(cleaned.kept).not.toContain("feature:sk-b-mine");
     // Only an offered join is made.
     expect(withJoin(doc, POINTS, [{ from: "6", to: "8" }], null, new Date())).toBeNull();
     expect(withJoin(doc, POINTS, [{ from: "7", to: "8" }, { from: "6", to: "8" }], null, new Date())).toBeNull();

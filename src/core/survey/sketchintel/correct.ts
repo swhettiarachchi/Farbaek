@@ -92,6 +92,10 @@ const keyOf = (doc: SurveyDocument, id: string): string | null =>
 export function redrawFromCorrection(doc: SurveyDocument, before: SketchInterpretation | null, after: SketchInterpretation | null): Redrawn {
   const now = new Set((after?.proposals ?? []).map(sketchItemId));
   const gone = (before?.proposals ?? []).map(sketchItemId).filter((id) => !now.has(id));
+  // Lines and symbols an earlier version of the reader drew that the sketch as read now doesn't draw at all (three partial outlines inside a
+  // house, stage 304): taken off with the rest while nobody has confirmed them. Lots and roads stay: their replacement may not be drawn.
+  const proposed = new Set([...(before?.proposals ?? []), ...(after?.proposals ?? [])].map(sketchItemId));
+  if (after) for (const x of [...doc.features, ...(doc.symbols ?? [])]) if (x.id.startsWith("sk-") && !proposed.has(x.id) && !gone.includes(x.id) && waiting(doc, keyOf(doc, x.id) ?? "")) gone.push(x.id);
   const next: SurveyDocument = structuredClone(doc);
   const removed: string[] = [];
   const kept: string[] = [];
