@@ -176,7 +176,7 @@ export function sketchReport({ sketch, points, codes, crs, interpretation, docum
   // Each drawn side, leg by leg along its line.
   const sides: ReportSide[] = [];
   for (const line of drawing.lines) {
-    const kind = classifyLine(line.label, line.style, codes).kind;
+    const kind = classifyLine(line.label, line.style, codes, document?.sketchHabits ?? []).kind;
     // A line that closes comes back to its first point, as the engine draws it, unless it's written with that number again at its end.
     const ring = line.closes && line.points.length > 2 && line.points[0] !== line.points.at(-1) ? [...line.points, line.points[0]!] : line.points;
     for (let i = 0; i + 1 < ring.length; i++) {

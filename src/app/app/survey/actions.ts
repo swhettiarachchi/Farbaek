@@ -14,7 +14,7 @@ import { withDefaults } from "@/core/survey/autosurvey/defaults";
 import { officeProfileBodySchema, profileFromPlan, profilePrecision, withProfile, type OfficeProfile } from "@/core/survey/profile";
 import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
 import { interpretDocument } from "@/core/survey/sketchintel/findings";
-import { HABIT_KIND, STYLE_WORDS, habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
+import { HABIT_TAKES, STYLE_WORDS, habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
@@ -579,7 +579,7 @@ export async function saveSketchHabitAction(input: z.input<typeof habitInput>): 
   if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be saved on it. Reload, or ask support." };
   const doc = structuredClone(data.drawing.document);
   const entry = habitEntry({ style, code }, doc.codes);
-  if (!entry) return { status: "error", message: `${code} isn't a ${HABIT_KIND[style]} in this plan's code list. Choose one the card offers.` };
+  if (!entry) return { status: "error", message: `${code} isn't ${HABIT_TAKES[style]} in this plan's code list. Choose one the card offers.` };
   // A line keeps any code it has, unless that code is the one this habit replaces: one the surveyor typed is theirs.
   const before = (doc.sketchHabits ?? []).find((h) => h.style === style)?.code;
   doc.sketchHabits = [...(doc.sketchHabits ?? []).filter((h) => h.style !== style), { style, code }];
@@ -596,6 +596,9 @@ export async function saveSketchHabitAction(input: z.input<typeof habitInput>): 
     if (!drawn || drawn.style !== style || drawn.label.trim()) continue;
     f.code = code;
     f.layer = p.layer;
+    // Drawn as a fresh read with the habit would draw it: a building's wall is open and goes round to its start, never a closed outline.
+    f.closed = p.closed;
+    f.points = p.points.map((x) => x.id);
     changed++;
   }
   const next = tidy(pruneProvenance(doc), data);

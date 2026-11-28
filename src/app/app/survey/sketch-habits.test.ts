@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SurveyDocument } from "@/core/survey/document";
 
-const { saved, stored } = vi.hoisted(() => ({ saved: [] as Record<string, unknown>[], stored: { document: null as unknown, version: 3 } }));
+const { saved, stored } = vi.hoisted(() => ({ saved: [] as Record<string, unknown>[], stored: { document: null as unknown, version: 3, points: null as unknown } }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
@@ -36,7 +36,7 @@ vi.mock("@/server/survey/read", async () => {
   return {
     loadSurveyProject: async () => ({
       project: { id: "11111111-1111-4111-8111-111111111111", crsId: "LOCAL", crsConfirmedAt: "2026-11-23T10:00:00.000Z" },
-      points: SYNTH_POINTS,
+      points: stored.points ?? SYNTH_POINTS,
       sources: [],
       drawing: { readable: true, document: stored.document, version: stored.version },
       versions: [],
@@ -72,6 +72,7 @@ beforeEach(() => {
   saved.length = 0;
   stored.document = withDouble();
   stored.version = 3;
+  stored.points = null;
 });
 
 describe("saying a sketch habit", () => {
@@ -113,6 +114,35 @@ describe("saying a sketch habit", () => {
     await saveSketchHabitAction({ projectId: PROJECT, baseVersion: 3, style: "double", code: "RW" });
     expect(savedDoc().sketchHabits).toEqual([{ style: "double", code: "RW" }]);
     expect(l3(savedDoc()).code).toBe("RW");
+  });
+
+  it("takes a building's wall for x marks, putting the line on the buildings layer, and refuses it for a double line", async () => {
+    const drawing = { ...SYNTH_DRAWING, lines: SYNTH_DRAWING.lines.map((l) => (l.id === "l3" ? { ...l, style: "crossed" as const } : l)) };
+    const base: SurveyDocument = { ...emptyDocument(), codes: commonCodes(), sketch: { model: "claude-sonnet-5-5", readAt: "2026-11-23T10:00:00Z", files: ["sketch.jpg"], readings: [], unreadable: [], drawing } };
+    stored.document = applySketch(base, interpretDocument(base, SYNTH_POINTS)!).document;
+    const r = await saveSketchHabitAction({ projectId: PROJECT, baseVersion: 3, style: "crossed", code: "P" });
+    expect((r as { message: string }).message).toMatch(/^Saved: on your sketches, a line with x marks is a wall of a permanent building \(P\)\. 1 line takes it now\./);
+    expect(l3(savedDoc())).toMatchObject({ code: "P", layer: "BUILDINGS", closed: false });
+    expect(savedDoc().provenance[`feature:${l3(savedDoc()).id}`]).toEqual({ source: "ai_photo", reviewed: false });
+    expect(await saveSketchHabitAction({ projectId: PROJECT, baseVersion: 3, style: "double", code: "P" })).toMatchObject({ status: "error", message: "P isn't a wall in this plan's code list. Choose one the card offers." });
+  });
+
+  it("draws a closed hatched house as a fresh read with the habit would: open, round to its start", async () => {
+    // SYNTHETIC: a closed line with x marks round 908 to 911, beside the fixture's points.
+    const sq = (pointId: string, de: number, dn: number) => ({ ...SYNTH_POINTS[0]!, id: `00000000-0000-4000-8000-${pointId.padStart(12, "0")}`, pointId, e: SYNTH_POINTS[0]!.e + de, n: SYNTH_POINTS[0]!.n + dn, code: null });
+    const pts = [...SYNTH_POINTS, sq("908", 2, 2), sq("909", 5, 2), sq("910", 5, 6), sq("911", 2, 6)];
+    const drawing = { ...SYNTH_DRAWING, lines: [...SYNTH_DRAWING.lines, { id: "l99", file: SYNTH_DRAWING.lines[0]!.file, points: ["908", "909", "910", "911"], label: "", style: "crossed" as const, closes: true, certain: true }] };
+    const base: SurveyDocument = { ...emptyDocument(), codes: commonCodes(), sketch: { model: "claude-sonnet-5-5", readAt: "2026-11-23T10:00:00Z", files: ["sketch.jpg"], readings: [], unreadable: [], drawing } };
+    stored.points = pts;
+    stored.document = applySketch(base, interpretDocument(base, pts)!).document;
+    const id = interpretDocument(base, pts)!.proposals.find((x) => x.kind === "line" && x.from.includes("l99"))!.id;
+    expect((stored.document as SurveyDocument).features.find((f) => f.id === id)).toMatchObject({ layer: "FENCES", closed: true });
+    expect(await saveSketchHabitAction({ projectId: PROJECT, baseVersion: 3, style: "crossed", code: "P" })).toMatchObject({ status: "done" });
+    const fresh = interpretDocument({ ...base, sketchHabits: [{ style: "crossed", code: "P" }] }, pts)!.proposals.find((x) => x.kind === "line" && x.from.includes("l99"));
+    const saved = savedDoc().features.find((f) => f.id === id)!;
+    expect(saved).toMatchObject({ code: "P", layer: "BUILDINGS", closed: false });
+    expect(fresh && fresh.kind === "line" ? fresh.points.map((p) => p.id) : null).toEqual(saved.points);
+    expect(saved.points).toHaveLength(5);
   });
 
   it("is never set by a plan saved from the browser: the stored habits are kept", async () => {
