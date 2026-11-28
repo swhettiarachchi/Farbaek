@@ -48,9 +48,11 @@ export interface SheetSvgProps {
    */
   handles?: readonly { key: string; x: number; y: number; active?: boolean }[];
   onHandlePointerDown?: (key: string, event: ReactPointerEvent<SVGElement>) => void;
+  /** Where a dragged word or label lines up with another (stage 297): a guide across and one down the page, drawn only while dragging. */
+  guides?: { x: number | null; y: number | null } | null;
 }
 
-type ItemsProps = Omit<SheetSvgProps, "viewBox" | "label" | "className" | "handles" | "onHandlePointerDown">;
+type ItemsProps = Omit<SheetSvgProps, "viewBox" | "label" | "className" | "handles" | "onHandlePointerDown" | "guides">;
 
 function itemProps(item: SceneItem, props: ItemsProps, picked: ReadonlySet<string>) {
   const entity = item.entity;
@@ -78,13 +80,16 @@ function textTransform(item: { x: number; y: number; rotate: number; slant?: num
 }
 
 export function SheetSvg(props: SheetSvgProps) {
-  const { page, viewBox, label, className, handles, onHandlePointerDown, ...items } = props;
+  const { page, viewBox, label, className, handles, onHandlePointerDown, guides, ...items } = props;
   const [vx, vy, vw, vh] = viewBox ?? [0, 0, page.widthMm, page.heightMm];
   const dot = (x: number, y: number) => `M${x} ${y}h0.001`;
   return (
     <svg viewBox={`${vx} ${vy} ${vw} ${vh}`} role="img" aria-label={label} className={className} preserveAspectRatio="xMidYMid meet">
       <rect x={0} y={0} width={page.widthMm} height={page.heightMm} fill="var(--color-surface)" />
       <Items page={page} {...items} badge={Math.max(1.6, vw / 120)} />
+      {/* The alignment guides while a word or label is dragged (stage 297): a thin dashed line across the page, never on paper. */}
+      {guides?.x != null ? <path d={`M${guides.x} 0V${page.heightMm}`} fill="none" stroke="var(--color-accent)" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none" data-guide="x" /> : null}
+      {guides?.y != null ? <path d={`M0 ${guides.y}H${page.widthMm}`} fill="none" stroke="var(--color-accent)" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none" data-guide="y" /> : null}
       {/* Outside the memoised drawing, so a handle that moves under a finger redraws only itself. */}
       {handles?.map((h) => (
         <g key={h.key} data-handle={h.key}>

@@ -41,6 +41,7 @@ import { AssistantDock, type EditorBridge } from "./assistant/assistant-dock";
 import { handoffKey } from "./assistant/handoff";
 import { CodesPanel, SheetFields, describeSelection, type SurveyorOption } from "./plan-panels";
 import { SheetSvg } from "./sheet-svg";
+import { alignTo, type Guides } from "./align-guides";
 import { setPlanUnsaved } from "./unsaved-plan";
 import { DrawLineBar, SelectionEditor, cannotFinish, nextDrawing, type Drawing } from "./selection-editor";
 import { AddDimension } from "./dimension-editor";
@@ -143,6 +144,8 @@ export function PlanEditor(props: PlanEditorProps) {
   // The selected lot's or line's points have handles; one dragged snaps to the nearest surveyed point under it, and nothing else moves.
   const [vertexDrag, setVertexDrag] = useState<{ index: number; x: number; y: number; snap: { id: string; x: number; y: number } | null } | null>(null);
   const snapRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  // The guides a dragged word or label lines up on (stage 297), across and down the sheet; none while nothing is dragged.
+  const [guides, setGuides] = useState<Guides | null>(null);
   // Worked out on its own, not read off `page`, which the pointer handlers keep in a ref.
   const viewport = useMemo(() => plan.sheet.pages.filter((p) => p.role === "front")[sheetIndex]?.viewport ?? plan.sheet.viewport, [plan, sheetIndex]);
   const vertexOwner = useMemo(() => {
@@ -287,7 +290,7 @@ export function PlanEditor(props: PlanEditorProps) {
   const svgWrap = useRef<HTMLDivElement>(null);
   const drag = useRef<
     | { kind: "pan"; startX: number; startY: number; view: View; moved: boolean; entity: string | null }
-    | { kind: "label"; entity: string; startX: number; startY: number; base: { dx: number; dy: number }; slot: number | undefined; moved: boolean }
+    | { kind: "label"; entity: string; startX: number; startY: number; base: { dx: number; dy: number }; slot: number | undefined; moved: boolean; x0: number; y0: number }
     | { kind: "vertex"; owner: "lot" | "feature"; id: string; index: number; startX: number; startY: number; moved: boolean }
     | null
   >(null);
@@ -380,7 +383,9 @@ export function PlanEditor(props: PlanEditorProps) {
       const base = doc.labelOffsets[item.entity] ?? { dx: 0, dy: 0 };
       // The place the label is drawn at (ADR 0242): the offset is measured from it, so the label stays where it's dropped.
       const slot = base.slot ?? (item.kind === "text" ? item.slot : undefined);
-      drag.current = { kind: "label", entity: item.entity, startX: e.clientX, startY: e.clientY, base, slot, moved: false };
+      // Where it's drawn as the drag starts, on the sheet: what lines up with the other words is measured from here (stage 297).
+      const [x0, y0] = item.kind === "text" ? [item.x, item.y] : [0, 0];
+      drag.current = { kind: "label", entity: item.entity, startX: e.clientX, startY: e.clientY, base, slot, moved: false, x0, y0 };
     } else {
       drag.current = { kind: "pan", startX: e.clientX, startY: e.clientY, view, moved: false, entity: item?.entity ?? null };
     }
@@ -443,7 +448,13 @@ export function PlanEditor(props: PlanEditorProps) {
     } else if (d.kind === "pan") {
       if (d.moved) setView([d.view[0] - dx, d.view[1] - dy, d.view[2], d.view[3]]);
     } else if (d.moved) {
-      const next = { dx: Math.max(-200, Math.min(200, d.base.dx + dx)), dy: Math.max(-200, Math.min(200, d.base.dy + dy)), ...(d.slot !== undefined ? { slot: d.slot } : {}) };
+      // Lined up with another word or label on the page when it comes within 6 screen pixels of one, across or down, with a guide where
+      // (stage 297). Only where it's drawn changes, never anything measured.
+      const others = page.items.flatMap((it) => (it.kind === "text" && it.entity && it.entity !== d.entity ? [{ x: it.x, y: it.y }] : []));
+      const lined = alignTo({ x: d.x0 + dx, y: d.y0 + dy }, others, 6 / k);
+      setGuides(lined.guides.x === null && lined.guides.y === null ? null : lined.guides);
+      const [ax, ay] = [lined.x - d.x0, lined.y - d.y0];
+      const next = { dx: Math.max(-200, Math.min(200, d.base.dx + ax)), dy: Math.max(-200, Math.min(200, d.base.dy + ay)), ...(d.slot !== undefined ? { slot: d.slot } : {}) };
       update((doc2) => {
         doc2.labelOffsets[d.entity] = next;
       }, `drag:${d.entity}:${d.startX}:${d.startY}`);
@@ -455,6 +466,7 @@ export function PlanEditor(props: PlanEditorProps) {
     if (pointers.current.size < 2) pinch.current = null;
     const d = drag.current;
     drag.current = null;
+    setGuides(null);
     if (d?.kind === "vertex") {
       setVertexDrag(null);
       if (d.moved) dropVertex(d, snapRef.current);
@@ -736,7 +748,7 @@ export function PlanEditor(props: PlanEditorProps) {
         onKeyDown={onKey}
         className={`relative touch-none select-none overflow-hidden rounded-lg bg-canvas-2 ring-1 ring-line focus-visible:outline-2 focus-visible:outline-accent ${full ? "h-full" : "h-[min(58svh,34rem)] min-h-[15rem] lg:h-[70svh]"}`}
       >
-        <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} picked={picked} marks={markSet} draggable={canDrag} onEntityPointerDown={onEntityPointerDown} handles={handles} onHandlePointerDown={onHandleDown} hitTargets label={`Plan sheet${page.sheet ? ` ${page.sheet.n} of ${page.sheet.of}` : ""}, ${plan.sheet.paper} ${shown.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}${preview?.ok ? ", showing the assistant's change before it's applied" : ""}`} className="h-full w-full" />
+        <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} picked={picked} marks={markSet} draggable={canDrag} onEntityPointerDown={onEntityPointerDown} handles={handles} onHandlePointerDown={onHandleDown} guides={guides} hitTargets label={`Plan sheet${page.sheet ? ` ${page.sheet.n} of ${page.sheet.of}` : ""}, ${plan.sheet.paper} ${shown.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}${preview?.ok ? ", showing the assistant's change before it's applied" : ""}`} className="h-full w-full" />
         {/* Which sheet of several is shown (ADR 0275): one press for each. */}
         {fronts.length > 1 ? (
           <div role="group" aria-label="Sheets" className="absolute bottom-2 right-2 flex max-w-[calc(100%-1rem)] flex-wrap justify-end gap-1.5 sm:bottom-3 sm:right-3">
