@@ -84,8 +84,8 @@ export interface LineProposal extends Base {
   /** Drawn on past its first or last point on the sketch, a neighbour's wall carrying on: drawn so on the plan (stage 261). */
   runsOn: "start" | "end" | "both" | null;
   /**
-   * Where it runs is in no doubt (stage 294): every number on it matched a surveyed point exactly, the reader was sure of the line, and
-   * its points lie on it. Its kind may still be asked about; that's a question of its own.
+   * Where it runs is in no doubt (stage 294): every number on it matched a surveyed point exactly, its points lie on it, and the reader
+   * was sure of the line or at least two separate reads drew it (stage 295). Its kind may still be asked about; that's a question of its own.
    */
   settled?: boolean;
 }
@@ -146,6 +146,11 @@ export interface Question {
    * and the one surveyed point the evidence points to. Never applied without that press.
    */
   suggest?: { file: string; reading: string; label: string; to: string };
+  /**
+   * Every line it bears on, when it's more than the item that answers it (stage 295): two lines that cross where no number is may carry
+   * the misread number in either, so neither counts as settled until it's answered.
+   */
+  lines?: string[];
 }
 
 /**
@@ -467,7 +472,7 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
   const proposals: Proposal[] = [];
   const questions: Question[] = [];
   const matches: SketchInterpretation["matches"] = [];
-  const ask = (from: string[], file: string, text: string, evidence: string[] = [], about?: Pick<Question, "item" | "answeredBy" | "suggest">) => questions.push({ from, file, text, evidence, ...about });
+  const ask = (from: string[], file: string, text: string, evidence: string[] = [], about?: Pick<Question, "item" | "answeredBy" | "suggest" | "lines">) => questions.push({ from, file, text, evidence, ...about });
 
   for (const label of new Set([...drawing.lines.flatMap((l) => l.points).filter((p) => !isCornerWord(p)), ...drawing.symbols.map((s) => s.at).filter(Boolean), ...drawing.areas.flatMap((a) => a.around)])) {
     const r = matchPoint(label, index);
@@ -500,8 +505,10 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     evidence.push(`Read as a ${cls.kind === "line" ? "line of unknown kind" : cls.kind}: ${cls.why}.`);
     evidence.push(...mt.notes);
     let level: Level = mt.exact && line.certain && cls.fromWriting ? "strong" : "check";
-    // Nothing about where it runs is in doubt (stage 294): every number matched exactly, the reader was sure of it, its points lie on it.
-    let settled = mt.exact && line.certain;
+    // Nothing about where it runs is in doubt (stage 294): every number matched exactly, its points lie on it, and the reader was sure of
+    // it or at least two separate reads of the sketch drew it through the same numbers (stage 295: on a hand sketch the reader is rarely
+    // sure of any one line, and two reads agreeing is what the lot is built from).
+    let settled = mt.exact && (line.certain || (line.reads ?? 1) >= 2);
     const arcs: ArcRun[] = [];
     let blocked = false;
     if (line.style === "curved" && mt.points.length >= 3) {
@@ -921,7 +928,8 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
           "A sketch's lines meet at numbered points, so one of their numbers may be misread. Check them on the sketch, and correct or remove the line on the Lots step.",
           ...(doubtful.length === 2 ? ["Both were read with doubt."] : doubtful.length === 1 ? [`The line through ${list(ids(doubtful[0]!.points))} was read with doubt.`] : []),
         ],
-        about ? { item: about.id, answeredBy: "confirm" } : undefined,
+        // Both lines are named: the misread number may be in either (stage 295).
+        { ...(about ? { item: about.id, answeredBy: "confirm" as const } : {}), lines: [x.proposal!.id, y.proposal!.id] },
       );
       crossed.push([x, y]);
     }

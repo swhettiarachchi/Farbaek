@@ -6,7 +6,7 @@ import { exceptionsFor, quietSketchItems, QUIET_GROUP_MIN } from "../exceptions"
 import { buildPlan } from "../view";
 import { applySketch } from "./apply";
 import { SYNTH_DRAWING, SYNTH_POINTS } from "./fixture";
-import { interpretDocument, sketchEvidence } from "./findings";
+import { interpretDocument, settledSketchLine, sketchEvidence } from "./findings";
 import type { SketchDrawing } from "./drawing";
 
 const withDrawing = (drawing: SketchDrawing): SurveyDocument => {
@@ -46,12 +46,29 @@ describe("the sketch's lines nothing stands against", () => {
     for (const from of ["l9", "l5", "l1"]) expect(quiet).not.toContain(lineKey(doc, from));
   });
 
-  it("leave out a line any open question touches, of any kind, until it's answered", () => {
-    const sure = settled();
-    // With the lot not yet confirmed, its questions are open, and the walls round it come from the same sketch lines.
-    const lot = Object.keys(sure.provenance).find((k) => k.startsWith("lot:"))!;
-    const open = { ...sure, provenance: { ...sure.provenance, [lot]: { source: "ai_photo" as const, reviewed: false } } };
-    expect(quietSketchItems(open, SYNTH_POINTS).length).toBeLessThan(quietSketchItems(sure, SYNTH_POINTS).length);
+  it("hold back a line for a question about it, or one naming no item about its sketch lines; not for another item's question (stage 295)", () => {
+    const doc = settled();
+    const sketch = interpretDocument(doc, SYNTH_POINTS)!;
+    const key = quietSketchItems(doc, SYNTH_POINTS)[0]!;
+    const p = sketch.proposals.find((x) => `feature:${x.id}` === key)!;
+    const ask = (q: Partial<(typeof sketch.questions)[number]>) => ({ ...sketch, questions: [...sketch.questions, { from: p.from, file: "sketch.jpg", text: "A question.", evidence: [], ...q }] });
+    expect(settledSketchLine(sketch, doc, key)).toBe(true);
+    expect(settledSketchLine(ask({ item: p.id, answeredBy: "confirm" }), doc, key)).toBe(false);
+    expect(settledSketchLine(ask({}), doc, key)).toBe(false);
+    // Two lines crossing where no number is: the question is answered on one line's card, but names both, and holds both back.
+    const other = sketch.proposals.find((x) => `feature:${x.id}` === quietSketchItems(doc, SYNTH_POINTS)[1])!;
+    expect(settledSketchLine(ask({ item: other.id, answeredBy: "confirm", lines: [other.id, p.id] }), doc, key)).toBe(false);
+    // The lot's own question, on the lot's card: the wall isn't held back by it.
+    const lotId = sketch.proposals.find((x) => x.kind === "lot")!.id;
+    expect(settledSketchLine(ask({ item: lotId, answeredBy: "label" }), { ...doc, lots: doc.lots.map((l) => ({ ...l, label: "" })) }, key)).toBe(true);
+  });
+
+  it("count two agreeing reads as settling a line the reader wasn't sure of, but never a single unsure read (stage 295)", () => {
+    const unsure = (reads?: number) => withDrawing({ ...SYNTH_DRAWING, lines: SYNTH_DRAWING.lines.map((l) => ({ ...l, certain: false, points: l.points.map((x) => x.replace(/^0+(?=\d)/, "")), ...(reads ? { reads } : {}) })) });
+    const settledLines = (doc: SurveyDocument) => interpretDocument(doc, SYNTH_POINTS)!.proposals.filter((x) => x.kind === "line" && x.settled).length;
+    expect(settledLines(unsure())).toBe(0);
+    expect(settledLines(unsure(1))).toBe(0);
+    expect(settledLines(unsure(2))).toBeGreaterThan(0);
   });
 
   it("are left out once confirmed, and never include an item the surveyor drew or a plan with no sketch", () => {
