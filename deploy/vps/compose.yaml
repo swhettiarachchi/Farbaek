@@ -27,7 +27,8 @@ services:
       timeout: 5s
       retries: 4
       start_period: 40s
-    # Agent runs live in this process (ADR 0022): give them a moment to wind down.
+    # Agent runs live in this process (ADR 0022). When it is told to stop, each live build writes what it had changed
+    # so far as a change to review, within 20 seconds (ADR 0299, src/server/lifecycle/shutdown.ts): keep this above that.
     stop_grace_period: 30s
 
   caddy:

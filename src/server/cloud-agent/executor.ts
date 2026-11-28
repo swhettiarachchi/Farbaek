@@ -90,6 +90,28 @@ export interface ExecutorDeps {
   now?(): Date;
 }
 
+/**
+ * A stop that comes from outside the run and isn't the person's own choice (stage 291, ADR 0299): the server stopping
+ * under it, AI work being paused, or its workspace being suspended.
+ */
+type OutsideStop = "restart" | "pause" | "suspended";
+/** Said in the run's history the moment it is stopped. */
+const STOP_NOTE: Record<OutsideStop, string> = {
+  restart: "Farbaek's server is restarting, so this run is stopping. What it changed so far is being saved as a change for you to review.",
+  pause: "AI work was paused, so this run stopped. Nothing it was working on was suggested.",
+  suspended: "This workspace was suspended, so this run stopped. Nothing it was working on was suggested.",
+};
+/** Why a run stopped by a restart ended, as its outcome says it. A reboot and a deploy read the same from here. */
+const RESTART_WHY = "Farbaek's server restarted while this run was working.";
+/**
+ * How a run stopped by a pause or a suspension ends. While either lasts, the database takes no change from an agent
+ * (ADR 0083, ADR 0032), so its work is not kept, and the run says so.
+ */
+const STOPPED_OUTCOME: Record<Exclude<OutsideStop, "restart">, string> = {
+  pause: "Stopped, because AI work was paused. Nothing was suggested.",
+  suspended: "Stopped, because this workspace was suspended. Nothing was suggested.",
+};
+
 interface LiveRun {
   orgId: string;
   startedBy: string;
@@ -99,13 +121,28 @@ interface LiveRun {
   messages: string[];
   /** Records an event in the run's history, once the run has started writing them. */
   record?: (e: RunEventPayload) => void;
+  /**
+   * Why the run is being stopped from outside, when it is. Stopped by a restart, its work so far is kept as a partial
+   * change. A person's own cancel sets none of this, and neither does a stop that arrives after they cancelled.
+   */
+  stop?: OutsideStop;
 }
 
 // One registry per server process, kept across hot reloads in development.
 const registry: Map<string, LiveRun> = ((globalThis as { __farbaekCloudRuns?: Map<string, LiveRun> }).__farbaekCloudRuns ??= new Map());
+/**
+ * Every run from its start to the last thing it writes. A run leaves the registry just before it writes its end, so the
+ * registry alone would call a server idle while a run's final status was still on its way to the database.
+ */
+const endings: Set<Promise<void>> = ((globalThis as { __farbaekCloudRunEndings?: Set<Promise<void>> }).__farbaekCloudRunEndings ??= new Set());
 
 export function isRunLiveHere(runId: string): boolean {
   return registry.has(runId);
+}
+
+/** Runs a stopping server has to wait for: those that are live, and those still writing how they ended. */
+export function runsToDrainHere(): number {
+  return endings.size;
 }
 
 /** Runs this server process is working on right now, for Office Space's health page. */
@@ -155,9 +192,11 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
   const live: LiveRun = { orgId: person.orgId, startedBy: person.userId, controller: new AbortController(), approvals: new Map(), messages: [] };
   registry.set(runId, live);
   const chosen = [...new Set(input.skills ?? [])].flatMap((id) => getBuiltInSkill(id) ?? []);
-  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen, capUnits, kitTier: input.kitTier ?? "core", designPass: input.designPass === true, theme: input.theme ?? "light" }).catch((e) => {
+  const done = execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen, capUnits, kitTier: input.kitTier ?? "core", designPass: input.designPass === true, theme: input.theme ?? "light" }).catch((e) => {
     log("error", "cloud_run.crashed", { run: runId, error: e instanceof Error ? e.message : String(e) });
   });
+  endings.add(done);
+  void done.finally(() => endings.delete(done));
   return { ok: true, value: { runId, mode } };
 }
 
@@ -208,22 +247,54 @@ export function cancelCloudRun(person: RunPerson, runId: string): WriteResult<nu
   return { ok: true, value: null };
 }
 
+/** Stops a live run from outside. It ends through its own path, which says what stopped it. */
+function stopFromOutside(live: LiveRun, why: OutsideStop): void {
+  // Whatever stopped it first is what the run says. A person who had already cancelled it is the first: their cancel
+  // suggests nothing, and a restart or a pause that lands while it winds down doesn't change that.
+  if (!live.stop && !live.controller.signal.aborted) {
+    live.stop = why;
+    live.record?.({ kind: "note", text: STOP_NOTE[why] });
+  }
+  live.controller.abort();
+  for (const p of live.approvals.values()) p.resolve({ approved: false });
+  live.approvals.clear();
+}
+
 /**
- * Stops live runs on this server for Office Space (ADR 0032): one
- * workspace's when it's suspended, or every run when AI is paused. Each run
- * ends as stopped, through its own abort path. Returns how many it stopped.
+ * Stops live runs on this server: one workspace's when its agents are paused (ADR 0083) or Office Space suspends it
+ * (ADR 0032), or every run when Farbaek pauses AI. Each run ends through its own path and suggests nothing: while a
+ * pause or a suspension lasts, the database takes no change from an agent. Returns how many it stopped.
  */
-export function abortCloudRuns(scope: { orgId: string } | "all"): number {
+export function abortCloudRuns(scope: { orgId: string } | "all", why: Exclude<OutsideStop, "restart"> = "pause"): number {
   let stopped = 0;
   for (const live of registry.values()) {
     if (scope !== "all" && live.orgId !== scope.orgId) continue;
-    live.record?.({ kind: "note", text: "Farbaek paused AI work for a while, so this run stopped. Your work so far is kept." });
-    live.controller.abort();
-    for (const p of live.approvals.values()) p.resolve({ approved: false });
-    live.approvals.clear();
+    stopFromOutside(live, why);
     stopped += 1;
   }
   return stopped;
+}
+
+/**
+ * Stops every live run on this server because the server itself is stopping (production restarts it on every deploy),
+ * and waits for each to keep its work so far and write how it ended (stage 291, ADR 0299). A run that was already
+ * writing its end is waited for too. Resolves when they have all ended or after `maxMs`, whichever is first, with how
+ * many it waited for. A run that hasn't ended by then is found later by the sweep that marks runs that stopped
+ * reporting, as before.
+ */
+export async function drainCloudRuns(maxMs: number): Promise<number> {
+  for (const live of registry.values()) stopFromOutside(live, "restart");
+  const ending = [...endings];
+  if (ending.length === 0) return 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    Promise.allSettled(ending),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, Math.max(0, maxMs));
+    }),
+  ]);
+  clearTimeout(timer);
+  return ending.length;
 }
 
 function describeOutcome(kind: string, detail: string | null): string {
@@ -264,7 +335,10 @@ async function execute(
   let flushing: Promise<void> = Promise.resolve();
   // How the run ended, for the email to the person who started it (ADR 0060).
   let ended: { status: "finished" | "failed" | "cancelled"; outcome: string } | null = null;
+  /** The run wrote an end of any kind, interrupted among them: what waits on it (a workflow's step) is settled. */
+  let over = false;
   const queue = (p: RunPatch) => {
+    if (p.status === "finished" || p.status === "failed" || p.status === "cancelled" || p.status === "interrupted") over = true;
     if ((p.status === "finished" || p.status === "failed" || p.status === "cancelled") && p.outcome) ended = { status: p.status, outcome: p.outcome };
     pending = {
       ...pending,
@@ -410,6 +484,11 @@ async function execute(
             },
             { once: true },
           );
+          // The stop landed while the request was being put together: the listener above will never hear it.
+          if (signal?.aborted) {
+            live.approvals.delete(request.id);
+            resolve({ approved: false });
+          }
         }).then((answer) => {
           event({ kind: "note", text: answer.approved ? "Approved: the command ran." : "Declined: the command didn't run." });
           queue({ status: "working" });
@@ -479,12 +558,15 @@ async function execute(
           }
         }
       }
-    } else if (o.kind === "limit") {
-      // Stopped by the run's cap or a fixed limit: keep the work so far as a partial proposal, the checkpoint to carry on from.
+    } else if (o.kind === "limit" || (o.kind === "cancelled" && live.stop === "restart")) {
+      // Stopped by the run's cap or a fixed limit, or by the server stopping under it (stage 291, ADR 0299): keep the work
+      // so far as a partial proposal, the checkpoint to carry on from. It is not applied: a person reviews it.
+      const restarted = o.kind !== "limit";
       const { changes, notProposed } = await workspace.changes();
-      const why = o.detail.replace(/\s+$/, "");
+      const why = o.kind === "limit" ? o.detail.replace(/\s+$/, "") : RESTART_WHY;
       if (changes.length === 0) {
-        queue({ status: "failed", outcome: `${why} The agent hadn't changed any files yet.` });
+        // Nothing to keep. A limit is the run's own end. A restart is an interruption, and says what to do next.
+        queue(restarted ? { status: "interrupted", outcome: `${why} The agent hadn't changed any files yet, so there was no work to keep. Start the run again.` } : { status: "failed", outcome: `${why} The agent hadn't changed any files yet.` });
       } else {
         const prepared = await prepareAgentProposal(deps.checks, person, { kind: "run", runId }, r.task.id, {
           contractVersion: r.contract.version,
@@ -502,13 +584,20 @@ async function execute(
         });
         const created = prepared.ok ? (await flush(), await deps.runs.createRunProposal(runId, prepared.value.input)) : null;
         if (prepared.ok && created?.ok) {
-          queue({ status: "finished", outcome: `${why} The work so far is waiting for your review as a partial change: apply it and choose Keep going to carry on.` });
+          // A partial change that the rules stopped can't be applied, so it doesn't say to apply it.
+          queue({
+            status: "finished",
+            outcome: prepared.value.blocked
+              ? `${why} The work so far was kept as a partial change, and Farbaek stopped it: it goes outside the plan or breaks a rule. Open the change to see why.`
+              : `${why} The work so far is waiting for your review as a partial change: apply it and choose Keep going to carry on.`,
+          });
         } else {
-          queue({ status: "failed", outcome: `${why} The work so far couldn't be kept as a change.` });
+          queue({ status: restarted ? "interrupted" : "failed", outcome: `${why} The work so far couldn't be kept as a change.` });
         }
       }
     } else if (o.kind === "cancelled") {
-      queue({ status: "cancelled", outcome: "Cancelled. Nothing was suggested." });
+      // The person's own cancel, or a pause or a suspension: nothing is suggested, and the run says which it was.
+      queue({ status: "cancelled", outcome: live.stop === "pause" || live.stop === "suspended" ? STOPPED_OUTCOME[live.stop] : "Cancelled. Nothing was suggested." });
     } else {
       queue({ status: "failed", outcome: describeOutcome(o.kind, "detail" in o ? o.detail : null) });
     }
@@ -531,7 +620,7 @@ async function execute(
       const end: { status: "finished" | "failed" | "cancelled"; outcome: string } = ended;
       await deps.notify.buildFinished({ userId: person.userId, taskId: r.task.id, taskTitle: r.task.title, ...end }).catch(() => undefined);
     }
-    if (ended && deps.afterRun) await deps.afterRun(r.task.id).catch(() => undefined);
+    if (over && deps.afterRun) await deps.afterRun(r.task.id).catch(() => undefined);
     await fs.rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }).catch(() => undefined);
   }
 }

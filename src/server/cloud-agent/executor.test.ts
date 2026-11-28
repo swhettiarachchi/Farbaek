@@ -11,7 +11,7 @@ import type { TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import type { GatewayDeps, GatewayModel } from "@/server/agent/gateway";
 import type { ProposalInput } from "@/server/agent/service";
-import { answerRunApproval, cancelCloudRun, sendRunMessage, startCloudRun, type ExecutorDeps, type RunPerson } from "./executor";
+import { abortCloudRuns, answerRunApproval, cancelCloudRun, drainCloudRuns, isRunLiveHere, runsToDrainHere, sendRunMessage, startCloudRun, type ExecutorDeps, type RunPerson } from "./executor";
 import type { RunPatch, RunStore } from "./store";
 import type { VerificationOutcome } from "@/server/verification/runner";
 
@@ -82,15 +82,22 @@ const finish = { id: "f", name: "finish", input: { summary: "README names pnpm t
  * (and stops the sandbox and sends the email), so a second run with the same
  * id can have its folder removed under it. Production run ids are UUIDs.
  */
-async function deps(over: { runId?: string; model?: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[]; taskId?: string; gateway?: ExecutorDeps["gateway"]; pins?: Map<string, SkillPin>; autonomy?: AutonomyLimits | null; applyFails?: string; contract?: IntentContract; verify?: VerificationOutcome | null }) {
+async function deps(over: { runId?: string; model?: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[]; taskId?: string; gateway?: ExecutorDeps["gateway"]; pins?: Map<string, SkillPin>; autonomy?: AutonomyLimits | null; applyFails?: string; contract?: IntentContract; verify?: VerificationOutcome | null; slowEnd?: number }) {
   const patches: RunPatch[] = [];
   const proposals: ProposalInput[] = [];
   const synced: string[][] = [];
   const applied: { orgId: string; userId: string; proposalId: string }[] = [];
   const verified: { path: string; content: string }[][] = [];
+  /** The tasks whose run ended and were handed on to whatever waits on them (a workflow's step). */
+  const settled: string[] = [];
   const runs: RunStore = {
     start: async () => (over.runError ? { ok: false, error: over.runError } : { ok: true, value: over.runId ?? "run-1" }),
-    update: async (_id, p) => (patches.push(structuredClone(p)), { ok: true, value: null }),
+    update: async (_id, p) => {
+      // A slow last write, for the moment between a run leaving the list of live runs and its end reaching the database.
+      if (over.slowEnd && p.status && ["finished", "failed", "cancelled", "interrupted"].includes(p.status)) await new Promise((r) => setTimeout(r, over.slowEnd));
+      patches.push(structuredClone(p));
+      return { ok: true, value: null };
+    },
     createRunProposal: async (_id, input) => (proposals.push(input), { ok: true, value: "proposal-1" }),
     interruptStale: async () => 0,
   };
@@ -132,11 +139,12 @@ async function deps(over: { runId?: string; model?: ToolModel; state?: TaskState
       };
     },
     makeModel: over.model ? () => over.model! : undefined,
+    afterRun: async (taskId) => void settled.push(taskId),
     workRoot: root,
   };
   const ended = async () => {
     for (let i = 0; i < 200; i += 1) {
-      const end = patches.find((p) => p.status && ["finished", "failed", "cancelled"].includes(p.status));
+      const end = patches.find((p) => p.status && ["finished", "failed", "cancelled", "interrupted"].includes(p.status));
       if (end) return end;
       await new Promise((r) => setTimeout(r, 20));
     }
@@ -150,7 +158,7 @@ async function deps(over: { runId?: string; model?: ToolModel; state?: TaskState
     }
     throw new Error("No approval was asked for.");
   };
-  return { d, patches, proposals, synced, ended, waiting, applied, verified };
+  return { d, patches, proposals, synced, ended, waiting, applied, verified, settled };
 }
 
 const ok = { exitCode: 0, stdout: "ok", stderr: "", truncated: false, timedOut: false, cancelled: false, leftRunning: false, durationMs: 5 };
@@ -209,6 +217,148 @@ describe("cloud runs", () => {
     expect(cancelCloudRun({ ...alice, userId: "u-owner", role: "owner" }, "run-1")).toEqual({ ok: true, value: null });
     expect(await t.ended()).toMatchObject({ status: "cancelled" });
     expect(t.proposals).toEqual([]);
+  });
+
+  describe("stopped from outside (stage 291, ADR 0299)", () => {
+    const sandbox: CommandRunner = { where: "sandbox", run: async () => ok };
+    const install = { id: "i", name: "run_command", input: { program: "npm", args: ["install"], reason: "Install." } };
+    const notes = (patches: RunPatch[]) => patches.flatMap((p) => p.events ?? []).flatMap((e) => (e.kind === "note" ? [(e.payload as { text: string }).text] : []));
+    const RESTARTING = "Farbaek's server is restarting, so this run is stopping. What it changed so far is being saved as a change for you to review.";
+    // A run's last acts (its email, removing its folder) come after its end is written: wait for those before counting.
+    const allSettled = () => expect.poll(() => runsToDrainHere(), { timeout: 8_000 }).toBe(0);
+
+    it("keeps the work so far as a partial change when the server is stopping, and says why", async () => {
+      await allSettled();
+      // It has edited the README and is waiting for a yes to an install when the server is told to stop.
+      const t = await deps({ runId: "run-restart-1", model: scripted([[edit], [install]]), sandbox });
+      await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+      await t.waiting();
+      expect(isRunLiveHere("run-restart-1")).toBe(true);
+
+      expect(await drainCloudRuns(8_000)).toBe(1);
+
+      // By the time the drain resolves, the run has written its end: nothing is left for the stopping server to do.
+      const end = t.patches.find((p) => p.status === "finished");
+      expect(end?.outcome).toBe("Farbaek's server restarted while this run was working. The work so far is waiting for your review as a partial change: apply it and choose Keep going to carry on.");
+      expect(isRunLiveHere("run-restart-1")).toBe(false);
+      expect(runsToDrainHere()).toBe(0);
+      expect(t.proposals).toHaveLength(1);
+      expect(t.proposals[0]).toMatchObject({ taskId: "t1", changes: [{ path: "README.md", kind: "edit", content: "# Demo\nRun the tests with pnpm test.\n" }] });
+      expect(t.proposals[0]!.plan.summary).toBe("Partial: the run stopped before finishing. Farbaek's server restarted while this run was working.");
+      expect(notes(t.patches)).toContain(RESTARTING);
+      // Nothing applied by itself: a partial change waits for a person.
+      expect(t.applied).toEqual([]);
+      expect(t.settled).toEqual(["t1"]);
+    });
+
+    it("ends as interrupted, not failed, when it had changed nothing yet, and still settles what waits on it", async () => {
+      await allSettled();
+      const t = await deps({ runId: "run-restart-2", model: scripted([[install]]), sandbox });
+      await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+      await t.waiting();
+      expect(await drainCloudRuns(8_000)).toBe(1);
+      expect(await t.ended()).toMatchObject({ status: "interrupted", outcome: "Farbaek's server restarted while this run was working. The agent hadn't changed any files yet, so there was no work to keep. Start the run again." });
+      expect(t.proposals).toEqual([]);
+      // A workflow's step waiting on this run is settled now, not at the next hourly sweep.
+      expect(t.settled).toEqual(["t1"]);
+    });
+
+    it("suggests nothing when AI work is paused or the workspace is suspended, and says which it was", async () => {
+      const t = await deps({ runId: "run-pause-1", model: scripted([[edit], [install]]), sandbox });
+      await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+      await t.waiting();
+      // Another workspace's pause leaves this run alone.
+      expect(abortCloudRuns({ orgId: "o-other" })).toBe(0);
+      expect(abortCloudRuns({ orgId: "o1" })).toBe(1);
+      expect(await t.ended()).toMatchObject({ status: "cancelled", outcome: "Stopped, because AI work was paused. Nothing was suggested." });
+      // While a pause lasts the database takes no change from an agent, so none is offered to it.
+      expect(t.proposals).toEqual([]);
+      expect(notes(t.patches)).toContain("AI work was paused, so this run stopped. Nothing it was working on was suggested.");
+      expect(notes(t.patches).join(" ")).not.toMatch(/is kept|being saved/);
+
+      const s = await deps({ runId: "run-suspended-1", model: scripted([[edit], [install]]), sandbox });
+      await startCloudRun(s.d, { person: alice, taskId: "t1", effort: "balanced" });
+      await s.waiting();
+      expect(abortCloudRuns({ orgId: "o1" }, "suspended")).toBe(1);
+      expect(await s.ended()).toMatchObject({ status: "cancelled", outcome: "Stopped, because this workspace was suspended. Nothing was suggested." });
+      expect(s.proposals).toEqual([]);
+      expect(notes(s.patches)).toContain("This workspace was suspended, so this run stopped. Nothing it was working on was suggested.");
+    });
+
+    it("still suggests nothing when the person cancels it themselves, and a restart that lands while it winds down doesn't change that", async () => {
+      await allSettled();
+      const t = await deps({ runId: "run-cancel-2", model: scripted([[edit], [install]]), sandbox });
+      await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+      await t.waiting();
+      expect(cancelCloudRun(alice, "run-cancel-2")).toEqual({ ok: true, value: null });
+      // The server is told to stop before the cancelled run has finished winding down.
+      expect(isRunLiveHere("run-cancel-2")).toBe(true);
+      expect(await drainCloudRuns(8_000)).toBe(1);
+      expect(await t.ended()).toMatchObject({ status: "cancelled", outcome: "Cancelled. Nothing was suggested." });
+      expect(t.proposals).toEqual([]);
+      expect(notes(t.patches)).not.toContain(RESTARTING);
+    });
+
+    it("says what stopped it first, when a pause and then a restart both reach it", async () => {
+      const t = await deps({ runId: "run-both-1", model: scripted([[edit], [install]]), sandbox });
+      await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+      await t.waiting();
+      expect(abortCloudRuns("all")).toBe(1);
+      await drainCloudRuns(8_000);
+      expect(await t.ended()).toMatchObject({ status: "cancelled", outcome: "Stopped, because AI work was paused. Nothing was suggested." });
+      expect(notes(t.patches).filter((n) => /so this run (is stopping|stopped)/.test(n))).toHaveLength(1);
+      expect(t.proposals).toEqual([]);
+    });
+
+    it("waits for a run that is already writing its end, which has left the list of live runs", async () => {
+      await allSettled();
+      // The run finishes by itself, and its last write to the database is slow.
+      const t = await deps({ runId: "run-ending-1", model: scripted([[finish]]), slowEnd: 500 });
+      await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+      await expect.poll(() => isRunLiveHere("run-ending-1"), { timeout: 4_000 }).toBe(false);
+      expect(t.patches.some((p) => p.status === "finished")).toBe(false);
+      // Not live any more, and still something a stopping server must wait for.
+      expect(runsToDrainHere()).toBe(1);
+      expect(await drainCloudRuns(8_000)).toBe(1);
+      expect(t.patches.find((p) => p.status === "finished")).toMatchObject({ outcome: "Finished without changing any files." });
+    });
+
+    it("resolves at once with nothing to wait for, and gives up waiting when its time is up", async () => {
+      await allSettled();
+      expect(await drainCloudRuns(8_000)).toBe(0);
+
+      // A model call that doesn't come back until the test lets it: the drain gives up waiting, and the run still ends.
+      let release: () => void = () => {};
+      const held = new Promise<void>((resolve) => (release = resolve));
+      const slow: ToolModel = {
+        provider: "farbaek",
+        model: "auto",
+        begin() {
+          return { send: () => held.then(() => Promise.reject(new Error("stopped"))) };
+        },
+      };
+      const t = await deps({ runId: "run-slow-1", model: slow });
+      await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+      await expect.poll(() => t.patches.some((p) => p.status === "working"), { timeout: 4_000 }).toBe(true);
+      expect(await drainCloudRuns(60)).toBe(1);
+      // It came back without the run having ended: the model call is still out.
+      expect(t.patches.some((p) => p.status === "interrupted")).toBe(false);
+      expect(isRunLiveHere("run-slow-1")).toBe(true);
+      release();
+      expect(await t.ended()).toMatchObject({ status: "interrupted" });
+    });
+  });
+
+  it("says a partial change the rules stopped can't be applied, instead of saying to apply it", async () => {
+    // It edits a file the plan doesn't cover, then never finishes: the step limit keeps the work, and the rules stop it.
+    const other = { id: "o", name: "edit_file", input: { path: "OTHER.md", edits: [{ find: "Old.", replace: "New." }], reason: "Not in the plan." } };
+    const read = { id: "r", name: "read_file", input: { path: "README.md" } };
+    const t = await deps({ runId: "run-blocked-1", model: scripted([[other], ...Array.from({ length: 60 }, () => [read])]), extraFiles: [{ path: "OTHER.md", content: "Old.\n" }] });
+    await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+    const end = await t.ended();
+    expect(end.outcome).toMatch(/limit of 40 model steps\. The work so far was kept as a partial change, and Farbaek stopped it: it goes outside the plan or breaks a rule\. Open the change to see why\.$/);
+    expect(end.outcome).not.toMatch(/apply it/);
+    expect(t.proposals).toHaveLength(1);
   });
 
   it("takes messages from the person while it works, records them, and passes them to the agent at its next step", async () => {
