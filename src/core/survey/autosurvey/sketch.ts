@@ -119,6 +119,15 @@ export const sketchRecordSchema = z.object({
    * Kept here because only reading writes this record: a plan saved from the browser can't change a check's verdicts.
    */
   check: sketchCheckSchema.optional(),
+  /**
+   * Lines Farbaek left out of the drawing (stage 302, ADR 0308): read once, with doubt, and not found drawn by the independent check. Kept
+   * here, with the line's numbers as read and what the check said, because only reading writes this record; the surveyor puts one back in
+   * a press. Absent until the first.
+   */
+  leftOut: z
+    .array(z.object({ line: z.string().regex(/^l\d{1,3}$/), points: z.array(short(32)).max(60), note: short(200), at: short(40) }))
+    .max(30)
+    .optional(),
 });
 export type SketchRecord = z.infer<typeof sketchRecordSchema>;
 

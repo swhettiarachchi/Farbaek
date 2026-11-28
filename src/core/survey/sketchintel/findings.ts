@@ -22,7 +22,10 @@ export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPo
   // Read with the surveyor's corrections of point numbers applied (stage 249, ADR 0257); the reading itself stays as read.
   const corrections = doc.sketch?.corrections ?? [];
   const readings = correctedReadings(doc.sketch?.readings ?? [], corrections);
-  const drawing = withBuildingWords(correctedDrawing(raw, corrections), readings, doc.codes);
+  // Without the lines Farbaek left out because the independent check doesn't find them drawn (stage 302, ADR 0308).
+  const out = new Set((doc.sketch?.leftOut ?? []).map((l) => l.line));
+  const kept = out.size === 0 ? raw : { ...raw, lines: raw.lines.filter((l) => !out.has(l.id)) };
+  const drawing = withBuildingWords(correctedDrawing(kept, corrections), readings, doc.codes);
   const stated = readStatedExtent(doc.sheet.statedExtent);
   // A road's reading is its width when it reads as one ("15'"), else its name (stage 243). One read with doubt is never taken, but it's
   // counted, so a conflict is still asked about (ADR 0253).

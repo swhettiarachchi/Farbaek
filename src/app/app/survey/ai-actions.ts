@@ -23,12 +23,13 @@ import { createAnthropicSurveyDrafter, type ReadRequest } from "@/server/ai/surv
 import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
-import { SURVEY_AI_DAILY } from "@/server/survey/assistant";
+import { surveyAiDaily } from "@/server/survey/assistant";
 import { BRIEF_LIMITS, PHOTO_LIMITS, draftSurveyPlan, imageTypeOf, pdfPages, readSurveyPhotos, scanLimit, scanTypeOf, type SurveyDraftDeps } from "@/server/survey/drafting";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { JobTracker, loadJob } from "@/server/survey/jobs";
 import { SKETCH_PHOTOS, checkPlanAgainstSketch, readFieldSketches } from "@/server/survey/sketches";
 import { checkItems, type SketchCheck } from "@/core/survey/sketchintel/verify";
+import { withSecondReading } from "@/core/survey/sketchintel/second-reading";
 import { createAnthropicSketchChecker } from "@/server/ai/sketch-checker";
 import { loadSketchPhotos, readSketchPhoto } from "@/server/survey/sketch-photos";
 import { SURVEY_MESSAGES, surveyStore } from "@/server/survey/store";
@@ -87,9 +88,10 @@ async function prepare(projectId: string, baseVersion: number, label: string, ki
   if ("error" in ai) return { error: ai.error };
   // Free while it's tested (ADR 0212): a day's fair share for one person on Farbaek's key. A workspace's own key has no such limit.
   if (!ai.own) {
-    const day = await admin.rpc("app_rate_limit", { p_key: `survey-${kind}-day:${ctx.user.id}`, p_window_seconds: 86_400, p_limit: SURVEY_AI_DAILY[kind] });
+    const daily = surveyAiDaily()[kind];
+    const day = await admin.rpc("app_rate_limit", { p_key: `survey-${kind}-day:${ctx.user.id}`, p_window_seconds: 86_400, p_limit: daily });
     if (day.error) return { error: "Drafting isn't available right now. Try again in a minute." };
-    if (day.data !== true) return { error: `That's ${SURVEY_AI_DAILY[kind]} ${kind === "draft" ? "drafts" : "photo reads"} today, the most for one person while Survey Studio is being tested. It's back tomorrow; everything without AI still works.` };
+    if (day.data !== true) return { error: `That's ${daily} ${kind === "draft" ? "drafts" : "photo reads"} today, the most for one person while Survey Studio is being tested. It's back tomorrow; everything without AI still works.` };
   }
   const source = { family: "anthropic" as const, create: (s: { model: string }) => createAnthropicSurveyDrafter({ model: s.model, client: ai.client }) };
   return { ai, source, admin, user, client: ai.client, data, common: { orgId, userId: ctx.user.id, projectId, document: data.drawing.document, points: data.points } };
@@ -243,7 +245,7 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   const withReadings = (document: SurveyDocument, points: readonly SurveyPoint[]) => {
     // What an earlier read drew and nobody has confirmed goes: the new read draws what it reads (stage 256). The surveyor's own stays.
     // A new read's check answers for itself: the earlier answers to readings and to a check go with them (stage 263).
-    const read = pruneProvenance({ ...withoutWaitingSketchItems(document), sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:") && !k.startsWith("check:")) });
+    const read = pruneProvenance({ ...withoutWaitingSketchItems(document), sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:") && !k.startsWith("check:") && !k.startsWith("left:")) });
     // The plain misreads the engine would offer to correct in one press are corrected now, as Farbaek's, before anything is drawn, when
     // that helps (ADR 0260): what they draw waits for the surveyor as everything from a sketch does, and each is put back in one press.
     const auto = withAutoCorrections(read, points, new Date());
@@ -270,10 +272,23 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     if (c.ok) check = c.value;
     else checkNote = ` ${c.message}`;
   }
-  const withCheck = (d: SurveyDocument): SurveyDocument => (check && d.sketch ? { ...d, sketch: { ...d.sketch, check } } : d);
-  const next = withCheck(drafted);
+  // The check's verdicts, and what they correct by themselves (stage 302, ADR 0308): a line drawn from one doubtful read that the check
+  // doesn't find drawn is left out, and what it drew redrawn, each said on the plan with a press to put it back.
+  let leftOut = 0;
+  const withCheck = (d: SurveyDocument, pts: readonly SurveyPoint[]): SurveyDocument => {
+    if (!check || !d.sketch) return d;
+    const second = withSecondReading({ ...d, sketch: { ...d.sketch, check } }, pts, new Date());
+    leftOut = second.leftOut.length;
+    // What the read says it drew and asks is said of the plan as saved, after the second reading's corrections.
+    if (leftOut > 0) {
+      drawn = Math.max(0, drawn + second.added.length - second.removed.length);
+      asked = sketchQuestionFindings(interpretDocument(second.document, pts), second.document).length;
+    }
+    return second.document;
+  };
+  const next = withCheck(drafted, p.data.points);
   // Said from the version actually saved: the retry below works the drawing out again on the newest version.
-  const noteFor = () => `Read ${photos} with Claude: ${record.readings.length} things as written${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}${corrected.length > 0 ? `; Farbaek read ${corrected.join(" and ")}` : ""}${check ? "; checked against the sketch" : ""}`.slice(0, 200);
+  const noteFor = () => `Read ${photos} with Claude: ${record.readings.length} things as written${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}${corrected.length > 0 ? `; Farbaek read ${corrected.join(" and ")}` : ""}${check ? "; checked against the sketch" : ""}${leftOut > 0 ? `; left out ${leftOut} ${leftOut === 1 ? "line" : "lines"} the check doesn't find` : ""}`.slice(0, 200);
   if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: "The readings didn't pass the plan's own checks, so nothing was saved." };
   let saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion, document: next, note: noteFor() });
   if (!saved.ok) {
@@ -281,7 +296,7 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     // the newest version once, rather than being lost after the read was counted.
     const latest = await loadSurveyProject(p.user, p.common.orgId, projectId);
     if (latest && latest.drawing.readable && latest.drawing.version !== baseVersion) {
-      const again = withCheck(withReadings(latest.drawing.document, latest.points));
+      const again = withCheck(withReadings(latest.drawing.document, latest.points), latest.points);
       if (surveyDocumentSchema.safeParse(again).success) saved = await surveyStore.saveDrawing(p.admin, actor, { projectId, baseVersion: latest.drawing.version, document: again, note: noteFor() });
     }
   }
@@ -298,7 +313,7 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   const fromDrawing = drawn > 0 ? ` ${drawn} ${drawn === 1 ? "item was" : "items were"} drawn from the sketch, each waiting for your confirmation.` : "";
   const fixed = corrected.length > 0 ? ` Farbaek read ${corrected.join(" and ")}, from where ${corrected.length === 1 ? "it's" : "they're"} written: check ${corrected.length === 1 ? "it" : "them"} on the plan.` : "";
   const questions = asked > 0 ? ` ${asked} ${asked === 1 ? "question" : "questions"} the sketch couldn't settle ${asked === 1 ? "is" : "are"} in the checks.` : "";
-  const checked = check ? ` ${checkSummary(check)}` : checkNote;
+  const checked = check ? ` ${checkSummary(check)}${leftOut > 0 ? ` Farbaek left out ${leftOut} ${leftOut === 1 ? "line" : "lines"} read once with doubt that the check doesn't find drawn, and redrew the plan without ${leftOut === 1 ? "it" : "them"}: put ${leftOut === 1 ? "it" : "any"} back in one press.` : ""}` : checkNote;
   await end("done", `${record.readings.length} things read${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}, saved as version ${saved.value}.${keptNote}`);
   revalidatePath(`/app/survey/${projectId}`);
   return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${fromDrawing}${fixed}${questions}${checked}${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length, drawn, questions: asked };
