@@ -25,7 +25,10 @@ export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPo
   // Without the lines Farbaek left out because the independent check doesn't find them drawn (stage 302, ADR 0308).
   const out = new Set((doc.sketch?.leftOut ?? []).map((l) => l.line));
   const kept = out.size === 0 ? raw : { ...raw, lines: raw.lines.filter((l) => !out.has(l.id)) };
-  const drawing = withBuildingWords(correctedDrawing(kept, corrections), readings, doc.codes);
+  // With the strokes the surveyor joined in a press (stage 303, ADR 0309): their word, so read as sure. Never counted as a read of its own.
+  const corrected = correctedDrawing(kept, corrections);
+  const joins = (doc.sketch?.joins ?? []).map((j, i) => ({ id: `j${i + 1}`, file: j.file, points: [j.from, j.to], label: "", style: "single" as const, closes: false, certain: true }));
+  const drawing = withBuildingWords(joins.length > 0 ? { ...corrected, lines: [...corrected.lines, ...joins] } : corrected, readings, doc.codes);
   const stated = readStatedExtent(doc.sheet.statedExtent);
   // A road's reading is its width when it reads as one ("15'"), else its name (stage 243). One read with doubt is never taken, but it's
   // counted, so a conflict is still asked about (ADR 0253).
@@ -146,10 +149,48 @@ export function settledSketchLine(interpretation: SketchInterpretation | null, d
   );
 }
 
+/**
+ * The numbers the sketch's drawing runs through that no surveyed point has (stage 303): when many are, the sketch may be another job's, or
+ * too unclear to read, and what was drawn from it can't be trusted. Corner words and ambiguous numbers aren't counted either way.
+ */
+export function strangeNumbers(i: SketchInterpretation | null): { strange: string[]; total: number } {
+  const seen = (i?.matches ?? []).filter((x) => x.how !== "ambiguous" && !/^corner$/i.test(x.label.trim()));
+  return { strange: [...new Set(seen.filter((x) => x.pointId === null).map((x) => x.label))], total: new Set(seen.map((x) => x.label)).size };
+}
+
+/** Whether a sketch looks like another job's: at least five of its numbers, and at least two in five, aren't surveyed points. */
+export const looksLikeAnotherJob = (x: { strange: string[]; total: number }) => x.strange.length >= 5 && x.strange.length >= 0.4 * x.total;
+
 /** The sketch's open questions as the plan's findings: for information, holding nothing back; those the surveyor has answered left out. */
 export function sketchQuestionFindings(interpretation: SketchInterpretation | null, doc: SurveyDocument): Finding[] {
   if (!interpretation) return [];
-  return interpretation.questions.filter((q) => !answered(doc, q.item, q.answeredBy, interpretation)).slice(0, 30).map((q) => ({
+  // A join that would close a house round its label (stage 303): asked on a card of its own, answered by joining or by saying it isn't
+  // drawn, holding approval until then as a doubt does. Each join the surveyor made is a note, to take off in a press.
+  const kept = new Set(doc.kept);
+  const joins: Finding[] = interpretation.questions.flatMap((q): Finding[] => {
+    if (!q.join) return [];
+    const key = `join:${q.join.from}|${q.join.to}`;
+    if (kept.has(key)) return [{ code: "SKETCH_JOIN_KEPT", severity: "information", message: `Not joined, as you said: ${q.text}`, target: { kind: "project" }, action: "Give the building's corners on the Lots step, or join them after all.", blocks: [], keep: { key, kept: true } }];
+    return [{ code: "SKETCH_JOIN", severity: "professional_review", message: q.text, target: { kind: "project" }, detail: `Read from ${q.file}.`, action: q.evidence[0] ?? "Join them if the sketch draws that wall.", blocks: ["approval"], keep: { key, kept: false }, join: { file: q.join.file, from: q.join.from, to: q.join.to } }];
+  });
+  const made: Finding[] = (doc.sketch?.joins ?? []).map((j) => ({
+    code: "SKETCH_JOINED",
+    severity: "information",
+    message: `You joined ${j.from} to ${j.to} on ${j.file}: the sketch is read with that wall.`,
+    target: { kind: "project" },
+    action: "Take the join off if the sketch doesn't draw that wall.",
+    blocks: [],
+    join: { file: j.file, from: j.from, to: j.to },
+  }));
+  // A sketch that may be another job's (stage 303): said first, holding approval until the surveyor says it's this job's or reads another.
+  const odd = strangeNumbers(interpretation);
+  const shown = odd.strange.slice(0, 5).join(", ") + (odd.strange.length > 5 ? ` and ${odd.strange.length - 5} more` : "");
+  const other: Finding[] = !looksLikeAnotherJob(odd)
+    ? []
+    : kept.has("sketch:job")
+      ? [{ code: "SKETCH_OTHER_JOB_KEPT", severity: "information", message: `You said the sketch is this job's, though ${odd.strange.length} of its ${odd.total} numbers aren't in the survey files.`, target: { kind: "project" }, action: "Nothing to do, unless it isn't after all.", blocks: [], keep: { key: "sketch:job", kept: true } }]
+      : [{ code: "SKETCH_OTHER_JOB", severity: "professional_review", message: `${odd.strange.length} of the ${odd.total} numbers on the sketch aren't in your survey files (${shown}). It may be another job's sketch, or too unclear to read, so what was drawn from it may be wrong.`, target: { kind: "project" }, action: "If it isn't this job's sketch, read the right one from the Draft step. If it is, keep it, and correct what's wrong on the plan.", blocks: ["approval"], keep: { key: "sketch:job", kept: false } }];
+  return [...other, ...joins, ...made, ...interpretation.questions.filter((q) => !q.join && !answered(doc, q.item, q.answeredBy, interpretation)).slice(0, 30).map((q) => ({
     code: "SKETCH_QUESTION",
     severity: "warning" as const,
     message: q.text,
@@ -157,5 +198,5 @@ export function sketchQuestionFindings(interpretation: SketchInterpretation | nu
     detail: [`Read from ${q.file}.`, ...q.evidence].join(" "),
     action: q.evidence.find((e) => /^(Check|Give|Survey|Add|Its)/.test(e)) ?? "Check the sketch, and draw or correct it on the Lots step if it's needed.",
     blocks: [],
-  }));
+  }))];
 }

@@ -26,6 +26,22 @@ export type SketchKind = (typeof SKETCH_KINDS)[number];
 export const SKETCH_LIMITS = { photos: 6, readings: 300, photoBytes: 1_800_000, totalBytes: 5_500_000 } as const;
 
 /**
+ * The smallest photo a hand sketch's numbers can be read from (stage 303): a screenshot, or a photo sent through a chat app, is often
+ * smaller, and its numbers come back guessed. The owner's own sketch photo, 960 by 1280, is read; a 509 by 729 screenshot isn't.
+ */
+export const SKETCH_MIN_PIXELS = { short: 700, long: 1_000 } as const;
+
+/** The longest side a photo is shrunk to before it's sent (the browser's `PHOTO_SIDE`): one this long was larger, so big enough. */
+export const SKETCH_PHOTO_SIDE = 1_568;
+
+/** Why a sketch photo of this size can't be read, or null when it can. A wide photo shrunk to its long side is never too small. */
+export function sketchTooSmall(width: number, height: number, name: string): string | null {
+  if (Math.max(width, height) >= SKETCH_PHOTO_SIDE) return null;
+  if (Math.min(width, height) >= SKETCH_MIN_PIXELS.short && Math.max(width, height) >= SKETCH_MIN_PIXELS.long) return null;
+  return `${name} is too small to read: ${width} by ${height} pixels, so its numbers would be guessed. Take a photo of the sketch with the camera, flat and close, and add that; a screenshot, or a photo sent through a chat app, is too small.`;
+}
+
+/**
  * What the model returns. Every value is text as written: there is no place for a computed, converted or estimated number. The only
  * numbers are which photo a reading is on and where on that photo it's written (stage 245, ADR 0253): a place to find it again, 0 to
  * 1000 across and down the photo as given, never a length, an angle or a coordinate, and never read by anything that draws.
@@ -127,6 +143,14 @@ export const sketchRecordSchema = z.object({
   leftOut: z
     .array(z.object({ line: z.string().regex(/^l\d{1,3}$/), points: z.array(short(32)).max(60), note: short(200), at: short(40) }))
     .max(30)
+    .optional(),
+  /**
+   * Strokes the surveyor joined in a press (stage 303, ADR 0309): two numbers on a photo the read didn't join, which close a house round its
+   * label. The surveyor's word, with who and when, kept beside the reading; the engine reads the drawing with them. Absent until the first.
+   */
+  joins: z
+    .array(z.object({ file: short(200), from: short(32).pipe(z.string().min(1)), to: short(32).pipe(z.string().min(1)), by: z.string().uuid().nullable(), at: short(40) }))
+    .max(20)
     .optional(),
 });
 export type SketchRecord = z.infer<typeof sketchRecordSchema>;

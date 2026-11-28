@@ -8,7 +8,7 @@ import { readSketchesAction, readTitleIntoPlanAction } from "@/app/app/survey/ai
 import { generateSurveyPlanAction, type GenerateState } from "@/app/app/survey/actions";
 import { commonCodes } from "@/core/survey/codes";
 import { CRS_REGISTRY, LOCAL_CRS, crsById } from "@/core/survey/crs";
-import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
+import { SKETCH_LIMITS, sketchTooSmall } from "@/core/survey/autosurvey/sketch";
 import { GRAMMAR, grammarForLibrary, type GrammarId } from "@/core/survey/grammar";
 import { profilePrecision, profileSummary, resolveProfile, type OfficeProfile } from "@/core/survey/profile";
 import { LIBRARY_LIMITS, libraryFor, librarySummary, looksLikeCodeLibrary, parseCodeLibrary } from "@/core/survey/codelib";
@@ -19,7 +19,7 @@ import { IMPORT_LIMITS } from "@/core/survey/import/delimited";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { shrink } from "./photo";
+import { photoSize, shrink } from "./photo";
 import { sketchesKey, stage, staged, startKey, unstage } from "./staging";
 import { fromKept, toKept, type Upload } from "./start-uploads";
 import { StartPreview } from "./start-preview";
@@ -151,6 +151,15 @@ export function AutoSurveyStart({
   const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<GenerateState>({ status: "idle" });
   const [pending, startTransition] = useTransition();
+  // How long the sketch has been read, said while it is (stage 303): two to four minutes with no word looks stuck.
+  const [readSince, setReadSince] = useState<number | null>(null);
+  const [clock, setClock] = useState(0);
+  useEffect(() => {
+    if (!pending || phase !== "reading") return;
+    const timer = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [pending, phase]);
+  const readFor = readSince && clock > readSince ? Math.floor((clock - readSince) / 1000) : 0;
   const picker = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
   const counter = useRef(0);
@@ -248,11 +257,15 @@ export function AutoSurveyStart({
       }
       if (kind === "sketch") {
         const photo = await shrink(file).catch(() => null);
+        // Too small to read (stage 303): said on its card before anything is sent, with what to do.
+        const size = photo ? await photoSize(photo) : null;
         const problem = !photo
           ? "This photo couldn't be opened here. Save it as a JPEG or PNG and add it again."
           : photo.size > SKETCH_LIMITS.photoBytes
             ? "This photo is still too large after shrinking. Take it again, or crop it to the sketch."
-            : null;
+            : size
+              ? sketchTooSmall(size.width, size.height, "This photo")
+              : null;
         added.push({ key, name: file.name, size: file.size, kind, photo: problem ? null : photo, problem });
         continue;
       }
@@ -429,6 +442,7 @@ export function AutoSurveyStart({
       let opened = r.next;
       if (toRead.length > 0) {
         setPhase("reading");
+        setReadSince(Date.now());
         setOpening(r.next);
         if (photosKey) await stage(photosKey, { v: 1, jobId: r.jobId, before: null, photos: toRead.map((s) => ({ name: s.name, blob: s.photo })) });
         const form = new FormData();
@@ -822,7 +836,7 @@ export function AutoSurveyStart({
           </button>
           <p id="generate-note" aria-live="polite" className="text-sm text-ink-3">
             {pending && phase === "reading"
-              ? `The plan is drawn. Claude is reading ${sketches.length === 1 ? "your sketch" : `${sketches.length} sketches`}, which can take a minute.`
+              ? `The plan is drawn. Claude is reading ${sketches.length === 1 ? "your sketch" : `${sketches.length} sketches`} and checking what it draws${readFor > 0 ? `: ${readFor >= 60 ? `${Math.floor(readFor / 60)} min ` : ""}${readFor % 60} s so far` : ""}. It usually takes two to four minutes.`
               : pending && phase === "title"
               ? "Claude is reading the deed or old plan into the plan's title, which can take a minute."
               : pending

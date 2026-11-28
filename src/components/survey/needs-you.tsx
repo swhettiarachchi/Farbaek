@@ -11,7 +11,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { ConfirmItem, ConfirmTogether, ForgetHabit, HabitChoice, LotLabel } from "./confirm-item";
-import { KeepAsSurveyed, PutBackLine } from "./keep-as-surveyed";
+import { JoinPoints, KeepAsSurveyed, PutBackLine } from "./keep-as-surveyed";
 import { SketchFix, SketchFixResult } from "./sketch-fix";
 
 const STEP_NAMES: Record<ExceptionStep, string> = { import: "Import", points: "Points", draft: "Draft", boundary: "Lots", plan: "Plan", settings: "Settings" };
@@ -109,9 +109,11 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
       <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
         {e.lotLabel ? <LotLabel projectId={projectId} baseVersion={baseVersion} lotId={e.lotLabel.lotId} readOnly={readOnly} /> : null}
         {e.together ? <ConfirmTogether projectId={projectId} baseVersion={baseVersion} keys={e.together.keys} readOnly={readOnly} /> : null}
-        {e.confirm ? <ConfirmItem projectId={projectId} baseVersion={baseVersion} keyId={e.confirm} confirmed={false} readOnly={readOnly} /> : null}
+        {/* Keyed by the version, so a newer version clears a card's old answer (stage 303). */}
+        {e.confirm ? <ConfirmItem key={`${e.confirm}@${baseVersion}`} projectId={projectId} baseVersion={baseVersion} keyId={e.confirm} confirmed={false} readOnly={readOnly} /> : null}
         {e.habit ? <HabitChoice projectId={projectId} baseVersion={baseVersion} style={e.habit.style} choices={e.habit.choices} readOnly={readOnly} /> : null}
-        {e.keep ? <KeepAsSurveyed projectId={projectId} baseVersion={baseVersion} keyId={e.keep.key} kept={e.keep.kept} readOnly={readOnly} {...(e.leftOut ? { label: "Leave it out" } : {})} /> : null}
+        {e.keep ? <KeepAsSurveyed key={`${e.keep.key}@${baseVersion}`} projectId={projectId} baseVersion={baseVersion} keyId={e.keep.key} kept={e.keep.kept} readOnly={readOnly} {...(e.leftOut ? { label: "Leave it out" } : e.join ? { label: "It isn't drawn" } : e.code === "SKETCH_OTHER_JOB" ? { label: "It's this job's sketch" } : {})} /> : null}
+        {e.join ? <JoinPoints projectId={projectId} baseVersion={baseVersion} from={e.join.from} to={e.join.to} join={!e.join.made} readOnly={readOnly} /> : null}
         {e.leftOut ? <PutBackLine projectId={projectId} baseVersion={baseVersion} line={e.leftOut.line} readOnly={readOnly} /> : null}
         {e.step && e.step !== "plan" ? (
           <Link href={`${base}?step=${e.step}`} className="inline-flex min-h-10 items-center text-sm font-medium text-accent underline-offset-2 hover:underline">

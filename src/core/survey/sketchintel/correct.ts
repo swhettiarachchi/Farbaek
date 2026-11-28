@@ -14,7 +14,7 @@ import { numberKey, type SketchCorrection } from "./corrected";
 import { applySketch, sketchItemId } from "./apply";
 import type { SketchInterpretation } from "./interpret";
 import type { SurveyPoint } from "../parcel";
-import { interpretDocument } from "./findings";
+import { interpretDocument, looksLikeAnotherJob, strangeNumbers } from "./findings";
 
 export { correctedDrawing, correctedReadings, numberKey, type SketchCorrection } from "./corrected";
 
@@ -47,6 +47,8 @@ export function withAutoCorrections(doc: SurveyDocument, points: readonly Survey
   const sketch = doc.sketch;
   const asRead = interpretDocument(doc, points);
   if (!sketch || !asRead) return { document: doc, corrections: [] };
+  // A sketch that may be another job's (stage 303) is never corrected by Farbaek: where its numbers are written says nothing about this job.
+  if (looksLikeAnotherJob(strangeNumbers(asRead))) return { document: doc, corrections: [] };
   const plain = autoCorrections(asRead.questions, sketch.readings, at);
   if (plain.length === 0) return { document: doc, corrections: [] };
   const corrected: SurveyDocument = { ...doc, sketch: { ...sketch, corrections: [...(sketch.corrections ?? []), ...plain] } };

@@ -3,7 +3,7 @@
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { putBackSketchLineAction, setKeptAsSurveyedAction } from "@/app/app/survey/actions";
+import { joinSketchPointsAction, putBackSketchLineAction, setKeptAsSurveyedAction } from "@/app/app/survey/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { PLAN_UNSAVED_REASON, usePlanUnsaved } from "./unsaved-plan";
 
@@ -56,6 +56,37 @@ export function PutBackLine({ projectId, baseVersion, line, readOnly }: { projec
         <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden />
         {pending ? "Putting it back…" : "Put it back"}
       </button>
+      {readOnly ? <p className="text-sm text-ink-3">{readOnly}</p> : unsaved ? <p className="text-sm text-ink-3">{PLAN_UNSAVED_REASON}</p> : null}
+      {error ? (
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden />
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Joins two numbers on a sketch as the surveyor's word, or takes their join off (stage 303, ADR 0309): what the sketch draws is redrawn. */
+export function JoinPoints({ projectId, baseVersion, from, to, join, readOnly }: { projectId: string; baseVersion: number; from: string; to: string; join: boolean; readOnly: string | null }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const unsaved = usePlanUnsaved();
+  const run = () =>
+    start(async () => {
+      const r = await joinSketchPointsAction({ projectId, baseVersion, from, to, join });
+      if (r.status === "error") return setError(r.message);
+      setError(null);
+      router.refresh();
+    });
+  return (
+    <div className="grid gap-1.5">
+      <button type="button" onClick={run} disabled={pending || readOnly !== null || unsaved} className={buttonClasses(join ? "secondary" : "ghost", "sm", "w-fit")}>
+        {join ? <CheckCircleIcon size={16} weight="bold" aria-hidden /> : <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden />}
+        {pending ? (join ? "Joining…" : "Taking it off…") : join ? `Join ${from} to ${to}` : "Take the join off"}
+      </button>
+      {readOnly ? <p className="text-sm text-ink-3">{readOnly}</p> : unsaved ? <p className="text-sm text-ink-3">{PLAN_UNSAVED_REASON}</p> : null}
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
           <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden />
