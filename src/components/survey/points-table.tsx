@@ -26,16 +26,27 @@ function roleOf(p: ImportedPoint, codes: readonly CodeEntry[]): { label: string;
  * Every point as read (stage 194): its number, coordinates, code and what the code makes it, with the rows that need a look (an
  * unknown code, a repeat) marked and a filter to show only those. Rows the reader refused are listed by line above, not here.
  */
-export function PointsTable({ points, issues, codes }: { points: readonly ImportedPoint[]; issues: readonly ImportIssue[]; codes: readonly CodeEntry[] }) {
+export function PointsTable({
+  points,
+  issues,
+  codes,
+  judge = true,
+}: {
+  points: readonly ImportedPoint[];
+  issues: readonly ImportIssue[];
+  codes: readonly CodeEntry[];
+  /** Whether to say what each code makes a point: off where the code list the plan will use isn't known here (stage 293). */
+  judge?: boolean;
+}) {
   const [onlyAttention, setOnlyAttention] = useState(false);
   const warnedLines = useMemo(() => new Set(issues.filter((i) => i.severity === "warning" && i.line !== null).map((i) => i.line!)), [issues]);
   const rows = useMemo(
     () =>
       points.map((p) => {
-        const role = roleOf(p, codes);
+        const role = judge ? roleOf(p, codes) : { label: "", attention: false };
         return { p, role, attention: role.attention || warnedLines.has(p.line) };
       }),
-    [points, codes, warnedLines],
+    [points, codes, warnedLines, judge],
   );
   const attention = rows.filter((r) => r.attention).length;
   const visible = (onlyAttention ? rows.filter((r) => r.attention) : rows).slice(0, SHOWN);
@@ -63,7 +74,7 @@ export function PointsTable({ points, issues, codes }: { points: readonly Import
               <th scope="col" className="p-2 text-right font-medium">Northing</th>
               <th scope="col" className="p-2 text-right font-medium">Height</th>
               <th scope="col" className="p-2 font-medium">Code</th>
-              <th scope="col" className="p-2 font-medium">Read as</th>
+              {judge ? <th scope="col" className="p-2 font-medium">Read as</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -74,7 +85,7 @@ export function PointsTable({ points, issues, codes }: { points: readonly Import
                 <td className="p-2 text-right font-mono tabular text-ink">{fixed(p.n)}</td>
                 <td className="p-2 text-right font-mono tabular text-ink-2">{p.z === null ? "" : fixed(p.z)}</td>
                 <td className="p-2 font-mono text-ink">{p.code ?? ""}</td>
-                <td className="p-2 text-ink-2">{look ? <StatusBadge status="attention" label={warnedLines.has(p.line) ? "Repeated in the file" : role.label} /> : role.label}</td>
+                {judge ? <td className="p-2 text-ink-2">{look ? <StatusBadge status="attention" label={warnedLines.has(p.line) ? "Repeated in the file" : role.label} /> : role.label}</td> : null}
               </tr>
             ))}
           </tbody>

@@ -54,7 +54,7 @@ const LAYOUTS = {
 } as const;
 
 /** A point name as stored: right-aligned, and zero-filled when numeric ("00000031" is 31). */
-const pointName = (raw: string) => {
+export const pointName = (raw: string) => {
   const t = raw.trim();
   return /^\d+$/.test(t) ? t.replace(/^0+(?=\d)/, "") : t;
 };
