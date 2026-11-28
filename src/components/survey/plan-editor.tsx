@@ -362,7 +362,9 @@ export function PlanEditor(props: PlanEditorProps) {
   // Stable while the layers and the right to edit stay the same, so the memoised drawing keeps its move cursors without redrawing.
   const layers = doc.layers;
   const canDrag = useCallback(
-    (item: SceneItem) => !props.readOnly && item.kind === "text" && Boolean(item.entity) && item.layer !== "SHEET" && !layers[item.layer as LayerId]?.locked && item.entity !== "north" && item.entity !== "scalebar" && item.entity !== "checkline",
+    // The title block's words (plan number, surveyor, title, notes) are laid out by the sheet, which never applies a dragged offset to
+    // them: offered for dragging, they showed a move cursor and didn't move. They're tapped to select and edited in the Sheet panel.
+    (item: SceneItem) => !props.readOnly && item.kind === "text" && Boolean(item.entity) && item.layer !== "SHEET" && item.layer !== "TITLE" && !layers[item.layer as LayerId]?.locked && item.entity !== "north" && item.entity !== "scalebar" && item.entity !== "checkline",
     [props.readOnly, layers],
   );
 

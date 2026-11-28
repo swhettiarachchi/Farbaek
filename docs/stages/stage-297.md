@@ -15,3 +15,7 @@ Snapping to lines isn't added for words: a word can already be set along a line 
 - `align-guides.test.ts`: lines up across and down apart, the nearest within reach, nothing when nothing is near.
 - In the browser (demo, the sample plan made editable for the check only, then restored): dragging "To Houses" to 2 px off "From Main Road"'s line showed the guide at 19.79 mm and dropped it exactly on that line; the guide went with the drag.
 - `tsc` and `eslint` clean.
+
+## Checked live, and a fix it showed (2026-11-28)
+
+On production (build 02a64e567ea5), on a test project: dragging a label showed the guide at the other word's line. But the plan number, dragged, didn't move: the title block's words (plan number, surveyor, title, notes) are laid out by the sheet, which never applies a dragged offset to them, yet the editor offered them for dragging with a move cursor. They're no longer offered (`canDrag` leaves out the title layer): tapped to select, edited in the Sheet panel. Checked in the demo: the plan number and the surveyor block show a pointer, and the drawing's 27 labels still move.
