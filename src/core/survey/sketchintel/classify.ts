@@ -18,6 +18,34 @@ export interface LineClass {
   why: string;
   /** False when only the way it's drawn says what it is. */
   fromWriting: boolean;
+  /** Set when the surveyor's own habit says what a line drawn this way is (stage 298): their word, so nothing is asked. */
+  fromHabit?: boolean;
+}
+
+/** A surveyor's sketch habit (stage 298, ADR 0304): a line drawn this way, with nothing written along it, is this code on their sketches. */
+export interface SketchHabit {
+  style: "double" | "crossed";
+  code: string;
+}
+
+/** What a line drawn this way is taken for when nothing is written along it: the kind a habit for that style is offered among. */
+export const HABIT_KIND: Record<SketchHabit["style"], LineKind> = { double: "wall", crossed: "fence" };
+
+/** How a style is said: "a double line", "a line with x marks". */
+export const STYLE_WORDS: Record<SketchHabit["style"], string> = { double: "a double line", crossed: "a line with x marks" };
+
+/**
+ * The codes a habit for this style may name (stage 298): the code list's lines and outlines of the kind the style is drawn for (walls for a
+ * double line), the ones written most on this sketch first, at most three.
+ */
+export function habitChoices(style: SketchHabit["style"], codes: readonly CodeEntry[], written: readonly string[]): CodeEntry[] {
+  const count = (c: CodeEntry) => written.filter((w) => entryOf(w.trim(), codes)?.code === c.code).length;
+  return codes
+    .filter((c) => (c.kind === "line" || c.kind === "outline") && kindOfEntry(c) === HABIT_KIND[style])
+    .map((c, i) => ({ c, n: count(c), i }))
+    .sort((a, b) => b.n - a.n || a.i - b.i)
+    .slice(0, 3)
+    .map((x) => x.c);
 }
 
 /** Words that name a kind of line, in English and Sinhala, tried in this order. */
@@ -49,11 +77,15 @@ function entryOf(label: string, codes: readonly CodeEntry[]): CodeEntry | null {
   return lookupCode(codes, word) ?? (codeBase(word) !== word ? lookupCode(codes, codeBase(word)) : null);
 }
 
-export function classifyLine(label: string, style: SketchLineStyle, codes: readonly CodeEntry[]): LineClass {
+export function classifyLine(label: string, style: SketchLineStyle, codes: readonly CodeEntry[], habits: readonly SketchHabit[] = []): LineClass {
   const t = label.trim();
   const entry = t ? entryOf(t, codes) : null;
   if (entry && (entry.kind === "line" || entry.kind === "outline")) return { kind: kindOfEntry(entry), code: entry, why: `${t} is the code list's ${entry.meaning.toLowerCase()}`, fromWriting: true };
   for (const w of WORDS) if (t && w.re.test(t)) return { kind: w.kind, code: null, why: w.why, fromWriting: true };
+  // Nothing written along it, and the surveyor has said what a line drawn this way is on their sketches (stage 298): their word.
+  const habit = !t && (style === "double" || style === "crossed") ? habits.find((h) => h.style === style) : undefined;
+  const own = habit ? entryOf(habit.code, codes) : null;
+  if (own && (own.kind === "line" || own.kind === "outline")) return { kind: kindOfEntry(own), code: own, why: `it's drawn as ${STYLE_WORDS[style as SketchHabit["style"]]}, which is ${own.meaning.toLowerCase()} (${own.code}) on your sketches, as you said`, fromWriting: false, fromHabit: true };
   if (style === "double") return { kind: "wall", code: null, why: "it's drawn as a double line, as walls are, with nothing written along it", fromWriting: false };
   if (style === "crossed") return { kind: "fence", code: null, why: "it's drawn with x marks along it, as wire fences are, with nothing written along it", fromWriting: false };
   return { kind: "line", code: null, why: t ? `"${t}" isn't a code in the code list or a word Farbaek knows` : "nothing is written along it", fromWriting: false };
