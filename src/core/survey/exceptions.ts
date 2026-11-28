@@ -12,6 +12,7 @@ import type { SurveyPoint } from "./parcel";
 import type { Finding } from "./qc";
 import { roadWidth } from "./roads";
 import { interpretDocument, settledSketchLine, sketchEvidence } from "./sketchintel/findings";
+import { habitChoices, habitEntry } from "./sketchintel/classify";
 
 /** A road whose surveyed edges are further apart in one place than another by more than this may have an edge point on the wrong side. */
 export const ROAD_WIDTH_DOUBT_M = 0.5;
@@ -144,6 +145,22 @@ export function quietSketchItems(doc: SurveyDocument, points: readonly SurveyPoi
   });
 }
 
+/**
+ * What a sketch line's card offers as the surveyor's habit (stage 298): for a line drawn double, or with x marks, with nothing written along
+ * it, while no habit for that style is set, the plan's codes of the kind it's drawn for, the ones written on this sketch first.
+ */
+function habitOffer(doc: SurveyDocument, sketch: ReturnType<typeof interpretDocument>, key: string): { habit?: SurveyException["habit"] } {
+  if (!sketch || !key.startsWith("feature:")) return {};
+  const p = sketch.proposals.find((x) => x.kind === "line" && `feature:${x.id}` === key);
+  const drawn = p ? doc.sketch?.drawing?.lines.find((l) => p.from.includes(l.id)) : undefined;
+  if (!drawn || drawn.label.trim() || (drawn.style !== "double" && drawn.style !== "crossed")) return {};
+  const style = drawn.style;
+  // A habit that names nothing in this plan's list (carried from a plan with another list) is as good as none: the card offers this list's.
+  if ((doc.sketchHabits ?? []).some((h) => h.style === style && habitEntry(h, doc.codes))) return {};
+  const choices = habitChoices(style, doc.codes, doc.sketch?.drawing?.lines.map((l) => l.label) ?? []).map((c) => ({ code: c.code, meaning: c.meaning }));
+  return choices.length > 0 ? { habit: { style, choices } } : {};
+}
+
 /** Fewer than this many quiet items keep their own cards: grouping one or two saves nothing. */
 export const QUIET_GROUP_MIN = 3;
 
@@ -180,6 +197,11 @@ export interface SurveyException {
   together?: { keys: string[]; lines: string[] };
   /** The one lot without a label, labelled right on its card (stage 294). */
   lotLabel?: { lotId: string };
+  /**
+   * For a line the sketch draws double, or with x marks, with nothing written along it (stage 298): the codes the surveyor can say such a
+   * line always is on their sketches, in one press, which answers this card and every other like it.
+   */
+  habit?: { style: "double" | "crossed"; choices: { code: string; meaning: string }[] };
 }
 
 const BLOCK_WORDS: Record<Finding["blocks"][number], string> = { plan: "the plan", export: "export", approval: "approval" };
@@ -262,6 +284,7 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
           step: it.step,
           confirm: key,
           keep: null,
+          ...habitOffer(doc, sketch, key),
         });
       }
       continue;

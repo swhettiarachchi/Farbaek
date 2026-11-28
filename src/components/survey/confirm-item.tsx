@@ -3,7 +3,8 @@
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, TrashIcon, WarningCircleIcon } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
-import { confirmSketchItemsAction, confirmSurveyItemAction, labelLotAction, removeSurveySymbolAction } from "@/app/app/survey/actions";
+import { confirmSketchItemsAction, confirmSurveyItemAction, forgetSketchHabitAction, labelLotAction, removeSurveySymbolAction, saveSketchHabitAction } from "@/app/app/survey/actions";
+import { asThing, STYLE_WORDS } from "@/core/survey/sketchintel/classify";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { PLAN_UNSAVED_REASON, usePlanUnsaved } from "./unsaved-plan";
@@ -51,6 +52,75 @@ export function ConfirmItem({ projectId, baseVersion, keyId, confirmed, readOnly
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The surveyor's sketch habit, said in one press (stage 298): "On my sketches, a double line is a masonry wall (MW)". It answers this
+ * card and every line drawn the same way with nothing written, now and on their next plans; it can be forgotten.
+ */
+export function HabitChoice({ projectId, baseVersion, style, choices, readOnly }: { projectId: string; baseVersion: number; style: "double" | "crossed"; choices: readonly { code: string; meaning: string }[]; readOnly: string | null }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [doing, setDoing] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const unsaved = usePlanUnsaved();
+  const save = (code: string) =>
+    start(async () => {
+      setDoing(code);
+      const r = await saveSketchHabitAction({ projectId, baseVersion, style, code });
+      setDoing(null);
+      if (r.status === "error") return setError(r.message);
+      setError(null);
+      router.refresh();
+    });
+  return (
+    <div className="grid w-full gap-1.5">
+      <p className="text-sm text-ink-2">Or, if {STYLE_WORDS[style]} always means the same on your sketches, say what, and Farbaek stops asking:</p>
+      <div className="flex flex-wrap gap-2">
+        {choices.map((c) => (
+          <button key={c.code} type="button" onClick={() => save(c.code)} disabled={pending || readOnly !== null || unsaved} aria-label={`On my sketches, ${STYLE_WORDS[style]} is ${asThing(c.meaning)} (${c.code})`} className={buttonClasses("secondary", "sm", "w-fit max-w-full")}>
+            {pending && doing === c.code ? "Saving…" : <span className="min-w-0 truncate">{`${c.meaning} (${c.code})`}</span>}
+          </button>
+        ))}
+      </div>
+      {unsaved && !readOnly ? <p className="text-sm text-ink-3">{PLAN_UNSAVED_REASON}</p> : null}
+      {error ? (
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden />
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Forgets a sketch habit (stage 298): Farbaek asks again what a line drawn that way is. */
+export function ForgetHabit({ projectId, baseVersion, style, said, readOnly }: { projectId: string; baseVersion: number; style: "double" | "crossed"; said: string; readOnly: string | null }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const unsaved = usePlanUnsaved();
+  const run = () =>
+    start(async () => {
+      const r = await forgetSketchHabitAction({ projectId, baseVersion, style });
+      if (r.status === "error") return setError(r.message);
+      setError(null);
+      router.refresh();
+    });
+  return (
+    <span className="grid gap-1">
+      <button type="button" onClick={run} disabled={pending || readOnly !== null || unsaved} aria-label={`Forget it: ${said}`} className={buttonClasses("ghost", "sm", "w-fit")}>
+        <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden />
+        {pending ? "Forgetting…" : "Forget it"}
+      </button>
+      {error ? (
+        <span role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden />
+          {error}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

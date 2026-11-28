@@ -2,6 +2,7 @@ import { ArrowRightIcon, CaretDownIcon, CheckCircleIcon, InfoIcon, ListChecksIco
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { provenanceLive, type SurveyDocument } from "@/core/survey/document";
+import { habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
 import { autoDoubt, doubtContext, drawnWithoutDoubt, exceptionsFor, itemOf, type ExceptionStep, type SurveyException } from "@/core/survey/exceptions";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import type { Finding } from "@/core/survey/qc";
@@ -9,7 +10,7 @@ import { Card, CardTitle } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
-import { ConfirmItem, ConfirmTogether, LotLabel } from "./confirm-item";
+import { ConfirmItem, ConfirmTogether, ForgetHabit, HabitChoice, LotLabel } from "./confirm-item";
 import { KeepAsSurveyed } from "./keep-as-surveyed";
 import { SketchFix, SketchFixResult } from "./sketch-fix";
 
@@ -108,6 +109,7 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
         {e.lotLabel ? <LotLabel projectId={projectId} baseVersion={baseVersion} lotId={e.lotLabel.lotId} readOnly={readOnly} /> : null}
         {e.together ? <ConfirmTogether projectId={projectId} baseVersion={baseVersion} keys={e.together.keys} readOnly={readOnly} /> : null}
         {e.confirm ? <ConfirmItem projectId={projectId} baseVersion={baseVersion} keyId={e.confirm} confirmed={false} readOnly={readOnly} /> : null}
+        {e.habit ? <HabitChoice projectId={projectId} baseVersion={baseVersion} style={e.habit.style} choices={e.habit.choices} readOnly={readOnly} /> : null}
         {e.keep ? <KeepAsSurveyed projectId={projectId} baseVersion={baseVersion} keyId={e.keep.key} kept={e.keep.kept} readOnly={readOnly} /> : null}
         {e.step && e.step !== "plan" ? (
           <Link href={`${base}?step=${e.step}`} className="inline-flex min-h-10 items-center text-sm font-medium text-accent underline-offset-2 hover:underline">
@@ -133,6 +135,7 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
             <ArrowRightIcon size={16} weight="bold" aria-hidden />
           </Link>
           <Notes notes={list.note} card={card} />
+          <Habits doc={doc} projectId={projectId} baseVersion={baseVersion} readOnly={readOnly} />
           <Confirmed items={confirmed} projectId={projectId} baseVersion={baseVersion} readOnly={readOnly} />
         </div>
       ) : (
@@ -154,6 +157,7 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
             ) : null}
             {alsoLine}
             <Notes notes={list.note} card={card} />
+            <Habits doc={doc} projectId={projectId} baseVersion={baseVersion} readOnly={readOnly} />
             <Confirmed items={confirmed} projectId={projectId} baseVersion={baseVersion} readOnly={readOnly} />
           </div>
         </FoldOnPhones>
@@ -168,6 +172,31 @@ function Notes({ notes, card }: { notes: SurveyException[]; card: (e: SurveyExce
     <Disclosure summary={`${notes.length} ${notes.length === 1 ? "note" : "notes"} for information`} hint="They hold nothing back. The Check step lists every check." icon={<InfoIcon size={20} weight="bold" aria-hidden />}>
       <ul className="grid gap-3">{notes.map(card)}</ul>
     </Disclosure>
+  );
+}
+
+/** The surveyor's own sketch habits on this plan (stage 298), said as theirs, each with the press that forgets it. */
+function Habits({ doc, projectId, baseVersion, readOnly }: { doc: SurveyDocument; projectId: string; baseVersion: number; readOnly: string | null }) {
+  // Only the habits this plan's code list has a line for: one carried from a plan with another list does nothing here.
+  const habits = (doc.sketchHabits ?? []).flatMap((h) => {
+    const entry = habitEntry(h, doc.codes);
+    return entry ? [{ style: h.style, said: habitSaid(h.style, entry) }] : [];
+  });
+  if (habits.length === 0) return null;
+  return (
+    <section aria-label="Your sketch habits" className="grid gap-2">
+      <p className="text-sm font-medium text-ink">Your sketch habits</p>
+      <ul className="grid gap-2">
+        {habits.map((h) => (
+          <li key={h.style} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-ink-2">
+            <span>
+              On your sketches, {h.said}. Farbaek doesn&apos;t ask about these lines, and your next plans start with it.
+            </span>
+            <ForgetHabit projectId={projectId} baseVersion={baseVersion} style={h.style} said={h.said} readOnly={readOnly} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

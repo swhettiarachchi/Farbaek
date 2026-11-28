@@ -29,6 +29,11 @@ export interface StartingDefaults {
   settings: { values: CarriedSettings; from: string } | null;
   /** How the crew writes line words (ADR 0243), from the newest plan whose codes were checked, when it isn't Farbaek's own. */
   grammar?: { id: GrammarId; from: string } | null;
+  /**
+   * The surveyor's own sketch habits (stage 298, ADR 0304): their newest decision about them, carried as it was said, even that there are
+   * none any more (an empty list), with when it was said.
+   */
+  habits?: { entries: NonNullable<SurveyDocument["sketchHabits"]>; from: string; saidAt: string | null } | null;
 }
 
 /** What a new plan takes from the surveyor's recent plans, newest first. */
@@ -39,10 +44,16 @@ export function defaultsFrom(earlier: readonly EarlierPlan[]): StartingDefaults 
   const latest = earlier[0];
   // The line words go with the codes the surveyor checked, whichever list that was: how a crew writes doesn't change with the list.
   const words = newest?.document.grammar;
+  // The newest decision stands (stage 298): the plan whose sketch habits were said or forgotten last, even that there are none any more
+  // (forgetting the last one leaves an empty list), so a habit forgotten on one plan never comes back from another saved after it. A
+  // decision with no time (none is saved without one) counts as the oldest; between two at the same time, the newer plan's.
+  const when = (p: EarlierPlan) => p.document.sketchHabitsSaidAt ?? "";
+  const said = earlier.filter((p) => p.document.sketchHabits !== undefined).reduce<EarlierPlan | null>((best, p) => (!best || when(p) > when(best) ? p : best), null);
   return {
     codes: checked ? { entries: checked.document.codes.map((c) => ({ ...c })), from: checked.name } : null,
     settings: latest ? { values: Object.fromEntries(CARRIED_SETTINGS.map((k) => [k, latest.document.settings[k]])) as CarriedSettings, from: latest.name } : null,
     grammar: newest && words && words !== "farbaek" ? { id: words, from: newest.name } : null,
+    habits: said ? { entries: said.document.sketchHabits!.map((h) => ({ ...h })), from: said.name, saidAt: said.document.sketchHabitsSaidAt ?? null } : null,
   };
 }
 
@@ -53,5 +64,6 @@ export function withDefaults(doc: SurveyDocument, d: StartingDefaults): SurveyDo
     ...(d.codes ? { codes: d.codes.entries.map((c) => ({ ...c })), provenance: { ...doc.provenance, codes: { source: "engine" as const, reviewed: false } } } : {}),
     ...(d.settings ? { settings: { ...doc.settings, ...d.settings.values } } : {}),
     ...(d.grammar ? { grammar: d.grammar.id } : {}),
+    ...(d.habits ? { sketchHabits: d.habits.entries.map((h) => ({ ...h })), ...(d.habits.saidAt ? { sketchHabitsSaidAt: d.habits.saidAt } : {}) } : {}),
   };
 }

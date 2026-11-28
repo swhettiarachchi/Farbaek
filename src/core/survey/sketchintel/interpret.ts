@@ -21,7 +21,7 @@ import { area, distance, orient, pointSegmentDistance, segmentsIntersect, signed
 import type { SurveyPoint } from "../parcel";
 import { roadWidth } from "../roads";
 import { printable } from "./apply";
-import { buildingEntry, classifyArea, classifyLine, isRoadName, LAYER_OF, namesKind, symbolEntry, type LineKind } from "./classify";
+import { buildingEntry, classifyArea, classifyLine, isRoadName, LAYER_OF, namesKind, symbolEntry, type LineKind, type SketchHabit } from "./classify";
 import type { SketchArea, SketchDrawing, SketchLine } from "./drawing";
 import { indexPoints, matchNote, matchPoint, type PointIndex } from "./match";
 import { facesOf, within, type Face } from "./faces";
@@ -33,6 +33,8 @@ export interface InterpretOptions {
    * settled by reads agreeing, only by a sure read (stage 295 review).
    */
   doubtfulNumbers?: readonly { file: string; label: string }[];
+  /** The surveyor's own sketch habits (stage 298): what a line drawn double, or with x marks, with nothing written along it, is. */
+  habits?: readonly SketchHabit[];
   /** A point within this many metres of the straight line between its neighbours lies on that side; further off, it's a corner. Farbaek's default: 0.25 m. */
   onLineM?: number;
   /** Within this many metres, the coordinates are strong evidence for the line. Farbaek's default: 0.10 m. */
@@ -495,7 +497,7 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
   for (const line of drawing.lines) {
     const mt = matchLine(line, index);
     if (mt.unmatched.length === 0) for (const [a, b] of mt.corners) if (a.id !== b.id) squares.push({ a, b, line });
-    const cls = classifyLine(line.label, line.style, codes);
+    const cls = classifyLine(line.label, line.style, codes, options.habits ?? []);
     const named = line.label ? `the line ${list(line.points)} ("${line.label}")` : `the line ${list(line.points)}`;
     if (mt.unmatched.length > 0) {
       ask([line.id], line.file, `${named[0]!.toUpperCase()}${named.slice(1)} wasn't drawn: ${list(mt.unmatched)}.`, ["Check the number on the sketch, or import the file that has the point."]);
@@ -511,7 +513,8 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     const evidence: string[] = [`Drawn on ${line.file} through ${list(ids(mt.points))}${line.label ? `, with "${line.label}" written along it` : ""}${line.style !== "single" ? ` (${line.style})` : ""}.`];
     evidence.push(`Read as a ${cls.kind === "line" ? "line of unknown kind" : cls.kind}: ${cls.why}.`);
     evidence.push(...mt.notes);
-    let level: Level = mt.exact && line.certain && cls.fromWriting ? "strong" : "check";
+    // The surveyor's habit says what it is as surely as writing would (stage 298).
+    let level: Level = mt.exact && line.certain && (cls.fromWriting || cls.fromHabit) ? "strong" : "check";
     // Nothing about where it runs is in doubt (stage 294): every number matched exactly, its points lie on it, and the reader was sure of
     // it or at least two separate reads of the sketch drew it through the same numbers (stage 295: on a hand sketch the reader is rarely
     // sure of any one line, and two reads agreeing is what the lot is built from).
@@ -556,7 +559,7 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
       dropped.push({ line, ids: new Set(mt.points.map((p) => p.id)) });
       continue;
     }
-    if (!cls.fromWriting) ask([line.id], line.file, `What is ${named}? ${cls.why[0]!.toUpperCase()}${cls.why.slice(1)}.`, ["It's drawn as the sketch shows it; confirm what it is, or remove it."], { item: id, answeredBy: "confirm" });
+    if (!cls.fromWriting && !cls.fromHabit) ask([line.id], line.file, `What is ${named}? ${cls.why[0]!.toUpperCase()}${cls.why.slice(1)}.`, ["It's drawn as the sketch shows it; confirm what it is, or remove it."], { item: id, answeredBy: "confirm" });
     const proposal: LineProposal = {
       kind: "line",
       id,
