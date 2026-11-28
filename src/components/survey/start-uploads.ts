@@ -13,7 +13,7 @@ import { IMPORT_LIMITS } from "@/core/survey/import/delimited";
 export type Upload =
   | { key: string; name: string; size: number; kind: "survey-data"; content: string; read: FileRead | null; problem: string | null; encoding: string | null; adjust: AdjustMethod | null }
   /** A field sketch, shrunk as it's added so a photo this device can't open is said at once, not after the plan exists. */
-  | { key: string; name: string; size: number; kind: "sketch"; photo: Blob | null; problem: string | null; deed?: true }
+  | { key: string; name: string; size: number; kind: "sketch"; photo: Blob | null; problem: string | null; deed?: true; pdf?: true }
   | { key: string; name: string; size: number; kind: "document"; reason: string }
   /** An office code library (ADR 0237): read here to show, and again on the server. */
   | { key: string; name: string; size: number; kind: "code-library"; content: string; read: LibraryRead };
@@ -21,7 +21,7 @@ export type Upload =
 /** One file as it's kept: nothing worked out from it, and nothing that couldn't be used. */
 export type KeptUpload =
   | { name: string; size: number; kind: "survey-data"; content: string; encoding: string | null; adjust: AdjustMethod | null }
-  | { name: string; size: number; kind: "sketch"; photo: Blob; deed?: true }
+  | { name: string; size: number; kind: "sketch"; photo: Blob; deed?: true; pdf?: true }
   | { name: string; size: number; kind: "document" }
   | { name: string; size: number; kind: "code-library"; content: string };
 
@@ -42,7 +42,7 @@ export function toKept(uploads: readonly Upload[], title: string, crsId: string,
     if (u.kind === "survey-data") {
       if (u.content) kept.push({ name: u.name, size: u.size, kind: u.kind, content: u.content, encoding: u.encoding, adjust: u.adjust });
     } else if (u.kind === "sketch") {
-      if (u.photo) kept.push({ name: u.name, size: u.size, kind: u.kind, photo: u.photo, ...(u.deed ? { deed: true as const } : {}) });
+      if (u.photo) kept.push({ name: u.name, size: u.size, kind: u.kind, photo: u.photo, ...(u.deed ? { deed: true as const } : {}), ...(u.pdf ? { pdf: true as const } : {}) });
     } else if (u.kind === "document") kept.push({ name: u.name, size: u.size, kind: u.kind });
     else kept.push({ name: u.name, size: u.size, kind: u.kind, content: u.content });
   }
@@ -71,7 +71,15 @@ export function fromKept(value: unknown, nextKey: () => string): { title: string
       const adjust = typeof u.adjust === "string" && (ADJUST_METHODS as readonly string[]).includes(u.adjust) ? (u.adjust as AdjustMethod) : null;
       uploads.push({ ...base, kind: "survey-data", content: u.content, read: null, problem: null, encoding: str(u.encoding, 300) ? u.encoding : null, adjust });
     } else if (u.kind === "sketch" && isBlob(u.photo)) {
-      uploads.push({ ...base, kind: "sketch", photo: u.photo, problem: null, ...(u.deed === true ? { deed: true as const } : {}) });
+      // A PDF is only ever the deed (stage 296): kept without its mark, it comes back as the deed, never as a sketch.
+      uploads.push({
+        ...base,
+        kind: "sketch",
+        photo: u.photo,
+        problem: null,
+        ...(u.deed === true || u.pdf === true ? { deed: true as const } : {}),
+        ...(u.pdf === true ? { pdf: true as const } : {}),
+      });
     } else if (u.kind === "document") {
       uploads.push({ ...base, kind: "document", reason: notReadYet(u.name) });
     } else if (u.kind === "code-library" && str(u.content, LIBRARY_LIMITS.bytes)) {
