@@ -13,7 +13,7 @@ import type { Finding } from "../qc";
 import { same, sketchItemId } from "./apply";
 import { classifyArea, classifyLine, isGateWord, isRoadName } from "./classify";
 import { correctedDrawing, correctedReadings } from "./corrected";
-import { interpretSketch, writtenWidth, type Question, type SketchInterpretation } from "./interpret";
+import { interpretSketch, joinKey, writtenWidth, type Question, type SketchInterpretation } from "./interpret";
 
 /** The interpretation of a document's sketch drawing, with the stated extent and the road widths and names read from the sketch. */
 export function interpretDocument(doc: SurveyDocument, points: readonly SurveyPoint[]): SketchInterpretation | null {
@@ -169,9 +169,9 @@ export function sketchQuestionFindings(interpretation: SketchInterpretation | nu
   const kept = new Set(doc.kept);
   const joins: Finding[] = interpretation.questions.flatMap((q): Finding[] => {
     if (!q.join) return [];
-    const key = `join:${q.join.from}|${q.join.to}`;
+    const key = joinKey(q.join.pairs);
     if (kept.has(key)) return [{ code: "SKETCH_JOIN_KEPT", severity: "information", message: `Not joined, as you said: ${q.text}`, target: { kind: "project" }, action: "Give the building's corners on the Lots step, or join them after all.", blocks: [], keep: { key, kept: true } }];
-    return [{ code: "SKETCH_JOIN", severity: "professional_review", message: q.text, target: { kind: "project" }, detail: `Read from ${q.file}.`, action: q.evidence[0] ?? "Join them if the sketch draws that wall.", blocks: ["approval"], keep: { key, kept: false }, join: { file: q.join.file, from: q.join.from, to: q.join.to } }];
+    return [{ code: "SKETCH_JOIN", severity: "professional_review", message: q.text, target: { kind: "project" }, detail: `Read from ${q.file}.`, action: q.evidence[0] ?? "Join them if the sketch draws that wall.", blocks: ["approval"], keep: { key, kept: false }, join: { file: q.join.file, pairs: q.join.pairs.map((p) => ({ from: p.from, to: p.to })) } }];
   });
   const made: Finding[] = (doc.sketch?.joins ?? []).map((j) => ({
     code: "SKETCH_JOINED",
@@ -180,7 +180,7 @@ export function sketchQuestionFindings(interpretation: SketchInterpretation | nu
     target: { kind: "project" },
     action: "Take the join off if the sketch doesn't draw that wall.",
     blocks: [],
-    join: { file: j.file, from: j.from, to: j.to },
+    join: { file: j.file, pairs: [{ from: j.from, to: j.to }] },
   }));
   // A sketch that may be another job's (stage 303): said first, holding approval until the surveyor says it's this job's or reads another.
   const odd = strangeNumbers(interpretation);

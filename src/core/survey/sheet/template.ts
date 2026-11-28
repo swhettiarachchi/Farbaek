@@ -91,6 +91,21 @@ export const SRI_LANKA_CADASTRAL_V1: SheetTemplate = {
 
 export const TEMPLATES: readonly SheetTemplate[] = [SRI_LANKA_CADASTRAL_V1];
 
+/** The line thicknesses offered for a plan's drawing, mm (stage 304). */
+export const LINE_MM_CHOICES = [0.1, 0.13, 0.18, 0.25, 0.35] as const;
+/** The thicknesses offered for the lots' boundaries beside them, mm. */
+export const BOUNDARY_MM_CHOICES = [0.18, 0.25, 0.35, 0.45, 0.5] as const;
+
+/**
+ * The drawing's line weights, mm (stage 304, ADR 0310). With the plan's line thickness set, every line of the drawing is drawn at it, and
+ * the lots' boundaries at theirs when that's set. Without it (a plan made before), the template's weights, the boundaries at the other
+ * lines' weight when the surveyor chose that.
+ */
+export function drawingLines(settings: { lineMm?: number; boundaryMm?: number; thinBoundary?: true }, t: { boundary: number; feature: number; thin: number }): { boundary: number; feature: number; thin: number } {
+  if (settings.lineMm === undefined) return { boundary: settings.thinBoundary === true ? t.feature : t.boundary, feature: t.feature, thin: t.thin };
+  return { boundary: settings.boundaryMm ?? settings.lineMm, feature: settings.lineMm, thin: settings.lineMm };
+}
+
 /**
  * The classic Sri Lankan sheet (stage 191): portrait, the layout and wording
  * seen on practising surveyors' plans (docs/survey/REFERENCE_PLANS_ANALYSIS.md).

@@ -9,6 +9,9 @@
  *   A leg drawn twice (the same wall on two photos) is one leg.
  * - Lines that cross where no number is (a misread number) make no faces at all, and nor does a drawing too large to check: a face is
  *   never built from a drawing that can't be flat, so nothing is said that the lines don't settle.
+ * - Or, asked for (`crossing: "drop"`, stage 304): both legs of each crossing are left out, and the faces are the rest's. A leg that cuts
+ *   through a face crosses its sides, which are then left out too, so a face found is never cut by a leg it doesn't show. A house's room
+ *   is found this way, beside two lines read once that cross elsewhere on the sketch.
  */
 import { distance, pointSegmentDistance, segmentsIntersect, signedArea } from "../geometry";
 import type { SurveyPoint } from "../parcel";
@@ -31,7 +34,7 @@ const key = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
  * The bounded faces the runs make, smallest first, each a simple ring of at least three surveyed points. Empty when the runs cross
  * where no number is, or close round nothing.
  */
-export function facesOf(runs: readonly Run[], snap: number, maxWork = 400_000): Face[] {
+export function facesOf(runs: readonly Run[], snap: number, maxWork = 400_000, crossing: "none" | "drop" = "none"): Face[] {
   const byId = new Map<string, SurveyPoint>();
   // Each leg once, however many lines draw it (the same wall on two photos, a side drawn on its own as well as round the lot).
   const legs = new Map<string, [string, string]>();
@@ -86,16 +89,19 @@ export function facesOf(runs: readonly Run[], snap: number, maxWork = 400_000): 
   });
 
   // Spurs (a line that ends without meeting another) bound nothing: pruned, end by end.
-  for (let pruned = true; pruned; ) {
-    pruned = false;
-    for (const [id, ns] of edges) {
-      if (ns.size <= 1) {
-        for (const o of ns) edges.get(o)?.delete(id);
-        edges.delete(id);
-        pruned = true;
+  const prune = () => {
+    for (let pruned = true; pruned; ) {
+      pruned = false;
+      for (const [id, ns] of edges) {
+        if (ns.size <= 1) {
+          for (const o of ns) edges.get(o)?.delete(id);
+          edges.delete(id);
+          pruned = true;
+        }
       }
     }
-  }
+  };
+  prune();
 
   // Two legs that cross where no number is: the drawing can't be flat, so no face is trusted. Legs whose boxes are apart are skipped, and
   // the work is capped: a drawing too large to check makes no faces, so nothing is drawn from it that wasn't checked.
@@ -104,14 +110,22 @@ export function facesOf(runs: readonly Run[], snap: number, maxWork = 400_000): 
     const [pa, pb] = [byId.get(a)!, byId.get(b)!];
     return { a, b, pa, pb, box: [Math.min(pa.e, pb.e), Math.min(pa.n, pb.n), Math.max(pa.e, pb.e), Math.max(pa.n, pb.n)] as const };
   });
+  const crossed: typeof all = [];
   for (let i = 0; i < all.length; i++)
     for (let j = i + 1; j < all.length; j++) {
       const [x, y] = [all[i]!, all[j]!];
       if (x.a === y.a || x.a === y.b || x.b === y.a || x.b === y.b) continue;
       if (x.box[2] < y.box[0] || y.box[2] < x.box[0] || x.box[3] < y.box[1] || y.box[3] < x.box[1]) continue;
       if (++work > maxWork) return [];
-      if (segmentsIntersect(x.pa, x.pb, y.pa, y.pb)) return [];
+      if (!segmentsIntersect(x.pa, x.pb, y.pa, y.pb)) continue;
+      if (crossing === "none") return [];
+      crossed.push(x, y);
     }
+  for (const { a, b } of crossed) {
+    edges.get(a)?.delete(b);
+    edges.get(b)?.delete(a);
+  }
+  if (crossed.length > 0) prune();
 
   // Each point's neighbours by direction, anticlockwise from east.
   const around = new Map<string, string[]>();
@@ -148,7 +162,37 @@ export function facesOf(runs: readonly Run[], snap: number, maxWork = 400_000): 
       const s = signedArea(pts);
       if (s > 0.01) faces.push({ points: pts, areaM2: s });
     }
-  return faces.sort((x, y) => x.areaM2 - y.areaM2);
+  // A left-out leg whose ends both lie on a face's outline crosses none of its sides, yet may run through it (two lines crossing inside a
+  // room): a face any left-out leg runs through is no face (stage 304 review).
+  const whole = crossed.length === 0 ? faces : faces.filter((f) => !crossed.some((x) => runsThrough(x.pa, x.pb, f.points)));
+  return whole.sort((x, y) => x.areaM2 - y.areaM2);
+}
+
+/** Whether any stretch of the leg from a to b, between where it meets a ring's sides and corners, lies strictly inside the ring. */
+function runsThrough(a: SurveyPoint, b: SurveyPoint, ring: readonly SurveyPoint[]): boolean {
+  const [rx, ry] = [b.e - a.e, b.n - a.n];
+  const len2 = rx * rx + ry * ry;
+  if (len2 < 1e-12) return false;
+  const ts = [0, 1];
+  for (let i = 0; i < ring.length; i++) {
+    const [c, d] = [ring[i]!, ring[(i + 1) % ring.length]!];
+    ts.push(((c.e - a.e) * rx + (c.n - a.n) * ry) / len2);
+    const [sx, sy] = [d.e - c.e, d.n - c.n];
+    const den = rx * sy - ry * sx;
+    if (Math.abs(den) < 1e-12) continue;
+    const t = ((c.e - a.e) * sy - (c.n - a.n) * sx) / den;
+    const u = ((c.e - a.e) * ry - (c.n - a.n) * rx) / den;
+    if (u >= -1e-9 && u <= 1 + 1e-9) ts.push(t);
+  }
+  const cuts = [...new Set(ts.filter((t) => t >= 0 && t <= 1))].sort((x, y) => x - y);
+  const sides = ring.map((p, i) => [p, ring[(i + 1) % ring.length]!] as const);
+  for (let k = 0; k + 1 < cuts.length; k++) {
+    if (cuts[k + 1]! - cuts[k]! < 1e-9) continue;
+    const t = (cuts[k]! + cuts[k + 1]!) / 2;
+    const m = { e: a.e + t * rx, n: a.n + t * ry };
+    if (sides.every(([p, q]) => pointSegmentDistance(m, p, q) > 1e-6) && within({ x: m.e, y: m.n }, ring.map((p) => ({ x: p.e, y: p.n })))) return true;
+  }
+  return false;
 }
 
 /** Whether a place lies inside a ring of places (crossing count): the ring in any units, so on a photo as well as on the ground. */

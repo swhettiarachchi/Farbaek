@@ -12,6 +12,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { applyReview, type AcceptedItem } from "@/core/survey/ai-draft";
 import { saveSurveyDrawingAction } from "./actions";
+import { withSketchSurveyDate } from "@/core/survey/autosurvey/plan-details";
 import { sketchFileNames, sketchTooSmall } from "@/core/survey/autosurvey/sketch";
 import { pruneProvenance, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
@@ -257,12 +258,13 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     corrected = auto.corrections.map((c) => `${c.label} as ${c.to}`);
     const base: SurveyDocument = auto.document;
     const interpretation = interpretDocument(base, points);
-    if (!interpretation) return base;
+    if (!interpretation) return withSketchSurveyDate(base);
     const applied = applySketch(base, interpretation);
     drawn = applied.added.length;
     // Only the questions the plan's checks show: those already answered, or beyond the checks' limit, aren't counted.
     asked = sketchQuestionFindings(interpretDocument(applied.document, points), applied.document).length;
-    return applied.document;
+    // The date written on the sketch, when the plan has none (stage 304).
+    return withSketchSurveyDate(applied.document);
   };
   const actor = { orgId: p.common.orgId, userId: p.common.userId };
   const drafted = withReadings(p.data.drawing.document, p.data.points);

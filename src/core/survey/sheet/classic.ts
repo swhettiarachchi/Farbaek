@@ -27,7 +27,7 @@ import { BLANK, commonFindings, drawCtx, drawnExtent, entireAreaM2, overleafPage
 import { drawTexts } from "./texts";
 import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads, quadsOverlap, textQuad, type DrawCtx } from "./draw";
 import { advanceWidth, textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
-import { SRI_LANKA_CLASSIC_V1 as T } from "./template";
+import { drawingLines, SRI_LANKA_CLASSIC_V1 as T } from "./template";
 import { MAX_GRID_PLACES, MAX_SHEETS, clipItems, gridEdges, keyToSheets, matchLines, matchSpot, numberSheets, showsDrawing, tileGrid, type Sheet } from "./tiles";
 
 const PREFERRED_SCALES = [500, 1000, 1250, 2000, 2500, 4000, 5000, 10000] as const;
@@ -331,7 +331,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   const checkLine = f.fw * 0.5 >= 104 ? { x: f.x0 + f.fw * 0.97 - 100, y: lay.titleTop - z.small * 1.2 } : null;
   // One sheet's drawing at the viewport given, its words kept within `within`.
   const drawPlan = (drawing: SceneItem[], v: Viewport, within: [number, number, number, number], reserve: (ctx: DrawCtx) => void = () => {}): DrawCtx => {
-    const ctx = drawCtx(drawing, v, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, { boundary: T.lines.boundary, feature: T.lines.feature, thin: T.lines.thin }, slant, within);
+    const ctx = drawCtx(drawing, v, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, drawingLines(doc.settings, T.lines), slant, within);
     reserve(ctx);
     // The north arrow and the check line are drawn later, outside this context: reserve their room first.
     ctx.placer.add([[needle.x - needle.h * 0.2, needle.top], [needle.x + needle.h * 0.2, needle.top], [needle.x + needle.h * 0.2, needle.top + needle.h], [needle.x - needle.h * 0.2, needle.top + needle.h]]);
@@ -392,7 +392,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
   }
   // North needle, right of the drawing band.
   {
-    const ctx = drawCtx(front, viewport ?? { ...lay.vp, scale: 500, centreE: 0, centreN: 0 }, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, { boundary: T.lines.boundary, feature: T.lines.feature, thin: T.lines.thin }, slant);
+    const ctx = drawCtx(front, viewport ?? { ...lay.vp, scale: 500, centreE: 0, centreN: 0 }, input, { label: z.label, small: z.small, lotLabel: z.lotLabel, body: z.body, heading: z.heading }, drawingLines(doc.settings, T.lines), slant);
     drawNeedleNorth(ctx, needle.x, needle.top, needle.h);
     // The 100 mm check line, in the legend strip's right when there's room.
     if (checkLine) drawCheckLine(ctx, checkLine.x, checkLine.y);
@@ -405,7 +405,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     ly += z.label * 1.3;
     front.push({ kind: "text", x: lx + f.fw * 0.03, y: ly, text: T.captions.reference, size: z.label, weight: "bold", font: "sans", anchor: "start", rotate: 0, color: "ink", layer: "TITLE", ...(slant ? { slant } : {}) });
     const rw = textWidth(T.captions.reference, z.label);
-    front.push({ kind: "path", points: [[lx + f.fw * 0.03, ly + z.label * 0.3], [lx + f.fw * 0.03 + rw, ly + z.label * 0.3]], closed: false, width: T.lines.thin, color: "ink", layer: "TITLE" });
+    front.push({ kind: "path", points: [[lx + f.fw * 0.03, ly + z.label * 0.3], [lx + f.fw * 0.03 + rw, ly + z.label * 0.3]], closed: false, width: drawingLines(doc.settings, T.lines).thin, color: "ink", layer: "TITLE" });
     ly += z.label * 0.6;
     const codeW = Math.max(...used.map((u) => textWidth(u.code, z.label)));
     for (const u of used) {
@@ -456,7 +456,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
         widthMm: f.w,
         heightMm: f.h,
         role: "front" as const,
-        items: [...front.slice(0, drawAt), ...p.items, ...matchLines(cut!.area, p.sheet, cut!.sheets, z.small, T.lines.thin), ...front.slice(drawAt), ...keyOf(p.sheet, cut!.sheets, cut!.cols, cut!.rows)],
+        items: [...front.slice(0, drawAt), ...p.items, ...matchLines(cut!.area, p.sheet, cut!.sheets, z.small, drawingLines(doc.settings, T.lines).thin), ...front.slice(drawAt), ...keyOf(p.sheet, cut!.sheets, cut!.cols, cut!.rows)],
         viewport: p.viewport,
         sheet: { n: p.sheet.n, of: cut!.sheets.length },
       }))
