@@ -162,8 +162,21 @@ export interface Question {
    * A join the surveyor can make in one press (stage 303): a short stroke between two numbers on a photo that the read missed, which
    * would close a house round its label, with the outline it would make. Never made without that press.
    */
-  join?: { file: string; from: string; to: string; metres: number; outline: string[]; areaM2: number };
+  join?: { file: string; pairs: JoinPair[]; outline: string[]; areaM2: number };
 }
+
+/** One stroke to join, between two numbers a read left apart (stage 303), and how far apart they are on the ground. */
+export interface JoinPair {
+  from: string;
+  to: string;
+  metres: number;
+}
+
+/** The joins in words: "14 to 15", "3 to 2 and 14 to 15". */
+export const joinWords = (pairs: readonly { from: string; to: string }[]) => list(pairs.map((p) => `${p.from} to ${p.to}`));
+
+/** The key a join's answer is kept under (stage 303, 304): "join:14|15", "join:3|2+14|15". */
+export const joinKey = (pairs: readonly { from: string; to: string }[]) => `join:${pairs.map((p) => `${p.from}|${p.to}`).join("+")}`;
 
 /**
  * A square corner the sketch draws between two surveyed points without a number (stage 262, ADR 0270): put between them in the lines
@@ -186,6 +199,10 @@ export interface SketchInterpretation {
 }
 
 const m = (v: number) => `${v.toFixed(2)} m`;
+
+type JoinTry = { from: SurveyPoint; to: SurveyPoint; metres: number };
+/** The joins tried for a house that doesn't close (stage 303, 304): each on its own, and each loose end's nearest together. */
+type JoinTries = { single: (JoinTry & { faces: Face[] })[]; together: { pairs: JoinTry[]; faces: Face[] } | null; facesWith: (strokes: readonly JoinTry[]) => Face[] };
 
 /** The longest stroke a read may have missed between two numbers, on the ground, for Farbaek to offer joining them (stage 303). */
 export const JOIN_MAX_M = 1;
@@ -827,7 +844,7 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
   // The buildings drawn as the room their walls close round (stage 303).
   const fromRooms: BuildingProposal[] = [];
   // The joins tried for a house that doesn't close, with the rooms each makes: worked out once a reading, for every label (stage 303).
-  let joinTries: { from: SurveyPoint; to: SurveyPoint; metres: number; faces: Face[] }[] | null = null;
+  let joinTries: JoinTries | null = null;
   // The lines drawn as a building's walls, by their proposal's id: a doubt about one of them is the building's.
   const absorbed = new Map<string, BuildingProposal>();
   for (const a of drawing.areas) {
@@ -847,17 +864,27 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
       continue;
     }
     const named = pts.filter((p): p is SurveyPoint => p !== null);
-    if (around.length >= 3 && simple(named)) {
-      proposals.push({ kind: "building", id: itemId("building", named.map((p) => p.id)), from: [a.id], file: a.file, evidence: [`"${a.label}" is written on ${a.file} inside the corners ${list(a.around)}: ${c.why}.`, ...codeSaid], level: "check", code, label: a.label, points: named });
+    const fromCorners = (): BuildingProposal => ({ kind: "building", id: itemId("building", named.map((p) => p.id)), from: [a.id], file: a.file, evidence: [`"${a.label}" is written on ${a.file} inside the corners ${list(a.around)}: ${c.why}.`, ...codeSaid], level: "check", code, label: a.label, points: named });
+    // Its numbered corners, when the sketch draws the walls between them. When it doesn't (a few of the house's corners read beside its
+    // label, its outline left open, stage 304), the room its walls close round is tried first, and these corners only if there's none.
+    const partial = around.length >= 3 && simple(named) && !named.every((p, k) => lines.some((l) => l.proposal && legsAlong(l, [p, named[(k + 1) % named.length]!])));
+    if (around.length >= 3 && simple(named) && !partial) {
+      proposals.push(fromCorners());
       continue;
     }
     faces ??= facesOf(
       lines.filter((l) => l.proposal && l.kind !== "road" && l.line.style !== "dashed").map((l) => ({ points: l.points, closed: l.closes })),
       onLine,
+      undefined,
+      "drop",
     );
     const face = labelledFace(a, named, faces);
     if (!face) {
       if (offerJoin(a, named, c.why)) continue;
+      if (partial) {
+        proposals.push(fromCorners());
+        continue;
+      }
       cannot(`its corners aren't numbered${a.around.length ? ` (${list(a.around)} were read)` : ""}, and no one area the sketch's lines close round holds where it's written`);
       continue;
     }
@@ -867,7 +894,18 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     const held = holdsDrawn(face.points, onFace);
     if (held.length > 0) {
       if (offerJoin(a, named, c.why)) continue;
+      if (partial) {
+        proposals.push(fromCorners());
+        continue;
+      }
       cannot(`the lines round where it's written don't close round it alone: the area they make also holds ${list(held.slice(0, 6).map((p) => p.pointId))}${held.length > 6 ? ` and ${held.length - 6} more` : ""}, which the sketch draws apart from it`);
+      continue;
+    }
+    // One house however many labels name its room (stage 304): a second label's building is its evidence, not another building.
+    const same = fromRooms.find((r) => r.id === itemId("building", face.points.map((p) => p.id)));
+    if (same) {
+      same.from.push(a.id);
+      same.evidence.push(`"${a.label}" is also written in it.`);
       continue;
     }
     const onLot = new Set(lot ? [...lot.corners, ...lot.onSides].map((p) => p.id) : []);
@@ -1110,29 +1148,53 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     if (!lot || !(options.labels ?? []).some((x) => x.file === a.file && x.text.trim() === a.label.trim()) || !photoPlaces(options.placed ?? [], points, a.file)) return false;
     joinTries ??= tryJoins();
     const found: { from: SurveyPoint; to: SurveyPoint; metres: number; face: Face }[] = [];
-    for (const t of joinTries) {
-      const face = labelledFace(a, named, t.faces);
-      if (face && holdsDrawn(face.points, new Set(face.points.map((x) => x.id))).length === 0) found.push({ from: t.from, to: t.to, metres: t.metres, face });
+    const clean = (face: Face | null) => (face && holdsDrawn(face.points, new Set(face.points.map((x) => x.id))).length === 0 ? face : null);
+    for (const t of joinTries.single) {
+      const face = clean(labelledFace(a, named, t.faces));
+      if (face) found.push({ from: t.from, to: t.to, metres: t.metres, face });
     }
     found.sort((x, y) => x.metres - y.metres);
-    const best = found[0];
-    if (!best || (found[1] && found[1].metres - best.metres < 0.05)) return false;
-    const outline = best.face.points.map((p) => p.pointId);
-    ask([a.id], a.file, `"${a.label}" is written on the sketch (${why}), but the lines round it don't close round it alone. Joined from ${best.from.pointId} to ${best.to.pointId}, ${m(best.metres)} apart, they close round ${list(outline)} (${best.face.areaM2.toFixed(2)} m²). Is that wall drawn on your sketch?`, [
-      "If it is, join them in one press, and the building is drawn round it, for you to confirm. If not, give its corners on the Lots step.",
-    ], { join: { file: a.file, from: best.from.pointId, to: best.to.pointId, metres: best.metres, outline, areaM2: best.face.areaM2 } });
+    let pairs: { from: SurveyPoint; to: SurveyPoint; metres: number }[] = [];
+    let face: Face | null = null;
+    if (found[0] && !(found[1] && found[1].metres - found[0].metres < 0.05)) {
+      pairs = [found[0]];
+      face = found[0].face;
+    } else if (!found[0] && joinTries.together) {
+      // No one stroke closes it, but each loose end's nearest stroke together does (stage 304: 3 to 2 and 14 to 15, both missed). Only
+      // the strokes on the room's outline are offered.
+      const room = clean(labelledFace(a, named, joinTries.together.faces));
+      if (room) {
+        const onRoom = new Set(room.points.map((p) => p.id));
+        const kept = joinTries.together.pairs.filter((t) => onRoom.has(t.from.id) && onRoom.has(t.to.id));
+        // The room with only those strokes must be the same room: what's offered is what closes it.
+        const again = kept.length > 0 ? clean(labelledFace(a, named, joinTries.facesWith(kept))) : null;
+        if (again && again.points.map((p) => p.id).join() === room.points.map((p) => p.id).join()) {
+          pairs = kept;
+          face = again;
+        }
+      }
+    }
+    if (!face || pairs.length === 0) return false;
+    const outline = face.points.map((p) => p.pointId);
+    const said = pairs.map((p) => ({ from: p.from.pointId, to: p.to.pointId, metres: p.metres }));
+    // One offer for the same joins, however many labels name the house (stage 304: "ගෙය" read twice and "ගෙදර" once beside one room).
+    if (questions.some((q) => q.join && joinKey(q.join.pairs) === joinKey(said))) return true;
+    const apart = said.length === 1 ? `Joined from ${said[0]!.from} to ${said[0]!.to}, ${m(said[0]!.metres)} apart` : `Joined ${list(said.map((p) => `from ${p.from} to ${p.to} (${m(p.metres)} apart)`))}`;
+    ask([a.id], a.file, `"${a.label}" is written on the sketch (${why}), but the lines round it don't close round it alone. ${apart}, they close round ${list(outline)} (${face.areaM2.toFixed(2)} m²). ${said.length === 1 ? "Is that wall" : "Are those walls"} drawn on your sketch?`, [
+      "If so, join them in one press, and the building is drawn round it, for you to confirm. If not, give its corners on the Lots step.",
+    ], { join: { file: a.file, pairs: said, outline, areaM2: face.areaM2 } });
     return true;
   }
 
   /**
    * The joins worth trying (stage 303): from a line's loose end to another number the sketch draws, at most JOIN_MAX_M apart, not already
-   * joined, the nearest 25, each with the rooms the lines make with it. A number with a space or a bar in it can't be joined in a press.
+   * joined, the nearest 25, each with the rooms the lines make with it. A number with a space, a bar or a plus in it can't be joined in a press.
    */
-  function tryJoins(): { from: SurveyPoint; to: SurveyPoint; metres: number; faces: Face[] }[] {
+  function tryJoins(): JoinTries {
     const runs = lines.filter((l) => l.proposal && l.kind !== "road" && l.line.style !== "dashed");
     const degree = new Map<string, number>();
     for (const l of runs) for (const p of [l.points[0]!, l.points.at(-1)!]) if (!l.closes) degree.set(p.id, (degree.get(p.id) ?? 0) + 1);
-    const pressable = (p: SurveyPoint) => /^[^\s|]{1,32}$/.test(p.pointId);
+    const pressable = (p: SurveyPoint) => /^[^\s|+]{1,32}$/.test(p.pointId);
     const loose = [...new Map(runs.flatMap((l) => (l.closes ? [] : [l.points[0]!, l.points.at(-1)!])).map((p) => [p.id, p])).values()].filter((p) => degree.get(p.id) === 1 && pressable(p));
     const drawnPts = [...new Map(runs.flatMap((l) => l.points).map((p) => [p.id, p])).values()].filter(pressable);
     const joined = (p: SurveyPoint, q: SurveyPoint) => runs.some((l) => l.points.some((x, i) => i > 0 && ((x.id === p.id && l.points[i - 1]!.id === q.id) || (x.id === q.id && l.points[i - 1]!.id === p.id))));
@@ -1145,7 +1207,14 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
       }
     pairs.sort((x, y) => x.metres - y.metres);
     const base = runs.map((l) => ({ points: l.points, closed: l.closes }));
-    return pairs.slice(0, 25).map((t) => ({ ...t, faces: facesOf([...base, { points: [t.from, t.to], closed: false }], onLine) }));
+    const facesWith = (strokes: readonly JoinTry[]) => facesOf([...base, ...strokes.map((t) => ({ points: [t.from, t.to], closed: false }))], onLine, undefined, "drop");
+    const single = pairs.slice(0, 25).map((t) => ({ ...t, faces: facesWith([t]) }));
+    // Each loose end's nearest stroke, all together (stage 304): at most six, tried once.
+    const nearest: JoinTry[] = [];
+    for (const t of pairs) if (!nearest.some((u) => u.from.id === t.from.id || u.from.id === t.to.id)) nearest.push(t);
+    nearest.splice(6);
+    const together = nearest.length >= 2 ? { pairs: nearest, faces: facesWith(nearest) } : null;
+    return { single, together, facesWith };
   }
 
   /**

@@ -74,6 +74,17 @@ describe("the areas a sketch's lines close round", () => {
     const closedAcross = { points: [at("10", 4, 2), at("11", 8, 2), at("14", 8, 6), at("15", 4, 6)], closed: true };
     expect(facesOf([...runs, closedAcross], 0.25)).toEqual([]);
   });
+
+  it("when asked, leaves out both legs of each crossing and finds the rest's areas, never one a left-out leg cuts (stage 304)", () => {
+    // Two closed lines crossing each other in the lot's top half, away from the house: the house is still found.
+    const x1 = { points: [at("20", 2, 15), at("21", 6, 15), at("22", 4, 19)], closed: true };
+    const x2 = { points: [at("23", 2, 18), at("24", 6, 18), at("25", 4, 14)], closed: true };
+    expect(facesOf([...runs, x1, x2], 0.25)).toEqual([]);
+    expect(facesOf([...runs, x1, x2], 0.25, undefined, "drop").map((f) => ring(f.points))).toEqual(facesOf(runs, 0.25).map((f) => ring(f.points)));
+    // A closed line across the house's wall: the wall's legs it crosses are left out, so the house isn't found cut or uncut.
+    const closedAcross = { points: [at("10", 4, 2), at("11", 8, 2), at("14", 8, 6), at("15", 4, 6)], closed: true };
+    expect(facesOf([...runs, closedAcross], 0.25, undefined, "drop").map((f) => ring(f.points))).not.toContainEqual(["1", "5", "6", "7"]);
+  });
 });
 
 describe("a house drawn as walls meeting the boundary, its label written inside", () => {

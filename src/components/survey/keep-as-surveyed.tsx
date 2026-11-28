@@ -4,6 +4,7 @@ import { ArrowCounterClockwiseIcon, CheckCircleIcon, WarningCircleIcon } from "@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { joinSketchPointsAction, putBackSketchLineAction, setKeptAsSurveyedAction } from "@/app/app/survey/actions";
+import { joinWords } from "@/core/survey/sketchintel/interpret";
 import { buttonClasses } from "@/components/ui/button";
 import { PLAN_UNSAVED_REASON, usePlanUnsaved } from "./unsaved-plan";
 
@@ -67,15 +68,18 @@ export function PutBackLine({ projectId, baseVersion, line, readOnly }: { projec
   );
 }
 
-/** Joins two numbers on a sketch as the surveyor's word, or takes their join off (stage 303, ADR 0309): what the sketch draws is redrawn. */
-export function JoinPoints({ projectId, baseVersion, from, to, join, readOnly }: { projectId: string; baseVersion: number; from: string; to: string; join: boolean; readOnly: string | null }) {
+/**
+ * Joins numbers on a sketch as the surveyor's word, one pair or several in one press, or takes a join off (stage 303, 304, ADR 0309):
+ * what the sketch draws is redrawn.
+ */
+export function JoinPoints({ projectId, baseVersion, pairs, join, readOnly }: { projectId: string; baseVersion: number; pairs: { from: string; to: string }[]; join: boolean; readOnly: string | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const unsaved = usePlanUnsaved();
   const run = () =>
     start(async () => {
-      const r = await joinSketchPointsAction({ projectId, baseVersion, from, to, join });
+      const r = await joinSketchPointsAction({ projectId, baseVersion, pairs, join });
       if (r.status === "error") return setError(r.message);
       setError(null);
       router.refresh();
@@ -84,7 +88,7 @@ export function JoinPoints({ projectId, baseVersion, from, to, join, readOnly }:
     <div className="grid gap-1.5">
       <button type="button" onClick={run} disabled={pending || readOnly !== null || unsaved} className={buttonClasses(join ? "secondary" : "ghost", "sm", "w-fit")}>
         {join ? <CheckCircleIcon size={16} weight="bold" aria-hidden /> : <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden />}
-        {pending ? (join ? "Joining…" : "Taking it off…") : join ? `Join ${from} to ${to}` : "Take the join off"}
+        {pending ? (join ? "Joining…" : "Taking it off…") : join ? `Join ${joinWords(pairs)}` : "Take the join off"}
       </button>
       {readOnly ? <p className="text-sm text-ink-3">{readOnly}</p> : unsaved ? <p className="text-sm text-ink-3">{PLAN_UNSAVED_REASON}</p> : null}
       {error ? (

@@ -113,7 +113,7 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
         {e.confirm ? <ConfirmItem key={`${e.confirm}@${baseVersion}`} projectId={projectId} baseVersion={baseVersion} keyId={e.confirm} confirmed={false} readOnly={readOnly} /> : null}
         {e.habit ? <HabitChoice projectId={projectId} baseVersion={baseVersion} style={e.habit.style} choices={e.habit.choices} readOnly={readOnly} /> : null}
         {e.keep ? <KeepAsSurveyed key={`${e.keep.key}@${baseVersion}`} projectId={projectId} baseVersion={baseVersion} keyId={e.keep.key} kept={e.keep.kept} readOnly={readOnly} {...(e.leftOut ? { label: "Leave it out" } : e.join ? { label: "It isn't drawn" } : e.code === "SKETCH_OTHER_JOB" ? { label: "It's this job's sketch" } : {})} /> : null}
-        {e.join ? <JoinPoints projectId={projectId} baseVersion={baseVersion} from={e.join.from} to={e.join.to} join={!e.join.made} readOnly={readOnly} /> : null}
+        {e.join ? <JoinPoints projectId={projectId} baseVersion={baseVersion} pairs={e.join.pairs} join={!e.join.made} readOnly={readOnly} /> : null}
         {e.leftOut ? <PutBackLine projectId={projectId} baseVersion={baseVersion} line={e.leftOut.line} readOnly={readOnly} /> : null}
         {e.step && e.step !== "plan" ? (
           <Link href={`${base}?step=${e.step}`} className="inline-flex min-h-10 items-center text-sm font-medium text-accent underline-offset-2 hover:underline">

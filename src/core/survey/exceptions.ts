@@ -202,8 +202,8 @@ export interface SurveyException {
   lotLabel?: { lotId: string };
   /** A sketch line Farbaek left out because the independent check doesn't find it drawn (stage 302): put back in one press. */
   leftOut?: { line: string };
-  /** A stroke between two numbers on a sketch (stage 303): to join in a press, or, once made, to take off. */
-  join?: { file: string; from: string; to: string; made: boolean };
+  /** Strokes between numbers on a sketch (stage 303, 304): one or more to join in one press, or, once made, one to take off. */
+  join?: { file: string; pairs: { from: string; to: string }[]; made: boolean };
   /**
    * For a line the sketch draws double, or with x marks, with nothing written along it (stage 298): the codes the surveyor can say such a
    * line always is on their sketches, in one press, which answers this card and every other like it.

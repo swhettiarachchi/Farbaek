@@ -15,6 +15,7 @@ import { officeProfileBodySchema, profileFromPlan, profilePrecision, withProfile
 import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
 import { interpretDocument } from "@/core/survey/sketchintel/findings";
 import { withLinePutBack } from "@/core/survey/sketchintel/second-reading";
+import { joinWords } from "@/core/survey/sketchintel/interpret";
 import { withJoin, withoutJoin } from "@/core/survey/sketchintel/joins";
 import { HABIT_STYLES, HABIT_TAKES, STYLE_WORDS, habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
@@ -64,6 +65,8 @@ async function writer(): Promise<{ ok: true; w: Writer } | { ok: false; message:
 }
 
 const uuid = z.string().uuid();
+/** A number on a sketch that can be joined in a press (stage 303, 304): no space, bar or plus, which the join's key is written with. */
+const JOIN_POINT = /^[^\s|+]+$/;
 
 export async function createSurveyProjectAction(_prev: SurveyFormState, form: FormData): Promise<SurveyFormState> {
   const name = String(form.get("name") ?? "").trim();
@@ -481,7 +484,7 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
  * Only a near miss the plan has now can be kept.
  */
 export async function setKeptAsSurveyedAction(input: { projectId: string; baseVersion: number; key: string; keep: boolean }): Promise<SurveyFormState> {
-  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(?:(?:dup|leg):[0-9a-f:|-]{36,120}|sketch:r\d{1,3}|check:[im]\d{1,3}|sketch:job|left:l\d{1,3}|join:[^\s|]{1,32}\|[^\s|]{1,32})$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(?:(?:dup|leg):[0-9a-f:|-]{36,120}|sketch:r\d{1,3}|check:[im]\d{1,3}|sketch:job|left:l\d{1,3}|join:[^\s|+]{1,32}\|[^\s|+]{1,32}(?:\+[^\s|+]{1,32}\|[^\s|+]{1,32}){0,5})$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
   const g = await writer();
   if (!g.ok) return { status: "error", message: g.message };
   const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
@@ -533,8 +536,7 @@ export async function putBackSketchLineAction(input: { projectId: string; baseVe
 const joinInput = z.object({
   projectId: z.string().uuid(),
   baseVersion: z.number().int().min(1),
-  from: z.string().min(1).max(32).regex(/^[^\s|]+$/),
-  to: z.string().min(1).max(32).regex(/^[^\s|]+$/),
+  pairs: z.array(z.object({ from: z.string().min(1).max(32).regex(JOIN_POINT), to: z.string().min(1).max(32).regex(JOIN_POINT) })).min(1).max(6),
   join: z.boolean(),
 });
 
@@ -554,11 +556,13 @@ export async function joinSketchPointsAction(input: z.input<typeof joinInput>): 
   if (data.drawing.version !== i.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
   if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be changed on it. Reload, or ask support." };
   const doc = structuredClone(data.drawing.document);
-  const r = i.join ? withJoin(doc, data.points, i.from, i.to, g.w.actor.userId, new Date()) : withoutJoin(doc, data.points, i.from, i.to);
+  // A join is taken off one at a time; joins offered together are made together.
+  if (!i.join && i.pairs.length !== 1) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const r = i.join ? withJoin(doc, data.points, i.pairs, g.w.actor.userId, new Date()) : withoutJoin(doc, data.points, i.pairs[0]!.from, i.pairs[0]!.to);
   if (!r) return { status: "error", message: i.join ? "That join isn't offered on this plan any more. Reload to see the plan as it is now." : "That join isn't on this plan any more. Reload to see the plan as it is now." };
   const next = tidy(pruneProvenance(r.document), data);
   if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
-  const said = i.join ? `Joined ${i.from} to ${i.to} on the sketch` : `Took off the join from ${i.from} to ${i.to}`;
+  const said = i.join ? `Joined ${joinWords(i.pairs)} on the sketch` : `Took off the join from ${i.pairs[0]!.from} to ${i.pairs[0]!.to}`;
   const saved = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: i.projectId, baseVersion: i.baseVersion, document: next, note: said.slice(0, 200) });
   if (!saved.ok) return { status: "error", message: saved.message };
   revalidatePath(`/app/survey/${i.projectId}`);
