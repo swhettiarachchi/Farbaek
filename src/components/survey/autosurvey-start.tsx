@@ -3,7 +3,7 @@
 import { ArrowCounterClockwiseIcon, CameraIcon, FileTextIcon, ImageIcon, InfoIcon, PencilSimpleIcon, UploadSimpleIcon, WarningCircleIcon, XIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { readSketchesAction, readTitleIntoPlanAction } from "@/app/app/survey/ai-actions";
 import { generateSurveyPlanAction, type GenerateState } from "@/app/app/survey/actions";
 import { commonCodes } from "@/core/survey/codes";
@@ -64,6 +64,30 @@ function summary(r: FileRead): string {
 }
 
 /**
+ * Whether this person chose to have photos read with Claude (stage 301): their own choice, kept in this browser for them in this workspace
+ * only, so on a shared office computer one surveyor's choice is never another's.
+ */
+const readChoiceKey = (orgId: string | null, userId: string | null) => (orgId && userId ? `fb_sketch_read:${orgId}:${userId}` : null);
+const noSubscribe = () => () => {};
+const readChoice = (key: string | null) => {
+  if (!key) return false;
+  try {
+    return window.localStorage.getItem(key) === "yes";
+  } catch {
+    return false;
+  }
+};
+const rememberChoice = (key: string | null, yes: boolean) => {
+  if (!key) return;
+  try {
+    if (yes) window.localStorage.setItem(key, "yes");
+    else window.localStorage.removeItem(key);
+  } catch {
+    // A browser that keeps nothing asks again next time.
+  }
+};
+
+/**
  * AutoSurvey's start (stage 222, ADR 0233): every file at once, what Farbaek found in each, the coordinate system the surveyor
  * confirmed last time, and one Generate Plan. Field sketches are read by Claude after the plan is drawn, only when the surveyor
  * agrees here (stage 223, ADR 0234); documents are listed and said plainly to be unread.
@@ -103,7 +127,16 @@ export function AutoSurveyStart({
 }) {
   const router = useRouter();
   const [uploads, setUploads] = useState<Upload[]>([]);
-  const [consent, setConsent] = useState(false);
+  // Reading photos with Claude: the surveyor's own choice, said on each photo's card and in full below, and remembered in this browser
+  // once made (stage 301), so a sketch is never left unread for want of a tick far down the page.
+  const choiceKey = readChoiceKey(orgId, userId);
+  const remembered = useSyncExternalStore(noSubscribe, () => readChoice(choiceKey), () => false);
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const consent = chosen ?? remembered;
+  const setConsent = (yes: boolean) => {
+    setChosen(yes);
+    rememberChoice(choiceKey, yes);
+  };
   const [phase, setPhase] = useState<"drawing" | "reading" | "title">("drawing");
   const [drawn, setDrawn] = useState<Drawn | null>(null);
   // Where the drawn plan opens while its sketches are read: the read goes on on the server if the surveyor opens it (ADR 0239).
@@ -464,11 +497,11 @@ export function AutoSurveyStart({
       }
       if (u.deed) {
         // The deed or an old plan (stage 294): read into the plan's title, never into its points or measurements.
-        if (!consent) return { status: "off", label: "Not read", text: "Tick the box below to have Claude read the land's name, place and boundaries into the plan's title." };
+        if (!consent) return { status: "off", label: "Not read yet", text: "Claude can read the land's name, place and boundaries into the plan's title." };
         if (pending && phase === "title") return { status: "working", label: "Reading", text: "Claude is reading the land's name, place, boundaries and extent into the title." };
         return { status: "pending", label: "Read next", text: "Claude reads the land's name, place, boundaries and extent into the plan's title once the plan is drawn. Each fact waits for you to confirm it." };
       }
-      if (!consent) return { status: "off", label: "Not read", text: "Tick the box below to have Claude read what's written on it." };
+      if (!consent) return { status: "off", label: "Not read yet", text: "Once Claude has read it, Farbaek draws the lot, walls and road it shows through your points." };
       if (pending && phase === "reading") return { status: "working", label: "Reading", text: "Claude is reading what's written on it." };
       if (pending && phase === "title") return { status: "working", label: "Reading", text: "The photos are being read: the plan opens when they're done." };
       return { status: "pending", label: "Read next", text: "Claude reads what's written on it once the plan is drawn, and Farbaek checks each measurement against your data." };
@@ -584,6 +617,16 @@ export function AutoSurveyStart({
                         {deed ? "Deed or old plan" : "Sketch"}
                       </button>
                     ))}
+                  </div>
+                ) : null}
+                {/* The read asked for where the photo is (stage 301): one press, said in a line, the same choice as the box below. */}
+                {u.kind === "sketch" && u.photo && !consent && !sketchOff && !drawn ? (
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <button type="button" onClick={() => setConsent(true)} disabled={pending} className={buttonClasses("secondary", "sm")}>
+                      <ImageIcon size={16} weight="bold" aria-hidden />
+                      {photos.length > 1 ? "Read my photos with Claude" : "Read it with Claude"}
+                    </button>
+                    <span className="text-sm text-ink-3">{photos.length > 1 ? "They go" : "It goes"} to Anthropic, outside Sri Lanka, to be read, and {photos.length > 1 ? "are" : "is"} kept with this plan, as the box below says.</span>
                   </div>
                 ) : null}
               </div>

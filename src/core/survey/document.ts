@@ -296,7 +296,7 @@ export const surveyDocumentSchema = z.object({
    * along it, is this code. Set only by the surveyor's press, never by Farbaek or a model; carried to their next plans. Absent until the
    * first, so earlier approvals stand.
    */
-  sketchHabits: z.array(z.object({ style: z.enum(["double", "crossed"]), code: text(12).pipe(z.string().min(1)) })).max(2).optional(),
+  sketchHabits: z.array(z.object({ style: z.enum(["double", "crossed", "hatched"]), code: text(12).pipe(z.string().min(1)) })).max(3).optional(),
   /**
    * When the surveyor last said or forgot a sketch habit (stage 298), carried with them: the newest decision is the one a new plan starts
    * from, whichever plan was saved last.

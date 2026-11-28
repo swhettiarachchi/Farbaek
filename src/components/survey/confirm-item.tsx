@@ -4,7 +4,7 @@ import { ArrowCounterClockwiseIcon, CheckCircleIcon, TrashIcon, WarningCircleIco
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { confirmSketchItemsAction, confirmSurveyItemAction, forgetSketchHabitAction, labelLotAction, removeSurveySymbolAction, saveSketchHabitAction } from "@/app/app/survey/actions";
-import { STYLE_WORDS } from "@/core/survey/sketchintel/classify";
+import { STYLE_WORDS, type HabitStyle } from "@/core/survey/sketchintel/classify";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { PLAN_UNSAVED_REASON, usePlanUnsaved } from "./unsaved-plan";
@@ -59,7 +59,7 @@ export function ConfirmItem({ projectId, baseVersion, keyId, confirmed, readOnly
  * The surveyor's sketch habit, said in one press (stage 298): "On my sketches, a double line is a masonry wall (MW)". It answers this
  * card and every line drawn the same way with nothing written, now and on their next plans; it can be forgotten.
  */
-export function HabitChoice({ projectId, baseVersion, style, choices, readOnly }: { projectId: string; baseVersion: number; style: "double" | "crossed"; choices: readonly { code: string; thing: string }[]; readOnly: string | null }) {
+export function HabitChoice({ projectId, baseVersion, style, choices, readOnly }: { projectId: string; baseVersion: number; style: HabitStyle; choices: readonly { code: string; thing: string }[]; readOnly: string | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [doing, setDoing] = useState<string | null>(null);
@@ -96,7 +96,7 @@ export function HabitChoice({ projectId, baseVersion, style, choices, readOnly }
 }
 
 /** Forgets a sketch habit (stage 298): Farbaek asks again what a line drawn that way is. */
-export function ForgetHabit({ projectId, baseVersion, style, said, readOnly }: { projectId: string; baseVersion: number; style: "double" | "crossed"; said: string; readOnly: string | null }) {
+export function ForgetHabit({ projectId, baseVersion, style, said, readOnly }: { projectId: string; baseVersion: number; style: HabitStyle; said: string; readOnly: string | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
