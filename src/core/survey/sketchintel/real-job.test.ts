@@ -20,6 +20,7 @@ import { readSurveyFile } from "../autosurvey/start";
 import { commonCodes } from "../codes";
 import { crsById } from "../crs";
 import { emptyDocument, surveyDocumentSchema, type DrawingSettings } from "../document";
+import { exceptionsFor } from "../exceptions";
 import type { SurveyPoint } from "../parcel";
 import { buildPlan } from "../view";
 import { applySketch } from "./apply";
@@ -78,6 +79,25 @@ describe.skipIf(!DIR || !existsSync(join(DIR, "job.json")))("a real job, end to 
     // 4. The plan, checked.
     const view = buildPlan({ points, document: doc, crsId: job.crs, crsConfirmation: "Confirmed for this evaluation", surveyor: null, approval: null });
     out.push("", "## The plan's checks", "", ...view.findings.map((f) => `- [${f.severity}] ${f.code}: ${f.message}`));
+
+    // 4b. What the plan asks the surveyor (stage 295): the cards, the lines confirmed together, and why each other sketch line has its own.
+    const asks = exceptionsFor(doc, points, view.findings);
+    const together = asks.confirm.find((x) => x.together)?.together?.keys ?? [];
+    const why = (key: string) => {
+      const p = interpretation.proposals.find((x) => `feature:${x.id}` === key);
+      if (!p || p.kind !== "line") return "not a line the sketch drew";
+      const mine = interpretation.questions.filter((q) => q.item === p.id).map((q) => q.text.slice(0, 70));
+      const shared = interpretation.questions.filter((q) => q.item !== p.id && q.from.some((f) => p.from.includes(f))).map((q) => `${q.item ? "about another item" : "about these lines"}: ${q.text.slice(0, 60)}`);
+      return [p.settled ? "settled" : "course not settled", ...mine.map((m) => `own question: ${m}`), ...shared].join("; ");
+    };
+    const ownLines = asks.confirm.filter((x) => x.confirm?.startsWith("feature:sk-")).map((x) => x.confirm!);
+    out.push(
+      "",
+      "## What the plan asks the surveyor",
+      "",
+      `${asks.fix.length} to fix, ${asks.confirm.length} to confirm (${together.length} lines on one card), ${asks.note.length} notes.`,
+      ...ownLines.map((k) => `- ${k.slice(11, 21)}: ${why(k)}`),
+    );
 
     // 5. Against the surveyor's own plan, and the area by two methods.
     const reference = JSON.parse(readFileSync(join(DIR, job.reference), "utf8")) as PlanReference;

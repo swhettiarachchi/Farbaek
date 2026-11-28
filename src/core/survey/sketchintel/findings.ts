@@ -125,8 +125,10 @@ function answered(doc: SurveyDocument, item: string | undefined, by: "confirm" |
 }
 
 /**
- * A line the sketch put on the plan whose course nothing stands against (stage 294): settled where it runs (exact numbers, a sure read,
- * its points on it), and no question still open, of any kind, about it or about any sketch element it comes from.
+ * A line the sketch put on the plan whose course nothing stands against (stage 294): settled where it runs (exact numbers, its points on
+ * it, a sure read or two reads agreeing), and no question still open about it, of any kind, nor one about the sketch lines it comes from
+ * that names no item of its own. A question about another item (the lot has no letter, a corner of the lot) is that item's: it's asked on
+ * that item's card and doesn't hold the line back (stage 295).
  */
 export function settledSketchLine(interpretation: SketchInterpretation | null, doc: SurveyDocument, key: string): boolean {
   if (!interpretation || !key.startsWith("feature:")) return false;
@@ -134,7 +136,9 @@ export function settledSketchLine(interpretation: SketchInterpretation | null, d
   const p = interpretation.proposals.find((x) => sketchItemId(x) === id);
   if (!p || p.kind !== "line" || p.settled !== true) return false;
   const from = new Set(p.from);
-  return !interpretation.questions.some((q) => !answered(doc, q.item, q.answeredBy, interpretation) && (q.item === id || q.item === p.id || q.from.some((f) => from.has(f))));
+  return !interpretation.questions.some(
+    (q) => !answered(doc, q.item, q.answeredBy, interpretation) && (q.item === id || q.item === p.id || Boolean(q.lines?.includes(p.id)) || (!q.item && q.from.some((f) => from.has(f)))),
+  );
 }
 
 /** The sketch's open questions as the plan's findings: for information, holding nothing back; those the surveyor has answered left out. */

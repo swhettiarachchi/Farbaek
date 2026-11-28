@@ -127,9 +127,9 @@ export function drawnWithoutDoubt(doc: SurveyDocument, points: readonly SurveyPo
 }
 
 /**
- * The lines read from a sketch that nothing stands against (stage 294): every number on one matched a surveyed point exactly, the reader
- * was sure of it, its points lie on it, and no question is still open about it or the sketch lines it comes from, nor a number Farbaek
- * corrected on it. The surveyor confirms these together in one press; lots, roads, symbols (which a card removes), title facts and
+ * The lines read from a sketch that nothing stands against (stage 294, ADR 0302): every number on one matched a surveyed point exactly,
+ * its points lie on it, the reader was sure of it or two separate reads drew it, and no question is still open about it (nor one naming no
+ * item about the sketch lines it comes from), nor a number Farbaek corrected on it. The surveyor confirms these together in one press; lots, roads, symbols (which a card removes), title facts and
  * anything in doubt keep a card of their own. Worked out from the current plan every time, on the server again when the press arrives,
  * so an item that gains a question is never confirmed with the rest.
  */
@@ -228,7 +228,7 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
           title: `${quietKeys.length} lines read from your sketch, with nothing against them, not confirmed yet.`,
           holds: holdsText(f.blocks),
           item: null,
-          evidence: "Every number on each matched a surveyed point exactly, Claude was sure of it, its points lie on it, and no question is open about it.",
+          evidence: "Every number on each matched a surveyed point exactly, its points lie on it, Claude was sure of it or two separate reads drew it, and no question is open about it.",
           next: "Look them over on the sheet below, then confirm them together. Correct any of them on the Lots step first if it's wrong.",
           step: "boundary",
           confirm: null,
