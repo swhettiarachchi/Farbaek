@@ -202,6 +202,8 @@ export interface SurveyException {
   lotLabel?: { lotId: string };
   /** A sketch line Farbaek left out because the independent check doesn't find it drawn (stage 302): put back in one press. */
   leftOut?: { line: string };
+  /** A stroke between two numbers on a sketch (stage 303): to join in a press, or, once made, to take off. */
+  join?: { file: string; from: string; to: string; made: boolean };
   /**
    * For a line the sketch draws double, or with x marks, with nothing written along it (stage 298): the codes the surveyor can say such a
    * line always is on their sketches, in one press, which answers this card and every other like it.
@@ -333,6 +335,8 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
       step: stepFor(f),
       confirm: f.code === "LEGEND_UNREVIEWED" ? "codes" : null,
       keep: f.keep ?? null,
+      // A stroke to join, or one the surveyor joined (stage 303).
+      ...(f.join && (f.code === "SKETCH_JOIN" || f.code === "SKETCH_JOIN_KEPT" || f.code === "SKETCH_JOINED") ? { join: { ...f.join, made: f.code === "SKETCH_JOINED" } } : {}),
       // A line Farbaek left out (stage 302): put back in one press, beside leaving it out.
       ...((f.code === "SKETCH_LEFT_OUT" || f.code === "SKETCH_LEFT_OUT_KEPT") && f.keep?.key.startsWith("left:") ? { leftOut: { line: f.keep.key.slice("left:".length) } } : {}),
       // One lot without a label is labelled on the card itself; several are labelled together on the Lots step.

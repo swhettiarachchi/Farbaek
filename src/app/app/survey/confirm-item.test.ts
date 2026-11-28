@@ -47,6 +47,8 @@ vi.mock("@/server/survey/read", () => ({
     exports: [],
     profiles: [],
   }),
+  // The version the page showed, when a press is older than the newest (stage 303): unknown here, so a stale press is refused.
+  loadSurveyDrawing: async () => null,
 }));
 
 const { confirmSurveyItemAction, removeSurveySymbolAction } = await import("./actions");

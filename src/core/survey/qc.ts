@@ -41,6 +41,8 @@ export interface Finding {
   blocks: ("plan" | "export" | "approval")[];
   /** For a near miss: the key the surveyor's "keep as surveyed" answer is stored under, and whether it's kept. */
   keep?: { key: string; kept: boolean };
+  /** A stroke between two numbers on a sketch: one to join in a press, or one the surveyor joined (stage 303). */
+  join?: { file: string; from: string; to: string };
 }
 
 export interface QcInput {

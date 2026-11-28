@@ -12,12 +12,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { applyReview, type AcceptedItem } from "@/core/survey/ai-draft";
 import { saveSurveyDrawingAction } from "./actions";
-import { sketchFileNames } from "@/core/survey/autosurvey/sketch";
+import { sketchFileNames, sketchTooSmall } from "@/core/survey/autosurvey/sketch";
 import { pruneProvenance, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { applySketch, withoutWaitingSketchItems } from "@/core/survey/sketchintel/apply";
 import { withAutoCorrections } from "@/core/survey/sketchintel/correct";
-import { interpretDocument, sketchQuestionFindings } from "@/core/survey/sketchintel/findings";
+import { interpretDocument, looksLikeAnotherJob, sketchQuestionFindings, strangeNumbers } from "@/core/survey/sketchintel/findings";
 import { createAnthropicSketchReader, type SketchImage } from "@/server/ai/sketch-reader";
 import { createAnthropicSurveyDrafter, type ReadRequest } from "@/server/ai/survey-drafter";
 import { aiForWorkspace } from "@/server/ai/workspace-ai";
@@ -30,6 +30,7 @@ import { JobTracker, loadJob } from "@/server/survey/jobs";
 import { SKETCH_PHOTOS, checkPlanAgainstSketch, readFieldSketches } from "@/server/survey/sketches";
 import { checkItems, type SketchCheck } from "@/core/survey/sketchintel/verify";
 import { withSecondReading } from "@/core/survey/sketchintel/second-reading";
+import { imageSize } from "@/core/chat/files";
 import { createAnthropicSketchChecker } from "@/server/ai/sketch-checker";
 import { loadSketchPhotos, readSketchPhoto } from "@/server/survey/sketch-photos";
 import { SURVEY_MESSAGES, surveyStore } from "@/server/survey/store";
@@ -217,6 +218,10 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
     const data = Buffer.from(await f.arrayBuffer());
     const mediaType = imageTypeOf(data);
     if (!mediaType) return { status: "error", message: "Use sketch photos or scans saved as JPEG, PNG or WebP." };
+    // Too small to read (stage 303): never sent, whatever the browser did. A sketch's numbers would come back guessed.
+    const size = imageSize(new Uint8Array(data));
+    const small = size ? sketchTooSmall(size.width, size.height, names[n]!) : null;
+    if (small) return { status: "error", message: small };
     images.push({ name: names[n]!, mediaType, data });
   }
   const p = await prepare(projectId, baseVersion, "Reading field sketches", "read");
@@ -245,7 +250,7 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   const withReadings = (document: SurveyDocument, points: readonly SurveyPoint[]) => {
     // What an earlier read drew and nobody has confirmed goes: the new read draws what it reads (stage 256). The surveyor's own stays.
     // A new read's check answers for itself: the earlier answers to readings and to a check go with them (stage 263).
-    const read = pruneProvenance({ ...withoutWaitingSketchItems(document), sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:") && !k.startsWith("check:") && !k.startsWith("left:")) });
+    const read = pruneProvenance({ ...withoutWaitingSketchItems(document), sketch: record, kept: document.kept.filter((k) => !k.startsWith("sketch:") && !k.startsWith("check:") && !k.startsWith("left:") && !k.startsWith("join:")) });
     // The plain misreads the engine would offer to correct in one press are corrected now, as Farbaek's, before anything is drawn, when
     // that helps (ADR 0260): what they draw waits for the surveyor as everything from a sketch does, and each is put back in one press.
     const auto = withAutoCorrections(read, points, new Date());
@@ -313,10 +318,13 @@ async function readSketches(form: FormData): Promise<SketchReadState> {
   const fromDrawing = drawn > 0 ? ` ${drawn} ${drawn === 1 ? "item was" : "items were"} drawn from the sketch, each waiting for your confirmation.` : "";
   const fixed = corrected.length > 0 ? ` Farbaek read ${corrected.join(" and ")}, from where ${corrected.length === 1 ? "it's" : "they're"} written: check ${corrected.length === 1 ? "it" : "them"} on the plan.` : "";
   const questions = asked > 0 ? ` ${asked} ${asked === 1 ? "question" : "questions"} the sketch couldn't settle ${asked === 1 ? "is" : "are"} in the checks.` : "";
+  // A sketch that may be another job's (stage 303): said in the read's own answer, before anything else.
+  const odd = strangeNumbers(interpretDocument(next, p.data.points));
+  const otherJob = looksLikeAnotherJob(odd) ? ` ${odd.strange.length} of the ${odd.total} numbers on it aren't in your survey files: it may be another job's sketch, or too unclear to read. The plan says which, so you can read the right one.` : "";
   const checked = check ? ` ${checkSummary(check)}${leftOut > 0 ? ` Farbaek left out ${leftOut} ${leftOut === 1 ? "line" : "lines"} read once with doubt that the check doesn't find drawn, and redrew the plan without ${leftOut === 1 ? "it" : "them"}: put ${leftOut === 1 ? "it" : "any"} back in one press.` : ""}` : checkNote;
   await end("done", `${record.readings.length} things read${drawn > 0 ? `, ${drawn} drawn from the sketch` : ""}, saved as version ${saved.value}.${keptNote}`);
   revalidatePath(`/app/survey/${projectId}`);
-  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${fromDrawing}${fixed}${questions}${checked}${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length, drawn, questions: asked };
+  return { status: "done", message: `Read ${record.readings.length} things from the ${photos}, saved as version ${saved.value}.${otherJob}${fromDrawing}${fixed}${questions}${checked}${keptNote}`, version: saved.value, readings: record.readings.length, unreadable: record.unreadable.length, drawn, questions: asked };
 }
 
 /** What a check found, in a sentence (ADR 0271). */

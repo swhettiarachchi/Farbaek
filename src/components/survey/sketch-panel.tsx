@@ -5,13 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { readSketchesAction, type SketchReadState } from "@/app/app/survey/ai-actions";
-import { SKETCH_LIMITS, readerName, type ReadingCheck, type ReadingStatus, type SketchRecord } from "@/core/survey/autosurvey/sketch";
+import { SKETCH_LIMITS, readerName, sketchTooSmall, type ReadingCheck, type ReadingStatus, type SketchRecord } from "@/core/survey/autosurvey/sketch";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusGlyph } from "@/components/ui/status-badge";
-import { shrink } from "./photo";
+import { photoSize, shrink } from "./photo";
 import { SketchCheckAgain } from "./sketch-check";
 import { sketchesKey, stage, unstage } from "./staging";
 
@@ -71,6 +71,13 @@ export function SketchPanel(props: {
       const blob = await shrink(file).catch(() => null);
       if (!blob || blob.size > SKETCH_LIMITS.photoBytes) {
         setProblem(`${file.name} couldn't be opened here, or is too large. Save it as a JPEG or PNG and add it again.`);
+        continue;
+      }
+      // Too small to read (stage 303): never sent, and said with what to do.
+      const size = await photoSize(blob);
+      const small = size ? sketchTooSmall(size.width, size.height, file.name) : null;
+      if (small) {
+        setProblem(small);
         continue;
       }
       counter.current += 1;

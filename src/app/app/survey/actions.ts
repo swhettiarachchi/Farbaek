@@ -15,6 +15,7 @@ import { officeProfileBodySchema, profileFromPlan, profilePrecision, withProfile
 import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
 import { interpretDocument } from "@/core/survey/sketchintel/findings";
 import { withLinePutBack } from "@/core/survey/sketchintel/second-reading";
+import { withJoin, withoutJoin } from "@/core/survey/sketchintel/joins";
 import { HABIT_STYLES, HABIT_TAKES, STYLE_WORDS, habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
@@ -27,7 +28,7 @@ import { readPoints } from "@/core/survey/import/read";
 import { approvalHash, buildPlan } from "@/core/survey/view";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
-import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
+import { loadSurveyDrawing, loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { hasSurveyorDetails, loadRecentPlans, loadStartingDefaults } from "@/server/survey/defaults";
 import { applySuggestion, declineSuggestion } from "@/core/survey/learning";
 import { loadOfficeProfiles } from "@/server/survey/profiles";
@@ -480,7 +481,7 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
  * Only a near miss the plan has now can be kept.
  */
 export async function setKeptAsSurveyedAction(input: { projectId: string; baseVersion: number; key: string; keep: boolean }): Promise<SurveyFormState> {
-  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(?:(?:dup|leg):[0-9a-f:|-]{36,120}|sketch:r\d{1,3}|check:[im]\d{1,3}|left:l\d{1,3})$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(?:(?:dup|leg):[0-9a-f:|-]{36,120}|sketch:r\d{1,3}|check:[im]\d{1,3}|sketch:job|left:l\d{1,3}|join:[^\s|]{1,32}\|[^\s|]{1,32})$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
   const g = await writer();
   if (!g.ok) return { status: "error", message: g.message };
   const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
@@ -492,7 +493,8 @@ export async function setKeptAsSurveyedAction(input: { projectId: string; baseVe
   const doc = structuredClone(data.drawing.document);
   doc.kept = input.keep ? [...new Set([...doc.kept, input.key])] : doc.kept.filter((k) => k !== input.key);
   const left = input.key.startsWith("left:");
-  const note = `${input.keep ? (left ? "Left out" : "Kept as surveyed") : "To check again"}: ${finding.message}`.slice(0, 200);
+  const notJoined = input.key.startsWith("join:");
+  const note = `${input.keep ? (left ? "Left out" : notJoined ? "Not joined" : "Kept as surveyed") : "To check again"}: ${finding.message}`.slice(0, 200);
   const next = tidy(pruneProvenance(doc), data);
   if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
   const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: next, note });
@@ -528,6 +530,42 @@ export async function putBackSketchLineAction(input: { projectId: string; baseVe
   return { status: "done", message: `Put back: the line through ${through} is drawn as the sketch was read.${redrawn} Saved as version ${r.value}.`, version: r.value };
 }
 
+const joinInput = z.object({
+  projectId: z.string().uuid(),
+  baseVersion: z.number().int().min(1),
+  from: z.string().min(1).max(32).regex(/^[^\s|]+$/),
+  to: z.string().min(1).max(32).regex(/^[^\s|]+$/),
+  join: z.boolean(),
+});
+
+/**
+ * "Join 15 to 14" (stage 303, ADR 0309): a stroke the read of the sketch missed, which closes a house round its label, joined as the
+ * surveyor's word; or a join they made, taken off. Only a join the plan offers now can be made. What the sketch draws is redrawn: items
+ * nobody confirmed change, each waiting for the surveyor; anything confirmed is left as it is. Saved as a new version.
+ */
+export async function joinSketchPointsAction(input: z.input<typeof joinInput>): Promise<SurveyFormState> {
+  const parsed = joinInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const i = parsed.data;
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, i.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== i.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be changed on it. Reload, or ask support." };
+  const doc = structuredClone(data.drawing.document);
+  const r = i.join ? withJoin(doc, data.points, i.from, i.to, g.w.actor.userId, new Date()) : withoutJoin(doc, data.points, i.from, i.to);
+  if (!r) return { status: "error", message: i.join ? "That join isn't offered on this plan any more. Reload to see the plan as it is now." : "That join isn't on this plan any more. Reload to see the plan as it is now." };
+  const next = tidy(pruneProvenance(r.document), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const said = i.join ? `Joined ${i.from} to ${i.to} on the sketch` : `Took off the join from ${i.from} to ${i.to}`;
+  const saved = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: i.projectId, baseVersion: i.baseVersion, document: next, note: said.slice(0, 200) });
+  if (!saved.ok) return { status: "error", message: saved.message };
+  revalidatePath(`/app/survey/${i.projectId}`);
+  const redrawn = r.removed.length + r.added.length > 0 ? ` ${r.added.length} ${r.added.length === 1 ? "item" : "items"} drawn, ${r.removed.length} taken off, each waiting for you.` : "";
+  return { status: "done", message: `${said}.${redrawn} Saved as version ${saved.value}.`, version: saved.value };
+}
+
 /**
  * "Confirm" on the surveyor's list (stage 224, ADR 0235): an item Farbaek drew or filled in, or the code list, confirmed with one
  * press and saved as a new version so the approval covers it; `confirmed: false` puts it back on the list. Only an item the plan has,
@@ -541,8 +579,15 @@ export async function confirmSurveyItemAction(input: { projectId: string; baseVe
   if (!g.ok) return { status: "error", message: g.message };
   const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
   if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
-  if (data.drawing.version !== input.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
   if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be confirmed on it. Reload, or ask support." };
+  // Several confirmed one after another (stage 303): a newer version saved by another press since the page was drawn doesn't stand in
+  // the way when nothing but confirmations changed in between. Anything else (a new reading, a correction, an edit) asks for a reload.
+  let base = input.baseVersion;
+  if (data.drawing.version !== base) {
+    const seen = await loadSurveyDrawing(g.w.user, input.projectId, base).catch(() => null);
+    if (!seen?.readable || !onlyConfirmationsDiffer(seen.document, data.drawing.document)) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+    base = data.drawing.version;
+  }
   const doc = structuredClone(data.drawing.document);
   const mark = doc.provenance[input.key];
   const codes = input.key === "codes";
@@ -552,10 +597,16 @@ export async function confirmSurveyItemAction(input: { projectId: string; baseVe
   const { label } = itemOf(doc, input.key);
   const next = tidy(pruneProvenance(doc), data);
   if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
-  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: next, note: `${input.confirmed ? "Confirmed" : "To check again"}: ${label}`.slice(0, 200) });
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: base, document: next, note: `${input.confirmed ? "Confirmed" : "To check again"}: ${label}`.slice(0, 200) });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `${input.confirmed ? "Confirmed" : "Back on the list"}: ${label}. Saved as version ${r.value}.`, version: r.value };
+}
+
+/** Whether two versions differ only in what was confirmed (the marks' reviewed flags) and kept (stage 303). */
+function onlyConfirmationsDiffer(a: SurveyDocument, b: SurveyDocument): boolean {
+  const bare = (d: SurveyDocument) => JSON.stringify({ ...d, provenance: Object.fromEntries(Object.keys(d.provenance).sort().map((k) => [k, d.provenance[k]!.source])), kept: [] });
+  return bare(a) === bare(b);
 }
 
 /**

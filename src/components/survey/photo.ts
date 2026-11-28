@@ -1,8 +1,10 @@
+import { SKETCH_PHOTO_SIDE } from "@/core/survey/autosurvey/sketch";
 /**
  * Photos for Survey Studio's AI readers ("Read an old plan", field sketches): shrunk in the browser to the size Claude reads best
  * (1,568 px on the long side), turned upright, and saved as JPEG, so a 50 MP phone photo goes up as a few hundred kilobytes.
  */
-export const PHOTO_SIDE = 1_568;
+/** The longest side a photo is shrunk to: kept with the size check that knows a photo this long was larger (stage 303). */
+export const PHOTO_SIDE = SKETCH_PHOTO_SIDE;
 
 /** A decoded picture and how to let it go once it's drawn. */
 export type Decoded = { image: CanvasImageSource; width: number; height: number; done: () => void };
@@ -52,6 +54,18 @@ export async function decodePhoto(file: Blob): Promise<Decoded> {
     }
   }
   throw last;
+}
+
+/** A prepared photo's width and height, or null when it can't be measured here. */
+export async function photoSize(blob: Blob): Promise<{ width: number; height: number } | null> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const size = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return size;
+  } catch {
+    return null;
+  }
 }
 
 export async function shrink(file: File): Promise<Blob> {
