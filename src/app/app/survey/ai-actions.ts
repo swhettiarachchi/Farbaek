@@ -24,7 +24,7 @@ import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { SURVEY_AI_DAILY } from "@/server/survey/assistant";
-import { BRIEF_LIMITS, PHOTO_LIMITS, draftSurveyPlan, imageTypeOf, readSurveyPhotos, scanLimit, scanTypeOf, type SurveyDraftDeps } from "@/server/survey/drafting";
+import { BRIEF_LIMITS, PHOTO_LIMITS, draftSurveyPlan, imageTypeOf, pdfPages, readSurveyPhotos, scanLimit, scanTypeOf, type SurveyDraftDeps } from "@/server/survey/drafting";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { JobTracker, loadJob } from "@/server/survey/jobs";
 import { SKETCH_PHOTOS, checkPlanAgainstSketch, readFieldSketches } from "@/server/survey/sketches";
@@ -121,6 +121,8 @@ async function scansOf(form: FormData, what: string): Promise<{ images: ReadRequ
     const mediaType = scanTypeOf(data);
     if (!mediaType) return { error: "Use photos saved as JPEG, PNG or WebP, or scans saved as PDF." };
     if (data.length > scanLimit(mediaType)) return { error: mediaType === "application/pdf" ? `A PDF scan can be up to ${PHOTO_LIMITS.pdfBytes / 1_000_000} MB. Scan it at a lower resolution, or photograph the pages.` : "One of the photos is too large. Choose it again so Farbaek can shrink it." };
+    // Checked before the day's allowance is touched: a long PDF is refused here, not after.
+    if (mediaType === "application/pdf" && pdfPages(data) > PHOTO_LIMITS.pdfPages) return { error: `A PDF scan can have up to ${PHOTO_LIMITS.pdfPages} pages. Send only the pages with the title, the place and the boundaries.` };
     images.push({ mediaType, data });
   }
   return { images };

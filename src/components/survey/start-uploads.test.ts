@@ -30,7 +30,8 @@ describe("a photo marked as the deed or an old plan (stage 294)", () => {
     const pdfBack = fromKept(toKept([pdf], "", "LOCAL"), () => "k")!.uploads[0]!;
     expect(pdfBack.kind === "sketch" && pdfBack.pdf === true && pdfBack.deed === true).toBe(true);
     const notDeed = fromKept({ ...toKept([pdf], "", "LOCAL"), uploads: [{ ...toKept([pdf], "", "LOCAL").uploads[0]!, deed: undefined }] }, () => "k")!.uploads[0]!;
-    expect(notDeed.kind === "sketch" && "pdf" in notDeed).toBe(false);
+    // Kept without its mark, a PDF still comes back as the deed: never as a sketch, which the sketch reader would refuse with the rest.
+    expect(notDeed.kind === "sketch" && notDeed.pdf === true && notDeed.deed === true).toBe(true);
     // Anything but true is no mark: a damaged entry is a sketch, as before.
     const odd = fromKept({ ...kept, uploads: [{ ...kept.uploads[0]!, deed: "yes" }] }, () => "k")!;
     expect(odd.uploads[0]!.kind === "sketch" && "deed" in odd.uploads[0]!).toBe(false);

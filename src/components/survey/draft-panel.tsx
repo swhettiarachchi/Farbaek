@@ -22,6 +22,8 @@ const BRIEF_MAX = 4_000;
 const PHOTO_MAX = 3;
 /** A scanned PDF's size, as the server takes it (PHOTO_LIMITS.pdfBytes). */
 const PDF_MAX = 3_000_000;
+/** Everything in one read, as the server takes it (PHOTO_LIMITS.totalBytes), under the 6 MB a request carries. */
+const TOTAL_MAX = 5_500_000;
 
 export interface DraftPanelProps {
   projectId: string;
@@ -107,12 +109,14 @@ export function DraftPanel(props: DraftPanelProps) {
   const read = () => {
     setWhich("read");
     setError(null);
+    // Within what one request carries (stage 296): checked here, so a request too large to send is said, not lost.
+    if (photos.reduce((sum, p) => sum + p.blob.size, 0) > TOTAL_MAX) return setError("The photos and scans are too large together. Remove one, or use a smaller scan.");
     startRunning(async () => {
       const form = new FormData();
       form.set("projectId", props.projectId);
       form.set("baseVersion", String(props.baseVersion));
       photos.forEach((p, i) => form.append("photo", p.pdf ? new File([p.blob], `scan-${i + 1}.pdf`, { type: "application/pdf" }) : new File([p.blob], `photo-${i + 1}.jpg`, { type: "image/jpeg" })));
-      take(await readOldPlanAction(form));
+      take(await readOldPlanAction(form).catch((): SurveyDraftState => ({ status: "error", message: "The photos couldn't be sent: they may be too large together. Remove one, or use a smaller scan." })));
     });
   };
 
@@ -126,7 +130,7 @@ export function DraftPanel(props: DraftPanelProps) {
     const added: Photo[] = [];
     for (const f of files.slice(0, room)) {
       // A scanned PDF goes as it is, within its size: the server reads it by its own bytes (stage 296).
-      if (f.type === "application/pdf" || /.pdf$/i.test(f.name)) {
+      if (f.type === "application/pdf" || /\.pdf$/i.test(f.name)) {
         if (f.size > PDF_MAX) setError(`${f.name} is larger than ${PDF_MAX / 1_000_000} MB. Scan it at a lower resolution, or photograph its pages.`);
         else added.push({ name: f.name, blob: f, url: "", pdf: true });
         continue;

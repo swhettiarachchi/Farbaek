@@ -71,7 +71,15 @@ export function fromKept(value: unknown, nextKey: () => string): { title: string
       const adjust = typeof u.adjust === "string" && (ADJUST_METHODS as readonly string[]).includes(u.adjust) ? (u.adjust as AdjustMethod) : null;
       uploads.push({ ...base, kind: "survey-data", content: u.content, read: null, problem: null, encoding: str(u.encoding, 300) ? u.encoding : null, adjust });
     } else if (u.kind === "sketch" && isBlob(u.photo)) {
-      uploads.push({ ...base, kind: "sketch", photo: u.photo, problem: null, ...(u.deed === true ? { deed: true as const } : {}), ...(u.deed === true && u.pdf === true ? { pdf: true as const } : {}) });
+      // A PDF is only ever the deed (stage 296): kept without its mark, it comes back as the deed, never as a sketch.
+      uploads.push({
+        ...base,
+        kind: "sketch",
+        photo: u.photo,
+        problem: null,
+        ...(u.deed === true || u.pdf === true ? { deed: true as const } : {}),
+        ...(u.pdf === true ? { pdf: true as const } : {}),
+      });
     } else if (u.kind === "document") {
       uploads.push({ ...base, kind: "document", reason: notReadYet(u.name) });
     } else if (u.kind === "code-library" && str(u.content, LIBRARY_LIMITS.bytes)) {

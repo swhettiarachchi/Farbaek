@@ -205,7 +205,7 @@ export function AutoSurveyStart({
       const kind = kindOfUpload(file.name, file.type);
       if (kind === "document") {
         // A scanned PDF is read as the deed or an old plan, into the title (stage 296); Claude reads its pages. Other documents aren't read.
-        const pdf = file.type === "application/pdf" || /.pdf$/i.test(file.name);
+        const pdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
         if (pdf && file.size <= DEED_PDF_BYTES) {
           added.push({ key, name: file.name, size: file.size, kind: "sketch", photo: file, problem: null, deed: true, pdf: true });
           continue;
@@ -753,7 +753,7 @@ export function AutoSurveyStart({
             <input type="checkbox" checked={consent} disabled={pending || Boolean(drawn)} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
             <span className="grid gap-1">
               <span>
-                Read my {deeds.length > 0 ? (sketches.length > 0 ? "photos" : deeds.length === 1 ? "deed or old plan" : "deed and old plan photos") : readable === 1 ? "sketch" : readable > 1 ? `${readable} sketches` : "sketches"} with Claude. {readable === 1 ? "The photo goes" : "The photos go"} to Anthropic, outside Sri Lanka, to be read.
+                Read my {deeds.length > 0 ? (sketches.length > 0 ? "photos" : deeds.length === 1 ? "deed or old plan" : "deed and old plan photos") : readable === 1 ? "sketch" : readable > 1 ? `${readable} sketches` : "sketches"} with Claude. {photos.some((u) => u.pdf) ? (readable === 1 ? "It goes" : "They go") : readable === 1 ? "The photo goes" : "The photos go"} to Anthropic, outside Sri Lanka, to be read.
                 {sketches.length > 0 ? " When something is read, Farbaek keeps the sketch photos with this plan, so your team can see what each reading came from, until they're read again or the workspace is deleted." : ""}
                 {deeds.length > 0 ? " Photos of the deed or an old plan aren't kept." : ""}
               </span>

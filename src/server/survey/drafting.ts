@@ -24,7 +24,7 @@ export const BRIEF_LIMITS = { min: 20, max: 4_000 } as const;
  * Photos or scans of an earlier plan or deed: a photo as the browser shrank it, or a scanned PDF as it is (stage 296), within the 6 MB a
  * server action carries.
  */
-export const PHOTO_LIMITS = { count: 3, bytes: 1_800_000, pdfBytes: 3_000_000, totalBytes: 5_500_000 } as const;
+export const PHOTO_LIMITS = { count: 3, bytes: 1_800_000, pdfBytes: 3_000_000, pdfPages: 10, totalBytes: 5_500_000 } as const;
 
 export interface SurveyDraftDeps {
   recordAiDraft(input: { orgId: string; actor: string; projectId: string; operation: "survey_draft" | "survey_read"; model: string; accepted: number; dropped: number; questions: number }): Promise<RpcResult<null>>;
@@ -128,18 +128,32 @@ export async function draftSurveyPlan(deps: Deps, source: ModelSource<SurveyDraf
 export async function readSurveyPhotos(deps: Deps, source: ModelSource<SurveyDrafter>, input: Common & { images: ReadRequest["images"] }): Promise<WriteResult<SurveyDraftValue>> {
   const role = await requireContributor(deps, input.orgId);
   if (!role.ok) return role;
-  if (input.images.length < 1 || input.images.length > PHOTO_LIMITS.count) return fail("INVALID_REQUEST", `Choose one to ${PHOTO_LIMITS.count} photos.`);
-  if (input.images.some((i) => i.data.length > PHOTO_LIMITS.bytes)) return fail("INVALID_REQUEST", "One of the photos is too large. Choose it again so Farbaek can shrink it.");
+  if (input.images.length < 1 || input.images.length > PHOTO_LIMITS.count) return fail("INVALID_REQUEST", `Choose one to ${PHOTO_LIMITS.count} photos or PDF scans.`);
+  // Each within its own size (a PDF as it is, a photo as shrunk), all within one request (stage 296).
+  if (input.images.some((i) => i.data.length > scanLimit(i.mediaType))) return fail("INVALID_REQUEST", "One of the photos or scans is too large. Choose it again so Farbaek can shrink it, or scan it at a lower resolution.");
+  if (input.images.reduce((sum, i) => sum + i.data.length, 0) > PHOTO_LIMITS.totalBytes) return fail("INVALID_REQUEST", "The photos and scans are too large together. Send fewer, or smaller scans.");
+  // A PDF is charged by its pages: refused past a deed's few, and reserved page by page.
+  const pages = input.images.map((i) => (i.mediaType === "application/pdf" ? pdfPages(i.data) : 1));
+  if (pages.some((n) => n > PHOTO_LIMITS.pdfPages)) return fail("INVALID_REQUEST", `A PDF scan can have up to ${PHOTO_LIMITS.pdfPages} pages. Send only the pages with the title, the place and the boundaries.`);
   return run(
     deps,
     source,
-    { ...input, operation: "survey_read", promptTokens: approxTokens(SURVEY_READ_PROMPT) + approxTokens(surveyReadMessage()) + SURVEY_READ_TOKENS_PER_IMAGE * input.images.length, manual: MANUAL_SURVEY_READ },
+    { ...input, operation: "survey_read", promptTokens: approxTokens(SURVEY_READ_PROMPT) + approxTokens(surveyReadMessage()) + SURVEY_READ_TOKENS_PER_IMAGE * pages.reduce((a, b) => a + b, 0), manual: MANUAL_SURVEY_READ },
     (d) => d.read({ images: input.images }),
     (o) => acceptDraft(o.output, { document: input.document, points: input.points, source: "ai_photo", brief: "" }),
   );
 }
 
-/** What a photo's first bytes say it is: JPEG, PNG or WebP, or null. The browser's word for it isn't trusted. */
+/**
+ * About how many pages a PDF has, to refuse a long one and reserve its cost (stage 296): the page objects it names, or, where they're
+ * packed away out of sight, one page for every 250 KB, as a scanned page is. Never fewer than one. Nothing here opens the file further.
+ */
+export function pdfPages(bytes: Uint8Array): number {
+  const text = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString("latin1");
+  const named = (text.match(/\/Type\s*\/Page(?![a-zA-Z])/g) ?? []).length;
+  return Math.max(1, named, Math.ceil(bytes.length / 250_000));
+}
+
 /**
  * A scan of an earlier plan or deed: a photo, or a PDF by its own first bytes (stage 296). Claude reads a PDF's pages itself, so nothing
  * here opens it. Never by the name or the type the browser says.
@@ -152,6 +166,7 @@ export function scanTypeOf(bytes: Uint8Array): ReadRequest["images"][number]["me
 /** The size a scan may be: a PDF as it is, a photo as the browser shrank it. */
 export const scanLimit = (mediaType: ReadRequest["images"][number]["mediaType"]) => (mediaType === "application/pdf" ? PHOTO_LIMITS.pdfBytes : PHOTO_LIMITS.bytes);
 
+/** What a photo's first bytes say it is: JPEG, PNG or WebP, or null. The browser's word for it isn't trusted. */
 export function imageTypeOf(bytes: Uint8Array): Exclude<ReadRequest["images"][number]["mediaType"], "application/pdf"> | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
   if (bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((b, i) => bytes[i] === b)) return "image/png";
