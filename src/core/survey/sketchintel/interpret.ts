@@ -919,6 +919,11 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     const other = lines.find((l) => l.proposal && l.written && l.kind !== "wall" && l.kind !== "building" && legsAlong(l, face.points));
     const lost = dropped.find((d) => [...d.ids].some((id) => onFace.has(id)));
     if (bounding.length === 0 || other || lost) {
+      // Its numbered corners, as before the room was tried (stage 304 review), when the room can't be drawn.
+      if (partial) {
+        proposals.push(fromCorners());
+        continue;
+      }
       cannot(
         bounding.length === 0
           ? "no wall of it is drawn inside the lot"
@@ -1149,9 +1154,14 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     joinTries ??= tryJoins();
     const found: { from: SurveyPoint; to: SurveyPoint; metres: number; face: Face }[] = [];
     const clean = (face: Face | null) => (face && holdsDrawn(face.points, new Set(face.points.map((x) => x.id))).length === 0 ? face : null);
+    // A stroke offered is a side of the room: its ends next to each other on its outline (stage 304 review).
+    const sideOf = (t: JoinTry, f: Face) => f.points.some((p, i) => {
+      const q = f.points[(i + 1) % f.points.length]!;
+      return (p.id === t.from.id && q.id === t.to.id) || (p.id === t.to.id && q.id === t.from.id);
+    });
     for (const t of joinTries.single) {
       const face = clean(labelledFace(a, named, t.faces));
-      if (face) found.push({ from: t.from, to: t.to, metres: t.metres, face });
+      if (face && sideOf(t, face)) found.push({ from: t.from, to: t.to, metres: t.metres, face });
     }
     found.sort((x, y) => x.metres - y.metres);
     let pairs: { from: SurveyPoint; to: SurveyPoint; metres: number }[] = [];
@@ -1161,14 +1171,13 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
       face = found[0].face;
     } else if (!found[0] && joinTries.together) {
       // No one stroke closes it, but each loose end's nearest stroke together does (stage 304: 3 to 2 and 14 to 15, both missed). Only
-      // the strokes on the room's outline are offered.
+      // the strokes that are sides of the room are offered.
       const room = clean(labelledFace(a, named, joinTries.together.faces));
       if (room) {
-        const onRoom = new Set(room.points.map((p) => p.id));
-        const kept = joinTries.together.pairs.filter((t) => onRoom.has(t.from.id) && onRoom.has(t.to.id));
+        const kept = joinTries.together.pairs.filter((t) => sideOf(t, room));
         // The room with only those strokes must be the same room: what's offered is what closes it.
         const again = kept.length > 0 ? clean(labelledFace(a, named, joinTries.facesWith(kept))) : null;
-        if (again && again.points.map((p) => p.id).join() === room.points.map((p) => p.id).join()) {
+        if (again && again.points.map((p) => p.id).join() === room.points.map((p) => p.id).join() && kept.every((t) => sideOf(t, again))) {
           pairs = kept;
           face = again;
         }
@@ -1177,6 +1186,8 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     if (!face || pairs.length === 0) return false;
     const outline = face.points.map((p) => p.pointId);
     const said = pairs.map((p) => ({ from: p.from.pointId, to: p.to.pointId, metres: p.metres }));
+    // Its answer is kept under its key, which the plan holds to 120 characters.
+    if (joinKey(said).length > 120) return false;
     // One offer for the same joins, however many labels name the house (stage 304: "ගෙය" read twice and "ගෙදර" once beside one room).
     if (questions.some((q) => q.join && joinKey(q.join.pairs) === joinKey(said))) return true;
     const apart = said.length === 1 ? `Joined from ${said[0]!.from} to ${said[0]!.to}, ${m(said[0]!.metres)} apart` : `Joined ${list(said.map((p) => `from ${p.from} to ${p.to} (${m(p.metres)} apart)`))}`;
@@ -1211,7 +1222,7 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     const single = pairs.slice(0, 25).map((t) => ({ ...t, faces: facesWith([t]) }));
     // Each loose end's nearest stroke, all together (stage 304): at most six, tried once.
     const nearest: JoinTry[] = [];
-    for (const t of pairs) if (!nearest.some((u) => u.from.id === t.from.id || u.from.id === t.to.id)) nearest.push(t);
+    for (const t of pairs) if (!nearest.some((u) => u.from.id === t.from.id || u.from.id === t.to.id || u.to.id === t.from.id)) nearest.push(t);
     nearest.splice(6);
     const together = nearest.length >= 2 ? { pairs: nearest, faces: facesWith(nearest) } : null;
     return { single, together, facesWith };

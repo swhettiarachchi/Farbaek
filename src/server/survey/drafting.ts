@@ -11,7 +11,9 @@ import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { acceptDraft, rawTokens, type DraftResult } from "@/core/survey/ai-draft";
 import { surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
+import { TIERS, tierModels } from "@/core/agent/routing";
 import { routeModel } from "@/server/ai/routing";
+import { platformModels } from "@/server/platform/state";
 import { SURVEY_DRAFT_PROMPT, SURVEY_READ_PROMPT, SURVEY_READ_TOKENS_PER_IMAGE, surveyDraftMessage, surveyReadMessage, type DraftRequest, type ReadRequest, type SurveyDraftOutcome, type SurveyDrafter } from "@/server/ai/survey-drafter";
 import { refundUsage, reserveMetered, resolveMetering, settleUsage, type AiUsageDeps, type FreeUsageDeps, type ModelSource } from "@/server/workspace/ai-usage";
 import { fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "@/server/workspace/use-cases";
@@ -65,7 +67,10 @@ async function run(
   // Free while Survey Studio is tested (ADR 0212): no plan is read, and nothing is drawn from the workspace.
   const metering = await resolveMetering(deps, input.orgId, input.operation);
   if (!metering.ok) return metering;
-  const drafter = source.create(routeModel({ plan: metering.value.plan, family: source.family, step: "review", effort: "balanced" }));
+  // A deed or an old plan read from its photos (stage 304, ADR 0310) gives the plan's title, description and boundaries: the strongest model
+  // the plan allows, never below the standard tier, as a sketch's read. A typed description stays at the standard model.
+  const choice = routeModel({ plan: metering.value.plan, family: source.family, step: "review", effort: input.operation === "survey_read" ? "deep" : "balanced" });
+  const drafter = source.create(input.operation === "survey_read" && TIERS.indexOf(choice.tier) < TIERS.indexOf("standard") ? { ...choice, model: tierModels(source.family, platformModels())["standard"] } : choice);
   const units = reserveUnits(drafter.model, input.promptTokens + 500, drafter.maxOutputTokens);
   const reserved = await reserveMetered(deps, metering.value, { orgId: input.orgId, userId: input.userId, taskId: null, operation: input.operation, units, manual: input.manual });
   if (!reserved.ok) return reserved;

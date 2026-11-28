@@ -327,7 +327,8 @@ export function SheetFields({ doc, update, readOnly, surveyors, suggested, paper
               className={inputClasses()}
             >
               <option value="">As the other lines ({st.lineMm} mm)</option>
-              {[...new Set([...BOUNDARY_MM_CHOICES, ...(st.boundaryMm === undefined ? [] : [st.boundaryMm])])]
+              {/* Only thicker than the other lines: a boundary as thin as them is the first choice. */}
+              {[...new Set([...BOUNDARY_MM_CHOICES.filter((mm) => mm > (st.lineMm ?? 0)), ...(st.boundaryMm === undefined ? [] : [st.boundaryMm])])]
                 .sort((a, b) => a - b)
                 .map((mm) => (
                   <option key={mm} value={String(mm)}>

@@ -5,6 +5,7 @@
  * with what happened, what it holds back, the item it's about, the evidence and the next step.
  */
 import { inwardCorners } from "./autodraft";
+import { detailDoubt } from "./autosurvey/plan-details";
 import { lookupCode } from "./codes";
 import { itemLabel } from "./compare";
 import { lotName, provenanceLive, unreviewed, type SurveyDocument } from "./document";
@@ -75,10 +76,14 @@ export const doubtContext = (findings: readonly Finding[]): DoubtContext => ({ e
  * - the plan's only lot, drawn, when the stated extent differs from it: a mark outside the land may have been taken as a corner;
  * - a road whose edges aren't a steady distance apart: an edge point may be coded to the wrong side;
  * - a line joined from the codes with one leg far longer than the rest: two lines under one code may have been joined.
- * A survey date the file states carries no doubt.
+ * - a plan number or a place carried from the surveyor's latest plan, and a survey date a sketch giving several dates was read for (stage
+ *   304): the surveyor's own to check.
+ * A survey date the file states, or the one date a sketch gives, carries no doubt.
  */
 export function autoDoubt(doc: SurveyDocument, points: readonly SurveyPoint[], key: string, context: DoubtContext = {}): string | null {
   if (doc.provenance[key]?.source !== "auto" || !provenanceLive(doc, key)) return null;
+  // The plan number and the place carried from the surveyor's latest plan, and a survey date from a sketch giving several (stage 304).
+  if (key.startsWith("sheet.")) return detailDoubt(doc, key);
   const byId = new Map(points.map((p) => [p.id, p] as const));
   const at = (ids: readonly string[]) => ids.map((id) => byId.get(id)).filter((p): p is SurveyPoint => p !== undefined);
   if (key.startsWith("lot:")) {
@@ -311,8 +316,9 @@ export function exceptionsFor(doc: SurveyDocument, points: readonly SurveyPoint[
           holds: holdsText(f.blocks),
           // The title already names it.
           item: null,
-          evidence: "Drawn from the field data by Farbaek's automatic draft.",
-          next: `Confirm it if the drawing is right, or correct it on the ${it.step === "boundary" ? "Lots" : "Plan"} step.`,
+          // A title detail Farbaek filled in itself (stage 304): from the surveyor's latest plan, or the dates written on the sketch.
+          evidence: key === "sheet.surveyDate" ? "Read from the dates written on the field sketch." : key.startsWith("sheet.") ? "Filled in by Farbaek from your latest plan." : "Drawn from the field data by Farbaek's automatic draft.",
+          next: key.startsWith("sheet.") ? "Confirm it if it's right, or change it on the Plan step." : `Confirm it if the drawing is right, or correct it on the ${it.step === "boundary" ? "Lots" : "Plan"} step.`,
           step: it.step,
           confirm: key,
           keep: null,

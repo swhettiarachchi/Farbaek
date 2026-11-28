@@ -76,14 +76,32 @@ describe("the areas a sketch's lines close round", () => {
   });
 
   it("when asked, leaves out both legs of each crossing and finds the rest's areas, never one a left-out leg cuts (stage 304)", () => {
-    // Two closed lines crossing each other in the lot's top half, away from the house: the house is still found.
+    // Two closed lines crossing each other in the lot's top half, away from the house: the house is still found. The rest of the lot,
+    // which the left-out lines run through, isn't.
     const x1 = { points: [at("20", 2, 15), at("21", 6, 15), at("22", 4, 19)], closed: true };
     const x2 = { points: [at("23", 2, 18), at("24", 6, 18), at("25", 4, 14)], closed: true };
     expect(facesOf([...runs, x1, x2], 0.25)).toEqual([]);
-    expect(facesOf([...runs, x1, x2], 0.25, undefined, "drop").map((f) => ring(f.points))).toEqual(facesOf(runs, 0.25).map((f) => ring(f.points)));
+    expect(facesOf([...runs, x1, x2], 0.25, undefined, "drop").map((f) => ring(f.points))).toEqual([["1", "5", "6", "7"]]);
     // A closed line across the house's wall: the wall's legs it crosses are left out, so the house isn't found cut or uncut.
     const closedAcross = { points: [at("10", 4, 2), at("11", 8, 2), at("14", 8, 6), at("15", 4, 6)], closed: true };
     expect(facesOf([...runs, closedAcross], 0.25, undefined, "drop").map((f) => ring(f.points))).not.toContainEqual(["1", "5", "6", "7"]);
+  });
+
+  it("never gives an area a left-out leg runs through, though it crosses none of its sides (stage 304 review)", () => {
+    // A 20 m square lot; a wall across it at 8 m, a fence at 14 m, and a line from the bottom side to the fence crossing the wall where no
+    // number is. Without it the wall and fence make three areas; with it left out, the area below the fence would run through the wall.
+    const sq = [at("21", 0, 0), at("22", 20, 0), at("23", 20, 20), at("24", 0, 20)];
+    const lot = { points: sq, closed: true };
+    const wall = { points: [at("27", 0, 8), at("28", 20, 8)], closed: false };
+    const fence = { points: [at("30", 0, 14), at("33", 12, 14), at("31", 20, 14)], closed: false };
+    const across = { points: [at("32", 12, 0), at("33", 12, 14)], closed: false };
+    expect(facesOf([lot, wall, fence, across], 0.25)).toEqual([]);
+    const areas = facesOf([lot, wall, fence, across], 0.25, undefined, "drop");
+    // The house below the wall (160 m²) isn't given as one with the garden (280 m²), whose middle the left-out leg runs through.
+    expect(areas.some((f) => Math.abs(f.areaM2 - 280) < 1)).toBe(false);
+    // Two lines crossing inside a square room, both from corner to corner: the room isn't given either.
+    const diagonals = [{ points: [sq[0]!, sq[2]!], closed: false }, { points: [sq[1]!, sq[3]!], closed: false }];
+    expect(facesOf([lot, ...diagonals], 0.25, undefined, "drop")).toEqual([]);
   });
 });
 

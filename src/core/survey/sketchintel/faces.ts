@@ -162,7 +162,37 @@ export function facesOf(runs: readonly Run[], snap: number, maxWork = 400_000, c
       const s = signedArea(pts);
       if (s > 0.01) faces.push({ points: pts, areaM2: s });
     }
-  return faces.sort((x, y) => x.areaM2 - y.areaM2);
+  // A left-out leg whose ends both lie on a face's outline crosses none of its sides, yet may run through it (two lines crossing inside a
+  // room): a face any left-out leg runs through is no face (stage 304 review).
+  const whole = crossed.length === 0 ? faces : faces.filter((f) => !crossed.some((x) => runsThrough(x.pa, x.pb, f.points)));
+  return whole.sort((x, y) => x.areaM2 - y.areaM2);
+}
+
+/** Whether any stretch of the leg from a to b, between where it meets a ring's sides and corners, lies strictly inside the ring. */
+function runsThrough(a: SurveyPoint, b: SurveyPoint, ring: readonly SurveyPoint[]): boolean {
+  const [rx, ry] = [b.e - a.e, b.n - a.n];
+  const len2 = rx * rx + ry * ry;
+  if (len2 < 1e-12) return false;
+  const ts = [0, 1];
+  for (let i = 0; i < ring.length; i++) {
+    const [c, d] = [ring[i]!, ring[(i + 1) % ring.length]!];
+    ts.push(((c.e - a.e) * rx + (c.n - a.n) * ry) / len2);
+    const [sx, sy] = [d.e - c.e, d.n - c.n];
+    const den = rx * sy - ry * sx;
+    if (Math.abs(den) < 1e-12) continue;
+    const t = ((c.e - a.e) * sy - (c.n - a.n) * sx) / den;
+    const u = ((c.e - a.e) * ry - (c.n - a.n) * rx) / den;
+    if (u >= -1e-9 && u <= 1 + 1e-9) ts.push(t);
+  }
+  const cuts = [...new Set(ts.filter((t) => t >= 0 && t <= 1))].sort((x, y) => x - y);
+  const sides = ring.map((p, i) => [p, ring[(i + 1) % ring.length]!] as const);
+  for (let k = 0; k + 1 < cuts.length; k++) {
+    if (cuts[k + 1]! - cuts[k]! < 1e-9) continue;
+    const t = (cuts[k]! + cuts[k + 1]!) / 2;
+    const m = { e: a.e + t * rx, n: a.n + t * ry };
+    if (sides.every(([p, q]) => pointSegmentDistance(m, p, q) > 1e-6) && within({ x: m.e, y: m.n }, ring.map((p) => ({ x: p.e, y: p.n })))) return true;
+  }
+  return false;
 }
 
 /** Whether a place lies inside a ring of places (crossing count): the ring in any units, so on a photo as well as on the ground. */
