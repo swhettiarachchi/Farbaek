@@ -155,3 +155,15 @@ describe("a building's walls round a labelled house (stage 299 review)", () => {
     expect(read([line("l2", ["5", "6"], "single", "P"), line("l3", ["6", "7"], "single", "P")]).proposals.some((p) => p.kind === "building")).toBe(true);
   });
 });
+
+describe("a hatched line's habit (stage 301: the surveyor's house walls came back hatched)", () => {
+  it("offers a building's wall and walls, reads the line so, and is kept as a third habit", () => {
+    expect(habitChoices("hatched", codes, []).map((c) => c.code)).toEqual(["MW", "RW", "P"]);
+    const own = classifyLine("", "hatched", codes, [{ style: "hatched", code: "P" }]);
+    expect(own).toMatchObject({ kind: "building", fromHabit: true });
+    expect(own.why).toBe("it's drawn as a hatched line, which is a wall of a permanent building (P) on your sketches, as you said");
+    expect(classifyLine("", "hatched", codes, [{ style: "hatched", code: "LF" }]).fromHabit).toBeUndefined();
+    const three = [{ style: "double" as const, code: "MW" }, { style: "crossed" as const, code: "NF" }, { style: "hatched" as const, code: "P" }];
+    expect(surveyDocumentSchema.safeParse({ ...emptyDocument(), sketchHabits: three }).success).toBe(true);
+  });
+});

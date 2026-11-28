@@ -14,7 +14,7 @@ import { withDefaults } from "@/core/survey/autosurvey/defaults";
 import { officeProfileBodySchema, profileFromPlan, profilePrecision, withProfile, type OfficeProfile } from "@/core/survey/profile";
 import { numberKey, redrawFromCorrection } from "@/core/survey/sketchintel/correct";
 import { interpretDocument } from "@/core/survey/sketchintel/findings";
-import { HABIT_TAKES, STYLE_WORDS, habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
+import { HABIT_STYLES, HABIT_TAKES, STYLE_WORDS, habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
@@ -559,7 +559,7 @@ export async function confirmSketchItemsAction(input: { projectId: string; baseV
   return { status: "done", message: `Confirmed ${what}${left > 0 ? `; ${left} gained a question since, so ${left === 1 ? "it stays" : "they stay"} on the list` : ""}. Saved as version ${r.value}.`, version: r.value };
 }
 
-const habitInput = z.object({ projectId: z.string().uuid(), baseVersion: z.number().int().min(1), style: z.enum(["double", "crossed"]), code: z.string().min(1).max(12).optional() });
+const habitInput = z.object({ projectId: z.string().uuid(), baseVersion: z.number().int().min(1), style: z.enum(HABIT_STYLES), code: z.string().min(1).max(12).optional() });
 
 /**
  * The surveyor's sketch habit (stage 298, ADR 0304): "on my sketches, a double line is a masonry wall". Saved as theirs on this plan and

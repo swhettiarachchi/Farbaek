@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { provenanceLive, type SurveyDocument } from "@/core/survey/document";
 import { habitEntry, habitSaid } from "@/core/survey/sketchintel/classify";
-import { autoDoubt, doubtContext, drawnWithoutDoubt, exceptionsFor, itemOf, type ExceptionStep, type SurveyException } from "@/core/survey/exceptions";
+import { autoDoubt, doubtContext, drawnWithoutDoubt, exceptionsFor, groupConfirm, itemOf, type ExceptionStep, type SurveyException } from "@/core/survey/exceptions";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import type { Finding } from "@/core/survey/qc";
 import { Card, CardTitle } from "@/components/app/primitives";
@@ -52,6 +52,7 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
     .filter(([k, p]) => p.reviewed && provenanceLive(doc, k) && (p.source === "ai_brief" || p.source === "ai_photo" || (p.source === "auto" && autoDoubt(doc, points, k, context) !== null)))
     .map(([k]) => ({ key: k, label: itemOf(doc, k).label }));
   const open = list.fix.length + list.confirm.length;
+  const groups = groupConfirm(list.confirm, doc);
   const card = (e: SurveyException) => (
     <li key={e.id} className="grid gap-2 rounded-md bg-surface p-4 ring-1 ring-line">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -150,11 +151,15 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
                 <ul className="grid gap-3">{list.fix.map(card)}</ul>
               </section>
             ) : null}
-            {list.confirm.length > 0 ? (
+            {groups.lead.length > 0 ? (
               <section aria-label="For you to confirm" className="grid gap-2">
-                <ul className="grid gap-3">{list.confirm.map(card)}</ul>
+                <ul className="grid gap-3">{groups.lead.map(card)}</ul>
               </section>
             ) : null}
+            {/* The many alike, each still its own press, folded so the questions above aren't lost among them (stage 301). */}
+            <Group items={groups.lines} card={card} summary={`${groups.lines.length} more ${groups.lines.length === 1 ? "line" : "lines"} read from your sketch, to look over`} hint="Each says what it rests on and anything in doubt. Look each one over on the sheet below, then confirm it, or correct it on the Lots step." />
+            <Group items={groups.differs} card={card} summary={`${groups.differs.length} ${groups.differs.length === 1 ? "measurement" : "measurements"} on the sketch ${groups.differs.length === 1 ? "differs" : "differ"} from the coordinates`} hint="Keep each as surveyed, or check the point in the field." />
+            <Group items={groups.doubted} card={card} summary={`${groups.doubted.length} ${groups.doubted.length === 1 ? "item" : "items"} the second reading of the sketch doesn't find drawn so`} hint="An independent reading of the photo, as a check. Keep each as drawn, or correct it." />
             {alsoLine}
             <Notes notes={list.note} card={card} />
             <Habits doc={doc} projectId={projectId} baseVersion={baseVersion} readOnly={readOnly} />
@@ -163,6 +168,15 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
         </FoldOnPhones>
       )}
     </Card>
+  );
+}
+
+function Group({ items, card, summary, hint }: { items: readonly SurveyException[]; card: (e: SurveyException) => ReactNode; summary: string; hint: string }) {
+  if (items.length === 0) return null;
+  return (
+    <Disclosure summary={summary} hint={hint} icon={<ListChecksIcon size={20} weight="bold" aria-hidden />}>
+      <ul className="grid gap-3">{items.map(card)}</ul>
+    </Disclosure>
   );
 }
 

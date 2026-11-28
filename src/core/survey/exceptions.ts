@@ -12,7 +12,7 @@ import type { SurveyPoint } from "./parcel";
 import type { Finding } from "./qc";
 import { roadWidth } from "./roads";
 import { interpretDocument, settledSketchLine, sketchEvidence } from "./sketchintel/findings";
-import { habitChoices, habitEntry, lineThing } from "./sketchintel/classify";
+import { habitChoices, habitEntry, isHabitStyle, lineThing, type HabitStyle } from "./sketchintel/classify";
 
 /** A road whose surveyed edges are further apart in one place than another by more than this may have an edge point on the wrong side. */
 export const ROAD_WIDTH_DOUBT_M = 0.5;
@@ -156,7 +156,7 @@ function habitOffer(doc: SurveyDocument, sketch: ReturnType<typeof interpretDocu
   if (!sketch || !key.startsWith("feature:")) return {};
   const p = sketch.proposals.find((x) => x.kind === "line" && `feature:${x.id}` === key);
   const drawn = p ? doc.sketch?.drawing?.lines.find((l) => p.from.includes(l.id)) : undefined;
-  if (!drawn || drawn.label.trim() || (drawn.style !== "double" && drawn.style !== "crossed")) return {};
+  if (!drawn || drawn.label.trim() || !isHabitStyle(drawn.style)) return {};
   const style = drawn.style;
   // A habit that names nothing in this plan's list (carried from a plan with another list) is as good as none: the card offers this list's.
   if ((doc.sketchHabits ?? []).some((h) => h.style === style && habitEntry(h, doc.codes))) return {};
@@ -205,7 +205,7 @@ export interface SurveyException {
    * line always is on their sketches, in one press, which answers this card and every other like it.
    */
   /** Each choice's code and what a line with it is, said: "a live fence", "a wall of a permanent building". */
-  habit?: { style: "double" | "crossed"; choices: { code: string; thing: string }[] };
+  habit?: { style: HabitStyle; choices: { code: string; thing: string }[] };
 }
 
 const BLOCK_WORDS: Record<Finding["blocks"][number], string> = { plan: "the plan", export: "export", approval: "approval" };
@@ -382,4 +382,27 @@ function farbaekCorrections(doc: SurveyDocument, points: readonly SurveyPoint[],
         },
       ];
     });
+}
+
+/**
+ * The confirm list, grouped as a surveyor works through it (stage 301): the questions first, then the many alike folded by kind. Open lines
+ * the sketch drew with no question, number to correct or habit of their own (each card still says what it rests on and any doubt); measurements that differ from the
+ * coordinates; and what the independent second reading of the sketch doesn't find. Presentation only: every item keeps its own card and
+ * press, and the count above still counts each.
+ */
+export function groupConfirm(confirm: readonly SurveyException[], doc: SurveyDocument): { lead: SurveyException[]; lines: SurveyException[]; differs: SurveyException[]; doubted: SurveyException[] } {
+  const open = new Set(doc.features.filter((f) => !f.closed).map((f) => `feature:${f.id}`));
+  const quietLine = (e: SurveyException) => e.code === "AI_ITEMS_UNREVIEWED" && e.confirm !== null && open.has(e.confirm) && Boolean(e.sketch) && e.sketch!.questions.length === 0 && e.sketch!.fixes.length === 0 && !e.habit;
+  const differs = (e: SurveyException) => e.code === "SKETCH_DIFFERS";
+  const doubted = (e: SurveyException) => e.code === "SKETCH_CHECK_DOUBT" || e.code === "SKETCH_CHECK_MISSING";
+  // Two alike or more are folded, so a fold never vanishes under the surveyor as its items are confirmed one by one.
+  const fold = (pick: (e: SurveyException) => boolean) => {
+    const these = confirm.filter(pick);
+    return these.length >= 2 ? these : [];
+  };
+  const lines = fold(quietLine);
+  const diff = fold(differs);
+  const doubt = fold(doubted);
+  const folded = new Set([...lines, ...diff, ...doubt]);
+  return { lead: confirm.filter((e) => !folded.has(e)), lines, differs: diff, doubted: doubt };
 }

@@ -25,21 +25,26 @@ export interface LineClass {
 
 /** A surveyor's sketch habit (stage 298, ADR 0304): a line drawn this way, with nothing written along it, is this code on their sketches. */
 export interface SketchHabit {
-  style: "double" | "crossed";
+  style: HabitStyle;
   code: string;
 }
+
+/** The ways of drawing a line a habit can be said for: double, with x marks, or hatched (short marks across it, stage 301). */
+export const HABIT_STYLES = ["double", "crossed", "hatched"] as const;
+export type HabitStyle = (typeof HABIT_STYLES)[number];
+export const isHabitStyle = (style: string): style is HabitStyle => (HABIT_STYLES as readonly string[]).includes(style);
 
 /**
  * The kinds a habit for a style may name: walls for a double line; fences for a line with x marks, as wire fences are drawn, or a
  * building's walls, which some surveyors hatch (stage 298, the owner's word for their father's sketches).
  */
-export const HABIT_KINDS: Record<SketchHabit["style"], readonly LineKind[]> = { double: ["wall"], crossed: ["fence", "building"] };
+export const HABIT_KINDS: Record<SketchHabit["style"], readonly LineKind[]> = { double: ["wall"], crossed: ["fence", "building"], hatched: ["building", "wall"] };
 
 /** What a habit for a style may be, said: "a wall", "a fence or a building's wall". */
-export const HABIT_TAKES: Record<SketchHabit["style"], string> = { double: "a wall", crossed: "a fence or a building's wall" };
+export const HABIT_TAKES: Record<SketchHabit["style"], string> = { double: "a wall", crossed: "a fence or a building's wall", hatched: "a building's wall or a wall" };
 
 /** How a style is said: "a double line", "a line with x marks". */
-export const STYLE_WORDS: Record<SketchHabit["style"], string> = { double: "a double line", crossed: "a line with x marks" };
+export const STYLE_WORDS: Record<SketchHabit["style"], string> = { double: "a double line", crossed: "a line with x marks", hatched: "a hatched line" };
 
 /** Whether a code list entry is one a habit for this style may name: a line or an outline of a kind the style is drawn for. */
 const habitFits = (style: SketchHabit["style"], c: CodeEntry) => (c.kind === "line" || c.kind === "outline") && HABIT_KINDS[style].includes(kindOfEntry(c));
@@ -115,7 +120,7 @@ export function classifyLine(label: string, style: SketchLineStyle, codes: reado
   if (entry && (entry.kind === "line" || entry.kind === "outline")) return { kind: kindOfEntry(entry), code: entry, why: `${t} is the code list's ${entry.meaning.toLowerCase()}`, fromWriting: true };
   for (const w of WORDS) if (t && w.re.test(t)) return { kind: w.kind, code: null, why: w.why, fromWriting: true };
   // Nothing written along it, and the surveyor has said what a line drawn this way is on their sketches (stage 298): their word.
-  const habit = !t && (style === "double" || style === "crossed") ? habits.find((h) => h.style === style) : undefined;
+  const habit = !t && isHabitStyle(style) ? habits.find((h) => h.style === style) : undefined;
   const own = habit ? habitEntry(habit, codes) : null;
   if (habit && own) return { kind: kindOfEntry(own), code: own, why: `it's drawn as ${STYLE_WORDS[habit.style]}, which is ${lineThing(own)} (${own.code}) on your sketches, as you said`, fromWriting: false, fromHabit: true };
   if (style === "double") return { kind: "wall", code: null, why: "it's drawn as a double line, as walls are, with nothing written along it", fromWriting: false };
