@@ -10,7 +10,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { AcceptedItem } from "@/core/survey/ai-draft";
+import { applyReview, type AcceptedItem } from "@/core/survey/ai-draft";
+import { saveSurveyDrawingAction } from "./actions";
 import { sketchFileNames } from "@/core/survey/autosurvey/sketch";
 import { pruneProvenance, surveyDocumentSchema, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
@@ -125,6 +126,41 @@ export async function readOldPlanAction(form: FormData): Promise<SurveyDraftStat
   const r = await readSurveyPhotos(p.ai.deps, p.source, { ...p.common, images });
   if (!r.ok) return { status: "error", message: r.message };
   return { status: "done", source: "ai_photo", baseVersion: p.data.drawing.version, ...r.value };
+}
+
+export type TitleReadState = { status: "error"; message: string } | { status: "done"; message: string; version: number; filled: number };
+
+/**
+ * AutoSurvey's start (stage 294): photos of the deed or an earlier plan, chosen with the survey files, are read into the plan's title
+ * as soon as the plan is drawn, with the surveyor's say-so on this request. It's "Read an old plan" with every fact kept: each waits
+ * for the surveyor's confirmation on the Plan step, as it would after the Draft step's review, and is saved through the same save. Only
+ * what the photo states is taken, never points or measurements, and the photos aren't kept.
+ */
+export async function readTitleIntoPlanAction(form: FormData): Promise<TitleReadState> {
+  if (form.get("consent") !== "yes") return { status: "error", message: "The deed or old plan is read only when you agree to send its photos to Anthropic for reading." };
+  const projectId = String(form.get("projectId") ?? "");
+  const baseVersion = Number(form.get("baseVersion"));
+  const files = form.getAll("photo").filter((f): f is File => typeof f === "object" && f !== null && "arrayBuffer" in f);
+  if (files.length < 1 || files.length > PHOTO_LIMITS.count) return { status: "error", message: `Choose one to ${PHOTO_LIMITS.count} photos of the deed or old plan.` };
+  if (files.some((f) => f.size > PHOTO_LIMITS.bytes)) return { status: "error", message: "One of the photos is too large. Choose it again so Farbaek can shrink it." };
+  const images: ReadRequest["images"] = [];
+  for (const f of files) {
+    const data = Buffer.from(await f.arrayBuffer());
+    const mediaType = imageTypeOf(data);
+    if (!mediaType) return { status: "error", message: "Use photos or scans saved as JPEG, PNG or WebP." };
+    images.push({ mediaType, data });
+  }
+  const p = await prepare(projectId, baseVersion, "Reading old plans", "read");
+  if ("error" in p) return { status: "error", message: p.error };
+  const r = await readSurveyPhotos(p.ai.deps, p.source, { ...p.common, images });
+  if (!r.ok) return { status: "error", message: r.message };
+  if (r.value.accepted.length === 0) return { status: "done", message: "Nothing on the deed or old plan could be read into the title, so the plan wasn't changed.", version: baseVersion, filled: 0 };
+  // Everything read kept, nothing yet confirmed: the same plan the Draft step saves when the surveyor keeps it all.
+  const reviewed = applyReview(p.data.drawing.document, r.value, { removed: new Set(), confirmed: new Set() });
+  const n = r.value.accepted.length;
+  const saved = await saveSurveyDrawingAction({ projectId, baseVersion, document: reviewed, note: `Title read from a photo of the deed or an old plan: ${n} ${n === 1 ? "fact" : "facts"}` });
+  if (saved.status !== "done" || saved.version === undefined) return { status: "error", message: saved.status === "error" ? saved.message : "The title couldn't be saved." };
+  return { status: "done", message: `${n} ${n === 1 ? "fact" : "facts"} read into the title from the deed or old plan, each waiting for you to confirm it.`, version: saved.version, filled: n };
 }
 
 export type SketchReadState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string; version: number; readings: number; unreadable: number; drawn?: number; questions?: number };

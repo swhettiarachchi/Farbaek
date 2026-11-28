@@ -17,8 +17,8 @@ import { interpretDocument } from "@/core/survey/sketchintel/findings";
 import { FIRST_VERSION, finishable, generateStages, type JobStage } from "@/core/survey/autosurvey/job";
 import { SKETCH_LIMITS } from "@/core/survey/autosurvey/sketch";
 import { crsById } from "@/core/survey/crs";
-import { emptyDocument, provenanceLive, pruneConstructed, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
-import { itemOf } from "@/core/survey/exceptions";
+import { emptyDocument, lotName, provenanceLive, pruneConstructed, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
+import { itemOf, quietSketchItems } from "@/core/survey/exceptions";
 import { IMPORT_LIMITS, type ColumnRole, type Delimiter, type ImportIssue } from "@/core/survey/import/delimited";
 import { unreadableFile } from "@/core/survey/import/detect";
 import { readPoints } from "@/core/survey/import/read";
@@ -26,7 +26,7 @@ import { approvalHash, buildPlan } from "@/core/survey/view";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
-import { loadRecentPlans, loadStartingDefaults } from "@/server/survey/defaults";
+import { hasSurveyorDetails, loadRecentPlans, loadStartingDefaults } from "@/server/survey/defaults";
 import { applySuggestion, declineSuggestion } from "@/core/survey/learning";
 import { loadOfficeProfiles } from "@/server/survey/profiles";
 import { JobTracker, loadJob } from "@/server/survey/jobs";
@@ -303,6 +303,9 @@ export async function generateSurveyPlanAction(input: z.input<typeof generateInp
     const grammar = grammarForLibrary(i.library.name);
     document = { ...document, codes: taken.codes, provenance: { ...document.provenance, codes: { source: "engine", reviewed: false } }, ...(grammar ? { grammar } : {}) };
   }
+  // The person generating it is the plan's surveyor when they have surveyor details here, as the start screen tells them (stage 294):
+  // named from the start, so a plan drawn only from a sketch (files with no codes draw nothing first) names them too.
+  if (uuid.safeParse(g.w.actor.userId).success && (await hasSurveyorDetails(g.w.user, g.w.actor.orgId, g.w.actor.userId))) document = { ...document, surveyorUserId: g.w.actor.userId };
   const created = await surveyStore.createProject(g.w.admin, g.w.actor, { name: startName(i.title, reads, new Date()), planType: "cadastral", crsId: crs.id, confirm: true, document });
   if (!created.ok) return { status: "error", message: created.message, problems: [] };
   const projectId = created.value;
@@ -516,6 +519,75 @@ export async function confirmSurveyItemAction(input: { projectId: string; baseVe
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `${input.confirmed ? "Confirmed" : "Back on the list"}: ${label}. Saved as version ${r.value}.`, version: r.value };
+}
+
+/**
+ * Confirms together the sketch's lines and symbols that nothing stands against (stage 294): one press for what would be a card each.
+ * The rule is worked out again here from the plan as saved, so only items that are still read from a photo, still unconfirmed and still
+ * free of any question are confirmed, whatever the browser sent. Saved as one new version that says how many.
+ */
+export async function confirmSketchItemsAction(input: { projectId: string; baseVersion: number; keys: string[] }): Promise<SurveyFormState> {
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || !Array.isArray(input.keys) || input.keys.length === 0 || input.keys.length > 500 || input.keys.some((k) => typeof k !== "string" || !/^feature:[\w.:-]{1,79}$/.test(k))) {
+    return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  }
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== input.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be confirmed on it. Reload, or ask support." };
+  const doc = structuredClone(data.drawing.document);
+  const quiet = new Set(quietSketchItems(doc, data.points));
+  const keys = [...new Set(input.keys)].filter((k) => quiet.has(k));
+  if (keys.length === 0) return { status: "error", message: "None of these are waiting without a question any more. Reload to see the plan as it is now." };
+  for (const key of keys) doc.provenance[key] = { source: doc.provenance[key]!.source, reviewed: true };
+  const next = tidy(pruneProvenance(doc), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const what = `${keys.length} ${keys.length === 1 ? "item" : "items"} read from the sketch`;
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: next, note: `Confirmed together: ${what}` });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${input.projectId}`);
+  const left = input.keys.length - keys.length;
+  return { status: "done", message: `Confirmed ${what}${left > 0 ? `; ${left} gained a question since, so ${left === 1 ? "it stays" : "they stay"} on the list` : ""}. Saved as version ${r.value}.`, version: r.value };
+}
+
+const lotLabelInput = z.object({
+  projectId: z.string().uuid(),
+  baseVersion: z.number().int().min(1),
+  lotId: z.string().min(1).max(80),
+  label: z
+    .string()
+    .transform((s) => s.trim().replace(/\s+/g, " "))
+    .pipe(z.string().min(1).max(40).regex(/^[^\u0000-\u001f\u007f]+$/)),
+});
+
+/**
+ * Gives a lot its label from the card that says it has none (stage 294), saved as a new version. The label is the surveyor's own, as
+ * it appears in the title: never one another lot on the plan already has. Labelling a lot read from a photo doesn't confirm it.
+ */
+export async function labelLotAction(input: z.input<typeof lotLabelInput>): Promise<SurveyFormState> {
+  const parsed = lotLabelInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Type the lot's letter or number, as it appears in the title." };
+  const i = parsed.data;
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, i.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== i.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  if (!data.drawing.readable) return { status: "error", message: "This version couldn't be read, so nothing can be labelled on it. Reload, or ask support." };
+  const doc = structuredClone(data.drawing.document);
+  const lot = doc.lots.find((l) => l.id === i.lotId);
+  if (!lot) return { status: "error", message: "That lot isn't on the plan any more. Reload to see the plan as it is now." };
+  // The same comparison as the plan's own check: the whole name, its raised part included ("B" and "B¹" are different lots).
+  const named = lotName({ ...lot, label: i.label });
+  if (doc.lots.some((l) => l.id !== lot.id && lotName(l) === named)) return { status: "error", message: `Another lot is already called ${named}. Give this one its own label.` };
+  lot.label = i.label;
+  const next = tidy(pruneProvenance(doc), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: i.projectId, baseVersion: i.baseVersion, document: next, note: `Lot labelled ${i.label}`.slice(0, 200) });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${i.projectId}`);
+  return { status: "done", message: `Lot ${i.label} is labelled. Saved as version ${r.value}.`, version: r.value };
 }
 
 const correctionInput = z.object({

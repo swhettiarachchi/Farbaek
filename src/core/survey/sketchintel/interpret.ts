@@ -83,6 +83,11 @@ export interface LineProposal extends Base {
   dashed: boolean;
   /** Drawn on past its first or last point on the sketch, a neighbour's wall carrying on: drawn so on the plan (stage 261). */
   runsOn: "start" | "end" | "both" | null;
+  /**
+   * Where it runs is in no doubt (stage 294): every number on it matched a surveyed point exactly, the reader was sure of the line, and
+   * its points lie on it. Its kind may still be asked about; that's a question of its own.
+   */
+  settled?: boolean;
 }
 
 export interface LotProposal extends Base {
@@ -495,6 +500,8 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
     evidence.push(`Read as a ${cls.kind === "line" ? "line of unknown kind" : cls.kind}: ${cls.why}.`);
     evidence.push(...mt.notes);
     let level: Level = mt.exact && line.certain && cls.fromWriting ? "strong" : "check";
+    // Nothing about where it runs is in doubt (stage 294): every number matched exactly, the reader was sure of it, its points lie on it.
+    let settled = mt.exact && line.certain;
     const arcs: ArcRun[] = [];
     let blocked = false;
     if (line.style === "curved" && mt.points.length >= 3) {
@@ -515,6 +522,7 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
         else {
           evidence.push(`${said}: ${mt.points[worst.i]!.pointId} is more than ${m(tight)} off it.`);
           level = "check";
+          settled = false;
         }
         const unwritten = unwrittenOnRun(run, points, Math.min(onLine, tight), new Set(mt.points.map((p) => p.id)));
         if (unwritten.length > 0) evidence.push(`${list(unwritten.map((u) => u.p.pointId))} also lie${unwritten.length === 1 ? "s" : ""} on it (within ${m(Math.max(...unwritten.map((u) => u.off)))}), but ${unwritten.length === 1 ? "isn't" : "aren't"} written on the sketch: not added.`);
@@ -552,6 +560,7 @@ export function interpretSketch(given: SketchDrawing, points: readonly SurveyPoi
       arcs,
       dashed: line.style === "dashed",
       runsOn: mt.closes ? null : (line.runsOn ?? null),
+      settled,
     };
     lines.push({ line, points: mt.points, closes: mt.closes, kind: cls.kind, written: cls.fromWriting, proposal });
   }

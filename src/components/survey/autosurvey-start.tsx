@@ -4,7 +4,7 @@ import { ArrowCounterClockwiseIcon, CameraIcon, FileTextIcon, ImageIcon, InfoIco
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { readSketchesAction } from "@/app/app/survey/ai-actions";
+import { readSketchesAction, readTitleIntoPlanAction } from "@/app/app/survey/ai-actions";
 import { generateSurveyPlanAction, type GenerateState } from "@/app/app/survey/actions";
 import { commonCodes } from "@/core/survey/codes";
 import { CRS_REGISTRY, LOCAL_CRS, crsById } from "@/core/survey/crs";
@@ -26,6 +26,8 @@ import { StartPreview } from "./start-preview";
 import { TraverseChoice } from "./traverse-choice";
 
 const CRS_OPTIONS = [...CRS_REGISTRY, LOCAL_CRS];
+/** Photos of the deed or an old plan read at a time: the server's limit for "Read an old plan" (PHOTO_LIMITS in drafting.ts). */
+const DEED_PHOTOS = 3;
 // The common code list, made once: the list of points judges codes by it when nothing else is chosen.
 const COMMON_CODES = commonCodes();
 
@@ -34,7 +36,9 @@ const COMMON_CODES = commonCodes();
  * After Generate Plan, when the screen stays to say something about the sketches: they couldn't be read, or nothing on them could
  * be read for certain. The plan exists either way, so Generate stays off and no second project is made.
  */
-type Drawn = { next: string; failed: boolean; message: string };
+/** How each kind of photo's read ended, for its own card: read, nothing on it read, failed, or not read at all. */
+type ReadOutcome = "read" | "empty" | "failed" | null;
+type Drawn = { next: string; failed: boolean; message: string; sketch: ReadOutcome; deed: ReadOutcome };
 
 const size = (bytes: number) => (bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
 
@@ -97,7 +101,7 @@ export function AutoSurveyStart({
   const router = useRouter();
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [consent, setConsent] = useState(false);
-  const [phase, setPhase] = useState<"drawing" | "reading">("drawing");
+  const [phase, setPhase] = useState<"drawing" | "reading" | "title">("drawing");
   const [drawn, setDrawn] = useState<Drawn | null>(null);
   // Where the drawn plan opens while its sketches are read: the read goes on on the server if the surveyor opens it (ADR 0239).
   const [opening, setOpening] = useState<string | null>(null);
@@ -298,23 +302,32 @@ export function AutoSurveyStart({
   const profileLeftOut = profile?.body.codes ? libraryFor(profile.body.codes.entries, points.map((p) => p.code ?? "").filter(Boolean)).leftOut : 0;
   // Where the grid shown comes from, said only while it's true.
   const crsNote = profile?.body.crsId && crs?.id === profile.body.crsId ? `From the office profile ${profile.name}.` : crs && crs.id === lastCrsId ? "The one you confirmed on your last survey." : "";
-  const sketches = uploads.filter((u): u is Extract<Upload, { kind: "sketch" }> => u.kind === "sketch");
+  // Photos: field sketches, and the deed or an old plan the surveyor marks as such (stage 294), read into the title.
+  const photos = uploads.filter((u): u is Extract<Upload, { kind: "sketch" }> => u.kind === "sketch");
+  const sketches = photos.filter((u) => !u.deed);
+  const deeds = photos.filter((u) => u.deed);
   const libraries = uploads.filter((u): u is Extract<Upload, { kind: "code-library" }> => u.kind === "code-library");
   const library = libraries.length === 1 && libraries[0]!.read.ok ? libraries[0]! : null;
   const libraryBlock = libraries.length > 1 ? "Use one code library at a time: remove the others." : libraries.some((u) => !u.read.ok) ? "Remove the code library marked below, or fix it." : null;
-  // Sketches are read only when Claude is available here and the surveyor agreed; otherwise they never hold up the plan.
+  // Photos are read only when Claude is available here and the surveyor agreed; otherwise they never hold up the plan.
   const reading = sketches.length > 0 && sketchOff === null && consent;
+  const readingDeeds = deeds.length > 0 && sketchOff === null && consent;
   const sketchBytes = sketches.reduce((sum, u) => sum + (u.photo?.size ?? 0), 0);
-  const readable = sketches.filter((u) => u.photo).length;
-  const sketchBlock = !reading
+  const readable = photos.filter((u) => u.photo).length;
+  const sketchBlock = !(reading || readingDeeds)
     ? null
-    : sketches.some((u) => u.problem)
-      ? "Remove the sketch marked below, or untick reading the sketches."
+    : photos.some((u) => u.problem)
+      ? "Remove the photo marked below, or untick reading the photos."
       : sketches.length > SKETCH_LIMITS.photos
         ? `Farbaek reads up to ${SKETCH_LIMITS.photos} sketches at a time. Remove some, or untick reading them.`
-        : sketchBytes > SKETCH_LIMITS.totalBytes
-          ? "The sketch photos are too large together. Remove some, or untick reading them."
-          : null;
+        : deeds.length > DEED_PHOTOS
+          ? `Farbaek reads up to ${DEED_PHOTOS} photos of the deed or old plan. Remove some, or untick reading them.`
+          : sketchBytes > SKETCH_LIMITS.totalBytes
+            ? "The sketch photos are too large together. Remove some, or untick reading them."
+            : null;
+  // A photo is one or the other, chosen on its card.
+  const markDeed = (key: string, deed: boolean) =>
+    setUploads((now) => now.map((u) => (u.key === key && u.kind === "sketch" ? (deed ? { ...u, deed: true as const } : { key: u.key, name: u.name, size: u.size, kind: u.kind, photo: u.photo, problem: u.problem }) : u)));
 
   const blocked =
     disabledReason ??
@@ -338,6 +351,7 @@ export function AutoSurveyStart({
     if (blocked || !crs) return;
     setResult({ status: "idle" });
     const toRead = reading ? sketches.flatMap((u) => (u.photo ? [{ name: u.name, photo: u.photo }] : [])) : [];
+    const titleFrom = readingDeeds ? deeds.flatMap((u) => (u.photo ? [{ name: u.name, photo: u.photo }] : [])) : [];
     startTransition(async () => {
       setPhase("drawing");
       // Marked as sent first: a refresh before the answer can't tell whether the plan was made, and the screen says so if they come back.
@@ -360,6 +374,12 @@ export function AutoSurveyStart({
       generated.current = true;
       if (key) void unstage(key);
       const photosKey = userId && orgId ? sketchesKey(orgId, userId, r.projectId) : null;
+      // The version each read builds on, and what to say before the plan opens when a read failed or found nothing.
+      let version = r.version;
+      let failed = false;
+      let sketchRead: ReadOutcome = null;
+      let deedRead: ReadOutcome = null;
+      const said: string[] = [];
       if (toRead.length > 0) {
         setPhase("reading");
         setOpening(r.next);
@@ -373,14 +393,38 @@ export function AutoSurveyStart({
         const read = await readSketchesAction(form).catch(() => ({ status: "error" as const, message: "The connection dropped while the sketches were sent." }));
         if (read.status === "done" && photosKey) void unstage(photosKey);
         if (read.status === "error") {
-          setDrawn({ next: r.next, failed: true, message: read.message });
-          return;
+          failed = true;
+          sketchRead = "failed";
+          said.push(`The sketches weren't read: ${read.message}`);
+        } else if (read.status === "done") {
+          version = read.version;
+          // Nothing could be read: said here, where the sketches are, before the plan opens.
+          sketchRead = read.readings === 0 ? "empty" : "read";
+          if (read.readings === 0) said.push(read.message);
         }
-        // Nothing could be read: said here, where the sketches are, before the plan opens.
-        if (read.status === "done" && read.readings === 0) {
-          setDrawn({ next: r.next, failed: false, message: read.message });
-          return;
+      }
+      // The deed or old plan into the title (stage 294), on the version the sketch's read saved.
+      if (titleFrom.length > 0) {
+        setPhase("title");
+        setOpening(r.next);
+        const form = new FormData();
+        form.set("projectId", r.projectId);
+        form.set("baseVersion", String(version));
+        form.set("consent", "yes");
+        for (const s of titleFrom) form.append("photo", s.photo, s.name);
+        const title = await readTitleIntoPlanAction(form).catch(() => ({ status: "error" as const, message: "The connection dropped while the photos were sent." }));
+        if (title.status === "error") {
+          failed = true;
+          deedRead = "failed";
+          said.push(`The deed or old plan wasn't read: ${title.message}`);
+        } else {
+          deedRead = title.filled === 0 ? "empty" : "read";
+          if (title.filled === 0) said.push(title.message);
         }
+      }
+      if (said.length > 0) {
+        setDrawn({ next: r.next, failed, message: said.join(" "), sketch: sketchRead, deed: deedRead });
+        return;
       }
       if (!left.current) router.push(r.next);
     });
@@ -397,9 +441,21 @@ export function AutoSurveyStart({
     if (u.kind === "sketch") {
       if (u.problem) return { status: "attention", label: "Needs a look", text: u.problem };
       if (sketchOff) return { status: "off", label: "Not read", text: sketchOff };
-      if (drawn) return drawn.failed ? { status: "off", label: "Not read", text: "Not read. Open the plan to read it from its Draft step." } : { status: "done", label: "Read", text: "Read, but nothing on it could be read." };
+      if (drawn) {
+        const ended = u.deed ? drawn.deed : drawn.sketch;
+        if (ended === "read") return { status: "done", label: "Read", text: "Read. Open the plan to see what it gave." };
+        if (ended === "empty") return { status: "done", label: "Read", text: "Read, but nothing on it could be read." };
+        return { status: "off", label: "Not read", text: "Not read. Open the plan to read it again from its Draft step." };
+      }
+      if (u.deed) {
+        // The deed or an old plan (stage 294): read into the plan's title, never into its points or measurements.
+        if (!consent) return { status: "off", label: "Not read", text: "Tick the box below to have Claude read the land's name, place and boundaries into the plan's title." };
+        if (pending && phase === "title") return { status: "working", label: "Reading", text: "Claude is reading the land's name, place, boundaries and extent into the title." };
+        return { status: "pending", label: "Read next", text: "Claude reads the land's name, place, boundaries and extent into the plan's title once the plan is drawn. Each fact waits for you to confirm it." };
+      }
       if (!consent) return { status: "off", label: "Not read", text: "Tick the box below to have Claude read what's written on it." };
       if (pending && phase === "reading") return { status: "working", label: "Reading", text: "Claude is reading what's written on it." };
+      if (pending && phase === "title") return { status: "working", label: "Reading", text: "The photos are being read: the plan opens when they're done." };
       return { status: "pending", label: "Read next", text: "Claude reads what's written on it once the plan is drawn, and Farbaek checks each measurement against your data." };
     }
     if (u.problem) return { status: "attention", label: "Needs a look", text: u.problem };
@@ -498,6 +554,23 @@ export function AutoSurveyStart({
                 {/* A traverse that closes: kept as shot unless the surveyor chooses a rule (ADR 0241). Still offered when the chosen rule
                     can't be used, so they can choose again. */}
                 {u.kind === "survey-data" && (u.adjust !== null || u.read?.reduction?.traverse) ? <TraverseChoice value={u.adjust} onChange={(m) => chooseAdjust(u.key, m)} disabled={pending || Boolean(drawn)} precision={weight} /> : null}
+                {/* What a photo is (stage 294): a field sketch is read for its lines and measurements, the deed or an old plan into the title. */}
+                {u.kind === "sketch" && u.photo ? (
+                  <div role="group" aria-label={`What ${u.name} is`} className="mt-1 inline-flex w-fit gap-1 rounded-full bg-canvas-2 p-1">
+                    {([false, true] as const).map((deed) => (
+                      <button
+                        key={String(deed)}
+                        type="button"
+                        aria-pressed={Boolean(u.deed) === deed}
+                        onClick={() => markDeed(u.key, deed)}
+                        disabled={pending || Boolean(drawn)}
+                        className={`tap min-h-10 whitespace-nowrap rounded-full px-3.5 text-sm font-medium transition-colors duration-150 ${Boolean(u.deed) === deed ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
+                      >
+                        {deed ? "Deed or old plan" : "Sketch"}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <button type="button" onClick={() => remove(u.key)} aria-label={`Remove ${u.name}`} className="tap -mr-1 inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-canvas-2 hover:text-ink">
                 <XIcon size={16} weight="bold" aria-hidden />
@@ -664,12 +737,14 @@ export function AutoSurveyStart({
           </p>
         ) : null}
         {dsr && !library && !(profile?.body.codes ?? carried.codes) ? <p className="text-sm text-ink-2">These files use the Survey Department&apos;s codes (Chapter XXII), so the plan is drawn with its code list.</p> : null}
-        {sketches.length > 0 && !sketchOff ? (
+        {photos.length > 0 && !sketchOff ? (
           <label className="flex min-h-11 items-start gap-3 rounded-sm border border-line bg-canvas-2 p-3 text-sm text-ink">
             <input type="checkbox" checked={consent} disabled={pending || Boolean(drawn)} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
             <span className="grid gap-1">
               <span>
-                Read my {readable === 1 ? "sketch" : readable > 1 ? `${readable} sketches` : "sketches"} with Claude. {readable === 1 ? "The photo goes" : "The photos go"} to Anthropic, outside Sri Lanka, to be read. When something is read, Farbaek keeps the photos with this plan, so your team can see what each reading came from, until they&apos;re read again or the workspace is deleted.
+                Read my {deeds.length > 0 ? (sketches.length > 0 ? "photos" : deeds.length === 1 ? "deed or old plan" : "deed and old plan photos") : readable === 1 ? "sketch" : readable > 1 ? `${readable} sketches` : "sketches"} with Claude. {readable === 1 ? "The photo goes" : "The photos go"} to Anthropic, outside Sri Lanka, to be read.
+                {sketches.length > 0 ? " When something is read, Farbaek keeps the sketch photos with this plan, so your team can see what each reading came from, until they're read again or the workspace is deleted." : ""}
+                {deeds.length > 0 ? " Photos of the deed or an old plan aren't kept." : ""}
               </span>
               <span className="text-ink-3">Claude writes down what&apos;s written, as written. Farbaek&apos;s own checks compare every measurement with your survey data, and the plan shows only what differs. {aiCost}</span>
             </span>
@@ -680,19 +755,21 @@ export function AutoSurveyStart({
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <button type="button" onClick={generate} disabled={Boolean(blocked) || pending} aria-describedby="generate-note" className={buttonClasses("primary", "md", "w-full sm:w-auto")}>
-            {pending ? (phase === "reading" ? "Reading your sketches…" : "Drawing your plan…") : "Generate Plan"}
+            {pending ? (phase === "reading" ? "Reading your sketches…" : phase === "title" ? "Reading the deed…" : "Drawing your plan…") : "Generate Plan"}
           </button>
           <p id="generate-note" aria-live="polite" className="text-sm text-ink-3">
             {pending && phase === "reading"
-              ? `The plan is drawn. Claude is reading ${readable === 1 ? "your sketch" : `${readable} sketches`}, which can take a minute.`
+              ? `The plan is drawn. Claude is reading ${sketches.length === 1 ? "your sketch" : `${sketches.length} sketches`}, which can take a minute.`
+              : pending && phase === "title"
+              ? "Claude is reading the deed or old plan into the plan's title, which can take a minute."
               : pending
-              ? `Reading ${data.length} ${data.length === 1 ? "file" : "files"} again on Farbaek's server, importing ${points.length} ${points.length === 1 ? "point" : "points"} and drawing the plan${reading ? ", then reading the sketches" : ""}.`
+              ? `Reading ${data.length} ${data.length === 1 ? "file" : "files"} again on Farbaek's server, importing ${points.length} ${points.length === 1 ? "point" : "points"} and drawing the plan${reading ? ", then reading the sketches" : ""}${readingDeeds ? `${reading ? " and" : ", then reading"} the deed` : ""}.`
               : blocked
                 ? blocked
                 : `Generate Plan confirms the points are in ${crs?.name}, and records that you confirmed it.`}
           </p>
         </div>
-        {pending && phase === "reading" && opening ? (
+        {pending && (phase === "reading" || phase === "title") && opening ? (
           <p className="text-sm text-ink-2">
             <Link href={opening} onClick={() => (left.current = true)} className="font-medium text-accent underline-offset-2 hover:underline">
               Open the plan now
@@ -727,7 +804,7 @@ export function AutoSurveyStart({
           <div role={drawn.failed ? "alert" : "status"} className={`grid gap-2 rounded-md border p-4 ${drawn.failed ? "border-caution/35 bg-caution/[0.04]" : "border-line bg-surface"}`}>
             <p className="flex items-start gap-2 text-sm font-medium text-ink">
               {drawn.failed ? <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden /> : <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />}
-              {drawn.failed ? <>Your plan is drawn and saved, but the sketches weren&apos;t read: {drawn.message}</> : <>Your plan is drawn and saved. {drawn.message}</>}
+              {drawn.failed ? <>Your plan is drawn and saved, but not everything on the photos was read. {drawn.message}</> : <>Your plan is drawn and saved. {drawn.message}</>}
             </p>
             <p className="pl-6 text-sm text-ink-2">{drawn.failed ? "Open the plan, and read them again from its Draft step." : "Clearer photos, taken flat and close up, can be read from the plan's Draft step."}</p>
             <Link href={drawn.next} className="pl-6 text-sm font-medium text-accent underline-offset-2 hover:underline">

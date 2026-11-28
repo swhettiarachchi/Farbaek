@@ -9,7 +9,7 @@ import { Card, CardTitle } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
-import { ConfirmItem } from "./confirm-item";
+import { ConfirmItem, ConfirmTogether, LotLabel } from "./confirm-item";
 import { KeepAsSurveyed } from "./keep-as-surveyed";
 import { SketchFix, SketchFixResult } from "./sketch-fix";
 
@@ -87,9 +87,26 @@ export function NeedsYou({ doc, points, findings, base, projectId, baseVersion, 
       ) : e.evidence ? (
         <p className="text-sm text-ink-2">{e.evidence}</p>
       ) : null}
+      {e.together ? (
+        // What the sketch shows for each, one line each, folded: the sheet below shows them drawn.
+        <details className="group/together text-sm">
+          <summary className="flex min-h-10 cursor-pointer list-none items-center gap-1.5 font-medium text-ink [&::-webkit-details-marker]:hidden">
+            <CaretDownIcon size={14} weight="bold" className="transition-transform duration-150 group-open/together:rotate-180" aria-hidden />
+            <span className="group-open/together:hidden">See all {e.together.keys.length}</span>
+            <span className="hidden group-open/together:inline">Hide them</span>
+          </summary>
+          <ul className="grid list-disc gap-1 pt-1 pl-5 text-ink-2">
+            {e.together.lines.map((l, k) => (
+              <li key={k}>{l}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       <p className="text-sm text-ink-2">{e.next}</p>
       {e.holds ? <p className="text-sm text-ink-3">{e.holds}</p> : null}
       <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+        {e.lotLabel ? <LotLabel projectId={projectId} baseVersion={baseVersion} lotId={e.lotLabel.lotId} readOnly={readOnly} /> : null}
+        {e.together ? <ConfirmTogether projectId={projectId} baseVersion={baseVersion} keys={e.together.keys} readOnly={readOnly} /> : null}
         {e.confirm ? <ConfirmItem projectId={projectId} baseVersion={baseVersion} keyId={e.confirm} confirmed={false} readOnly={readOnly} /> : null}
         {e.keep ? <KeepAsSurveyed projectId={projectId} baseVersion={baseVersion} keyId={e.keep.key} kept={e.keep.kept} readOnly={readOnly} /> : null}
         {e.step && e.step !== "plan" ? (

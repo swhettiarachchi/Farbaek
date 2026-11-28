@@ -124,6 +124,19 @@ function answered(doc: SurveyDocument, item: string | undefined, by: "confirm" |
   return doc.provenance[key]?.reviewed === true;
 }
 
+/**
+ * A line the sketch put on the plan whose course nothing stands against (stage 294): settled where it runs (exact numbers, a sure read,
+ * its points on it), and no question still open, of any kind, about it or about any sketch element it comes from.
+ */
+export function settledSketchLine(interpretation: SketchInterpretation | null, doc: SurveyDocument, key: string): boolean {
+  if (!interpretation || !key.startsWith("feature:")) return false;
+  const id = key.slice("feature:".length);
+  const p = interpretation.proposals.find((x) => sketchItemId(x) === id);
+  if (!p || p.kind !== "line" || p.settled !== true) return false;
+  const from = new Set(p.from);
+  return !interpretation.questions.some((q) => !answered(doc, q.item, q.answeredBy, interpretation) && (q.item === id || q.item === p.id || q.from.some((f) => from.has(f))));
+}
+
 /** The sketch's open questions as the plan's findings: for information, holding nothing back; those the surveyor has answered left out. */
 export function sketchQuestionFindings(interpretation: SketchInterpretation | null, doc: SurveyDocument): Finding[] {
   if (!interpretation) return [];

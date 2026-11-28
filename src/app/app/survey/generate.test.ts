@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyDocument } from "@/core/survey/document";
 
 // Shared with the stand-ins below, which vitest moves above everything else.
-const { calls, stored, carried, created, jobs, cutOff, office } = vi.hoisted(() => ({
+const { calls, stored, carried, created, jobs, cutOff, office, person } = vi.hoisted(() => ({
+  // Who is generating, and whether they have surveyor details in the workspace (stage 294).
+  person: { id: "user-1", surveyor: false },
   // The workspace's office profiles (stage 248) and what the store was asked to save or remember.
   office: { profiles: [] as unknown[], saved: [] as Record<string, unknown>[], chosen: [] as (string | null)[], saveResult: null as unknown },
   // A cut-off run the page shows (stage 235), and whether its record can still be written.
@@ -26,7 +28,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("@/server/workspace/context", () => ({
-  loadAppContext: async () => ({ mode: "live", current: { id: "org-1" }, user: { id: "user-1" }, role: "owner", writes: { enabled: true, reason: "" } }),
+  loadAppContext: async () => ({ mode: "live", current: { id: "org-1" }, user: { id: person.id }, role: "owner", writes: { enabled: true, reason: "" } }),
 }));
 vi.mock("@/server/supabase/admin", () => ({ createSupabaseAdminClient: () => ({}) }));
 // The person's own reads: only the detailed import asks one (the project's grid), so the chain answers that.
@@ -78,7 +80,7 @@ vi.mock("@/server/survey/store", async () => {
     },
   };
 });
-vi.mock("@/server/survey/defaults", () => ({ loadStartingDefaults: async () => carried.value, loadRecentPlans: async () => carried.recent }));
+vi.mock("@/server/survey/defaults", () => ({ loadStartingDefaults: async () => carried.value, loadRecentPlans: async () => carried.recent, hasSurveyorDetails: async () => person.surveyor }));
 vi.mock("@/server/survey/profiles", () => ({ loadOfficeProfiles: async () => office.profiles, loadProfileChoice: async () => null, loadProfileVersions: async () => [] }));
 vi.mock("@/server/survey/jobs", async () => {
   const actual = await vi.importActual<typeof import("@/server/survey/jobs")>("@/server/survey/jobs");
@@ -121,6 +123,7 @@ beforeEach(() => {
   jobs.length = 0;
   Object.assign(cutOff, { job: null, writable: true, latest: 1, conflict: false, sources: [] });
   Object.assign(office, { profiles: [], saved: [], chosen: [], saveResult: null });
+  Object.assign(person, { id: "user-1", surveyor: false });
 });
 
 describe("suggestions learned from the surveyor's plans (stage 270, ADR 0277)", () => {
@@ -274,6 +277,19 @@ describe("Generate Plan", () => {
   it("uses the surveyor's own project name", async () => {
     await generate({ title: "Lot 7 boundary", crsId: "EPSG:5235", files: [{ name: "boundary.csv", content: boundary }] });
     expect(calls[0]!.input.name).toBe("Lot 7 boundary");
+  });
+
+  it("names the person generating as the plan's surveyor from the start, when they have surveyor details (stage 294)", async () => {
+    // Files with no codes draw nothing first, so the plan the sketch later draws must already name them.
+    const plain = ["Point,Easting,Northing,Height,Code", "1,450000.000,700000.000,20.00,Tree", "2,450040.000,700000.000,20.00,Tree"].join("\n");
+    Object.assign(person, { id: "44444444-4444-4444-8444-444444444444", surveyor: true });
+    await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "trees.csv", content: plain }] });
+    expect((created.document as { surveyorUserId: string | null }).surveyorUserId).toBe("44444444-4444-4444-8444-444444444444");
+    // Without surveyor details, nobody is named.
+    calls.length = 0;
+    Object.assign(person, { surveyor: false });
+    await generate({ title: "", crsId: "EPSG:5235", files: [{ name: "trees.csv", content: plain }] });
+    expect((created.document as { surveyorUserId: string | null }).surveyorUserId).toBeNull();
   });
 });
 

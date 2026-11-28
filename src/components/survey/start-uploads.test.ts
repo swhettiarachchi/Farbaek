@@ -15,6 +15,22 @@ const UPLOADS: Upload[] = [
   { key: "6", name: "codes.fcl", size: 9, kind: "code-library", content: "CP,Control point\n", read: { ok: false, problem: "x" } },
 ];
 
+describe("a photo marked as the deed or an old plan (stage 294)", () => {
+  it("keeps the mark, and only a real one comes back", () => {
+    const deed: Upload = { key: "d", name: "deed.jpg", size: 4, kind: "sketch", photo, problem: null, deed: true };
+    const kept = toKept([deed, UPLOADS[2]!], "", "LOCAL");
+    expect(kept.uploads).toEqual([
+      { name: "deed.jpg", size: 4, kind: "sketch", photo, deed: true },
+      { name: "sketch.jpg", size: 4, kind: "sketch", photo },
+    ]);
+    const back = fromKept(kept, () => "k")!;
+    expect(back.uploads.map((u) => u.kind === "sketch" && u.deed === true)).toEqual([true, false]);
+    // Anything but true is no mark: a damaged entry is a sketch, as before.
+    const odd = fromKept({ ...kept, uploads: [{ ...kept.uploads[0]!, deed: "yes" }] }, () => "k")!;
+    expect(odd.uploads[0]!.kind === "sketch" && "deed" in odd.uploads[0]!).toBe(false);
+  });
+});
+
 describe("what the start screen keeps", () => {
   it("keeps what can be sent, without what was worked out from it, and never the consent", () => {
     const kept = toKept(UPLOADS, "Sample job", "EPSG:5235");
